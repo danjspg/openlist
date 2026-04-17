@@ -25,20 +25,20 @@ export default function SellerEmailField({
   helperText,
   className = "h-12 w-full rounded-full border border-slate-300 bg-white px-4 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-500",
 }: Props) {
-  const [value, setValue] = useState(defaultValue)
+  const [value, setValue] = useState(() => {
+    if (typeof window === "undefined") {
+      return defaultValue
+    }
+
+    const saved = window.localStorage.getItem(STORAGE_KEY)
+    return defaultValue?.trim() ? defaultValue : saved || ""
+  })
 
   useEffect(() => {
-    const saved = window.localStorage.getItem(STORAGE_KEY)
-
-    if ((!defaultValue || defaultValue.trim() === "") && saved) {
-      setValue(saved)
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(STORAGE_KEY, value)
     }
-  }, [defaultValue])
-
-  function handleChange(nextValue: string) {
-    setValue(nextValue)
-    window.localStorage.setItem(STORAGE_KEY, nextValue)
-  }
+  }, [value])
 
   return (
     <div>
@@ -56,7 +56,7 @@ export default function SellerEmailField({
         value={value}
         required={required}
         placeholder={placeholder}
-        onChange={(e) => handleChange(e.target.value)}
+        onChange={(e) => setValue(e.target.value)}
         className={className}
       />
 
