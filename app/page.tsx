@@ -1,6 +1,38 @@
 import Link from "next/link"
+import { supabase } from "@/lib/supabase"
 
-export default function HomePage() {
+type Listing = {
+  slug: string
+  title: string
+  county: string
+  price: string
+  image: string
+  images?: string[] | null
+  status: string
+  created_at?: string
+}
+
+export default async function HomePage() {
+  const { data: featuredData, error: featuredError } = await supabase
+    .from("listings")
+    .select("slug,title,county,price,image,images,status,created_at")
+    .eq("status", "Featured")
+    .order("created_at", { ascending: false })
+    .limit(3)
+
+  const { data: latestData, error: latestError } = await supabase
+    .from("listings")
+    .select("slug,title,county,price,image,images,status,created_at")
+    .order("created_at", { ascending: false })
+    .limit(3)
+
+  const featuredListings: Listing[] =
+    !featuredError && featuredData && featuredData.length > 0
+      ? featuredData
+      : !latestError && latestData
+        ? latestData
+        : []
+
   return (
     <main className="min-h-screen bg-stone-50 text-stone-900">
       <section className="mx-auto grid max-w-6xl gap-12 px-6 py-16 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:py-24">
@@ -91,61 +123,52 @@ export default function HomePage() {
           </div>
 
           <div className="mt-10 grid gap-8 md:grid-cols-3">
-            {[
-              {
-                title: "Coastal Site, Myrtleville East",
-                county: "Cork",
-                price: "€550,000",
-                image:
-                  "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1400&q=80",
-              },
-              {
-                title: "Period Home, Blackrock",
-                county: "Dublin",
-                price: "€1,250,000",
-                image:
-                  "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1400&q=80",
-              },
-              {
-                title: "Modern Home, Galway",
-                county: "Galway",
-                price: "€795,000",
-                image:
-                  "https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=1400&q=80",
-              },
-            ].map((listing) => (
-              <article
-                key={listing.title}
-                className="overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-sm"
-              >
-                <img
-                  src={listing.image}
-                  alt={listing.title}
-                  className="h-64 w-full object-cover"
-                />
-                <div className="p-6">
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="text-sm uppercase tracking-wide text-stone-500">
-                      {listing.county}
-                    </span>
-                    <span className="text-sm font-medium text-stone-900">
-                      {listing.price}
-                    </span>
-                  </div>
+            {featuredListings.length > 0 ? (
+              featuredListings.map((listing) => {
+                const displayImage =
+                  listing.images && listing.images.length > 0
+                    ? listing.images[0]
+                    : listing.image
 
-                  <h3 className="mt-3 text-2xl font-semibold tracking-tight">
-                    {listing.title}
-                  </h3>
-
-                  <Link
-                    href="/listings/sample"
-                    className="mt-5 inline-block text-sm font-medium text-stone-700 underline-offset-4 transition hover:text-stone-900 hover:underline"
+                return (
+                  <article
+                    key={listing.slug}
+                    className="overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-sm"
                   >
-                    View listing
-                  </Link>
-                </div>
-              </article>
-            ))}
+                    <img
+                      src={displayImage}
+                      alt={listing.title}
+                      className="h-64 w-full object-cover"
+                    />
+                    <div className="p-6">
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="text-sm uppercase tracking-wide text-stone-500">
+                          {listing.county}
+                        </span>
+                        <span className="text-sm font-medium text-stone-900">
+                          {listing.price}
+                        </span>
+                      </div>
+
+                      <h3 className="mt-3 text-2xl font-semibold tracking-tight">
+                        {listing.title}
+                      </h3>
+
+                      <Link
+                        href={`/listings/${listing.slug}`}
+                        className="mt-5 inline-block text-sm font-medium text-stone-700 underline-offset-4 transition hover:text-stone-900 hover:underline"
+                      >
+                        View listing
+                      </Link>
+                    </div>
+                  </article>
+                )
+              })
+            ) : (
+              <div className="rounded-3xl border border-stone-200 bg-white p-8 text-stone-600 md:col-span-3">
+                No featured listings yet.
+              </div>
+            )}
           </div>
 
           <div className="mt-10">
