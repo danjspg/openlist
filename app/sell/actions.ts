@@ -97,7 +97,9 @@ function getOrderedFiles(formData: FormData) {
   const ordered: File[] = []
 
   for (const targetName of fileNameOrder) {
-    const index = files.findIndex((file, idx) => !used.has(idx) && file.name === targetName)
+    const index = files.findIndex(
+      (file, idx) => !used.has(idx) && file.name === targetName
+    )
     if (index !== -1) {
       ordered.push(files[index])
       used.add(index)
@@ -131,7 +133,10 @@ function getSharedValues(formData: FormData) {
   const description = String(formData.get("description") ?? "").trim()
   const status = String(formData.get("status") ?? "For Sale").trim()
   const imageUrlFallback = String(formData.get("imageUrl") ?? "").trim()
-  const highlights = formData.getAll("highlights").map((value) => String(value)).filter(Boolean)
+  const highlights = formData
+    .getAll("highlights")
+    .map((value) => String(value))
+    .filter(Boolean)
 
   const title = generateListingTitle({
     type,
@@ -140,9 +145,10 @@ function getSharedValues(formData: FormData) {
     county,
   })
 
-  const legacySqft = areaValue && areaUnit
-    ? getLegacySqftValue(type, areaValue, areaUnit)
-    : 0
+  const legacySqft =
+    areaValue && areaUnit
+      ? getLegacySqftValue(type, areaValue, areaUnit)
+      : 0
 
   return {
     sellerEmail,
@@ -171,15 +177,17 @@ function getSharedValues(formData: FormData) {
 export async function createListing(formData: FormData) {
   const values = getSharedValues(formData)
 
-  if (
-    !values.sellerEmail ||
-    !values.type ||
-    !values.county ||
-    !values.addressLine2 ||
-    !values.price ||
-    !values.description
-  ) {
-    throw new Error("Seller email, property details, price and description are required.")
+  const missing: string[] = []
+
+  if (!values.sellerEmail) missing.push("email")
+  if (!values.type) missing.push("property type")
+  if (!values.county) missing.push("county")
+  if (!values.addressLine2) missing.push("town / local area")
+  if (!values.price) missing.push("price")
+  if (!values.description) missing.push("description")
+
+  if (missing.length > 0) {
+    throw new Error(`Please complete: ${missing.join(", ")}.`)
   }
 
   const baseSlug = buildSlug(values.title)
@@ -243,14 +251,16 @@ export async function updateListing(formData: FormData) {
     throw new Error("Missing slug.")
   }
 
-  if (
-    !values.type ||
-    !values.county ||
-    !values.addressLine2 ||
-    !values.price ||
-    !values.description
-  ) {
-    throw new Error("Missing required fields for update.")
+  const missing: string[] = []
+
+  if (!values.type) missing.push("property type")
+  if (!values.county) missing.push("county")
+  if (!values.addressLine2) missing.push("town / local area")
+  if (!values.price) missing.push("price")
+  if (!values.description) missing.push("description")
+
+  if (missing.length > 0) {
+    throw new Error(`Please complete: ${missing.join(", ")}.`)
   }
 
   const { data: existing, error: existingError } = await supabase

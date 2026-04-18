@@ -53,7 +53,9 @@ export default function SellerListingV2Form({
   initialData,
 }: Props) {
   const [type, setType] = useState(initialData?.type || "House")
-  const [subtype, setSubtype] = useState(initialData?.subtype || getSubtypeOptions(initialData?.type || "House")[0] || "")
+  const [subtype, setSubtype] = useState(
+    initialData?.subtype || getSubtypeOptions(initialData?.type || "House")[0] || ""
+  )
   const [saleMethod, setSaleMethod] = useState(initialData?.saleMethod || "Private Sale")
   const [county, setCounty] = useState(initialData?.county || "Cork")
   const [addressLine2, setAddressLine2] = useState(initialData?.addressLine2 || "")
@@ -82,6 +84,7 @@ export default function SellerListingV2Form({
   const [aiError, setAiError] = useState("")
   const [previewImages, setPreviewImages] = useState<PreviewImage[]>([])
   const [draggingId, setDraggingId] = useState<string | null>(null)
+  const [imageError, setImageError] = useState("")
 
   const isSite = type === "Site"
   const isResidential = type === "House" || type === "Apartment"
@@ -120,8 +123,29 @@ export default function SellerListingV2Form({
 
   function handleImageChange(event: React.ChangeEvent<HTMLInputElement>) {
     previewImages.forEach((img) => URL.revokeObjectURL(img.previewUrl))
+    setImageError("")
 
     const files = Array.from(event.target.files ?? [])
+
+    const maxPerFileBytes = 6 * 1024 * 1024
+    const maxTotalBytes = 20 * 1024 * 1024
+
+    const oversizedFile = files.find((file) => file.size > maxPerFileBytes)
+    if (oversizedFile) {
+      event.target.value = ""
+      setPreviewImages([])
+      setImageError(`"${oversizedFile.name}" is larger than 6MB. Please choose a smaller image.`)
+      return
+    }
+
+    const totalBytes = files.reduce((sum, file) => sum + file.size, 0)
+    if (totalBytes > maxTotalBytes) {
+      event.target.value = ""
+      setPreviewImages([])
+      setImageError("Total upload size is too large. Please keep combined images under 20MB.")
+      return
+    }
+
     const next = files.map((file, index) => ({
       id: `${file.name}-${index}-${Date.now()}`,
       name: file.name,
@@ -303,13 +327,14 @@ export default function SellerListingV2Form({
 
         <div>
           <label className="mb-2 block text-sm font-medium text-slate-700">
-            Address line 2
+            Town / area
           </label>
           <input
             name="addressLine2"
             value={addressLine2}
             onChange={(e) => setAddressLine2(e.target.value)}
             placeholder="Village, town or local area"
+            required
             className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-500"
           />
         </div>
@@ -348,6 +373,7 @@ export default function SellerListingV2Form({
             value={price}
             onChange={(e) => setPrice(e.target.value)}
             placeholder="€450,000"
+            required
             className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-500"
           />
         </div>
@@ -447,6 +473,7 @@ export default function SellerListingV2Form({
           Key features / notes
         </label>
         <textarea
+          name="features"
           rows={4}
           value={features}
           onChange={(e) => setFeatures(e.target.value)}
@@ -542,6 +569,7 @@ export default function SellerListingV2Form({
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Describe the property, setting, layout and key selling points."
+          required
           className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-500"
         />
       </div>
@@ -597,6 +625,12 @@ export default function SellerListingV2Form({
             onChange={handleImageChange}
             className="block w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700 file:mr-4 file:rounded-full file:border-0 file:bg-slate-900 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-slate-700"
           />
+          {imageError && (
+            <p className="mt-3 text-sm text-red-600">{imageError}</p>
+          )}
+          <p className="mt-2 text-xs text-slate-500">
+            Max 6MB per image. Keep total upload size under 20MB.
+          </p>
         </div>
 
         {previewImages.length > 0 && (
