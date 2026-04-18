@@ -157,7 +157,7 @@ export default async function HomePage() {
                           {listing.county}
                         </span>
                         <span className="text-sm font-medium text-stone-900">
-                          {listing.price}
+                          {formatEuro(listing.price)}
                         </span>
                       </div>
 
