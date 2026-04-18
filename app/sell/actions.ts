@@ -103,11 +103,9 @@ async function uploadImageFile(file: File, slug: string) {
 }
 
 function getOrderedFiles(formData: FormData) {
-  const files = formData
+  return formData
     .getAll("imageFiles")
     .filter((v): v is File => v instanceof File && v.size > 0)
-
-  return files
 }
 
 function getSharedValues(formData: FormData) {
@@ -233,17 +231,23 @@ export async function updateListing(formData: FormData) {
     throw new Error("Missing slug.")
   }
 
-  const { data: existing } = await supabase
+  const { data: existing, error: existingError } = await supabase
     .from("listings")
-    .select("images,image")
+    .select("slug,images,image")
     .eq("slug", slug)
     .single()
+
+  if (existingError) {
+    throw new Error(existingError.message)
+  }
 
   const existingImages = normaliseStoredImages(existing?.images, existing?.image)
   const files = getOrderedFiles(formData)
 
-  console.log("=== DEBUG UPDATE ===")
-  console.log("existingImages:", existingImages.length)
+  console.log("=== DEBUG UPDATE START ===")
+  console.log("slug:", slug)
+  console.log("existingImages count:", existingImages.length)
+  console.log("existingImages:", existingImages)
   console.log("files received:", files.length)
   console.log(
     "file names:",
@@ -256,12 +260,12 @@ export async function updateListing(formData: FormData) {
     uploaded = await Promise.all(files.map((f) => uploadImageFile(f, slug)))
   }
 
-  console.log("uploaded:", uploaded.length)
+  console.log("uploaded count:", uploaded.length)
   console.log("uploaded urls:", uploaded)
 
   const finalImages = [...existingImages, ...uploaded]
 
-  console.log("finalImages:", finalImages.length)
+  console.log("finalImages count:", finalImages.length)
   console.log("finalImages urls:", finalImages)
 
   const legacySqft =
@@ -276,7 +280,7 @@ export async function updateListing(formData: FormData) {
     county: values.county,
   })
 
-  const { error } = await supabase
+  const { data: updatedRows, error: updateError } = await supabase
     .from("listings")
     .update({
       title,
@@ -300,10 +304,17 @@ export async function updateListing(formData: FormData) {
       images: finalImages,
     })
     .eq("slug", slug)
+    .select("slug,image,images")
 
-  if (error) {
-    throw new Error(error.message)
+  console.log("update error:", updateError)
+  console.log("updated rows:", updatedRows)
+
+  if (updateError) {
+    throw new Error(updateError.message)
   }
+
+  const updatedCount = updatedRows?.length ?? 0
+  console.log("updated row count:", updatedCount)
 
   revalidatePath("/listings")
   revalidatePath("/my-listings")
