@@ -82,6 +82,17 @@ export default async function HomePage() {
               <div className="mt-1">A more transparent seller journey</div>
             </div>
           </div>
+
+          <div className="mt-10 rounded-2xl border border-stone-200 bg-white/80 px-5 py-4 shadow-sm">
+            <p className="text-sm leading-6 text-stone-600">
+              OpenList is a marketing platform for private property listings.
+            </p>
+            <p className="mt-2 text-sm leading-6 text-stone-600">
+              Listing information is provided by sellers and has not been independently verified.
+              OpenList does not act as an estate agent and does not provide valuation,
+              negotiation, or legal services.
+            </p>
+          </div>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -250,6 +261,14 @@ export default async function HomePage() {
               >
                 Explore selling with OpenList
               </Link>
+            </div>
+
+            <div className="mt-8 border-t border-white/10 pt-6">
+              <p className="text-sm leading-6 text-stone-300">
+                OpenList is a marketing platform for private property listings.
+                Sellers remain responsible for the accuracy of listing information,
+                and interested parties should satisfy themselves as to accuracy.
+              </p>
             </div>
           </div>
         </div>

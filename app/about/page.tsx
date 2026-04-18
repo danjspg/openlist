@@ -5,7 +5,6 @@ export default function AboutPage() {
   return (
     <main className="min-h-screen bg-white">
       <section className="mx-auto max-w-6xl px-6 py-14 sm:py-18">
-        {/* Hero */}
         <div className="rounded-[32px] border border-slate-200 bg-slate-50 px-8 py-12 text-center sm:px-12 sm:py-16">
           <div className="flex justify-center">
             <Image
@@ -18,7 +17,6 @@ export default function AboutPage() {
             />
           </div>
 
-          {/* 🔥 upgraded */}
           <p className="mt-8 text-base font-semibold tracking-tight text-slate-700">
             About OpenList
           </p>
@@ -34,10 +32,8 @@ export default function AboutPage() {
           </p>
         </div>
 
-        {/* Intro + values */}
         <div className="mt-16 grid gap-10 lg:grid-cols-[1.45fr_0.85fr] lg:items-start">
           <div>
-            {/* 🔥 upgraded */}
             <p className="text-base font-semibold tracking-tight text-slate-700">
               Why it exists
             </p>
@@ -70,7 +66,6 @@ export default function AboutPage() {
           </div>
 
           <aside className="rounded-[28px] border border-slate-200 bg-white p-7 shadow-sm">
-            {/* 🔥 upgraded */}
             <p className="text-base font-semibold tracking-tight text-slate-700">
               What matters
             </p>
@@ -105,7 +100,27 @@ export default function AboutPage() {
           </aside>
         </div>
 
-        {/* Audience cards */}
+        <div className="mt-16 rounded-[28px] border border-slate-200 bg-white p-8 shadow-sm">
+          <p className="text-base font-semibold tracking-tight text-slate-700">
+            Transparency and platform role
+          </p>
+
+          <div className="mt-5 space-y-5 text-base leading-7 text-slate-600">
+            <p>
+              OpenList is a marketing platform designed to help private sellers
+              present property listings professionally and receive enquiries
+              directly.
+            </p>
+
+            <p>
+              OpenList does not act as an estate agent and does not provide
+              valuation, negotiation, conveyancing, or legal services. Listing
+              information is supplied by sellers, and interested parties should
+              satisfy themselves as to accuracy.
+            </p>
+          </div>
+        </div>
+
         <div className="mt-16 grid gap-6 md:grid-cols-3">
           <div className="rounded-[24px] border border-slate-200 bg-white p-7 shadow-sm">
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
@@ -138,7 +153,6 @@ export default function AboutPage() {
           </div>
         </div>
 
-        {/* Closing panel */}
         <div className="mt-16 rounded-[32px] bg-slate-900 px-8 py-10 text-white sm:px-10 sm:py-12">
           <div className="max-w-3xl">
             <p className="text-sm font-medium uppercase tracking-[0.24em] text-slate-300">
@@ -153,6 +167,13 @@ export default function AboutPage() {
               The ambition is simple: make online property feel more refined,
               more intentional, and more trustworthy — for every kind of home,
               site, and standout listing.
+            </p>
+
+            <p className="mt-5 leading-8 text-slate-300">
+              OpenList is a marketing platform for private property listings and
+              does not act as an estate agent. Sellers remain responsible for
+              the accuracy of listing information, and interested parties should
+              satisfy themselves as to accuracy.
             </p>
 
             <div className="mt-8">
