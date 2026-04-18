@@ -7,133 +7,115 @@ const client = new OpenAI({
 })
 
 type GenerateListingCopyInput = {
-  title: string
-  county: string
-  price: string
   type: string
+  subtype: string
+  saleMethod: string
+  county: string
+  addressLine2: string
+  price: string
   beds?: number
   baths?: number
-  sqft?: number
-  planning?: string
+  areaValue?: number
+  areaUnit?: string
   viewing?: string
   features?: string
 }
 
-export async function generateListingCopy(
-  input: GenerateListingCopyInput
-): Promise<{ excerpt: string; description: string }> {
-  const title = input.title.trim()
-  const county = input.county.trim()
-  const price = input.price.trim()
+export async function generateListingCopy(input: GenerateListingCopyInput): Promise<{
+  excerpt: string
+  description: string
+  bullets: string[]
+}> {
   const type = input.type.trim()
-  const planning = input.planning?.trim() || ""
+  const subtype = input.subtype.trim()
+  const county = input.county.trim()
+  const addressLine2 = input.addressLine2.trim()
+  const price = input.price.trim()
   const viewing = input.viewing?.trim() || ""
   const features = input.features?.trim() || ""
+  const saleMethod = input.saleMethod?.trim() || "Private Sale"
 
-  if (!title || !county || !type) {
-    throw new Error("Title, county and type are required to generate copy.")
+  if (!type || !county) {
+    throw new Error("Property type and county are required to generate copy.")
   }
 
-  const isSite = type.toLowerCase() === "site"
-  const isApartment = type.toLowerCase() === "apartment"
-  const isHouse = type.toLowerCase() === "house"
+  const isSite = type === "Site"
+  const isApartment = type === "Apartment"
+  const isHouse = type === "House"
 
   const propertyInstructions = isSite
     ? `
 Write this as a premium Irish site / land listing.
-Focus on:
-- setting
-- planning status if provided
-- privacy, outlook, access, and development potential
-- custom-build appeal
-- restrained, credible language
-
-Do NOT describe internal accommodation, room flow, or family living unless explicitly provided.
-Do NOT imply planning is granted unless the planning field says so.
+Focus on setting, outlook, scale, privacy, access and custom-build or development appeal.
+Do not describe accommodation or internal layout.
 `
     : isApartment
       ? `
 Write this as a premium Irish apartment listing.
-Focus on:
-- presentation
-- layout
-- light
-- practicality
-- low-maintenance appeal
-- convenience of setting
-
-Do NOT invent amenities such as parking, balconies, concierge, or transport links unless clearly provided.
+Focus on presentation, light, layout, practicality and ease of living.
+Do not invent amenities such as parking, balconies, concierge or transport links.
 `
       : isHouse
         ? `
 Write this as a premium Irish house listing.
-Focus on:
-- overall presentation
-- proportions
-- layout
-- natural light
-- privacy
-- practical family appeal
-- quality of setting
-
-Do NOT invent extra rooms, extensions, gardens, or sea views unless clearly provided.
+Focus on proportions, light, setting, presentation and practical appeal.
+Do not invent extra rooms, sea views, gardens or extensions.
 `
         : `
-Write this as a premium Irish property listing with calm, restrained language.
-Do not invent features.
+Write this as a premium Irish property listing with restrained and credible language.
+Do not invent facts.
 `
 
   const prompt = `
-You are writing listing copy for OpenList, a modern Irish property platform.
+You are writing property marketing copy for OpenList, a modern Irish property platform.
 
-Tone and style:
+Tone:
 - calm
 - premium
 - restrained
-- credible
+- factual
 - elegant but not flashy
-- no estate-agent clichés
-- suitable for the Irish market
+- Irish / UK spelling
 
-Avoid phrases like:
+Avoid estate-agent clichés such as:
 - stunning
 - must-see
 - rare opportunity
 - dream home
-- luxurious throughout
 - sure to impress
+- luxurious throughout
 - unbeatable
 
 Property details:
-- Title: ${title}
-- County: ${county}
-- Price: ${price || "n/a"}
 - Type: ${type}
+- Subtype: ${subtype || "n/a"}
+- Sale method: ${saleMethod}
+- County: ${county}
+- Local area: ${addressLine2 || "n/a"}
+- Price: ${price || "n/a"}
 - Beds: ${input.beds || "n/a"}
 - Baths: ${input.baths || "n/a"}
-- Sq Ft / Site Area: ${input.sqft || "n/a"}
-- Planning: ${planning || "n/a"}
+- Area: ${input.areaValue || "n/a"} ${input.areaUnit || ""}
 - Viewing: ${viewing || "n/a"}
-- Seller notes / key features: ${features || "n/a"}
+- Seller notes / features: ${features || "n/a"}
 
-Additional instructions:
+Instructions:
 ${propertyInstructions}
 
-Rules:
-- Do not invent facts.
-- Use Irish/UK spelling.
-- Keep the copy feeling polished and trustworthy.
-- Mention the county naturally.
-- If useful, include the price naturally, but do not force it.
-- The excerpt should be one sentence, around 16 to 28 words.
-- The description should be around 120 to 170 words.
-- Return valid JSON only, with no markdown fences.
-
-Return exactly:
+Return valid JSON only in this exact shape:
 {
   "excerpt": "...",
-  "description": "..."
+  "description": "...",
+  "bullets": ["...", "...", "...", "...", "...", "...", "...", "..."]
 }
+
+Rules:
+- Excerpt: one sentence, 16 to 28 words
+- Description: around 120 to 170 words
+- Bullets: exactly 8
+- Bullets must be short, factual and scannable, ideally 2 to 5 words
+- No invented facts
+- No markdown
 `
 
   const response = await client.responses.create({
@@ -150,9 +132,14 @@ Return exactly:
   try {
     const parsed = JSON.parse(text)
 
+    const bullets = Array.isArray(parsed.bullets)
+      ? parsed.bullets.map((item: unknown) => String(item).trim()).filter(Boolean).slice(0, 8)
+      : []
+
     return {
       excerpt: String(parsed.excerpt ?? "").trim(),
       description: String(parsed.description ?? "").trim(),
+      bullets,
     }
   } catch {
     throw new Error("AI returned an unexpected format.")

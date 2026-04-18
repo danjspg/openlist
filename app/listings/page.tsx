@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
+import { formatLocation, getAreaDisplay } from "@/lib/property"
 
 type Listing = {
   id?: number
@@ -10,6 +11,7 @@ type Listing = {
   seller_email?: string | null
   title: string
   county: string
+  address_line_2?: string | null
   price: string
   beds: number
   baths: number
@@ -20,9 +22,13 @@ type Listing = {
   description: string
   status: string
   type: string
-  planning?: string | null
+  subtype?: string | null
+  sale_method?: string | null
+  area_value?: number | null
+  area_unit?: string | null
   viewing?: string | null
   created_at?: string
+  highlights?: string[] | null
 }
 
 function formatEuro(value: string) {
@@ -39,14 +45,6 @@ function formatEuro(value: string) {
   }).format(numeric)
 }
 
-function formatNumber(value: number | null | undefined) {
-  if (value === null || value === undefined || Number.isNaN(value)) {
-    return "—"
-  }
-
-  return new Intl.NumberFormat("en-IE").format(value)
-}
-
 export default function ListingsPage() {
   const [listings, setListings] = useState<Listing[]>([])
   const [loading, setLoading] = useState(true)
@@ -59,17 +57,25 @@ export default function ListingsPage() {
 
   useEffect(() => {
     async function loadListings() {
-      const { data, error } = await supabase
+      const { data: featured, error: featuredError } = await supabase
         .from("listings")
         .select("*")
+        .eq("status", "Featured")
         .order("created_at", { ascending: false })
 
-      if (error) {
-        setError(error.message)
-      } else {
-        setListings((data ?? []) as Listing[])
+      const { data: others, error: othersError } = await supabase
+        .from("listings")
+        .select("*")
+        .neq("status", "Featured")
+        .order("created_at", { ascending: false })
+
+      if (featuredError || othersError) {
+        setError(featuredError?.message || othersError?.message || "Unknown error")
+        setLoading(false)
+        return
       }
 
+      setListings([...(featured ?? []), ...(others ?? [])] as Listing[])
       setLoading(false)
     }
 
@@ -77,23 +83,17 @@ export default function ListingsPage() {
   }, [])
 
   const counties = useMemo(() => {
-    const values = Array.from(
-      new Set(listings.map((listing) => listing.county))
-    ).sort()
+    const values = Array.from(new Set(listings.map((listing) => listing.county))).sort()
     return ["All", ...values]
   }, [listings])
 
   const types = useMemo(() => {
-    const values = Array.from(
-      new Set(listings.map((listing) => listing.type))
-    ).sort()
+    const values = Array.from(new Set(listings.map((listing) => listing.type))).sort()
     return ["All", ...values]
   }, [listings])
 
   const statuses = useMemo(() => {
-    const values = Array.from(
-      new Set(listings.map((listing) => listing.status))
-    ).sort()
+    const values = Array.from(new Set(listings.map((listing) => listing.status))).sort()
     return ["All", ...values]
   }, [listings])
 
@@ -104,21 +104,21 @@ export default function ListingsPage() {
       const searchable = [
         listing.title,
         listing.county,
+        listing.address_line_2 ?? "",
         listing.excerpt,
         listing.description,
         listing.type,
+        listing.subtype ?? "",
         listing.status,
-        listing.planning ?? "",
+        ...(listing.highlights ?? []),
       ]
         .join(" ")
         .toLowerCase()
 
       const matchesSearch = q === "" || searchable.includes(q)
       const matchesType = typeFilter === "All" || listing.type === typeFilter
-      const matchesStatus =
-        statusFilter === "All" || listing.status === statusFilter
-      const matchesCounty =
-        countyFilter === "All" || listing.county === countyFilter
+      const matchesStatus = statusFilter === "All" || listing.status === statusFilter
+      const matchesCounty = countyFilter === "All" || listing.county === countyFilter
 
       return matchesSearch && matchesType && matchesStatus && matchesCounty
     })
@@ -154,7 +154,7 @@ export default function ListingsPage() {
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search by title, county, keyword"
+                placeholder="Search by title, county, local area or keyword"
                 className="h-11 w-full rounded-full border border-slate-300 bg-white px-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-500"
               />
             </div>
@@ -256,7 +256,6 @@ export default function ListingsPage() {
         ) : filteredListings.length > 0 ? (
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-3">
             {filteredListings.map((listing) => {
-              const isSite = listing.type === "Site"
               const images =
                 listing.images && listing.images.length > 0
                   ? listing.images
@@ -266,6 +265,13 @@ export default function ListingsPage() {
 
               const displayImage = images[0]
               const photoCount = images.length
+              const isFeatured = listing.status === "Featured"
+              const areaDisplay = getAreaDisplay({
+                type: listing.type,
+                areaValue: listing.area_value,
+                areaUnit: listing.area_unit,
+              })
+              const location = formatLocation(listing.address_line_2, listing.county)
 
               return (
                 <Link
@@ -290,10 +296,16 @@ export default function ListingsPage() {
 
                     <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
 
-                    <div className="absolute top-4 left-4 z-10">
-                      <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-900 shadow-sm">
-                        {listing.status}
-                      </span>
+                    <div className="absolute top-4 left-4 z-10 flex flex-wrap gap-2">
+                      {isFeatured ? (
+                        <span className="inline-flex items-center rounded-full bg-slate-900 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-white shadow-sm">
+                          Featured
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-900 shadow-sm">
+                          {listing.status}
+                        </span>
+                      )}
                     </div>
 
                     {photoCount > 1 && (
@@ -308,9 +320,9 @@ export default function ListingsPage() {
                   <div className="p-6">
                     <div className="flex items-center justify-between gap-4">
                       <p className="text-xs uppercase tracking-[0.22em] text-slate-500">
-                        {listing.type}
+                        {listing.subtype || listing.type}
                       </p>
-                      <p className="text-sm text-slate-500">{listing.county}</p>
+                      <p className="text-sm text-slate-500">{location}</p>
                     </div>
 
                     <h2 className="mt-3 line-clamp-2 text-2xl font-semibold tracking-tight text-slate-900">
@@ -321,21 +333,31 @@ export default function ListingsPage() {
                       {listing.excerpt}
                     </p>
 
+                    {listing.highlights && listing.highlights.length > 0 && (
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {listing.highlights.slice(0, 3).map((highlight) => (
+                          <span
+                            key={highlight}
+                            className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-700"
+                          >
+                            {highlight}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
                     <div className="mt-5 flex flex-wrap gap-4 text-sm text-slate-500">
-                      {isSite ? (
+                      {(listing.type === "House" || listing.type === "Apartment") && (
                         <>
-                          <span>Site Area: {formatNumber(listing.sqft)}</span>
-                          {listing.planning && (
-                            <span>Planning: {listing.planning}</span>
-                          )}
-                        </>
-                      ) : (
-                        <>
-                          <span>{formatNumber(listing.beds)} bed</span>
-                          <span>{formatNumber(listing.baths)} bath</span>
-                          <span>{formatNumber(listing.sqft)} sq ft</span>
+                          <span>{listing.beds || "—"} bed</span>
+                          <span>{listing.baths || "—"} bath</span>
+                          <span>{areaDisplay}</span>
                         </>
                       )}
+
+                      {listing.type === "Site" && <span>{areaDisplay}</span>}
+
+                      {listing.type === "Commercial" && <span>{areaDisplay}</span>}
                     </div>
 
                     <div className="mt-6 flex items-end justify-between gap-4">
