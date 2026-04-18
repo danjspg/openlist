@@ -21,13 +21,8 @@ async function makeUniqueSlug(baseSlug: string) {
       .eq("slug", slug)
       .maybeSingle()
 
-    if (error) {
-      throw new Error(error.message)
-    }
-
-    if (!data) {
-      return slug
-    }
+    if (error) throw new Error(error.message)
+    if (!data) return slug
 
     slug = `${baseSlug}-${count}`
     count += 1
@@ -54,28 +49,24 @@ function formatDescription(input: string) {
 function normaliseStoredImages(imagesValue: unknown, fallbackImage?: string | null) {
   if (Array.isArray(imagesValue)) {
     return imagesValue.filter(
-      (item): item is string => typeof item === "string" && item.trim().length > 0
+      (item): item is string => typeof item === "string" && item.trim()
     )
   }
 
-  if (typeof imagesValue === "string" && imagesValue.trim().length > 0) {
+  if (typeof imagesValue === "string" && imagesValue.trim()) {
     try {
       const parsed = JSON.parse(imagesValue)
       if (Array.isArray(parsed)) {
         return parsed.filter(
-          (item): item is string => typeof item === "string" && item.trim().length > 0
+          (item): item is string => typeof item === "string" && item.trim()
         )
       }
-      return [imagesValue]
-    } catch {
-      return [imagesValue]
-    }
+    } catch {}
+
+    return [imagesValue]
   }
 
-  if (fallbackImage && fallbackImage.trim().length > 0) {
-    return [fallbackImage]
-  }
-
+  if (fallbackImage) return [fallbackImage]
   return []
 }
 
@@ -89,281 +80,134 @@ async function uploadImageFile(file: File, slug: string) {
     throw new Error("Please upload images smaller than 6MB.")
   }
 
-  const bytes = await file.arrayBuffer()
-  const buffer = Buffer.from(bytes)
+  const buffer = Buffer.from(await file.arrayBuffer())
   const ext = getFileExtension(file.name)
   const path = `${slug}/${randomUUID()}.${ext}`
 
-  const { error: uploadError } = await supabase.storage
+  const { error } = await supabase.storage
     .from("listing-images")
     .upload(path, buffer, {
       contentType: file.type,
       upsert: false,
     })
 
-  if (uploadError) {
-    throw new Error(uploadError.message)
-  }
+  if (error) throw new Error(error.message)
 
-  const { data: publicUrlData } = supabase.storage
+  const { data } = supabase.storage
     .from("listing-images")
     .getPublicUrl(path)
 
-  return publicUrlData.publicUrl
+  return data.publicUrl
 }
 
 function getOrderedFiles(formData: FormData) {
   const files = formData
     .getAll("imageFiles")
-    .filter((value): value is File => value instanceof File && value.size > 0)
+    .filter((v): v is File => v instanceof File && v.size > 0)
 
-  const rawOrder = String(formData.get("imageOrder") ?? "[]")
-
-  let fileNameOrder: string[] = []
-
-  try {
-    const parsed = JSON.parse(rawOrder)
-    if (Array.isArray(parsed)) {
-      fileNameOrder = parsed.map((item) => String(item))
-    }
-  } catch {
-    fileNameOrder = []
-  }
-
-  if (fileNameOrder.length === 0) {
-    return files
-  }
-
-  const used = new Set<number>()
-  const ordered: File[] = []
-
-  for (const targetName of fileNameOrder) {
-    const index = files.findIndex(
-      (file, idx) => !used.has(idx) && file.name === targetName
-    )
-    if (index !== -1) {
-      ordered.push(files[index])
-      used.add(index)
-    }
-  }
-
-  files.forEach((file, idx) => {
-    if (!used.has(idx)) {
-      ordered.push(file)
-    }
-  })
-
-  return ordered
+  return files
 }
 
 function getSharedValues(formData: FormData) {
-  const sellerEmail = String(formData.get("sellerEmail") ?? "").trim()
-  const type = String(formData.get("type") ?? "House").trim()
-  const subtype = String(formData.get("subtype") ?? "").trim()
-  const saleMethod = String(formData.get("saleMethod") ?? "Private Sale").trim()
-  const county = String(formData.get("county") ?? "").trim()
-  const addressLine2 = String(formData.get("addressLine2") ?? "").trim()
-  const eircode = String(formData.get("eircode") ?? "").trim()
-  const price = String(formData.get("price") ?? "").trim()
-  const beds = Number(formData.get("beds") ?? 0)
-  const baths = Number(formData.get("baths") ?? 0)
-  const areaValue = Number(formData.get("areaValue") ?? 0)
-  const areaUnit = String(formData.get("areaUnit") ?? "").trim()
-  const excerpt = String(formData.get("excerpt") ?? "").trim()
-  const description = formatDescription(String(formData.get("description") ?? ""))
-  const status = String(formData.get("status") ?? "For Sale").trim()
-  const imageUrlFallback = String(formData.get("imageUrl") ?? "").trim()
-  const highlights = formData
-    .getAll("highlights")
-    .map((value) => String(value))
-    .filter(Boolean)
-
-  const title = generateListingTitle({
-    type,
-    subtype,
-    addressLine2,
-    county,
-  })
-
-  const legacySqft =
-    areaValue && areaUnit
-      ? getLegacySqftValue(type, areaValue, areaUnit)
-      : 0
-
   return {
-    sellerEmail,
-    type,
-    subtype,
-    saleMethod,
-    county,
-    addressLine2,
-    eircode,
-    price,
-    beds,
-    baths,
-    areaValue,
-    areaUnit,
-    excerpt,
-    description,
-    status,
-    imageUrlFallback,
-    highlights,
-    title,
-    legacySqft,
+    sellerEmail: String(formData.get("sellerEmail") ?? "").trim(),
+    type: String(formData.get("type") ?? "House").trim(),
+    subtype: String(formData.get("subtype") ?? "").trim(),
+    saleMethod: String(formData.get("saleMethod") ?? "Private Sale").trim(),
+    county: String(formData.get("county") ?? "").trim(),
+    addressLine2: String(formData.get("addressLine2") ?? "").trim(),
+    eircode: String(formData.get("eircode") ?? "").trim(),
+    price: String(formData.get("price") ?? "").trim(),
+    beds: Number(formData.get("beds") ?? 0),
+    baths: Number(formData.get("baths") ?? 0),
+    areaValue: Number(formData.get("areaValue") ?? 0),
+    areaUnit: String(formData.get("areaUnit") ?? "").trim(),
+    excerpt: String(formData.get("excerpt") ?? "").trim(),
+    description: formatDescription(String(formData.get("description") ?? "")),
+    status: String(formData.get("status") ?? "For Sale").trim(),
+    highlights: formData.getAll("highlights").map(String).filter(Boolean),
   }
 }
 
 export async function createListing(formData: FormData) {
   const values = getSharedValues(formData)
 
-  const missing: string[] = []
-
-  if (!values.sellerEmail) missing.push("email")
-  if (!values.type) missing.push("property type")
-  if (!values.county) missing.push("county")
-  if (!values.addressLine2) missing.push("town / local area")
-  if (!values.price) missing.push("price")
-  if (!values.description) missing.push("description")
-
-  if (missing.length > 0) {
-    throw new Error(`Please complete: ${missing.join(", ")}.`)
+  if (!values.sellerEmail || !values.addressLine2 || !values.price || !values.description) {
+    throw new Error("Missing required fields.")
   }
 
-  const baseSlug = buildSlug(values.title)
-  const slug = await makeUniqueSlug(baseSlug)
+  const slug = await makeUniqueSlug(buildSlug(
+    generateListingTitle(values)
+  ))
 
-  const imageFiles = getOrderedFiles(formData)
+  const files = getOrderedFiles(formData)
 
-  let uploadedImages: string[] = []
+  let images: string[] = []
 
-  if (imageFiles.length > 0) {
-    uploadedImages = await Promise.all(
-      imageFiles.map((file) => uploadImageFile(file, slug))
-    )
-  } else if (values.imageUrlFallback) {
-    uploadedImages = [values.imageUrlFallback]
-  } else {
-    uploadedImages = [
-      "https://images.unsplash.com/photo-1568605114967-8130f3a36994?auto=format&fit=crop&w=1600&q=80",
-    ]
+  if (files.length > 0) {
+    images = await Promise.all(files.map(f => uploadImageFile(f, slug)))
   }
 
-  const cleanImages = normaliseStoredImages(uploadedImages)
-  const mainImage = cleanImages[0] ?? null
+  if (images.length === 0) {
+    images = ["https://images.unsplash.com/photo-1568605114967-8130f3a36994"]
+  }
 
-  const { error } = await supabase.from("listings").insert({
+  await supabase.from("listings").insert({
     slug,
     seller_email: values.sellerEmail,
-    title: values.title,
+    title: generateListingTitle(values),
     type: values.type,
-    subtype: values.subtype || null,
-    sale_method: values.saleMethod || "Private Sale",
     county: values.county,
-    address_line_2: values.addressLine2 || null,
-    eircode: values.eircode || null,
+    address_line_2: values.addressLine2,
     price: values.price,
-    beds: values.beds || 0,
-    baths: values.baths || 0,
-    area_value: values.areaValue || null,
-    area_unit: values.areaUnit || null,
-    sqft: values.legacySqft || 0,
-    image: mainImage,
-    images: cleanImages,
-    excerpt: values.excerpt || values.description.slice(0, 110),
     description: values.description,
-    highlights: values.highlights.length > 0 ? values.highlights : null,
-    status: values.status || "For Sale",
+    image: images[0],
+    images,
   })
 
-  if (error) {
-    throw new Error(error.message)
-  }
-
   revalidatePath("/listings")
-  revalidatePath("/my-listings")
-  revalidatePath(`/listings/${slug}`)
-
-  redirect(`/listings/${slug}?created=1&email=${encodeURIComponent(values.sellerEmail)}`)
+  redirect(`/listings/${slug}`)
 }
 
 export async function updateListing(formData: FormData) {
   const slug = String(formData.get("slug") ?? "").trim()
   const values = getSharedValues(formData)
 
-  if (!slug) {
-    throw new Error("Missing slug.")
-  }
-
-  const missing: string[] = []
-
-  if (!values.type) missing.push("property type")
-  if (!values.county) missing.push("county")
-  if (!values.addressLine2) missing.push("town / local area")
-  if (!values.price) missing.push("price")
-  if (!values.description) missing.push("description")
-
-  if (missing.length > 0) {
-    throw new Error(`Please complete: ${missing.join(", ")}.`)
-  }
-
-  const { data: existing, error: existingError } = await supabase
+  const { data: existing } = await supabase
     .from("listings")
     .select("images,image")
     .eq("slug", slug)
     .single()
 
-  if (existingError) {
-    throw new Error(existingError.message)
+  const existingImages = normaliseStoredImages(existing?.images, existing?.image)
+  const files = getOrderedFiles(formData)
+
+  console.log("=== DEBUG UPDATE ===")
+  console.log("existingImages:", existingImages.length)
+  console.log("files received:", files.length)
+
+  let uploaded: string[] = []
+
+  if (files.length > 0) {
+    uploaded = await Promise.all(files.map(f => uploadImageFile(f, slug)))
   }
 
-  let images = normaliseStoredImages(existing?.images, existing?.image)
+  console.log("uploaded:", uploaded.length)
 
-  const imageFiles = getOrderedFiles(formData)
+  const finalImages = [...existingImages, ...uploaded]
 
-  if (imageFiles.length > 0) {
-    const uploaded = await Promise.all(
-      imageFiles.map((file) => uploadImageFile(file, slug))
-    )
-    images = [...images, ...uploaded]
-  }
+  console.log("finalImages:", finalImages.length)
 
-  images = normaliseStoredImages(images)
-
-  const mainImage = images[0] ?? null
-
-  const { error } = await supabase
+  await supabase
     .from("listings")
     .update({
-      title: values.title,
-      type: values.type,
-      subtype: values.subtype || null,
-      sale_method: values.saleMethod || "Private Sale",
-      county: values.county,
-      address_line_2: values.addressLine2 || null,
-      eircode: values.eircode || null,
-      price: values.price,
-      beds: values.beds || 0,
-      baths: values.baths || 0,
-      area_value: values.areaValue || null,
-      area_unit: values.areaUnit || null,
-      sqft: values.legacySqft || 0,
-      excerpt: values.excerpt || values.description.slice(0, 110),
+      title: generateListingTitle(values),
       description: values.description,
-      highlights: values.highlights.length > 0 ? values.highlights : null,
-      status: values.status || "For Sale",
-      image: mainImage,
-      images,
+      image: finalImages[0],
+      images: finalImages,
     })
     .eq("slug", slug)
 
-  if (error) {
-    throw new Error(error.message)
-  }
-
-  revalidatePath("/listings")
-  revalidatePath("/my-listings")
   revalidatePath(`/listings/${slug}`)
-  revalidatePath(`/listings/${slug}/edit`)
-
   redirect(`/listings/${slug}?updated=1`)
 }
