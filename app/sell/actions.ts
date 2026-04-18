@@ -224,7 +224,10 @@ export async function createListing(formData: FormData) {
 }
 
 export async function updateListing(formData: FormData) {
-  const slug = String(formData.get("slug") ?? "").trim()
+  const slug = String(formData.get("slug") ?? "")
+    .trim()
+    .toLowerCase()
+
   const values = getSharedValues(formData)
 
   if (!slug) {
@@ -241,11 +244,20 @@ export async function updateListing(formData: FormData) {
     throw new Error(existingError.message)
   }
 
+  console.log("slug from form:", slug)
+
+  const { data: check, error: checkError } = await supabase
+    .from("listings")
+    .select("slug")
+    .eq("slug", slug)
+
+  console.log("matching rows before update:", check)
+  console.log("matching rows error:", checkError)
+
   const existingImages = normaliseStoredImages(existing?.images, existing?.image)
   const files = getOrderedFiles(formData)
 
   console.log("=== DEBUG UPDATE START ===")
-  console.log("slug:", slug)
   console.log("existingImages count:", existingImages.length)
   console.log("existingImages:", existingImages)
   console.log("files received:", files.length)
@@ -308,13 +320,11 @@ export async function updateListing(formData: FormData) {
 
   console.log("update error:", updateError)
   console.log("updated rows:", updatedRows)
+  console.log("updated row count:", updatedRows?.length ?? 0)
 
   if (updateError) {
     throw new Error(updateError.message)
   }
-
-  const updatedCount = updatedRows?.length ?? 0
-  console.log("updated row count:", updatedCount)
 
   revalidatePath("/listings")
   revalidatePath("/my-listings")
