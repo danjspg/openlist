@@ -27,7 +27,6 @@ type InitialData = {
   baths?: number
   areaValue?: number
   areaUnit?: string
-  viewing?: string
   excerpt?: string
   description?: string
   status?: string
@@ -71,7 +70,6 @@ export default function SellerListingV2Form({
   const [areaUnit, setAreaUnit] = useState(
     initialData?.areaUnit || getAreaUnitOptions(initialData?.type || "House")[0] || "sqft"
   )
-  const [viewing, setViewing] = useState(initialData?.viewing || "")
   const [features, setFeatures] = useState("")
   const [excerpt, setExcerpt] = useState(initialData?.excerpt || "")
   const [description, setDescription] = useState(initialData?.description || "")
@@ -200,7 +198,6 @@ export default function SellerListingV2Form({
         baths: isResidential ? Number(baths) || 0 : 0,
         areaValue: Number(areaValue) || 0,
         areaUnit,
-        viewing,
         features,
       })
 
@@ -218,7 +215,7 @@ export default function SellerListingV2Form({
   }
 
   return (
-    <form action={submitAction} className="space-y-8">
+    <form action={submitAction} className="space-y-10">
       {mode === "edit" && initialData?.slug && (
         <input type="hidden" name="slug" value={initialData.slug} />
       )}
@@ -239,381 +236,411 @@ export default function SellerListingV2Form({
         />
       ))}
 
-      <div className="rounded-[28px] border border-slate-200 bg-slate-50 p-6">
-        <p className="text-sm font-semibold tracking-tight text-slate-700">
-          Seller details
-        </p>
-        <p className="mt-2 text-sm text-slate-500">
-          This email is used to receive enquiries and pre-fills across the site on this device.
-        </p>
-
-        <div className="mt-5">
-          <SellerEmailField
-            id="sellerEmail"
-            name="sellerEmail"
-            label="Your email"
-            required
-            defaultValue={initialData?.sellerEmail || ""}
-            helperText=""
-            className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-500"
-          />
-        </div>
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-2">
-        <div>
-          <label className="mb-2 block text-sm font-medium text-slate-700">
-            Property type
-          </label>
-          <select
-            name="type"
-            value={type}
-            onChange={(e) => setType(e.target.value)}
-            className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-500"
-          >
-            {PROPERTY_TYPES.map((option) => (
-              <option key={option}>{option}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="mb-2 block text-sm font-medium text-slate-700">
-            Subtype
-          </label>
-          <select
-            name="subtype"
-            value={subtype}
-            onChange={(e) => setSubtype(e.target.value)}
-            className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-500"
-          >
-            {subtypeOptions.map((option) => (
-              <option key={option}>{option}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="mb-2 block text-sm font-medium text-slate-700">
-            Sale method
-          </label>
-          <select
-            name="saleMethod"
-            value={saleMethod}
-            onChange={(e) => setSaleMethod(e.target.value)}
-            className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-500"
-          >
-            {SALE_METHODS.map((option) => (
-              <option key={option}>{option}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="mb-2 block text-sm font-medium text-slate-700">
-            County
-          </label>
-          <select
-            name="county"
-            value={county}
-            onChange={(e) => setCounty(e.target.value)}
-            className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-500"
-          >
-            {IRISH_COUNTIES.map((option) => (
-              <option key={option}>{option}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="mb-2 block text-sm font-medium text-slate-700">
-            Town / area
-          </label>
-          <input
-            name="addressLine2"
-            value={addressLine2}
-            onChange={(e) => setAddressLine2(e.target.value)}
-            placeholder="Village, town or local area"
-            required
-            className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-500"
-          />
-        </div>
-
-        <div>
-          <label className="mb-2 block text-sm font-medium text-slate-700">
-            Eircode
-          </label>
-          <input
-            name="eircode"
-            value={eircode}
-            onChange={(e) => setEircode(e.target.value)}
-            placeholder="A65 F4E2"
-            className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-500"
-          />
-          <p className="mt-2 text-xs text-slate-500">
-            Stored for backend use only. Not displayed publicly.
+      <section className="rounded-[28px] border border-stone-200 bg-stone-50 p-6 shadow-sm">
+        <div className="mb-6 border-b border-stone-200 pb-5">
+          <p className="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">
+            Seller details
+          </p>
+          <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">
+            Who should receive enquiries
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">
+            This email is used to receive enquiries and can be pre-filled across the site on this device.
           </p>
         </div>
 
-        <div>
-          <label className="mb-2 block text-sm font-medium text-slate-700">
-            Generated title
-          </label>
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900">
-            {generatedTitle || "Title will be generated from subtype, local area and county."}
-          </div>
+        <SellerEmailField
+          id="sellerEmail"
+          name="sellerEmail"
+          label="Your email"
+          required
+          defaultValue={initialData?.sellerEmail || ""}
+          helperText=""
+          className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-stone-500"
+        />
+
+        <div className="mt-5 rounded-2xl border border-stone-200 bg-white px-4 py-4 text-sm leading-6 text-stone-600">
+          This private email is not shown publicly. Buyer enquiries are sent directly to you.
+        </div>
+      </section>
+
+      <section className="rounded-[28px] border border-stone-200 bg-white p-6 shadow-sm">
+        <div className="mb-6 border-b border-stone-200 pb-5">
+          <p className="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">
+            Property details
+          </p>
+          <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">
+            Build the core of your listing
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">
+            Add the main details buyers expect first — type, location, pricing, and size.
+          </p>
         </div>
 
-        <div>
-          <label className="mb-2 block text-sm font-medium text-slate-700">
-            Price
-          </label>
-          <input
-            name="price"
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
-            placeholder="€450,000"
-            required
-            className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-500"
-          />
-        </div>
-
-        {isResidential && (
-          <>
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Beds
-              </label>
-              <input
-                name="beds"
-                type="number"
-                min="0"
-                value={beds}
-                onChange={(e) => setBeds(e.target.value)}
-                className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-500"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Baths
-              </label>
-              <input
-                name="baths"
-                type="number"
-                min="0"
-                value={baths}
-                onChange={(e) => setBaths(e.target.value)}
-                className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-500"
-              />
-            </div>
-          </>
-        )}
-
-        <div>
-          <label className="mb-2 block text-sm font-medium text-slate-700">
-            {isSite ? "Site area" : "Internal area"}
-          </label>
-          <div className="grid grid-cols-[1fr_130px] gap-3">
-            <input
-              name="areaValue"
-              type="number"
-              step="0.01"
-              min="0"
-              value={areaValue}
-              onChange={(e) => setAreaValue(e.target.value)}
-              placeholder={isSite ? "0.33" : "1550"}
-              className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-500"
-            />
+        <div className="grid gap-6 md:grid-cols-2">
+          <div>
+            <label className="mb-2 block text-sm font-medium text-stone-700">
+              Property type
+            </label>
             <select
-              name="areaUnit"
-              value={areaUnit}
-              onChange={(e) => setAreaUnit(e.target.value)}
-              className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-500"
+              name="type"
+              value={type}
+              onChange={(e) => setType(e.target.value)}
+              className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition focus:border-stone-500"
             >
-              {areaUnitOptions.map((option) => (
+              {PROPERTY_TYPES.map((option) => (
+                <option key={option}>{option}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-medium text-stone-700">
+              Subtype
+            </label>
+            <select
+              name="subtype"
+              value={subtype}
+              onChange={(e) => setSubtype(e.target.value)}
+              className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition focus:border-stone-500"
+            >
+              {subtypeOptions.map((option) => (
+                <option key={option}>{option}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-medium text-stone-700">
+              Sale method
+            </label>
+            <select
+              name="saleMethod"
+              value={saleMethod}
+              onChange={(e) => setSaleMethod(e.target.value)}
+              className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition focus:border-stone-500"
+            >
+              {SALE_METHODS.map((option) => (
+                <option key={option}>{option}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-medium text-stone-700">
+              County
+            </label>
+            <select
+              name="county"
+              value={county}
+              onChange={(e) => setCounty(e.target.value)}
+              className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition focus:border-stone-500"
+            >
+              {IRISH_COUNTIES.map((option) => (
+                <option key={option}>{option}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-medium text-stone-700">
+              Town / area
+            </label>
+            <input
+              name="addressLine2"
+              value={addressLine2}
+              onChange={(e) => setAddressLine2(e.target.value)}
+              placeholder="Village, town or local area"
+              required
+              className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition focus:border-stone-500"
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-medium text-stone-700">
+              Eircode
+            </label>
+            <input
+              name="eircode"
+              value={eircode}
+              onChange={(e) => setEircode(e.target.value)}
+              placeholder="A65 F4E2"
+              className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition focus:border-stone-500"
+            />
+            <p className="mt-2 text-xs text-stone-500">
+              Stored for backend use only. Not displayed publicly.
+            </p>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-medium text-stone-700">
+              Generated title
+            </label>
+            <div className="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-stone-900">
+              {generatedTitle || "Title will be generated from subtype, local area and county."}
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-medium text-stone-700">
+              Price
+            </label>
+            <input
+              name="price"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              placeholder="€450,000"
+              required
+              className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition focus:border-stone-500"
+            />
+          </div>
+
+          {isResidential && (
+            <>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-stone-700">
+                  Beds
+                </label>
+                <input
+                  name="beds"
+                  type="number"
+                  min="0"
+                  value={beds}
+                  onChange={(e) => setBeds(e.target.value)}
+                  className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition focus:border-stone-500"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-stone-700">
+                  Baths
+                </label>
+                <input
+                  name="baths"
+                  type="number"
+                  min="0"
+                  value={baths}
+                  onChange={(e) => setBaths(e.target.value)}
+                  className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition focus:border-stone-500"
+                />
+              </div>
+            </>
+          )}
+
+          <div>
+            <label className="mb-2 block text-sm font-medium text-stone-700">
+              {isSite ? "Site area" : "Internal area"}
+            </label>
+            <div className="grid grid-cols-[1fr_130px] gap-3">
+              <input
+                name="areaValue"
+                type="number"
+                step="0.01"
+                min="0"
+                value={areaValue}
+                onChange={(e) => setAreaValue(e.target.value)}
+                placeholder={isSite ? "0.33" : "1550"}
+                className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition focus:border-stone-500"
+              />
+              <select
+                name="areaUnit"
+                value={areaUnit}
+                onChange={(e) => setAreaUnit(e.target.value)}
+                className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition focus:border-stone-500"
+              >
+                {areaUnitOptions.map((option) => (
+                  <option key={option}>{option}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-medium text-stone-700">
+              Status
+            </label>
+            <select
+              name="status"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition focus:border-stone-500"
+            >
+              {STATUS_OPTIONS.map((option) => (
                 <option key={option}>{option}</option>
               ))}
             </select>
           </div>
         </div>
+      </section>
+
+      <section className="rounded-[28px] border border-stone-200 bg-white p-6 shadow-sm">
+        <div className="mb-6 border-b border-stone-200 pb-5">
+          <p className="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">
+            Positioning and copy
+          </p>
+          <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">
+            Shape how the property is presented
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">
+            Add key selling points, then use AI to generate cleaner draft copy you can refine.
+          </p>
+        </div>
 
         <div>
-          <label className="mb-2 block text-sm font-medium text-slate-700">
-            Viewing
+          <label className="mb-2 block text-sm font-medium text-stone-700">
+            Key features / notes
           </label>
-          <input
-            name="viewing"
-            value={viewing}
-            onChange={(e) => setViewing(e.target.value)}
-            placeholder="By appointment"
-            className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-500"
+          <textarea
+            name="features"
+            rows={4}
+            value={features}
+            onChange={(e) => setFeatures(e.target.value)}
+            placeholder="Quiet setting, strong natural light, close to beach, large site, modern finish..."
+            className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition focus:border-stone-500"
           />
         </div>
 
-        <div>
-          <label className="mb-2 block text-sm font-medium text-slate-700">
-            Status
-          </label>
-          <select
-            name="status"
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-500"
-          >
-            {STATUS_OPTIONS.map((option) => (
-              <option key={option}>{option}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <div>
-        <label className="mb-2 block text-sm font-medium text-slate-700">
-          Key features / notes
-        </label>
-        <textarea
-          name="features"
-          rows={4}
-          value={features}
-          onChange={(e) => setFeatures(e.target.value)}
-          placeholder="Quiet setting, strong natural light, close to beach, large site, modern finish..."
-          className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-500"
-        />
-      </div>
-
-      <div className="rounded-[28px] border border-slate-200 bg-slate-50 p-6">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold tracking-tight text-slate-700">
-              AI writing assistant
-            </p>
-            <p className="mt-2 text-sm text-slate-500">
-              Generate a polished excerpt, description and feature highlights. Review before publishing.
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleGenerateAI}
-            disabled={isGenerating}
-            className="inline-flex items-center rounded-full bg-slate-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isGenerating ? "Generating..." : "Generate with AI"}
-          </button>
-        </div>
-
-        {aiError && <p className="mt-4 text-sm text-red-600">{aiError}</p>}
-      </div>
-
-      {suggestedHighlights.length > 0 && (
-        <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between gap-4">
+        <div className="mt-6 rounded-[24px] border border-stone-200 bg-stone-50 p-5">
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <p className="text-sm font-semibold tracking-tight text-slate-700">
-                Choose your highlights
+              <p className="text-sm font-semibold tracking-tight text-stone-700">
+                AI writing assistant
               </p>
-              <p className="mt-2 text-sm text-slate-500">
-                Select 3 to 6. These appear near the top of the listing.
+              <p className="mt-2 text-sm text-stone-500">
+                Generate a polished summary, description and feature highlights. Review before publishing.
               </p>
             </div>
 
-            <div className="text-sm text-slate-500">
-              {selectedHighlights.length} selected
-            </div>
+            <button
+              type="button"
+              onClick={handleGenerateAI}
+              disabled={isGenerating}
+              className="inline-flex items-center rounded-full bg-stone-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isGenerating ? "Generating..." : "Generate with AI"}
+            </button>
           </div>
 
-          <div className="mt-5 flex flex-wrap gap-3">
-            {suggestedHighlights.map((highlight) => {
-              const selected = selectedHighlights.includes(highlight)
-
-              return (
-                <button
-                  key={highlight}
-                  type="button"
-                  onClick={() => toggleHighlight(highlight)}
-                  className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-                    selected
-                      ? "bg-slate-900 text-white"
-                      : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-                  }`}
-                >
-                  {highlight}
-                </button>
-              )
-            })}
-          </div>
+          {aiError && <p className="mt-4 text-sm text-red-600">{aiError}</p>}
         </div>
-      )}
 
-      <div>
-        <label className="mb-2 block text-sm font-medium text-slate-700">
-          Short excerpt
-        </label>
-        <input
-          name="excerpt"
-          value={excerpt}
-          onChange={(e) => setExcerpt(e.target.value)}
-          placeholder="A well-presented property in a convenient and established setting."
-          className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-500"
-        />
-      </div>
+        {suggestedHighlights.length > 0 && (
+          <div className="mt-6 rounded-[24px] border border-stone-200 bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold tracking-tight text-stone-700">
+                  Choose your highlights
+                </p>
+                <p className="mt-2 text-sm text-stone-500">
+                  Select 3 to 6. These appear near the top of the listing.
+                </p>
+              </div>
 
-      <div>
-        <label className="mb-2 block text-sm font-medium text-slate-700">
-          Description
-        </label>
-        <textarea
-          name="description"
-          rows={7}
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="Describe the property, setting, layout and key selling points."
-          required
-          className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-500"
-        />
-      </div>
+              <div className="text-sm text-stone-500">
+                {selectedHighlights.length} selected
+              </div>
+            </div>
 
-      <div className="rounded-[28px] border border-slate-200 bg-slate-50 p-6">
-        <p className="text-sm font-semibold tracking-tight text-slate-700">
-          Listing photos
-        </p>
-        <p className="mt-2 text-sm text-slate-500">
-          Upload multiple photos. Drag preview cards to change the order. The first photo becomes the main image.
-        </p>
+            <div className="mt-5 flex flex-wrap gap-3">
+              {suggestedHighlights.map((highlight) => {
+                const selected = selectedHighlights.includes(highlight)
+
+                return (
+                  <button
+                    key={highlight}
+                    type="button"
+                    onClick={() => toggleHighlight(highlight)}
+                    className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                      selected
+                        ? "bg-stone-900 text-white"
+                        : "border border-stone-300 bg-white text-stone-700 hover:bg-stone-50"
+                    }`}
+                  >
+                    {highlight}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        <div className="mt-6">
+          <label className="mb-2 block text-sm font-medium text-stone-700">
+            Listing card summary
+          </label>
+          <input
+            name="excerpt"
+            value={excerpt}
+            onChange={(e) => setExcerpt(e.target.value)}
+            placeholder="Shown on listing cards and previews before a buyer opens the full listing."
+            className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition focus:border-stone-500"
+          />
+          <p className="mt-2 text-xs text-stone-500">
+            A short summary used on listing cards and previews. The full description appears on the main listing page.
+          </p>
+        </div>
+
+        <div className="mt-6">
+          <label className="mb-2 block text-sm font-medium text-stone-700">
+            Description
+          </label>
+          <textarea
+            name="description"
+            rows={7}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Describe the property, setting, layout and key selling points."
+            required
+            className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition focus:border-stone-500"
+          />
+        </div>
+      </section>
+
+      <section className="rounded-[28px] border border-stone-200 bg-white p-6 shadow-sm">
+        <div className="mb-6 border-b border-stone-200 pb-5">
+          <p className="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">
+            Photography
+          </p>
+          <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">
+            Add imagery that sells the property
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">
+            Upload multiple images and drag them into your preferred order. The first image becomes the main photo.
+          </p>
+        </div>
 
         {mode === "edit" && initialData?.images && initialData.images.length > 0 && (
-          <div className="mt-5">
-            <p className="mb-3 text-sm font-medium text-slate-700">
+          <div className="mb-6">
+            <p className="mb-3 text-sm font-medium text-stone-700">
               Existing photos
             </p>
             <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
               {initialData.images.map((url, index) => (
                 <div
                   key={`${url}-${index}`}
-                  className="overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-sm"
+                  className="overflow-hidden rounded-[20px] border border-stone-200 bg-white shadow-sm"
                 >
-                  <div className="aspect-[3/2] w-full bg-slate-100">
+                  <div className="aspect-[3/2] w-full bg-stone-100">
                     <img
                       src={url}
                       alt={`Existing photo ${index + 1}`}
                       className="h-full w-full object-cover"
                     />
                   </div>
-                  <div className="border-t border-slate-200 px-3 py-2 text-xs text-slate-500">
+                  <div className="border-t border-stone-200 px-3 py-2 text-xs text-stone-500">
                     {index === 0 ? "Current main photo" : `Photo ${index + 1}`}
                   </div>
                 </div>
               ))}
             </div>
-            <p className="mt-3 text-xs text-slate-500">
-              This v2 form preserves existing photos. New uploads are appended after them.
+            <p className="mt-3 text-xs text-stone-500">
+              This form preserves existing photos. New uploads are appended after them.
             </p>
           </div>
         )}
 
-        <div className="mt-5">
-          <label className="mb-2 block text-sm font-medium text-slate-700">
+        <div>
+          <label className="mb-2 block text-sm font-medium text-stone-700">
             Upload photos
           </label>
           <input
@@ -623,19 +650,19 @@ export default function SellerListingV2Form({
             accept="image/*"
             multiple
             onChange={handleImageChange}
-            className="block w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700 file:mr-4 file:rounded-full file:border-0 file:bg-slate-900 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-slate-700"
+            className="block w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm text-stone-700 file:mr-4 file:rounded-full file:border-0 file:bg-stone-900 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-stone-700"
           />
           {imageError && (
             <p className="mt-3 text-sm text-red-600">{imageError}</p>
           )}
-          <p className="mt-2 text-xs text-slate-500">
+          <p className="mt-2 text-xs text-stone-500">
             Max 6MB per image. Keep total upload size under 20MB.
           </p>
         </div>
 
         {previewImages.length > 0 && (
-          <div className="mt-5">
-            <p className="mb-3 text-sm font-medium text-slate-700">
+          <div className="mt-6">
+            <p className="mb-3 text-sm font-medium text-stone-700">
               New upload preview
             </p>
 
@@ -652,16 +679,16 @@ export default function SellerListingV2Form({
                     }
                     setDraggingId(null)
                   }}
-                  className="overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-sm"
+                  className="overflow-hidden rounded-[20px] border border-stone-200 bg-white shadow-sm"
                 >
-                  <div className="aspect-[3/2] w-full bg-slate-100">
+                  <div className="aspect-[3/2] w-full bg-stone-100">
                     <img
                       src={img.previewUrl}
                       alt={`Preview ${index + 1}`}
                       className="h-full w-full object-cover"
                     />
                   </div>
-                  <div className="border-t border-slate-200 px-3 py-2 text-xs text-slate-500">
+                  <div className="border-t border-stone-200 px-3 py-2 text-xs text-stone-500">
                     {index === 0 ? "Main photo" : `Photo ${index + 1}`}
                   </div>
                 </div>
@@ -670,26 +697,37 @@ export default function SellerListingV2Form({
           </div>
         )}
 
-        <div className="mt-5">
-          <label className="mb-2 block text-sm font-medium text-slate-700">
+        <div className="mt-6">
+          <label className="mb-2 block text-sm font-medium text-stone-700">
             Or use one fallback image URL
           </label>
           <input
             name="imageUrl"
             type="url"
             placeholder="https://images.unsplash.com/..."
-            className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-500"
+            className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition focus:border-stone-500"
           />
         </div>
-      </div>
+      </section>
 
-      <div className="pt-2">
+      <section className="rounded-2xl border border-stone-200 bg-stone-50 px-5 py-4">
+        <p className="text-sm leading-6 text-stone-600">
+          By submitting this listing, you confirm that the information provided is accurate
+          to the best of your knowledge and that you have the right to market the property.
+        </p>
+      </section>
+
+      <div className="flex flex-col items-start gap-3 border-t border-stone-200 pt-8">
         <button
           type="submit"
-          className="inline-flex items-center rounded-full bg-slate-900 px-6 py-3 text-sm font-medium text-white transition hover:bg-slate-700"
+          className="inline-flex items-center rounded-full bg-stone-900 px-7 py-3.5 text-base font-medium text-white shadow-sm transition hover:bg-stone-700"
         >
           {mode === "create" ? "Create listing" : "Save changes"}
         </button>
+
+        <p className="text-sm text-stone-500">
+          You can edit your listing and add more photos later.
+        </p>
       </div>
     </form>
   )

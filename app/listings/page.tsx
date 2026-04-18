@@ -125,27 +125,37 @@ export default function ListingsPage() {
   }, [listings, searchTerm, typeFilter, statusFilter, countyFilter])
 
   return (
-    <main className="min-h-screen bg-white">
-      <section className="mx-auto max-w-7xl px-6 py-12">
-        <div className="mb-8">
-          <p className="text-sm font-medium uppercase tracking-[0.24em] text-slate-500">
-            OpenList
-          </p>
-          <h1 className="mt-2 text-4xl font-semibold tracking-tight text-slate-900">
-            Listings
-          </h1>
-          <p className="mt-3 max-w-2xl text-lg text-slate-600">
-            Beautifully presented homes and sites, designed to feel calm, clear,
-            and premium.
-          </p>
+    <main className="min-h-screen bg-stone-50">
+      <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-12">
+        <div className="mb-8 overflow-hidden rounded-[32px] border border-stone-200 bg-white shadow-sm">
+          <div className="bg-gradient-to-br from-stone-50 via-white to-stone-100 px-5 py-7 sm:px-6 md:px-8 md:py-10">
+            <p className="text-sm font-medium uppercase tracking-[0.24em] text-stone-500">
+              OpenList
+            </p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl md:text-5xl">
+              Listings
+            </h1>
+            <p className="mt-4 max-w-2xl text-base leading-7 text-stone-600 sm:text-lg sm:leading-8">
+              Beautifully presented homes and sites, designed to feel calm, clear,
+              and premium.
+            </p>
+          </div>
+
+          <div className="border-t border-stone-200 px-5 py-4 sm:px-6 md:px-8 md:py-5">
+            <p className="max-w-3xl text-sm leading-6 text-stone-500">
+              OpenList is a marketing platform for private property listings.
+              Listing information is provided by sellers and has not been independently
+              verified. Interested parties should satisfy themselves as to accuracy.
+            </p>
+          </div>
         </div>
 
-        <div className="mb-10 rounded-[28px] border border-slate-200 bg-slate-50 p-5">
+        <div className="mb-8 rounded-[28px] border border-stone-200 bg-white p-4 shadow-sm sm:mb-10 sm:p-5">
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_180px_180px_180px]">
             <div>
               <label
                 htmlFor="search"
-                className="mb-2 block text-sm font-medium text-slate-700"
+                className="mb-2 block text-sm font-medium text-stone-700"
               >
                 Search
               </label>
@@ -155,14 +165,14 @@ export default function ListingsPage() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search by title, county, local area or keyword"
-                className="h-11 w-full rounded-full border border-slate-300 bg-white px-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-500"
+                className="h-11 w-full rounded-full border border-stone-300 bg-white px-4 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-stone-500"
               />
             </div>
 
             <div>
               <label
                 htmlFor="type"
-                className="mb-2 block text-sm font-medium text-slate-700"
+                className="mb-2 block text-sm font-medium text-stone-700"
               >
                 Type
               </label>
@@ -170,7 +180,7 @@ export default function ListingsPage() {
                 id="type"
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value)}
-                className="h-11 w-full rounded-full border border-slate-300 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-500"
+                className="h-11 w-full rounded-full border border-stone-300 bg-white px-4 text-sm text-stone-900 outline-none transition focus:border-stone-500"
               >
                 {types.map((type) => (
                   <option key={type} value={type}>
@@ -183,7 +193,7 @@ export default function ListingsPage() {
             <div>
               <label
                 htmlFor="status"
-                className="mb-2 block text-sm font-medium text-slate-700"
+                className="mb-2 block text-sm font-medium text-stone-700"
               >
                 Status
               </label>
@@ -191,7 +201,7 @@ export default function ListingsPage() {
                 id="status"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="h-11 w-full rounded-full border border-slate-300 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-500"
+                className="h-11 w-full rounded-full border border-stone-300 bg-white px-4 text-sm text-stone-900 outline-none transition focus:border-stone-500"
               >
                 {statuses.map((status) => (
                   <option key={status} value={status}>
@@ -204,7 +214,7 @@ export default function ListingsPage() {
             <div>
               <label
                 htmlFor="county"
-                className="mb-2 block text-sm font-medium text-slate-700"
+                className="mb-2 block text-sm font-medium text-stone-700"
               >
                 County
               </label>
@@ -212,7 +222,7 @@ export default function ListingsPage() {
                 id="county"
                 value={countyFilter}
                 onChange={(e) => setCountyFilter(e.target.value)}
-                className="h-11 w-full rounded-full border border-slate-300 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-slate-500"
+                className="h-11 w-full rounded-full border border-stone-300 bg-white px-4 text-sm text-stone-900 outline-none transition focus:border-stone-500"
               >
                 {counties.map((county) => (
                   <option key={county} value={county}>
@@ -223,8 +233,8 @@ export default function ListingsPage() {
             </div>
           </div>
 
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-slate-500">
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-stone-500">
               {loading
                 ? "Loading listings..."
                 : `${filteredListings.length} listing${
@@ -240,7 +250,7 @@ export default function ListingsPage() {
                 setStatusFilter("All")
                 setCountyFilter("All")
               }}
-              className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
+              className="w-full rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:text-stone-900 sm:w-auto"
             >
               Reset filters
             </button>
@@ -252,9 +262,9 @@ export default function ListingsPage() {
             Database error: {error}
           </div>
         ) : loading ? (
-          <p className="text-slate-600">Loading listings...</p>
+          <p className="text-stone-600">Loading listings...</p>
         ) : filteredListings.length > 0 ? (
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 sm:gap-8 md:grid-cols-2 xl:grid-cols-3">
             {filteredListings.map((listing) => {
               const images =
                 listing.images && listing.images.length > 0
@@ -277,59 +287,61 @@ export default function ListingsPage() {
                 <Link
                   key={listing.slug}
                   href={`/listings/${listing.slug}`}
-                  className="group block overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl"
+                  className="group block overflow-hidden rounded-[30px] border border-stone-200 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-md"
                 >
                   <div className="relative overflow-hidden">
-                    <div className="aspect-[3/2] w-full bg-slate-100">
+                    <div className="aspect-[3/2] w-full bg-stone-100">
                       {displayImage ? (
                         <img
                           src={displayImage}
                           alt={listing.title}
-                          className="h-full w-full object-cover scale-[1.02] transition duration-700 group-hover:scale-[1.06]"
+                          className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.02]"
                         />
                       ) : (
-                        <div className="flex h-full w-full items-center justify-center text-sm text-slate-400">
+                        <div className="flex h-full w-full items-center justify-center text-sm text-stone-400">
                           No image
                         </div>
                       )}
                     </div>
 
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/12 via-transparent to-transparent" />
 
-                    <div className="absolute top-4 left-4 z-10 flex flex-wrap gap-2">
-                      {isFeatured ? (
-                        <span className="inline-flex items-center rounded-full bg-slate-900 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-white shadow-sm">
-                          Featured
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-900 shadow-sm">
-                          {listing.status}
-                        </span>
-                      )}
+                    <div className="absolute left-4 top-4 z-10 flex flex-wrap gap-2">
+                      <span
+                        className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] shadow-sm backdrop-blur ${
+                          isFeatured
+                            ? "bg-stone-900 text-white"
+                            : "bg-white/92 text-stone-700"
+                        }`}
+                      >
+                        {isFeatured ? "Featured" : listing.status}
+                      </span>
                     </div>
 
                     {photoCount > 1 && (
-                      <div className="absolute top-4 right-4 z-10">
-                        <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-slate-900 shadow-sm">
+                      <div className="absolute right-4 top-4 z-10">
+                        <span className="inline-flex items-center rounded-full bg-white/92 px-3 py-1 text-[11px] font-semibold text-stone-700 shadow-sm backdrop-blur">
                           {photoCount} photos
                         </span>
                       </div>
                     )}
                   </div>
 
-                  <div className="p-6">
-                    <div className="flex items-center justify-between gap-4">
-                      <p className="text-xs uppercase tracking-[0.22em] text-slate-500">
+                  <div className="p-5 sm:p-6">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                      <span className="text-xs font-medium uppercase tracking-[0.22em] text-stone-500">
                         {listing.subtype || listing.type}
-                      </p>
-                      <p className="text-sm text-slate-500">{location}</p>
+                      </span>
+                      <span className="text-sm text-stone-500">
+                        {location}
+                      </span>
                     </div>
 
-                    <h2 className="mt-3 line-clamp-2 text-2xl font-semibold tracking-tight text-slate-900">
+                    <h2 className="mt-4 line-clamp-2 text-2xl font-semibold leading-tight tracking-tight text-stone-900 sm:text-[2rem]">
                       {listing.title}
                     </h2>
 
-                    <p className="mt-4 line-clamp-2 text-slate-600">
+                    <p className="mt-4 line-clamp-2 leading-7 text-stone-600">
                       {listing.excerpt}
                     </p>
 
@@ -338,7 +350,7 @@ export default function ListingsPage() {
                         {listing.highlights.slice(0, 3).map((highlight) => (
                           <span
                             key={highlight}
-                            className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-700"
+                            className="rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-xs text-stone-700"
                           >
                             {highlight}
                           </span>
@@ -346,7 +358,7 @@ export default function ListingsPage() {
                       </div>
                     )}
 
-                    <div className="mt-5 flex flex-wrap gap-4 text-sm text-slate-500">
+                    <div className="mt-5 flex flex-wrap gap-4 text-sm text-stone-500">
                       {(listing.type === "House" || listing.type === "Apartment") && (
                         <>
                           <span>{listing.beds || "—"} bed</span>
@@ -356,17 +368,29 @@ export default function ListingsPage() {
                       )}
 
                       {listing.type === "Site" && <span>{areaDisplay}</span>}
-
                       {listing.type === "Commercial" && <span>{areaDisplay}</span>}
                     </div>
 
                     <div className="mt-6 flex items-end justify-between gap-4">
-                      <p className="text-2xl font-semibold tracking-tight text-slate-900">
+                      <p className="text-2xl font-semibold tracking-tight text-stone-900">
                         {formatEuro(listing.price)}
                       </p>
 
-                      <span className="text-sm font-medium text-slate-900 transition group-hover:translate-x-0.5">
-                        View details →
+                      <span className="inline-flex items-center text-sm font-medium text-stone-700 transition group-hover:text-stone-900">
+                        View details
+                        <svg
+                          className="ml-2 h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden="true"
+                        >
+                          <path d="M5 12h14" />
+                          <path d="m12 5 7 7-7 7" />
+                        </svg>
                       </span>
                     </div>
                   </div>
@@ -375,11 +399,11 @@ export default function ListingsPage() {
             })}
           </div>
         ) : (
-          <div className="rounded-[28px] border border-slate-200 bg-slate-50 p-10 text-center">
-            <h2 className="text-2xl font-semibold text-slate-900">
+          <div className="rounded-[28px] border border-stone-200 bg-white p-10 text-center shadow-sm">
+            <h2 className="text-2xl font-semibold text-stone-900">
               No listings match those filters
             </h2>
-            <p className="mt-3 text-slate-600">
+            <p className="mt-3 text-stone-600">
               Try widening your search or resetting the filters.
             </p>
           </div>
