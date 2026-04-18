@@ -54,7 +54,6 @@ export default async function EditListingPage({ params }: Props) {
             baths: listing.baths ?? 0,
             areaValue: listing.area_value ?? null,
             areaUnit: listing.area_unit ?? "",
-            viewing: listing.viewing ?? "",
             excerpt: listing.excerpt ?? "",
             description: listing.description ?? "",
             status: listing.status ?? "For Sale",
