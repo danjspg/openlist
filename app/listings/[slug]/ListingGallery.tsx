@@ -13,15 +13,16 @@ export default function ListingGallery({
 
   if (!images || images.length === 0) {
     return (
-      <div className="mb-10 overflow-hidden rounded-3xl bg-slate-100 shadow-sm">
-        <div className="aspect-[16/10] w-full flex items-center justify-center text-slate-400">
+      <div className="mb-10 overflow-hidden rounded-[32px] border border-slate-200 bg-slate-100 shadow-sm">
+        <div className="flex aspect-[16/10] w-full items-center justify-center text-slate-400">
           No images available
         </div>
       </div>
     )
   }
 
-  const activeImage = images[activeIndex]
+  const safeIndex = Math.min(activeIndex, images.length - 1)
+  const activeImage = images[safeIndex]
 
   function goPrev() {
     setActiveIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1))
@@ -33,19 +34,21 @@ export default function ListingGallery({
 
   return (
     <div className="mb-10">
-      <div className="relative aspect-[16/10] w-full overflow-hidden rounded-3xl bg-slate-100 shadow-sm">
+      <div className="relative aspect-[16/10] w-full overflow-hidden rounded-[32px] border border-slate-200 bg-slate-100 shadow-sm">
         <img
           src={activeImage}
-          alt={`${title} image ${activeIndex + 1}`}
+          alt={`${title} image ${safeIndex + 1}`}
           className="absolute inset-0 h-full w-full object-cover"
         />
+
+        <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-black/5 to-transparent" />
 
         {images.length > 1 && (
           <>
             <button
               type="button"
               onClick={goPrev}
-              className="absolute left-5 top-1/2 z-20 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-black/65 text-white shadow-lg transition hover:bg-black/80"
+              className="absolute left-5 top-1/2 z-20 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-slate-900 shadow-lg backdrop-blur transition hover:bg-white"
               aria-label="Previous image"
             >
               <svg
@@ -64,7 +67,7 @@ export default function ListingGallery({
             <button
               type="button"
               onClick={goNext}
-              className="absolute right-5 top-1/2 z-20 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-black/65 text-white shadow-lg transition hover:bg-black/80"
+              className="absolute right-5 top-1/2 z-20 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-slate-900 shadow-lg backdrop-blur transition hover:bg-white"
               aria-label="Next image"
             >
               <svg
@@ -80,8 +83,8 @@ export default function ListingGallery({
               </svg>
             </button>
 
-            <div className="absolute bottom-5 right-5 z-20 rounded-full bg-black/70 px-3 py-1.5 text-xs font-medium text-white">
-              {activeIndex + 1} / {images.length}
+            <div className="absolute bottom-5 right-5 z-20 rounded-full bg-black/70 px-3 py-1.5 text-xs font-medium text-white backdrop-blur">
+              {safeIndex + 1} / {images.length}
             </div>
           </>
         )}
@@ -90,26 +93,29 @@ export default function ListingGallery({
       {images.length > 1 && (
         <div className="mt-4 flex gap-3 overflow-x-auto pb-1">
           {images.map((image, index) => {
-            const isActive = index === activeIndex
+            const isActive = index === safeIndex
 
             return (
               <button
                 key={`${image}-${index}`}
                 type="button"
                 onClick={() => setActiveIndex(index)}
-                className={`overflow-hidden rounded-2xl border-2 transition ${
+                className={`overflow-hidden rounded-2xl border-2 bg-white shadow-sm transition ${
                   isActive
                     ? "border-slate-900"
                     : "border-slate-200 hover:border-slate-300"
                 }`}
                 aria-label={`Show image ${index + 1}`}
               >
-                <div className="h-24 w-36 bg-slate-100">
+                <div className="relative h-24 w-36 bg-slate-100">
                   <img
                     src={image}
                     alt={`${title} thumbnail ${index + 1}`}
                     className="h-full w-full object-cover"
                   />
+                  {isActive && (
+                    <div className="absolute inset-0 ring-2 ring-inset ring-slate-900" />
+                  )}
                 </div>
               </button>
             )
