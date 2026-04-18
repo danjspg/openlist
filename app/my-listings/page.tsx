@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
 import SellerEmailField from "@/components/SellerEmailField"
+import CopyListingLinkButton from "@/components/CopyListingLinkButton"
 
 function formatEuro(value: string) {
   const numeric = Number(value.replace(/[^0-9.]/g, ""))
@@ -317,6 +318,8 @@ export default async function MyListingsPage({
                             >
                               Edit listing
                             </Link>
+
+                            <CopyListingLinkButton slug={listing.slug} />
 
                             <Link
                               href={`/enquiries?email=${encodeURIComponent(trimmedEmail)}`}
