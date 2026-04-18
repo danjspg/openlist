@@ -27,6 +27,35 @@ function formatNumber(value: number | null | undefined) {
   return new Intl.NumberFormat("en-IE").format(value)
 }
 
+function normaliseImages(imagesValue: unknown, fallbackImage?: string | null) {
+  if (Array.isArray(imagesValue)) {
+    return imagesValue.filter(
+      (item): item is string => typeof item === "string" && item.trim().length > 0
+    )
+  }
+
+  if (typeof imagesValue === "string" && imagesValue.trim().length > 0) {
+    try {
+      const parsed = JSON.parse(imagesValue)
+      if (Array.isArray(parsed)) {
+        return parsed.filter(
+          (item): item is string => typeof item === "string" && item.trim().length > 0
+        )
+      }
+
+      return [imagesValue]
+    } catch {
+      return [imagesValue]
+    }
+  }
+
+  if (fallbackImage && fallbackImage.trim().length > 0) {
+    return [fallbackImage]
+  }
+
+  return []
+}
+
 export default async function ListingPage({
   params,
   searchParams,
@@ -58,13 +87,7 @@ export default async function ListingPage({
 
   const isSite = listing.type === "Site"
   const formattedPrice = formatEuro(listing.price)
-  const images =
-    listing.images && listing.images.length > 0
-      ? listing.images
-      : listing.image
-        ? [listing.image]
-        : []
-
+  const images = normaliseImages(listing.images, listing.image)
   const dashboardEmail = email || listing.seller_email || ""
 
   return (
