@@ -2,12 +2,28 @@
 
 import { useEffect, useState } from "react"
 import { createListing } from "./actions"
+import { generateListingCopy } from "./ai-actions"
 import SellerEmailField from "@/components/SellerEmailField"
 
 export default function SellPage() {
   const [type, setType] = useState("House")
   const [previewUrls, setPreviewUrls] = useState<string[]>([])
   const [selectedFileNames, setSelectedFileNames] = useState<string[]>([])
+
+  const [title, setTitle] = useState("")
+  const [county, setCounty] = useState("")
+  const [price, setPrice] = useState("")
+  const [beds, setBeds] = useState("4")
+  const [baths, setBaths] = useState("3")
+  const [sqft, setSqft] = useState("2750")
+  const [planning, setPlanning] = useState("")
+  const [viewing, setViewing] = useState("")
+  const [features, setFeatures] = useState("")
+  const [excerpt, setExcerpt] = useState("")
+  const [description, setDescription] = useState("")
+
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [aiError, setAiError] = useState("")
 
   const isSite = type === "Site"
 
@@ -33,6 +49,38 @@ export default function SellPage() {
 
     setPreviewUrls(urls)
     setSelectedFileNames(names)
+  }
+
+  async function handleGenerateAI() {
+    setAiError("")
+
+    try {
+      setIsGenerating(true)
+
+      const result = await generateListingCopy({
+        title,
+        county,
+        price,
+        type,
+        beds: Number(beds) || 0,
+        baths: Number(baths) || 0,
+        sqft: Number(sqft) || 0,
+        planning,
+        viewing,
+        features,
+      })
+
+      setExcerpt(result.excerpt)
+      setDescription(result.description)
+    } catch (error) {
+      setAiError(
+        error instanceof Error
+          ? error.message
+          : "Could not generate AI copy."
+      )
+    } finally {
+      setIsGenerating(false)
+    }
   }
 
   return (
@@ -188,6 +236,8 @@ export default function SellPage() {
                 name="title"
                 type="text"
                 required
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
                 placeholder="Coastal Site, Myrtleville West"
                 className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-500"
               />
@@ -205,6 +255,8 @@ export default function SellPage() {
                 name="county"
                 type="text"
                 required
+                value={county}
+                onChange={(e) => setCounty(e.target.value)}
                 placeholder="Cork"
                 className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-500"
               />
@@ -222,6 +274,8 @@ export default function SellPage() {
                 name="price"
                 type="text"
                 required
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
                 placeholder="€550,000"
                 className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-500"
               />
@@ -262,7 +316,8 @@ export default function SellPage() {
                     name="beds"
                     type="number"
                     min="0"
-                    defaultValue="4"
+                    value={beds}
+                    onChange={(e) => setBeds(e.target.value)}
                     className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-500"
                   />
                 </div>
@@ -279,7 +334,8 @@ export default function SellPage() {
                     name="baths"
                     type="number"
                     min="0"
-                    defaultValue="3"
+                    value={baths}
+                    onChange={(e) => setBaths(e.target.value)}
                     className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-500"
                   />
                 </div>
@@ -298,7 +354,8 @@ export default function SellPage() {
                 name="sqft"
                 type="number"
                 min="0"
-                defaultValue="2750"
+                value={sqft}
+                onChange={(e) => setSqft(e.target.value)}
                 className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-500"
               />
             </div>
@@ -320,8 +377,130 @@ export default function SellPage() {
                 <option>Sale Agreed</option>
                 <option>Sold</option>
                 <option>To Let</option>
+                <option>Featured</option>
               </select>
             </div>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            {isSite && (
+              <div>
+                <label
+                  htmlFor="planning"
+                  className="mb-2 block text-sm font-medium text-slate-700"
+                >
+                  Planning
+                </label>
+                <input
+                  id="planning"
+                  name="planning"
+                  type="text"
+                  value={planning}
+                  onChange={(e) => setPlanning(e.target.value)}
+                  placeholder="Approved"
+                  className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-500"
+                />
+              </div>
+            )}
+
+            <div>
+              <label
+                htmlFor="viewing"
+                className="mb-2 block text-sm font-medium text-slate-700"
+              >
+                Viewing
+              </label>
+              <input
+                id="viewing"
+                name="viewing"
+                type="text"
+                value={viewing}
+                onChange={(e) => setViewing(e.target.value)}
+                placeholder="By appointment"
+                className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-500"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label
+              htmlFor="features"
+              className="mb-2 block text-sm font-medium text-slate-700"
+            >
+              Key features / notes for AI
+            </label>
+            <textarea
+              id="features"
+              rows={4}
+              value={features}
+              onChange={(e) => setFeatures(e.target.value)}
+              placeholder="Sea views, planning approved, quiet setting, close to beach, contemporary design, large site..."
+              className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-500"
+            />
+          </div>
+
+          <div className="rounded-[28px] border border-slate-200 bg-slate-50 p-6">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold tracking-tight text-slate-700">
+                  AI writing assistant
+                </p>
+                <p className="mt-2 text-sm text-slate-500">
+                  Generate a polished draft for the excerpt and description.
+                  Always review before publishing.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleGenerateAI}
+                disabled={isGenerating}
+                className="inline-flex items-center rounded-full bg-slate-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isGenerating ? "Generating..." : "Generate with AI"}
+              </button>
+            </div>
+
+            {aiError && (
+              <p className="mt-4 text-sm text-red-600">{aiError}</p>
+            )}
+          </div>
+
+          <div>
+            <label
+              htmlFor="excerpt"
+              className="mb-2 block text-sm font-medium text-slate-700"
+            >
+              Short excerpt
+            </label>
+            <input
+              id="excerpt"
+              name="excerpt"
+              type="text"
+              value={excerpt}
+              onChange={(e) => setExcerpt(e.target.value)}
+              placeholder="Planning-approved coastal site with stunning sea views."
+              className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-500"
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="description"
+              className="mb-2 block text-sm font-medium text-slate-700"
+            >
+              Description
+            </label>
+            <textarea
+              id="description"
+              name="description"
+              required
+              rows={6}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Describe the property..."
+              className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-500"
+            />
           </div>
 
           <div className="rounded-[28px] border border-slate-200 bg-slate-50 p-6">
@@ -403,75 +582,6 @@ export default function SellPage() {
                 name="imageUrl"
                 type="url"
                 placeholder="https://images.unsplash.com/..."
-                className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-500"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label
-              htmlFor="excerpt"
-              className="mb-2 block text-sm font-medium text-slate-700"
-            >
-              Short excerpt
-            </label>
-            <input
-              id="excerpt"
-              name="excerpt"
-              type="text"
-              placeholder="Planning-approved coastal site with stunning sea views."
-              className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-500"
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="description"
-              className="mb-2 block text-sm font-medium text-slate-700"
-            >
-              Description
-            </label>
-            <textarea
-              id="description"
-              name="description"
-              required
-              rows={6}
-              placeholder="Describe the property..."
-              className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-500"
-            />
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-2">
-            {isSite && (
-              <div>
-                <label
-                  htmlFor="planning"
-                  className="mb-2 block text-sm font-medium text-slate-700"
-                >
-                  Planning
-                </label>
-                <input
-                  id="planning"
-                  name="planning"
-                  type="text"
-                  placeholder="Approved"
-                  className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-500"
-                />
-              </div>
-            )}
-
-            <div>
-              <label
-                htmlFor="viewing"
-                className="mb-2 block text-sm font-medium text-slate-700"
-              >
-                Viewing
-              </label>
-              <input
-                id="viewing"
-                name="viewing"
-                type="text"
-                placeholder="By appointment"
                 className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-slate-500"
               />
             </div>
