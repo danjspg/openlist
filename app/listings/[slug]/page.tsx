@@ -133,9 +133,9 @@ export default async function ListingPage({
               <h2 className="text-xl font-semibold text-slate-900">
                 About this property
               </h2>
-              <p className="mt-4 leading-8 text-slate-700">
+              <div className="mt-4 whitespace-pre-line leading-8 text-slate-700">
                 {listing.description}
-              </p>
+              </div>
             </div>
           </div>
 
