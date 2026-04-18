@@ -62,9 +62,9 @@ export default async function HomePage() {
           </h1>
 
           <p className="mt-5 max-w-2xl text-base leading-7 text-stone-600 sm:mt-6 sm:text-lg sm:leading-8">
-            OpenList is a more elegant way to market exceptional homes and sites
-            in Ireland — combining premium presentation, modern tools, and a
-            simpler fixed-fee approach.
+            OpenList is a modern platform for property listings, designed to help
+            private sellers present property more professionally — with a clearer,
+            more considered experience for buyers.
           </p>
 
           <div className="mt-7 flex flex-wrap gap-3 sm:mt-8 sm:gap-4">
@@ -72,13 +72,13 @@ export default async function HomePage() {
               href="/sell"
               className="rounded-full bg-stone-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-stone-700 sm:px-6"
             >
-              Start selling
+              Create a listing
             </Link>
             <Link
               href="/listings"
               className="rounded-full border border-stone-300 px-5 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900 sm:px-6"
             >
-              Browse listings
+              View listings
             </Link>
           </div>
 
@@ -97,9 +97,13 @@ export default async function HomePage() {
             </div>
           </div>
 
+          <p className="mt-6 text-sm leading-6 text-stone-500">
+            Built to simplify private property sales without losing quality of presentation.
+          </p>
+
           <div className="mt-8 rounded-2xl border border-stone-200 bg-white/80 px-5 py-4 shadow-sm sm:mt-10">
             <p className="text-sm leading-6 text-stone-600">
-              OpenList is a marketing platform for private property listings.
+              OpenList is a marketing platform for property listings.
             </p>
             <p className="mt-2 text-sm leading-6 text-stone-600">
               Listing information is provided by sellers and has not been independently verified.
@@ -250,7 +254,7 @@ export default async function HomePage() {
             {
               step: "02",
               title: "Launch with confidence",
-              text: "Go live with a strong, design-led listing experience that feels closer to a boutique brand than a crowded portal.",
+              text: "Publish a clean, well-structured listing that presents your property clearly and professionally.",
             },
             {
               step: "03",
@@ -296,7 +300,7 @@ export default async function HomePage() {
                 href="/sell"
                 className="inline-block rounded-full bg-white px-6 py-3 text-sm font-medium text-stone-900 transition hover:bg-stone-200"
               >
-                Explore selling with OpenList
+                Create a listing
               </Link>
             </div>
 

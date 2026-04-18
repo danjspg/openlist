@@ -9,8 +9,8 @@ export const metadata: Metadata = {
 }
 
 const navItems = [
-  { href: "/listings", label: "Browse" },
-  { href: "/sell", label: "Sell" },
+  { href: "/listings", label: "Listings" },
+  { href: "/sell", label: "Sell your property" },
   { href: "/about", label: "About" },
 ]
 
@@ -54,7 +54,7 @@ export default function RootLayout({
                   href="/sell"
                   className="inline-flex items-center rounded-full bg-stone-900 px-5 py-2.5 text-base font-medium text-white shadow-sm transition hover:bg-stone-700"
                 >
-                  Start selling
+                  Create a listing
                 </Link>
               </div>
             </div>
@@ -74,7 +74,7 @@ export default function RootLayout({
                 href="/sell"
                 className="ml-auto inline-flex shrink-0 items-center rounded-full bg-stone-900 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-stone-700"
               >
-                Sell
+                Create listing
               </Link>
             </div>
           </div>
@@ -111,10 +111,10 @@ export default function RootLayout({
 
               <div className="flex flex-col gap-3 text-sm text-stone-600 md:items-end">
                 <Link href="/listings" className="transition hover:text-stone-900">
-                  Browse listings
+                  View listings
                 </Link>
                 <Link href="/sell" className="transition hover:text-stone-900">
-                  Sell your property
+                  Create a listing
                 </Link>
                 <Link href="/about" className="transition hover:text-stone-900">
                   About OpenList

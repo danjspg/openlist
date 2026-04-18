@@ -294,7 +294,7 @@ export default async function ListingPage({
                 >
                   <path d="m15 18-6-6 6-6" />
                 </svg>
-                Back to listings
+                View listings
               </Link>
             </div>
           </div>
@@ -315,6 +315,18 @@ export default async function ListingPage({
               <div className="mt-4 whitespace-pre-line leading-8 text-slate-700">
                 {listing.description}
               </div>
+            </div>
+
+            <div className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
+              <p className="text-sm leading-6 text-slate-600">
+                These details are provided by the seller and have not been independently verified.
+                All information is for guidance only, and interested parties should satisfy
+                themselves as to accuracy.
+              </p>
+              <p className="mt-3 text-sm leading-6 text-slate-600">
+                OpenList acts as a marketing platform and does not provide valuation,
+                negotiation, conveyancing, or legal services.
+              </p>
             </div>
           </div>
 

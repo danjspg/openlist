@@ -26,9 +26,9 @@ export default function AboutPage() {
           </h1>
 
           <p className="mx-auto mt-6 max-w-3xl text-lg leading-8 text-slate-600 sm:text-xl">
-            OpenList is designed to make property feel calmer, clearer, and more
-            premium online — with better presentation, stronger trust, and a
-            more deliberate browsing experience.
+            OpenList is designed to help property listings feel clearer, more considered,
+            and more trustworthy online — starting with private sellers and a simpler,
+            more direct way to market property.
           </p>
         </div>
 
@@ -45,22 +45,27 @@ export default function AboutPage() {
             <div className="mt-8 space-y-6 text-lg leading-8 text-slate-600">
               <p>
                 Most property platforms are built around volume. OpenList is
-                built around presentation. The goal is not simply to host
-                listings, but to give each property the clarity and quality it
-                deserves.
+                built around presentation. The aim is not just to host listings,
+                but to help each property appear with more clarity, quality, and intent.
               </p>
 
               <p>
                 That means cleaner layouts, stronger imagery, calmer spacing,
-                and a more thoughtful experience for both buyers and sellers.
-                The property should feel considered, not squeezed into a noisy
-                template.
+                and a more focused experience for both buyers and sellers.
+                The property should feel properly presented, not compressed into
+                a noisy template.
               </p>
 
               <p>
-                Whether it is a coastal site, a family home, or a standout
-                contemporary property, OpenList aims to feel more refined,
-                premium, and trustworthy from the very first impression.
+                Whether it is a site, a family home, or a standout contemporary
+                property, OpenList is designed to give sellers a more polished
+                way to market property and buyers a more trustworthy way to browse it.
+              </p>
+
+              <p>
+                While OpenList is initially focused on private sellers, the
+                underlying approach is designed to support a wider range of
+                property listings over time.
               </p>
             </div>
           </div>
@@ -74,8 +79,7 @@ export default function AboutPage() {
               <div className="rounded-2xl bg-slate-50 p-5">
                 <h3 className="text-lg font-semibold text-slate-900">Clarity</h3>
                 <p className="mt-2 leading-7 text-slate-600">
-                  Information should be structured, easy to scan, and easy to
-                  trust.
+                  Information should be easy to scan, easy to understand, and easy to trust.
                 </p>
               </div>
 
@@ -84,16 +88,14 @@ export default function AboutPage() {
                   Presentation
                 </h3>
                 <p className="mt-2 leading-7 text-slate-600">
-                  Great property deserves great presentation, not cluttered
-                  templates and visual noise.
+                  Strong property marketing starts with strong presentation — not cluttered templates or visual noise.
                 </p>
               </div>
 
               <div className="rounded-2xl bg-slate-50 p-5">
                 <h3 className="text-lg font-semibold text-slate-900">Trust</h3>
                 <p className="mt-2 leading-7 text-slate-600">
-                  A calmer, more premium interface creates confidence for buyers
-                  and sellers alike.
+                  A cleaner, more transparent experience helps buyers engage with more confidence and helps sellers present more professionally.
                 </p>
               </div>
             </div>
@@ -107,9 +109,8 @@ export default function AboutPage() {
 
           <div className="mt-5 space-y-5 text-base leading-7 text-slate-600">
             <p>
-              OpenList is a marketing platform designed to help private sellers
-              present property listings professionally and receive enquiries
-              directly.
+              OpenList is a marketing platform designed to help individuals and
+              property owners present listings professionally and receive enquiries directly.
             </p>
 
             <p>
@@ -127,7 +128,7 @@ export default function AboutPage() {
               For buyers
             </p>
             <p className="mt-4 leading-8 text-slate-600">
-              Browse listings in a cleaner environment where the property itself
+              Browse listings in a calmer environment where the property itself
               is allowed to stand out.
             </p>
           </div>
@@ -138,7 +139,7 @@ export default function AboutPage() {
             </p>
             <p className="mt-4 leading-8 text-slate-600">
               Present your property with a more polished, premium feel that
-              better reflects its value.
+              better reflects its value and gives you more control over the process.
             </p>
           </div>
 
@@ -147,8 +148,9 @@ export default function AboutPage() {
               For the future
             </p>
             <p className="mt-4 leading-8 text-slate-600">
-              OpenList is evolving into a more modern platform for better
-              property marketing and simpler listing creation.
+              OpenList is being built as a more modern platform for property
+              listings — with better presentation, simpler tools, and a more
+              direct experience for sellers and property owners.
             </p>
           </div>
         </div>
@@ -170,10 +172,8 @@ export default function AboutPage() {
             </p>
 
             <p className="mt-5 leading-8 text-slate-300">
-              OpenList is a marketing platform for private property listings and
-              does not act as an estate agent. Sellers remain responsible for
-              the accuracy of listing information, and interested parties should
-              satisfy themselves as to accuracy.
+              OpenList is built for private property listings, with presentation
+              and clarity at the centre of the experience.
             </p>
 
             <div className="mt-8">

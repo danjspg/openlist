@@ -136,8 +136,7 @@ export default function ListingsPage() {
               Listings
             </h1>
             <p className="mt-4 max-w-2xl text-base leading-7 text-stone-600 sm:text-lg sm:leading-8">
-              Beautifully presented homes and sites, designed to feel calm, clear,
-              and premium.
+              A cleaner way to explore property — with better presentation and less noise.
             </p>
           </div>
 
@@ -377,7 +376,7 @@ export default function ListingsPage() {
                       </p>
 
                       <span className="inline-flex items-center text-sm font-medium text-stone-700 transition group-hover:text-stone-900">
-                        View details
+                        View listing
                         <svg
                           className="ml-2 h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5"
                           viewBox="0 0 24 24"
