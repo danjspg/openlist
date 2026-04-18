@@ -27,6 +27,62 @@ function formatNumber(value: number | null | undefined) {
   return new Intl.NumberFormat("en-IE").format(value)
 }
 
+function parsePostgresArrayString(value: string) {
+  const trimmed = value.trim()
+
+  if (!trimmed.startsWith("{") || !trimmed.endsWith("}")) {
+    return null
+  }
+
+  const inner = trimmed.slice(1, -1).trim()
+  if (!inner) {
+    return []
+  }
+
+  const result: string[] = []
+  let current = ""
+  let inQuotes = false
+  let escaping = false
+
+  for (let i = 0; i < inner.length; i += 1) {
+    const char = inner[i]
+
+    if (escaping) {
+      current += char
+      escaping = false
+      continue
+    }
+
+    if (char === "\\") {
+      escaping = true
+      continue
+    }
+
+    if (char === '"') {
+      inQuotes = !inQuotes
+      continue
+    }
+
+    if (char === "," && !inQuotes) {
+      if (current.trim()) {
+        result.push(current.trim())
+      }
+      current = ""
+      continue
+    }
+
+    current += char
+  }
+
+  if (current.trim()) {
+    result.push(current.trim())
+  }
+
+  return result
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0)
+}
+
 function normaliseImages(imagesValue: unknown, fallbackImage?: string | null) {
   if (Array.isArray(imagesValue)) {
     return imagesValue.filter(
@@ -35,18 +91,25 @@ function normaliseImages(imagesValue: unknown, fallbackImage?: string | null) {
   }
 
   if (typeof imagesValue === "string" && imagesValue.trim().length > 0) {
+    const trimmed = imagesValue.trim()
+
     try {
-      const parsed = JSON.parse(imagesValue)
+      const parsed = JSON.parse(trimmed)
       if (Array.isArray(parsed)) {
         return parsed.filter(
           (item): item is string => typeof item === "string" && item.trim().length > 0
         )
       }
-
-      return [imagesValue]
     } catch {
-      return [imagesValue]
+      // ignore and continue
     }
+
+    const postgresParsed = parsePostgresArrayString(trimmed)
+    if (postgresParsed) {
+      return postgresParsed
+    }
+
+    return [trimmed]
   }
 
   if (fallbackImage && fallbackImage.trim().length > 0) {
