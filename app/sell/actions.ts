@@ -1,6 +1,7 @@
 "use server"
 
 import { randomUUID } from "crypto"
+import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import { buildSlug } from "@/lib/listings"
@@ -36,6 +37,46 @@ async function makeUniqueSlug(baseSlug: string) {
 function getFileExtension(filename: string) {
   const parts = filename.split(".")
   return parts.length > 1 ? parts.pop()?.toLowerCase() || "jpg" : "jpg"
+}
+
+function formatDescription(input: string) {
+  return input
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .split("\n")
+    .map((line) => line.trim())
+    .join("\n")
+    .trim()
+}
+
+function normaliseStoredImages(imagesValue: unknown, fallbackImage?: string | null) {
+  if (Array.isArray(imagesValue)) {
+    return imagesValue.filter(
+      (item): item is string => typeof item === "string" && item.trim().length > 0
+    )
+  }
+
+  if (typeof imagesValue === "string" && imagesValue.trim().length > 0) {
+    try {
+      const parsed = JSON.parse(imagesValue)
+      if (Array.isArray(parsed)) {
+        return parsed.filter(
+          (item): item is string => typeof item === "string" && item.trim().length > 0
+        )
+      }
+      return [imagesValue]
+    } catch {
+      return [imagesValue]
+    }
+  }
+
+  if (fallbackImage && fallbackImage.trim().length > 0) {
+    return [fallbackImage]
+  }
+
+  return []
 }
 
 async function uploadImageFile(file: File, slug: string) {
@@ -128,9 +169,8 @@ function getSharedValues(formData: FormData) {
   const baths = Number(formData.get("baths") ?? 0)
   const areaValue = Number(formData.get("areaValue") ?? 0)
   const areaUnit = String(formData.get("areaUnit") ?? "").trim()
-  const viewing = String(formData.get("viewing") ?? "").trim()
   const excerpt = String(formData.get("excerpt") ?? "").trim()
-  const description = String(formData.get("description") ?? "").trim()
+  const description = formatDescription(String(formData.get("description") ?? ""))
   const status = String(formData.get("status") ?? "For Sale").trim()
   const imageUrlFallback = String(formData.get("imageUrl") ?? "").trim()
   const highlights = formData
@@ -163,7 +203,6 @@ function getSharedValues(formData: FormData) {
     baths,
     areaValue,
     areaUnit,
-    viewing,
     excerpt,
     description,
     status,
@@ -209,7 +248,8 @@ export async function createListing(formData: FormData) {
     ]
   }
 
-  const mainImage = uploadedImages[0]
+  const cleanImages = normaliseStoredImages(uploadedImages)
+  const mainImage = cleanImages[0] ?? null
 
   const { error } = await supabase.from("listings").insert({
     slug,
@@ -227,9 +267,8 @@ export async function createListing(formData: FormData) {
     area_value: values.areaValue || null,
     area_unit: values.areaUnit || null,
     sqft: values.legacySqft || 0,
-    viewing: values.viewing || null,
     image: mainImage,
-    images: uploadedImages,
+    images: cleanImages,
     excerpt: values.excerpt || values.description.slice(0, 110),
     description: values.description,
     highlights: values.highlights.length > 0 ? values.highlights : null,
@@ -239,6 +278,10 @@ export async function createListing(formData: FormData) {
   if (error) {
     throw new Error(error.message)
   }
+
+  revalidatePath("/listings")
+  revalidatePath("/my-listings")
+  revalidatePath(`/listings/${slug}`)
 
   redirect(`/listings/${slug}?created=1&email=${encodeURIComponent(values.sellerEmail)}`)
 }
@@ -273,12 +316,7 @@ export async function updateListing(formData: FormData) {
     throw new Error(existingError.message)
   }
 
-  let images: string[] =
-    existing?.images && existing.images.length > 0
-      ? existing.images
-      : existing?.image
-        ? [existing.image]
-        : []
+  let images = normaliseStoredImages(existing?.images, existing?.image)
 
   const imageFiles = getOrderedFiles(formData)
 
@@ -288,6 +326,8 @@ export async function updateListing(formData: FormData) {
     )
     images = [...images, ...uploaded]
   }
+
+  images = normaliseStoredImages(images)
 
   const mainImage = images[0] ?? null
 
@@ -307,7 +347,6 @@ export async function updateListing(formData: FormData) {
       area_value: values.areaValue || null,
       area_unit: values.areaUnit || null,
       sqft: values.legacySqft || 0,
-      viewing: values.viewing || null,
       excerpt: values.excerpt || values.description.slice(0, 110),
       description: values.description,
       highlights: values.highlights.length > 0 ? values.highlights : null,
@@ -320,6 +359,11 @@ export async function updateListing(formData: FormData) {
   if (error) {
     throw new Error(error.message)
   }
+
+  revalidatePath("/listings")
+  revalidatePath("/my-listings")
+  revalidatePath(`/listings/${slug}`)
+  revalidatePath(`/listings/${slug}/edit`)
 
   redirect(`/listings/${slug}?updated=1`)
 }
