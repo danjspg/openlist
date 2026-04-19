@@ -39,13 +39,12 @@ export default function RootLayout({
         <header className="sticky top-0 z-50 border-b border-stone-200/80 bg-white/90 backdrop-blur-md">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
 
-            {/* Increased vertical space */}
             <div className="flex items-center justify-between gap-4 py-5 sm:py-6">
 
-              {/* Logo — increased again */}
+              {/* Updated Logo */}
               <Link href="/" className="flex shrink-0 items-center">
                 <Image
-                  src="/logo.png"
+                  src="/logo-header.png"
                   alt="OpenList"
                   width={320}
                   height={90}
