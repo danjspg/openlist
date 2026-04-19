@@ -162,12 +162,14 @@ export default function ListingsPage() {
 
           <div className="rounded-[32px] border border-stone-200 bg-white p-5 shadow-sm sm:p-6">
             <p className="text-sm font-medium uppercase tracking-[0.18em] text-stone-500">
-              Before you browse
+              About OpenList
             </p>
+
+            <div className="mt-3 h-px w-10 bg-stone-200" />
 
             <div className="mt-4 space-y-3 text-sm leading-6 text-stone-600">
               <p>
-                OpenList is a marketing platform for private property listings.
+                OpenList is a modern platform for private property listings.
               </p>
               <p>
                 Listing information is provided by sellers and has not been independently verified.

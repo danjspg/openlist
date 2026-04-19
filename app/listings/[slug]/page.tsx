@@ -137,9 +137,9 @@ export default async function ListingPage({
 
   if (error) {
     return (
-      <main className="min-h-screen bg-white p-10">
-        <h1 className="text-2xl font-semibold text-slate-900">Database error</h1>
-        <p className="mt-3 text-slate-600">{error.message}</p>
+      <main className="min-h-screen bg-stone-50 p-10">
+        <h1 className="text-2xl font-semibold text-stone-900">Database error</h1>
+        <p className="mt-3 text-stone-600">{error.message}</p>
       </main>
     )
   }
@@ -154,8 +154,8 @@ export default async function ListingPage({
   const dashboardEmail = email || listing.seller_email || ""
 
   return (
-    <main className="min-h-screen bg-white">
-      <section className="mx-auto max-w-6xl px-6 py-10">
+    <main className="min-h-screen bg-stone-50">
+      <section className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
         {created === "1" && (
           <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-emerald-800">
             Listing created successfully.
@@ -168,32 +168,34 @@ export default async function ListingPage({
           </div>
         )}
 
-        <div className="mb-8 overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-100 px-6 py-7 md:px-8 md:py-8">
-            <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+        <div className="mb-6 overflow-hidden rounded-[32px] border border-stone-200 bg-white shadow-sm">
+          <div className="border-b border-stone-200 bg-gradient-to-br from-stone-50 via-white to-stone-100 px-5 py-6 sm:px-6 md:px-8 md:py-7">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
               <div className="max-w-3xl">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="inline-flex items-center rounded-full bg-slate-900 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-white">
+                  <span className="inline-flex items-center rounded-full bg-stone-900 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-white">
                     {listing.status}
                   </span>
-                  <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-600">
+
+                  <span className="inline-flex items-center rounded-full border border-stone-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-600">
                     {listing.type}
                   </span>
+
                   {listing.subtype && (
-                    <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-600">
+                    <span className="inline-flex items-center rounded-full border border-stone-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-600">
                       {listing.subtype}
                     </span>
                   )}
                 </div>
 
-                <h1 className="mt-4 text-3xl font-semibold tracking-tight text-slate-900 md:text-5xl">
+                <h1 className="mt-4 text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl md:text-[2.7rem]">
                   {listing.title}
                 </h1>
 
-                <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-slate-600">
+                <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-stone-600">
                   <div className="inline-flex items-center text-base md:text-lg">
                     <svg
-                      className="mr-2 h-4 w-4 text-slate-400"
+                      className="mr-2 h-4 w-4 text-stone-400"
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
@@ -211,30 +213,30 @@ export default async function ListingPage({
                     </span>
                   </div>
 
-                  <div className="hidden h-1 w-1 rounded-full bg-slate-300 md:block" />
+                  <div className="hidden h-1 w-1 rounded-full bg-stone-300 md:block" />
 
-                  <div className="text-sm font-medium text-slate-500">
+                  <div className="text-sm font-medium text-stone-500">
                     Private seller listing
                   </div>
                 </div>
               </div>
 
-              <div className="min-w-[240px] rounded-[28px] border border-slate-200 bg-white px-6 py-5 shadow-sm">
-                <div className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
+              <div className="min-w-[220px] rounded-[28px] border border-stone-200 bg-white px-5 py-4 shadow-sm">
+                <div className="text-xs font-semibold uppercase tracking-[0.22em] text-stone-500">
                   Guide price
                 </div>
-                <div className="mt-2 text-3xl font-semibold tracking-tight text-slate-900 md:text-4xl">
+                <div className="mt-2 text-3xl font-semibold tracking-tight text-stone-900 md:text-4xl">
                   {formattedPrice}
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="px-6 py-5 md:px-8">
+          <div className="px-5 py-4 sm:px-6 md:px-8">
             <div className="flex flex-wrap gap-3">
               <Link
                 href={`/listings/${listing.slug}/edit`}
-                className="inline-flex items-center rounded-full bg-slate-900 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800"
+                className="inline-flex items-center rounded-full bg-stone-900 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-stone-700"
               >
                 <svg
                   className="mr-2 h-4 w-4"
@@ -255,10 +257,10 @@ export default async function ListingPage({
               {dashboardEmail && (
                 <Link
                   href={`/my-listings?email=${encodeURIComponent(dashboardEmail)}`}
-                  className="inline-flex items-center rounded-full border border-slate-300 bg-white px-5 py-2.5 text-sm font-medium text-slate-900 shadow-sm transition hover:bg-slate-50"
+                  className="inline-flex items-center rounded-full border border-stone-300 bg-white px-5 py-2.5 text-sm font-medium text-stone-700 shadow-sm transition hover:bg-stone-50"
                 >
                   <svg
-                    className="mr-2 h-4 w-4 text-slate-500"
+                    className="mr-2 h-4 w-4 text-stone-500"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -280,10 +282,10 @@ export default async function ListingPage({
 
               <Link
                 href="/listings"
-                className="inline-flex items-center rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                className="inline-flex items-center rounded-full border border-stone-200 bg-white px-5 py-2.5 text-sm font-medium text-stone-700 transition hover:bg-stone-50"
               >
                 <svg
-                  className="mr-2 h-4 w-4 text-slate-400"
+                  className="mr-2 h-4 w-4 text-stone-400"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -300,88 +302,90 @@ export default async function ListingPage({
           </div>
         </div>
 
-        <ListingGallery images={images} title={listing.title} />
-
-        <div className="grid gap-10 lg:grid-cols-[minmax(0,2fr)_360px]">
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1.55fr)_360px]">
           <div>
-            <p className="text-xl leading-8 text-slate-700">
-              {listing.excerpt}
-            </p>
+            <ListingGallery images={images} title={listing.title} />
 
-            <div className="mt-8">
-              <h2 className="text-xl font-semibold text-slate-900">
-                About this property
-              </h2>
-              <div className="mt-4 whitespace-pre-line leading-8 text-slate-700">
-                {listing.description}
+            <div className="rounded-[32px] border border-stone-200 bg-white p-5 shadow-sm sm:p-6 md:p-8">
+              <p className="text-lg leading-8 text-stone-700 sm:text-xl">
+                {listing.excerpt}
+              </p>
+
+              <div className="mt-8">
+                <h2 className="text-xl font-semibold text-stone-900">
+                  About this property
+                </h2>
+                <div className="mt-4 whitespace-pre-line leading-8 text-stone-700">
+                  {listing.description}
+                </div>
               </div>
-            </div>
 
-            <div className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
-              <p className="text-sm leading-6 text-slate-600">
-                These details are provided by the seller and have not been independently verified.
-                All information is for guidance only, and interested parties should satisfy
-                themselves as to accuracy.
-              </p>
-              <p className="mt-3 text-sm leading-6 text-slate-600">
-                OpenList acts as a marketing platform and does not provide valuation,
-                negotiation, conveyancing, or legal services.
-              </p>
+              <div className="mt-8 rounded-2xl border border-stone-200 bg-stone-50 px-5 py-4">
+                <p className="text-sm leading-6 text-stone-600">
+                  These details are provided by the seller and have not been independently verified.
+                  All information is for guidance only, and interested parties should satisfy
+                  themselves as to accuracy.
+                </p>
+                <p className="mt-3 text-sm leading-6 text-stone-600">
+                  OpenList acts as a marketing platform and does not provide valuation,
+                  negotiation, conveyancing, or legal services.
+                </p>
+              </div>
             </div>
           </div>
 
-          <div className="space-y-6 lg:sticky lg:top-6 lg:self-start">
-            <aside className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <p className="text-3xl font-semibold text-slate-900">
+          <div className="space-y-6 lg:sticky lg:top-24 lg:self-start">
+            <aside className="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm">
+              <p className="text-3xl font-semibold text-stone-900">
                 {formattedPrice}
               </p>
 
-              <div className="mt-6 border-t border-slate-200 pt-6">
+              <div className="mt-6 border-t border-stone-200 pt-6">
                 {isSite ? (
                   <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div className="rounded-2xl bg-slate-50 p-4">
-                      <p className="text-xs uppercase tracking-wide text-slate-500">
+                    <div className="rounded-2xl bg-stone-50 p-4">
+                      <p className="text-xs uppercase tracking-wide text-stone-500">
                         Site Area
                       </p>
-                      <p className="mt-2 text-lg font-semibold text-slate-900">
+                      <p className="mt-2 text-lg font-semibold text-stone-900">
                         {formatNumber(listing.sqft)}
                       </p>
                     </div>
 
-                    <div className="rounded-2xl bg-slate-50 p-4">
-                      <p className="text-xs uppercase tracking-wide text-slate-500">
+                    <div className="rounded-2xl bg-stone-50 p-4">
+                      <p className="text-xs uppercase tracking-wide text-stone-500">
                         Planning
                       </p>
-                      <p className="mt-2 text-lg font-semibold text-slate-900">
+                      <p className="mt-2 text-lg font-semibold text-stone-900">
                         {listing.planning || "—"}
                       </p>
                     </div>
                   </div>
                 ) : (
                   <div className="grid grid-cols-3 gap-4 text-sm">
-                    <div className="rounded-2xl bg-slate-50 p-4">
-                      <p className="text-xs uppercase tracking-wide text-slate-500">
+                    <div className="rounded-2xl bg-stone-50 p-4">
+                      <p className="text-xs uppercase tracking-wide text-stone-500">
                         Beds
                       </p>
-                      <p className="mt-2 text-lg font-semibold text-slate-900">
+                      <p className="mt-2 text-lg font-semibold text-stone-900">
                         {formatNumber(listing.beds)}
                       </p>
                     </div>
 
-                    <div className="rounded-2xl bg-slate-50 p-4">
-                      <p className="text-xs uppercase tracking-wide text-slate-500">
+                    <div className="rounded-2xl bg-stone-50 p-4">
+                      <p className="text-xs uppercase tracking-wide text-stone-500">
                         Baths
                       </p>
-                      <p className="mt-2 text-lg font-semibold text-slate-900">
+                      <p className="mt-2 text-lg font-semibold text-stone-900">
                         {formatNumber(listing.baths)}
                       </p>
                     </div>
 
-                    <div className="rounded-2xl bg-slate-50 p-4">
-                      <p className="text-xs uppercase tracking-wide text-slate-500">
+                    <div className="rounded-2xl bg-stone-50 p-4">
+                      <p className="text-xs uppercase tracking-wide text-stone-500">
                         Sq Ft
                       </p>
-                      <p className="mt-2 text-lg font-semibold text-slate-900">
+                      <p className="mt-2 text-lg font-semibold text-stone-900">
                         {formatNumber(listing.sqft)}
                       </p>
                     </div>
@@ -389,32 +393,32 @@ export default async function ListingPage({
                 )}
               </div>
 
-              <div className="mt-6 space-y-4 border-t border-slate-200 pt-6 text-sm">
+              <div className="mt-6 space-y-4 border-t border-stone-200 pt-6 text-sm">
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-slate-500">County</span>
-                  <span className="font-medium text-slate-900">
+                  <span className="text-stone-500">County</span>
+                  <span className="font-medium text-stone-900">
                     {listing.county}
                   </span>
                 </div>
 
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-slate-500">Status</span>
-                  <span className="font-medium text-slate-900">
+                  <span className="text-stone-500">Status</span>
+                  <span className="font-medium text-stone-900">
                     {listing.status}
                   </span>
                 </div>
 
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-slate-500">Type</span>
-                  <span className="font-medium text-slate-900">
+                  <span className="text-stone-500">Type</span>
+                  <span className="font-medium text-stone-900">
                     {listing.type}
                   </span>
                 </div>
 
                 {listing.viewing && (
                   <div className="flex items-center justify-between gap-4">
-                    <span className="text-slate-500">Viewing</span>
-                    <span className="font-medium text-slate-900">
+                    <span className="text-stone-500">Viewing</span>
+                    <span className="font-medium text-stone-900">
                       {listing.viewing}
                     </span>
                   </div>
@@ -422,8 +426,8 @@ export default async function ListingPage({
 
                 {isSite && listing.planning && (
                   <div className="flex items-center justify-between gap-4">
-                    <span className="text-slate-500">Planning</span>
-                    <span className="font-medium text-slate-900">
+                    <span className="text-stone-500">Planning</span>
+                    <span className="font-medium text-stone-900">
                       {listing.planning}
                     </span>
                   </div>
@@ -431,12 +435,12 @@ export default async function ListingPage({
               </div>
             </aside>
 
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm">
               <div className="mb-4">
-                <h3 className="text-lg font-semibold text-slate-900">
+                <h3 className="text-lg font-semibold text-stone-900">
                   Enquire about this property
                 </h3>
-                <p className="mt-2 text-sm leading-6 text-slate-500">
+                <p className="mt-2 text-sm leading-6 text-stone-500">
                   Send a direct enquiry to the seller. Responses go straight to the listing owner.
                 </p>
               </div>
