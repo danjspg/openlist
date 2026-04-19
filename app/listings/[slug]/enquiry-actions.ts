@@ -94,7 +94,7 @@ export async function submitEnquiry(formData: FormData) {
           <div style="max-width:640px; margin:0 auto; padding:32px 20px; font-family:Arial, Helvetica, sans-serif; color:#0f172a;">
             <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:20px; overflow:hidden;">
 
-              <div style="padding:28px 28px 20px 28px; background:linear-gradient(180deg, #f8fafc 0%, #ffffff 100%); border-bottom:1px solid #e2e8f0;">
+              <div style="padding:28px; background:linear-gradient(180deg, #f8fafc 0%, #ffffff 100%); border-bottom:1px solid #e2e8f0;">
 
                 <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:18px;">
                   <tr>
@@ -102,7 +102,8 @@ export async function submitEnquiry(formData: FormData) {
                       <img
                         src="https://www.openlist.ie/logo.png"
                         alt="OpenList"
-                        style="height:30px; width:auto; display:block;"
+                        width="140"
+                        style="display:block; border:0;"
                       />
                     </td>
                     <td style="vertical-align:middle;">
@@ -166,14 +167,15 @@ ${message}
                 </p>
               </div>
 
-              <div style="padding:20px 28px 24px 28px; border-top:1px solid #e2e8f0; background:#ffffff;">
-                <p style="margin:0; font-size:13px; line-height:1.7; color:#64748b;">
+              <div style="padding:20px 28px; border-top:1px solid #e2e8f0;">
+                <p style="margin:0; font-size:13px; color:#64748b;">
                   Reply directly to this email to respond to the buyer.
                 </p>
-                <p style="margin:12px 0 0 0; font-size:12px; line-height:1.7; color:#94a3b8;">
+                <p style="margin:12px 0 0 0; font-size:12px; color:#94a3b8;">
                   This enquiry was sent via OpenList. OpenList is a marketing platform and does not act as an estate agent.
                 </p>
               </div>
+
             </div>
           </div>
         </div>
