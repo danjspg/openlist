@@ -44,7 +44,7 @@ export default function RootLayout({
               {/* Logo (using transparent original) */}
               <Link href="/" className="flex shrink-0 items-center">
                 <img
-                  src="/logo.png"
+                  src="/logo-v2.png"
                   alt="OpenList"
                   className="h-20 w-auto sm:h-24"
                 />
