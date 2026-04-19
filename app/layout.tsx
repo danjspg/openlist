@@ -37,7 +37,7 @@ export default function RootLayout({
             <div className="flex items-center justify-between gap-4 py-6 sm:py-7">
               <Link href="/" className="flex shrink-0 items-center">
                 <img
-                  src="/logo-header.png"
+                  src="/logo.png"
                   alt="OpenList"
                   className="block h-24 w-auto max-w-none sm:h-28"
                 />
