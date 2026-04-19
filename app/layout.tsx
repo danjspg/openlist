@@ -10,8 +10,7 @@ export const metadata: Metadata = {
 
 const navItems = [
   { href: "/listings", label: "Listings" },
-  { href: "/my-listings", label: "My Listings" },
-  { href: "/sell", label: "Sell your property" },
+  { href: "/my-listings", label: "My listings" },
   { href: "/about", label: "About" },
 ]
 
@@ -26,6 +25,8 @@ export default function RootLayout({
         <header className="sticky top-0 z-50 border-b border-stone-200/80 bg-white/90 backdrop-blur-md">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <div className="flex items-center justify-between gap-4 py-3.5 sm:py-4">
+              
+              {/* Logo */}
               <Link href="/" className="flex shrink-0 items-center">
                 <Image
                   src="/logo.png"
@@ -37,6 +38,7 @@ export default function RootLayout({
                 />
               </Link>
 
+              {/* Desktop nav */}
               <nav className="hidden items-center gap-8 md:flex">
                 {navItems.map((item) => (
                   <Link
@@ -50,12 +52,13 @@ export default function RootLayout({
                 ))}
               </nav>
 
+              {/* Right actions */}
               <div className="hidden items-center gap-3 md:flex">
                 <Link
                   href="/my-listings"
                   className="inline-flex items-center rounded-full border border-stone-300 px-4 py-2.5 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900"
                 >
-                  My Listings
+                  My listings
                 </Link>
 
                 <Link
@@ -67,6 +70,7 @@ export default function RootLayout({
               </div>
             </div>
 
+            {/* Mobile nav */}
             <div className="flex items-center gap-5 overflow-x-auto border-t border-stone-200/70 py-3 text-[15px] md:hidden">
               {navItems.map((item) => (
                 <Link
@@ -93,6 +97,8 @@ export default function RootLayout({
         <footer className="mt-16 border-t border-stone-200 bg-white">
           <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
             <div className="grid gap-10 md:grid-cols-2">
+              
+              {/* Left */}
               <div>
                 <p className="text-sm font-semibold tracking-tight text-stone-900">
                   OpenList
@@ -117,6 +123,7 @@ export default function RootLayout({
                 </div>
               </div>
 
+              {/* Right */}
               <div className="flex flex-col gap-3 text-sm text-stone-600 md:items-end">
                 <Link href="/listings" className="transition hover:text-stone-900">
                   View listings
