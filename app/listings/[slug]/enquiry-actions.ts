@@ -58,7 +58,9 @@ export async function submitEnquiry(formData: FormData) {
 
   const resendFromEmail = process.env.RESEND_FROM_EMAIL
   const resendApiKey = process.env.RESEND_API_KEY
-  const adminNotificationEmail = process.env.ADMIN_NOTIFICATION_EMAIL?.trim().toLowerCase()
+  const adminNotificationEmail =
+    process.env.ADMIN_NOTIFICATION_EMAIL?.trim().toLowerCase()
+
   const enquiryUrl = `https://www.openlist.ie/listings/${listingSlug}`
 
   if (!resendApiKey) {
@@ -93,23 +95,29 @@ export async function submitEnquiry(formData: FormData) {
             <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:20px; overflow:hidden;">
 
               <div style="padding:28px 28px 20px 28px; background:linear-gradient(180deg, #f8fafc 0%, #ffffff 100%); border-bottom:1px solid #e2e8f0;">
-                <div style="margin-bottom:12px;">
-                  <img
-                    src="https://www.openlist.ie/logo.jpg"
-                    alt="OpenList"
-                    style="height:28px; width:auto; display:block;"
-                  />
-                </div>
 
-                <div style="font-size:12px; letter-spacing:0.18em; text-transform:uppercase; font-weight:700; color:#64748b;">
-                  OpenList
-                </div>
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:18px;">
+                  <tr>
+                    <td style="vertical-align:middle; padding-right:12px;">
+                      <img
+                        src="https://www.openlist.ie/logo.png"
+                        alt="OpenList"
+                        style="height:30px; width:auto; display:block;"
+                      />
+                    </td>
+                    <td style="vertical-align:middle;">
+                      <div style="font-size:14px; letter-spacing:0.18em; text-transform:uppercase; font-weight:700; color:#64748b;">
+                        OpenList
+                      </div>
+                    </td>
+                  </tr>
+                </table>
 
-                <h1 style="margin:12px 0 0 0; font-size:28px; line-height:1.2; font-weight:700; color:#0f172a;">
+                <h1 style="margin:0; font-size:28px; line-height:1.2; font-weight:700; color:#0f172a;">
                   New enquiry received
                 </h1>
 
-                <p style="margin:12px 0 0 0; font-size:15px; line-height:1.7; color:#475569;">
+                <p style="margin:14px 0 0 0; font-size:15px; line-height:1.7; color:#475569;">
                   You’ve received a new enquiry for your listing.
                 </p>
               </div>
@@ -128,7 +136,7 @@ export async function submitEnquiry(formData: FormData) {
                   <div style="font-size:12px; letter-spacing:0.14em; text-transform:uppercase; font-weight:700; color:#64748b; margin-bottom:8px;">
                     Buyer
                   </div>
-                  <div style="font-size:15px; line-height:1.7; color:#0f172a;">
+                  <div style="font-size:15px; line-height:1.8; color:#0f172a;">
                     <strong>${name}</strong><br />
                     <a href="mailto:${email}" style="color:#0f172a; text-decoration:none;">${email}</a><br />
                     ${phone ? phone : "Phone not provided"}
@@ -139,7 +147,9 @@ export async function submitEnquiry(formData: FormData) {
                   <div style="font-size:12px; letter-spacing:0.14em; text-transform:uppercase; font-weight:700; color:#64748b; margin-bottom:8px;">
                     Message
                   </div>
-                  <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:16px; padding:18px; font-size:15px; line-height:1.8; color:#334155; white-space:pre-wrap;">${message}</div>
+                  <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:16px; padding:18px; font-size:15px; line-height:1.8; color:#334155; white-space:pre-wrap;">
+${message}
+                  </div>
                 </div>
 
                 <div style="margin-top:28px;">
