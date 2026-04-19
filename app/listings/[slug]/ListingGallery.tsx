@@ -48,7 +48,7 @@ export default function ListingGallery({
             <button
               type="button"
               onClick={goPrev}
-              className="absolute left-5 top-1/2 z-20 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-slate-900 shadow-lg backdrop-blur transition hover:bg-white"
+              className="absolute left-3 top-1/2 z-20 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-slate-900 shadow-lg backdrop-blur transition hover:bg-white sm:left-5 sm:h-12 sm:w-12"
               aria-label="Previous image"
             >
               <svg
@@ -67,7 +67,7 @@ export default function ListingGallery({
             <button
               type="button"
               onClick={goNext}
-              className="absolute right-5 top-1/2 z-20 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-slate-900 shadow-lg backdrop-blur transition hover:bg-white"
+              className="absolute right-3 top-1/2 z-20 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-slate-900 shadow-lg backdrop-blur transition hover:bg-white sm:right-5 sm:h-12 sm:w-12"
               aria-label="Next image"
             >
               <svg
@@ -83,7 +83,7 @@ export default function ListingGallery({
               </svg>
             </button>
 
-            <div className="absolute bottom-5 right-5 z-20 rounded-full bg-black/70 px-3 py-1.5 text-xs font-medium text-white backdrop-blur">
+            <div className="absolute bottom-3 right-3 z-20 rounded-full bg-black/70 px-3 py-1.5 text-xs font-medium text-white backdrop-blur sm:bottom-5 sm:right-5">
               {safeIndex + 1} / {images.length}
             </div>
           </>
@@ -91,35 +91,39 @@ export default function ListingGallery({
       </div>
 
       {images.length > 1 && (
-        <div className="mt-4 flex gap-3 overflow-x-auto pb-1">
-          {images.map((image, index) => {
-            const isActive = index === safeIndex
+        <div className="relative mt-4">
+          <div className="flex gap-3 overflow-x-auto pb-2">
+            {images.map((image, index) => {
+              const isActive = index === safeIndex
 
-            return (
-              <button
-                key={`${image}-${index}`}
-                type="button"
-                onClick={() => setActiveIndex(index)}
-                className={`overflow-hidden rounded-2xl border-2 bg-white shadow-sm transition ${
-                  isActive
-                    ? "border-slate-900"
-                    : "border-slate-200 hover:border-slate-300"
-                }`}
-                aria-label={`Show image ${index + 1}`}
-              >
-                <div className="relative h-24 w-36 bg-slate-100">
-                  <img
-                    src={image}
-                    alt={`${title} thumbnail ${index + 1}`}
-                    className="h-full w-full object-cover"
-                  />
-                  {isActive && (
-                    <div className="absolute inset-0 ring-2 ring-inset ring-slate-900" />
-                  )}
-                </div>
-              </button>
-            )
-          })}
+              return (
+                <button
+                  key={`${image}-${index}`}
+                  type="button"
+                  onClick={() => setActiveIndex(index)}
+                  className={`shrink-0 overflow-hidden rounded-xl border bg-white shadow-sm transition ${
+                    isActive
+                      ? "border-slate-900"
+                      : "border-slate-200 hover:border-slate-300"
+                  }`}
+                  aria-label={`Show image ${index + 1}`}
+                >
+                  <div className="relative h-20 w-28 bg-slate-100 sm:h-24 sm:w-36">
+                    <img
+                      src={image}
+                      alt={`${title} thumbnail ${index + 1}`}
+                      className="h-full w-full object-cover"
+                    />
+                    {isActive && (
+                      <div className="absolute inset-0 ring-2 ring-inset ring-slate-900" />
+                    )}
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="pointer-events-none absolute right-0 top-0 h-full w-8 bg-gradient-to-l from-white via-white/90 to-transparent" />
         </div>
       )}
     </div>
