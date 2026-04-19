@@ -10,7 +10,6 @@ export const metadata: Metadata = {
 
 const navItems = [
   { href: "/listings", label: "Listings" },
-  { href: "/my-listings", label: "My listings" },
   { href: "/about", label: "About" },
 ]
 
@@ -22,23 +21,28 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="bg-stone-50 text-stone-900">
+        <div className="border-b border-stone-800 bg-stone-900 text-white">
+          <div className="mx-auto max-w-6xl px-4 py-2 text-center text-xs font-medium tracking-[0.14em] sm:px-6 sm:text-sm">
+            <span className="opacity-80">Private beta</span>
+            <span className="mx-2 opacity-40">·</span>
+            Invite-only while we refine the experience
+          </div>
+        </div>
+
         <header className="sticky top-0 z-50 border-b border-stone-200/80 bg-white/90 backdrop-blur-md">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
-            <div className="flex items-center justify-between gap-4 py-3.5 sm:py-4">
-              
-              {/* Logo */}
+            <div className="flex items-center justify-between gap-4 py-4 sm:py-5">
               <Link href="/" className="flex shrink-0 items-center">
                 <Image
                   src="/logo.png"
                   alt="OpenList"
-                  width={170}
-                  height={48}
-                  className="h-8 w-auto sm:h-9"
+                  width={240}
+                  height={68}
+                  className="h-10 w-auto sm:h-12"
                   priority
                 />
               </Link>
 
-              {/* Desktop nav */}
               <nav className="hidden items-center gap-8 md:flex">
                 {navItems.map((item) => (
                   <Link
@@ -52,35 +56,44 @@ export default function RootLayout({
                 ))}
               </nav>
 
-              {/* Right actions */}
               <div className="hidden items-center gap-3 md:flex">
                 <Link
                   href="/my-listings"
-                  className="inline-flex items-center rounded-full border border-stone-300 px-4 py-2.5 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900"
+                  className="inline-flex items-center rounded-full border border-stone-300 px-5 py-2.5 text-base font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900"
                 >
                   My listings
                 </Link>
 
                 <Link
                   href="/sell"
-                  className="inline-flex items-center rounded-full bg-stone-900 px-5 py-2.5 text-base font-medium text-white shadow-sm transition hover:bg-stone-700"
+                  className="inline-flex items-center rounded-full bg-stone-900 px-6 py-2.5 text-base font-medium text-white shadow-sm transition hover:bg-stone-700"
                 >
                   Create a listing
                 </Link>
               </div>
             </div>
 
-            {/* Mobile nav */}
             <div className="flex items-center gap-5 overflow-x-auto border-t border-stone-200/70 py-3 text-[15px] md:hidden">
-              {navItems.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="shrink-0 font-medium text-stone-600 transition hover:text-stone-900"
-                >
-                  {item.label}
-                </Link>
-              ))}
+              <Link
+                href="/listings"
+                className="shrink-0 font-medium text-stone-600 transition hover:text-stone-900"
+              >
+                Listings
+              </Link>
+
+              <Link
+                href="/about"
+                className="shrink-0 font-medium text-stone-600 transition hover:text-stone-900"
+              >
+                About
+              </Link>
+
+              <Link
+                href="/my-listings"
+                className="shrink-0 font-medium text-stone-600 transition hover:text-stone-900"
+              >
+                My listings
+              </Link>
 
               <Link
                 href="/sell"
@@ -97,8 +110,6 @@ export default function RootLayout({
         <footer className="mt-16 border-t border-stone-200 bg-white">
           <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
             <div className="grid gap-10 md:grid-cols-2">
-              
-              {/* Left */}
               <div>
                 <p className="text-sm font-semibold tracking-tight text-stone-900">
                   OpenList
@@ -123,7 +134,6 @@ export default function RootLayout({
                 </div>
               </div>
 
-              {/* Right */}
               <div className="flex flex-col gap-3 text-sm text-stone-600 md:items-end">
                 <Link href="/listings" className="transition hover:text-stone-900">
                   View listings
