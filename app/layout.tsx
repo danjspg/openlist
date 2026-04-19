@@ -10,6 +10,7 @@ export const metadata: Metadata = {
 
 const navItems = [
   { href: "/listings", label: "Listings" },
+  { href: "/my-listings", label: "My Listings" },
   { href: "/sell", label: "Sell your property" },
   { href: "/about", label: "About" },
 ]
@@ -27,7 +28,7 @@ export default function RootLayout({
             <div className="flex items-center justify-between gap-4 py-3.5 sm:py-4">
               <Link href="/" className="flex shrink-0 items-center">
                 <Image
-                  src="/logo.jpg"
+                  src="/logo.png"
                   alt="OpenList"
                   width={170}
                   height={48}
@@ -49,7 +50,14 @@ export default function RootLayout({
                 ))}
               </nav>
 
-              <div className="hidden md:block">
+              <div className="hidden items-center gap-3 md:flex">
+                <Link
+                  href="/my-listings"
+                  className="inline-flex items-center rounded-full border border-stone-300 px-4 py-2.5 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900"
+                >
+                  My Listings
+                </Link>
+
                 <Link
                   href="/sell"
                   className="inline-flex items-center rounded-full bg-stone-900 px-5 py-2.5 text-base font-medium text-white shadow-sm transition hover:bg-stone-700"
@@ -112,6 +120,9 @@ export default function RootLayout({
               <div className="flex flex-col gap-3 text-sm text-stone-600 md:items-end">
                 <Link href="/listings" className="transition hover:text-stone-900">
                   View listings
+                </Link>
+                <Link href="/my-listings" className="transition hover:text-stone-900">
+                  My listings
                 </Link>
                 <Link href="/sell" className="transition hover:text-stone-900">
                   Create a listing
