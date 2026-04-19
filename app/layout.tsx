@@ -6,6 +6,10 @@ import "./globals.css"
 export const metadata: Metadata = {
   title: "OpenList",
   description: "A modern platform for private property listings in Ireland",
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/apple-icon.png",
+  },
 }
 
 const navItems = [
@@ -34,16 +38,18 @@ export default function RootLayout({
         {/* Header */}
         <header className="sticky top-0 z-50 border-b border-stone-200/80 bg-white/90 backdrop-blur-md">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
-            <div className="flex items-center justify-between gap-4 py-4 sm:py-5">
 
-              {/* Logo (increased again) */}
+            {/* Increased vertical space */}
+            <div className="flex items-center justify-between gap-4 py-5 sm:py-6">
+
+              {/* Logo — increased again */}
               <Link href="/" className="flex shrink-0 items-center">
                 <Image
                   src="/logo.png"
                   alt="OpenList"
-                  width={260}
-                  height={72}
-                  className="h-12 w-auto sm:h-14"
+                  width={320}
+                  height={90}
+                  className="h-14 w-auto sm:h-16"
                   priority
                 />
               </Link>
@@ -130,12 +136,8 @@ export default function RootLayout({
                 </p>
 
                 <div className="mt-6 space-y-3 text-xs leading-5 text-stone-500">
-                  <p>
-                    OpenList is a marketing platform for private property listings.
-                  </p>
-                  <p>
-                    Listing information is provided by sellers and has not been independently verified.
-                  </p>
+                  <p>OpenList is a marketing platform for private property listings.</p>
+                  <p>Listing information is provided by sellers and has not been independently verified.</p>
                   <p>
                     OpenList does not act as an estate agent and does not provide
                     valuation, negotiation, or legal services. Interested parties
@@ -165,6 +167,7 @@ export default function RootLayout({
             </div>
           </div>
         </footer>
+
       </body>
     </html>
   )
