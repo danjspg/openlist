@@ -54,7 +54,7 @@ export async function submitEnquiry(formData: FormData) {
     }
   }
 
-  const enquiryFrom = process.env.ENQUIRY_FROM_EMAIL
+  const enquiryFrom = process.env.RESEND_FROM_EMAIL
   const resendApiKey = process.env.RESEND_API_KEY
 
   if (!resendApiKey) {
