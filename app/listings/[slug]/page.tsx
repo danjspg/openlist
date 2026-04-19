@@ -340,6 +340,12 @@ export default async function ListingPage({
                 {formattedPrice}
               </p>
 
+              <div className="mt-3 inline-flex items-center rounded-full border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs font-medium text-stone-700">
+                Direct to seller
+                <span className="mx-2 h-1 w-1 rounded-full bg-stone-300" />
+                No agent fees
+              </div>
+
               <div className="mt-6 border-t border-stone-200 pt-6">
                 {isSite ? (
                   <div className="grid grid-cols-2 gap-4 text-sm">
