@@ -126,26 +126,56 @@ export default function ListingsPage() {
 
   return (
     <main className="min-h-screen bg-stone-50">
-      <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-12">
-        <div className="mb-8 overflow-hidden rounded-[32px] border border-stone-200 bg-white shadow-sm">
-          <div className="bg-gradient-to-br from-stone-50 via-white to-stone-100 px-5 py-7 sm:px-6 md:px-8 md:py-10">
-            <p className="text-sm font-medium uppercase tracking-[0.24em] text-stone-500">
-              OpenList
-            </p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl md:text-5xl">
-              Listings
-            </h1>
-            <p className="mt-4 max-w-2xl text-base leading-7 text-stone-600 sm:text-lg sm:leading-8">
-              A cleaner way to explore property — with better presentation and less noise.
-            </p>
+      <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10">
+        <div className="mb-8 grid gap-4 lg:grid-cols-[minmax(0,1.55fr)_360px]">
+          <div className="overflow-hidden rounded-[32px] border border-stone-200 bg-white shadow-sm">
+            <div className="bg-gradient-to-br from-stone-50 via-white to-stone-100 px-5 py-6 sm:px-6 md:px-8 md:py-8">
+              <p className="text-sm font-medium uppercase tracking-[0.24em] text-stone-500">
+                OpenList
+              </p>
+
+              <h1 className="mt-2 text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl md:text-[2.7rem]">
+                Listings
+              </h1>
+
+              <p className="mt-3 max-w-2xl text-base leading-7 text-stone-600 sm:text-lg sm:leading-8">
+                A cleaner way to explore property — with better presentation and less noise.
+              </p>
+
+              <div className="mt-5 flex flex-wrap gap-3">
+                <Link
+                  href="/sell"
+                  className="inline-flex items-center rounded-full bg-stone-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-stone-700"
+                >
+                  Create a listing
+                </Link>
+
+                <Link
+                  href="/my-listings"
+                  className="inline-flex items-center rounded-full border border-stone-300 bg-white px-5 py-2.5 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900"
+                >
+                  My listings
+                </Link>
+              </div>
+            </div>
           </div>
 
-          <div className="border-t border-stone-200 px-5 py-4 sm:px-6 md:px-8 md:py-5">
-            <p className="max-w-3xl text-sm leading-6 text-stone-500">
-              OpenList is a marketing platform for private property listings.
-              Listing information is provided by sellers and has not been independently
-              verified. Interested parties should satisfy themselves as to accuracy.
+          <div className="rounded-[32px] border border-stone-200 bg-white p-5 shadow-sm sm:p-6">
+            <p className="text-sm font-medium uppercase tracking-[0.18em] text-stone-500">
+              Before you browse
             </p>
+
+            <div className="mt-4 space-y-3 text-sm leading-6 text-stone-600">
+              <p>
+                OpenList is a marketing platform for private property listings.
+              </p>
+              <p>
+                Listing information is provided by sellers and has not been independently verified.
+              </p>
+              <p>
+                Interested parties should satisfy themselves as to accuracy.
+              </p>
+            </div>
           </div>
         </div>
 
