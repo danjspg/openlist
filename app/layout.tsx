@@ -21,6 +21,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="bg-stone-50 text-stone-900">
+
+        {/* Private Beta Banner */}
         <div className="border-b border-stone-800 bg-stone-900 text-white">
           <div className="mx-auto max-w-6xl px-4 py-2 text-center text-xs font-medium tracking-[0.14em] sm:px-6 sm:text-sm">
             <span className="opacity-80">Private beta</span>
@@ -29,20 +31,24 @@ export default function RootLayout({
           </div>
         </div>
 
+        {/* Header */}
         <header className="sticky top-0 z-50 border-b border-stone-200/80 bg-white/90 backdrop-blur-md">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <div className="flex items-center justify-between gap-4 py-4 sm:py-5">
+
+              {/* Logo (increased again) */}
               <Link href="/" className="flex shrink-0 items-center">
                 <Image
                   src="/logo.png"
                   alt="OpenList"
-                  width={240}
-                  height={68}
-                  className="h-10 w-auto sm:h-12"
+                  width={260}
+                  height={72}
+                  className="h-12 w-auto sm:h-14"
                   priority
                 />
               </Link>
 
+              {/* Desktop nav */}
               <nav className="hidden items-center gap-8 md:flex">
                 {navItems.map((item) => (
                   <Link
@@ -56,6 +62,7 @@ export default function RootLayout({
                 ))}
               </nav>
 
+              {/* Right actions */}
               <div className="hidden items-center gap-3 md:flex">
                 <Link
                   href="/my-listings"
@@ -73,6 +80,7 @@ export default function RootLayout({
               </div>
             </div>
 
+            {/* Mobile nav */}
             <div className="flex items-center gap-5 overflow-x-auto border-t border-stone-200/70 py-3 text-[15px] md:hidden">
               <Link
                 href="/listings"
@@ -107,9 +115,11 @@ export default function RootLayout({
 
         {children}
 
+        {/* Footer */}
         <footer className="mt-16 border-t border-stone-200 bg-white">
           <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
             <div className="grid gap-10 md:grid-cols-2">
+
               <div>
                 <p className="text-sm font-semibold tracking-tight text-stone-900">
                   OpenList
