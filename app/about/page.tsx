@@ -8,7 +8,7 @@ export default function AboutPage() {
         <div className="rounded-[32px] border border-slate-200 bg-slate-50 px-8 py-12 text-center sm:px-12 sm:py-16">
           <div className="flex justify-center">
             <Image
-              src="/logo.jpg"
+              src="/logo.png"
               alt="OpenList"
               width={220}
               height={80}
