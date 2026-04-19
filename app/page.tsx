@@ -188,7 +188,7 @@ export default async function HomePage() {
                         <img
                           src={displayImage}
                           alt={listing.title}
-                          className="h-56 w-full object-cover transition duration-500 group-hover:scale-[1.02] sm:h-64"
+                          className="h-52 w-full object-cover transition duration-500 group-hover:scale-[1.02] sm:h-60"
                         />
                         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent" />
 
@@ -200,20 +200,21 @@ export default async function HomePage() {
                       </div>
 
                       <div className="p-5 sm:p-6">
-                        <div className="flex items-start justify-between gap-4">
-                          <span className="text-xs font-medium uppercase tracking-[0.18em] text-stone-500 sm:text-sm">
+                        <div className="flex items-center justify-between gap-4">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500 sm:text-xs">
                             {listing.county}
                           </span>
-                          <span className="shrink-0 text-sm font-semibold text-stone-900 sm:text-base">
+
+                          <span className="shrink-0 text-base font-semibold text-stone-900 sm:text-lg">
                             {formatEuro(listing.price)}
                           </span>
                         </div>
 
-                        <h3 className="mt-4 text-2xl font-semibold leading-tight tracking-tight text-stone-900 sm:text-[2rem]">
+                        <h3 className="mt-3 text-xl font-semibold leading-snug tracking-tight text-stone-900 sm:text-2xl">
                           {listing.title}
                         </h3>
 
-                        <div className="mt-6 inline-flex items-center text-sm font-medium text-stone-700 transition group-hover:text-stone-900">
+                        <div className="mt-5 inline-flex items-center text-sm font-medium text-stone-600 transition group-hover:text-stone-900">
                           View listing
                           <svg
                             className="ml-2 h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5"

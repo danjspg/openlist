@@ -288,111 +288,115 @@ export default function ListingsPage() {
                   href={`/listings/${listing.slug}`}
                   className="group block overflow-hidden rounded-[30px] border border-stone-200 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-md"
                 >
-                  <div className="relative overflow-hidden">
-                    <div className="aspect-[3/2] w-full bg-stone-100">
-                      {displayImage ? (
-                        <img
-                          src={displayImage}
-                          alt={listing.title}
-                          className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.02]"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center text-sm text-stone-400">
-                          No image
+                  <article className="flex h-full flex-col">
+                    <div className="relative overflow-hidden">
+                      <div className="aspect-[3/2] w-full bg-stone-100">
+                        {displayImage ? (
+                          <img
+                            src={displayImage}
+                            alt={listing.title}
+                            className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.02]"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-sm text-stone-400">
+                            No image
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/12 via-transparent to-transparent" />
+
+                      <div className="absolute left-4 top-4 z-10 flex flex-wrap gap-2">
+                        <span
+                          className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] shadow-sm backdrop-blur ${
+                            isFeatured
+                              ? "bg-stone-900 text-white"
+                              : "bg-white/92 text-stone-700"
+                          }`}
+                        >
+                          {isFeatured ? "Featured" : listing.status}
+                        </span>
+                      </div>
+
+                      {photoCount > 1 && (
+                        <div className="absolute right-4 top-4 z-10">
+                          <span className="inline-flex items-center rounded-full bg-white/92 px-3 py-1 text-[11px] font-semibold text-stone-700 shadow-sm backdrop-blur">
+                            {photoCount} photos
+                          </span>
                         </div>
                       )}
                     </div>
 
-                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/12 via-transparent to-transparent" />
-
-                    <div className="absolute left-4 top-4 z-10 flex flex-wrap gap-2">
-                      <span
-                        className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] shadow-sm backdrop-blur ${
-                          isFeatured
-                            ? "bg-stone-900 text-white"
-                            : "bg-white/92 text-stone-700"
-                        }`}
-                      >
-                        {isFeatured ? "Featured" : listing.status}
-                      </span>
-                    </div>
-
-                    {photoCount > 1 && (
-                      <div className="absolute right-4 top-4 z-10">
-                        <span className="inline-flex items-center rounded-full bg-white/92 px-3 py-1 text-[11px] font-semibold text-stone-700 shadow-sm backdrop-blur">
-                          {photoCount} photos
+                    <div className="flex flex-1 flex-col p-5 sm:p-6">
+                      <div className="flex items-start justify-between gap-4">
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500 sm:text-xs">
+                          {listing.subtype || listing.type}
+                        </span>
+                        <span className="text-sm text-right text-stone-500">
+                          {location}
                         </span>
                       </div>
-                    )}
-                  </div>
 
-                  <div className="p-5 sm:p-6">
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-                      <span className="text-xs font-medium uppercase tracking-[0.22em] text-stone-500">
-                        {listing.subtype || listing.type}
-                      </span>
-                      <span className="text-sm text-stone-500">
-                        {location}
-                      </span>
-                    </div>
+                      <h2 className="mt-3 line-clamp-2 text-xl font-semibold leading-snug tracking-tight text-stone-900 sm:text-2xl">
+                        {listing.title}
+                      </h2>
 
-                    <h2 className="mt-4 line-clamp-2 text-2xl font-semibold leading-tight tracking-tight text-stone-900 sm:text-[2rem]">
-                      {listing.title}
-                    </h2>
-
-                    <p className="mt-4 line-clamp-2 leading-7 text-stone-600">
-                      {listing.excerpt}
-                    </p>
-
-                    {listing.highlights && listing.highlights.length > 0 && (
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        {listing.highlights.slice(0, 3).map((highlight) => (
-                          <span
-                            key={highlight}
-                            className="rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-xs text-stone-700"
-                          >
-                            {highlight}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="mt-5 flex flex-wrap gap-4 text-sm text-stone-500">
-                      {(listing.type === "House" || listing.type === "Apartment") && (
-                        <>
-                          <span>{listing.beds || "—"} bed</span>
-                          <span>{listing.baths || "—"} bath</span>
-                          <span>{areaDisplay}</span>
-                        </>
-                      )}
-
-                      {listing.type === "Site" && <span>{areaDisplay}</span>}
-                      {listing.type === "Commercial" && <span>{areaDisplay}</span>}
-                    </div>
-
-                    <div className="mt-6 flex items-end justify-between gap-4">
-                      <p className="text-2xl font-semibold tracking-tight text-stone-900">
-                        {formatEuro(listing.price)}
+                      <p className="mt-3 line-clamp-2 text-sm leading-7 text-stone-600 sm:text-base">
+                        {listing.excerpt}
                       </p>
 
-                      <span className="inline-flex items-center text-sm font-medium text-stone-700 transition group-hover:text-stone-900">
-                        View listing
-                        <svg
-                          className="ml-2 h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          aria-hidden="true"
-                        >
-                          <path d="M5 12h14" />
-                          <path d="m12 5 7 7-7 7" />
-                        </svg>
-                      </span>
+                      {listing.highlights && listing.highlights.length > 0 && (
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {listing.highlights.slice(0, 3).map((highlight) => (
+                            <span
+                              key={highlight}
+                              className="rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-xs text-stone-700"
+                            >
+                              {highlight}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="mt-5 flex flex-wrap gap-x-4 gap-y-2 text-sm text-stone-500">
+                        {(listing.type === "House" || listing.type === "Apartment") && (
+                          <>
+                            <span>{listing.beds || "—"} bed</span>
+                            <span>{listing.baths || "—"} bath</span>
+                            <span>{areaDisplay}</span>
+                          </>
+                        )}
+
+                        {listing.type === "Site" && <span>{areaDisplay}</span>}
+                        {listing.type === "Commercial" && <span>{areaDisplay}</span>}
+                      </div>
+
+                      <div className="mt-auto pt-6">
+                        <div className="flex items-end justify-between gap-4 border-t border-stone-100 pt-5">
+                          <p className="text-2xl font-semibold tracking-tight text-stone-900">
+                            {formatEuro(listing.price)}
+                          </p>
+
+                          <span className="inline-flex items-center text-sm font-medium text-stone-600 transition group-hover:text-stone-900">
+                            View listing
+                            <svg
+                              className="ml-2 h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              aria-hidden="true"
+                            >
+                              <path d="M5 12h14" />
+                              <path d="m12 5 7 7-7 7" />
+                            </svg>
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  </article>
                 </Link>
               )
             })}
