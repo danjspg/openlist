@@ -41,13 +41,13 @@ export default function RootLayout({
                 <img
                   src="/logo-small.png"
                   alt="OpenList"
-                  className="h-10 w-auto sm:hidden"
+                  className="h-12 w-auto sm:hidden"
                 />
 
                 <img
                   src="/logo.png"
                   alt="OpenList"
-                  className="hidden h-14 w-auto sm:block md:h-20 lg:h-24"
+                  className="hidden h-20 w-auto sm:block md:h-28 lg:h-32"
                 />
               </Link>
 
@@ -93,6 +93,9 @@ export default function RootLayout({
               <div className="flex flex-col gap-3 text-sm text-stone-600 md:items-end">
                 <Link href="/listings" className="transition hover:text-stone-900">
                   View listings
+                </Link>
+                <Link href="/sold-prices" className="transition hover:text-stone-900">
+                  Sold prices
                 </Link>
                 <Link href="/my-listings" className="transition hover:text-stone-900">
                   My listings

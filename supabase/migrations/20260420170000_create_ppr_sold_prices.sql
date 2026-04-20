@@ -83,6 +83,35 @@ create index if not exists ppr_area_stats_eircode_prefix_idx
 create index if not exists ppr_area_monthly_area_month_idx
   on public.ppr_area_monthly (county, area_slug, year_month desc);
 
+alter table public.ppr_sales enable row level security;
+alter table public.ppr_area_stats enable row level security;
+alter table public.ppr_area_monthly enable row level security;
+
+drop policy if exists "Public read PPR sales" on public.ppr_sales;
+create policy "Public read PPR sales"
+  on public.ppr_sales
+  for select
+  to anon, authenticated
+  using (true);
+
+drop policy if exists "Public read PPR area stats" on public.ppr_area_stats;
+create policy "Public read PPR area stats"
+  on public.ppr_area_stats
+  for select
+  to anon, authenticated
+  using (true);
+
+drop policy if exists "Public read PPR area monthly" on public.ppr_area_monthly;
+create policy "Public read PPR area monthly"
+  on public.ppr_area_monthly
+  for select
+  to anon, authenticated
+  using (true);
+
+grant select on public.ppr_sales to anon, authenticated;
+grant select on public.ppr_area_stats to anon, authenticated;
+grant select on public.ppr_area_monthly to anon, authenticated;
+
 create or replace function public.refresh_ppr_area_summaries()
 returns void
 language plpgsql

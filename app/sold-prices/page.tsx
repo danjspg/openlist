@@ -1,13 +1,16 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import PprDisclaimer from "@/components/ppr/PprDisclaimer"
+import PprSaleCard from "@/components/ppr/PprSaleCard"
 import SoldPricesSearchForm from "@/components/ppr/SoldPricesSearchForm"
 import {
   areaNameFromSlug,
   formatPprCurrency,
   formatPprDate,
+  getDefaultPprDateRange,
   getPprKpis,
   getPprQuickAreas,
+  searchPprSales,
 } from "@/lib/ppr"
 
 export const dynamic = "force-dynamic"
@@ -19,10 +22,15 @@ export const metadata: Metadata = {
 }
 
 export default async function SoldPricesPage() {
-  const [kpis, quickAreas] = await Promise.all([
+  const defaultSearch = getDefaultPprDateRange()
+  const [kpis, quickAreas, recentResults] = await Promise.all([
     getPprKpis(),
     getPprQuickAreas(),
+    searchPprSales(defaultSearch),
   ])
+  const formattedSalesCount = new Intl.NumberFormat("en-IE", {
+    maximumSignificantDigits: 2,
+  }).format(kpis.salesCount)
 
   return (
     <main className="min-h-screen bg-stone-50">
@@ -36,14 +44,18 @@ export default async function SoldPricesPage() {
               Recent residential sale prices across Ireland.
             </h1>
             <p className="mt-5 max-w-3xl text-base leading-7 text-stone-600 sm:text-lg sm:leading-8">
-              Browse public Property Price Register records by county, area and
-              price range. Use recent sales as useful market context before you
-              decide how to present your own property.
+              See what homes actually sold for across Ireland. Use recent sale
+              prices as useful market context before deciding how to present
+              your own property.
+            </p>
+            <p className="mt-4 text-sm font-medium text-stone-700">
+              Based on {formattedSalesCount}+ public Property Price Register
+              records since 2015.
             </p>
           </div>
 
           <div className="border-t border-stone-200 p-5 sm:p-6 md:p-8">
-            <SoldPricesSearchForm />
+            <SoldPricesSearchForm defaults={defaultSearch} />
           </div>
         </div>
 
@@ -76,6 +88,47 @@ export default async function SoldPricesPage() {
 
         <div className="mt-10 grid gap-8 lg:grid-cols-[1fr_360px]">
           <section>
+            <div className="mb-8">
+              <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-stone-500">
+                    Recent sales
+                  </p>
+                  <h2 className="mt-2 text-3xl font-semibold tracking-tight text-stone-900">
+                    Latest sold prices.
+                  </h2>
+                  <p className="mt-2 text-sm text-stone-500">
+                    {new Intl.NumberFormat("en-IE").format(recentResults.count)}{" "}
+                    result{recentResults.count === 1 ? "" : "s"} from the last
+                    year
+                  </p>
+                </div>
+                <Link
+                  href={`/sold-prices/search?dateFrom=${defaultSearch.dateFrom}&dateTo=${defaultSearch.dateTo}&dateRange=last-year&sort=newest`}
+                  className="text-sm font-medium text-stone-600 transition hover:text-stone-900"
+                >
+                  View all results
+                </Link>
+              </div>
+
+              {recentResults.error ? (
+                <div className="rounded-[28px] border border-red-200 bg-red-50 p-6 text-red-700">
+                  Could not load recent sold prices: {recentResults.error}
+                </div>
+              ) : recentResults.sales.length > 0 ? (
+                <div className="space-y-4">
+                  {recentResults.sales.map((sale) => (
+                    <PprSaleCard key={sale.id} sale={sale} />
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-[28px] border border-stone-200 bg-white p-8 text-stone-600 shadow-sm">
+                  Recent sold prices will appear here once matching PPR records
+                  are available.
+                </div>
+              )}
+            </div>
+
             <div className="flex items-end justify-between gap-4">
               <div>
                 <p className="text-sm font-medium uppercase tracking-[0.2em] text-stone-500">

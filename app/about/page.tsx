@@ -5,19 +5,19 @@ export default function AboutPage() {
   return (
     <main className="min-h-screen bg-white">
       <section className="mx-auto max-w-6xl px-6 py-10 sm:py-12">
-        <div className="rounded-[32px] border border-slate-200 bg-slate-50 px-6 py-8 text-center sm:px-10 sm:py-10">
+        <div className="rounded-[32px] border border-slate-200 bg-slate-50 px-6 py-7 text-center sm:px-10 sm:py-8">
           <div className="flex justify-center">
             <Image
-              src="/logo.png"
+              src="/logo-v2.png"
               alt="OpenList"
-              width={220}
-              height={80}
-              className="h-auto w-auto"
+              width={260}
+              height={76}
+              className="h-auto w-52 sm:w-64"
               priority
             />
           </div>
 
-          <p className="mt-6 text-base font-semibold tracking-tight text-slate-700">
+          <p className="mt-4 text-base font-semibold tracking-tight text-slate-700">
             About OpenList
           </p>
 

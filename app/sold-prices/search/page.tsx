@@ -3,7 +3,11 @@ import Link from "next/link"
 import PprDisclaimer from "@/components/ppr/PprDisclaimer"
 import PprSaleCard from "@/components/ppr/PprSaleCard"
 import SoldPricesSearchForm from "@/components/ppr/SoldPricesSearchForm"
-import { PPR_PAGE_SIZE, searchPprSales } from "@/lib/ppr"
+import {
+  PPR_PAGE_SIZE,
+  searchPprSales,
+  withDefaultPprSearchFilters,
+} from "@/lib/ppr"
 
 export const dynamic = "force-dynamic"
 
@@ -20,6 +24,10 @@ type SearchParams = {
   maxPrice?: string
   dateFrom?: string
   dateTo?: string
+  dateRange?: string
+  sort?: string
+  newBuild?: string
+  propertyStyle?: string
   page?: string
 }
 
@@ -39,7 +47,7 @@ export default async function SoldPricesSearchPage({
 }: {
   searchParams: Promise<SearchParams>
 }) {
-  const params = await searchParams
+  const params = withDefaultPprSearchFilters(await searchParams)
   const { sales, count, page, error } = await searchPprSales(params)
   const totalPages = Math.max(1, Math.ceil(count / PPR_PAGE_SIZE))
 
@@ -55,8 +63,8 @@ export default async function SoldPricesSearchPage({
               Search public sale prices.
             </h1>
             <p className="mt-3 max-w-3xl text-base leading-7 text-stone-600">
-              Filter recent Irish Residential Property Price Register records by
-              area, county, sale date and price range.
+              See what homes actually sold for across Ireland, then refine by
+              town, county, sale date and price range.
             </p>
           </div>
           <div className="border-t border-stone-200 p-5 sm:p-6">
@@ -69,7 +77,8 @@ export default async function SoldPricesSearchPage({
             <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <p className="text-sm uppercase tracking-[0.18em] text-stone-500">
-                  {count} result{count === 1 ? "" : "s"}
+                  {new Intl.NumberFormat("en-IE").format(count)} result
+                  {count === 1 ? "" : "s"}
                 </p>
                 <h2 className="mt-1 text-2xl font-semibold tracking-tight text-stone-900">
                   Recent sales

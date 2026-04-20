@@ -1,4 +1,6 @@
 import { supabase } from "@/lib/supabase"
+import { IRISH_COUNTIES } from "@/lib/property"
+import { dublinDistrictPrefix, type PprMarket } from "@/lib/ppr-markets"
 
 export type PprSale = {
   id: string
@@ -53,10 +55,45 @@ export type PprSearchFilters = {
   maxPrice?: string
   dateFrom?: string
   dateTo?: string
+  dateRange?: string
+  sort?: string
+  newBuild?: string
+  propertyStyle?: string
   page?: string
 }
 
 export const PPR_PAGE_SIZE = 12
+
+export function formatPprDateInput(date: Date) {
+  return date.toISOString().slice(0, 10)
+}
+
+export function getDefaultPprDateRange() {
+  const to = new Date()
+  const from = new Date(to)
+  from.setFullYear(from.getFullYear() - 1)
+
+  return {
+    dateFrom: formatPprDateInput(from),
+    dateTo: formatPprDateInput(to),
+    dateRange: "last-year",
+  }
+}
+
+export function withDefaultPprSearchFilters(filters: PprSearchFilters = {}) {
+  if (filters.dateFrom || filters.dateTo || filters.dateRange === "all") {
+    return {
+      ...filters,
+      sort: filters.sort || "newest",
+    }
+  }
+
+  return {
+    ...filters,
+    ...getDefaultPprDateRange(),
+    sort: filters.sort || "newest",
+  }
+}
 
 export function areaSlug(input: string) {
   return input
@@ -112,6 +149,26 @@ export function compactAddress(address: string) {
     .join(", ")
 }
 
+export function formatPropertyTags(sale: Pick<
+  PprSale,
+  "property_description_raw" | "vat_exclusive"
+>) {
+  const description = String(sale.property_description_raw || "").toLowerCase()
+  const propertyType = description.includes("house")
+    ? "House"
+    : description.includes("apartment")
+      ? "Apartment"
+      : "Property"
+  const condition = description.includes("new") ? "New build" : "Second-hand"
+  const tags = [propertyType, condition]
+
+  if (condition === "New build" && sale.vat_exclusive !== null && sale.vat_exclusive !== undefined) {
+    tags.push(sale.vat_exclusive ? "VAT exclusive" : "VAT included")
+  }
+
+  return tags
+}
+
 function numericFilter(value?: string) {
   if (!value) return null
   const parsed = Number(value.replace(/[^0-9.]/g, ""))
@@ -121,6 +178,86 @@ function numericFilter(value?: string) {
 function safePage(value?: string) {
   const page = Number(value)
   return Number.isInteger(page) && page > 0 ? page : 1
+}
+
+function sortOption(value?: string) {
+  switch (value) {
+    case "oldest":
+    case "price-high":
+    case "price-low":
+      return value
+    default:
+      return "newest"
+  }
+}
+
+function uniqueValues(values: string[]) {
+  return Array.from(new Set(values.filter(Boolean)))
+}
+
+function areaSearchTerms(input: string) {
+  const trimmed = input.trim()
+  const commaParts = trimmed
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean)
+
+  return uniqueValues([trimmed, ...commaParts])
+}
+
+function countySearchTerms(terms: string[]) {
+  const counties = IRISH_COUNTIES.map((county) => ({
+    county,
+    slug: areaSlug(county),
+  }))
+
+  return uniqueValues(
+    terms
+      .map((term) => areaSlug(term.replace(/^co(?:unty)?\.?\s+/i, "")))
+      .map((slug) => counties.find((item) => item.slug === slug)?.county || "")
+  )
+}
+
+function eircodePrefixTerms(terms: string[]) {
+  return uniqueValues(
+    terms
+      .map((term) => term.trim().toUpperCase().replace(/\s+/g, ""))
+      .filter((term) => /^[A-Z][0-9]{2}$/.test(term) || /^[A-Z][0-9][A-Z0-9]$/.test(term))
+  )
+}
+
+function areaFilterExpression(input: string, includeCounty = true) {
+  const terms = areaSearchTerms(input)
+  const slugs = uniqueValues(terms.map(areaSlug))
+  const eircodePrefixes = eircodePrefixTerms(terms)
+  const counties = includeCounty ? countySearchTerms(terms) : []
+  const filters: string[] = []
+
+  if (slugs.length === 1) filters.push(`area_slug.eq.${slugs[0]}`)
+  if (slugs.length > 1) filters.push(`area_slug.in.(${slugs.join(",")})`)
+
+  if (eircodePrefixes.length === 1) filters.push(`eircode_prefix.eq.${eircodePrefixes[0]}`)
+  if (eircodePrefixes.length > 1) {
+    filters.push(`eircode_prefix.in.(${eircodePrefixes.join(",")})`)
+  }
+
+  if (counties.length === 1) filters.push(`county.eq.${counties[0]}`)
+  if (counties.length > 1) filters.push(`county.in.(${counties.join(",")})`)
+
+  return filters.join(",")
+}
+
+function propertyStyleFilterExpression(style?: string) {
+  switch (style) {
+    case "apartment":
+      return "address_raw.ilike.%apartment%,address_raw.ilike.%apt%"
+    case "detached":
+      return "property_description_raw.ilike.%detached%,address_raw.ilike.%detached%"
+    case "semi-detached":
+      return "property_description_raw.ilike.%semi-detached%,address_raw.ilike.%semi-detached%,address_raw.ilike.%semi detached%"
+    default:
+      return ""
+  }
 }
 
 export async function getPprCounties() {
@@ -158,7 +295,7 @@ export async function getPprQuickAreas(limit = 8) {
 export async function getPprKpis() {
   const { count } = await supabase
     .from("ppr_sales")
-    .select("id", { count: "exact", head: true })
+    .select("id", { count: "estimated", head: true })
 
   const { data: latest } = await supabase
     .from("ppr_sales")
@@ -167,50 +304,60 @@ export async function getPprKpis() {
     .limit(1)
     .maybeSingle()
 
-  const { data: counties } = await supabase
-    .from("ppr_sales")
-    .select("county")
-    .not("county", "is", null)
-    .limit(5000)
-
   return {
     salesCount: count ?? 0,
     latestSaleDate: latest?.date_of_sale ?? null,
     latestSalePrice: latest?.price_eur ?? null,
-    countyCount: new Set((counties ?? []).map((row) => row.county)).size,
+    countyCount: 26,
   }
 }
 
 export async function searchPprSales(filters: PprSearchFilters) {
-  const page = safePage(filters.page)
+  const resolvedFilters = withDefaultPprSearchFilters(filters)
+  const page = safePage(resolvedFilters.page)
   const from = (page - 1) * PPR_PAGE_SIZE
   const to = from + PPR_PAGE_SIZE - 1
-  const minPrice = numericFilter(filters.minPrice)
-  const maxPrice = numericFilter(filters.maxPrice)
+  const minPrice = numericFilter(resolvedFilters.minPrice)
+  const maxPrice = numericFilter(resolvedFilters.maxPrice)
+  const sort = sortOption(resolvedFilters.sort)
 
   let query = supabase
     .from("ppr_sales")
-    .select("*", { count: "exact" })
-    .order("date_of_sale", { ascending: false })
+    .select("*", { count: "estimated" })
     .range(from, to)
 
-  if (filters.county) {
-    query = query.ilike("county", filters.county)
+  if (sort === "oldest") {
+    query = query.order("date_of_sale", { ascending: true })
+  } else if (sort === "price-high") {
+    query = query.order("price_eur", { ascending: false })
+  } else if (sort === "price-low") {
+    query = query.order("price_eur", { ascending: true })
+  } else {
+    query = query.order("date_of_sale", { ascending: false })
   }
 
-  if (filters.area) {
-    const area = filters.area.trim()
+  if (resolvedFilters.county) {
+    query = query.ilike("county", resolvedFilters.county)
+  }
+
+  if (resolvedFilters.area) {
+    const area = resolvedFilters.area.trim()
     if (area) {
-      query = query.or(
-        `locality.ilike.%${area}%,address_raw.ilike.%${area}%,area_slug.eq.${areaSlug(area)}`
-      )
+      const expression = areaFilterExpression(area, !resolvedFilters.county)
+      if (expression) query = query.or(expression)
     }
   }
 
   if (minPrice !== null) query = query.gte("price_eur", minPrice)
   if (maxPrice !== null) query = query.lte("price_eur", maxPrice)
-  if (filters.dateFrom) query = query.gte("date_of_sale", filters.dateFrom)
-  if (filters.dateTo) query = query.lte("date_of_sale", filters.dateTo)
+  if (resolvedFilters.dateFrom) query = query.gte("date_of_sale", resolvedFilters.dateFrom)
+  if (resolvedFilters.dateTo) query = query.lte("date_of_sale", resolvedFilters.dateTo)
+  if (resolvedFilters.newBuild === "true") query = query.eq("is_new_dwelling", true)
+
+  const propertyStyleExpression = propertyStyleFilterExpression(
+    resolvedFilters.propertyStyle
+  )
+  if (propertyStyleExpression) query = query.or(propertyStyleExpression)
 
   const { data, count, error } = await query
 
@@ -222,6 +369,34 @@ export async function searchPprSales(filters: PprSearchFilters) {
     sales: (data ?? []) as PprSale[],
     count: count ?? 0,
     page,
+    error: "",
+  }
+}
+
+export async function getMarketSoldPrices(market: PprMarket, limit = 12) {
+  let query = supabase
+    .from("ppr_sales")
+    .select("*", { count: "estimated" })
+    .order("date_of_sale", { ascending: false })
+    .limit(limit)
+
+  if (market.marketType === "county") {
+    query = query.ilike("county", market.name)
+  } else if (market.marketType === "dublin_district") {
+    query = query.eq("eircode_prefix", dublinDistrictPrefix(market))
+  } else {
+    query = query.eq("area_slug", market.slug)
+  }
+
+  const { data, count, error } = await query
+
+  if (error) {
+    return { sales: [] as PprSale[], count: 0, error: error.message }
+  }
+
+  return {
+    sales: (data ?? []) as PprSale[],
+    count: count ?? 0,
     error: "",
   }
 }
@@ -246,11 +421,11 @@ export async function getAreaMonthly(county: string, slug: string, limit = 18) {
     .select("*")
     .ilike("county", county)
     .eq("area_slug", slug)
-    .order("year_month", { ascending: true })
+    .order("year_month", { ascending: false })
     .limit(limit)
 
   if (error || !data) return []
-  return data as PprAreaMonthly[]
+  return (data as PprAreaMonthly[]).reverse()
 }
 
 export async function getRecentAreaSales(county: string, slug: string, limit = 8) {

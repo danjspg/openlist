@@ -95,13 +95,24 @@ function normaliseBoolean(value) {
   return null
 }
 
+function getPriceValue(record) {
+  if (record.Price) return record.Price
+
+  const priceKey = Object.keys(record).find((key) =>
+    key.trim().toLowerCase().startsWith("price")
+  )
+
+  return priceKey ? record[priceKey] : ""
+}
+
 function mapRow(headers, row) {
   const record = Object.fromEntries(
     headers.map((header, index) => [header.trim(), row[index]?.trim() || ""])
   )
 
   const dateOfSale = parseIrishDate(record["Date of Sale (dd/mm/yyyy)"])
-  const price = parsePrice(record.Price)
+  const priceValue = getPriceValue(record)
+  const price = parsePrice(priceValue)
   const address = record.Address
   const county = record.County
   const eircode = record.Eircode || null
@@ -144,7 +155,7 @@ function mapRow(headers, row) {
     eircode,
     eircode_prefix: eircode ? eircode.slice(0, 3).toUpperCase() : null,
     price_eur: price,
-    price_display: record.Price,
+    price_display: priceValue,
     property_description_raw: propertyDescription || null,
     is_new_dwelling: isNewDwelling,
     vat_exclusive: vatExclusive,

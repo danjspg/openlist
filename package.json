@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "ppr:download": "node scripts/download-ppr-csvs.mjs",
     "ppr:ingest": "node scripts/ingest-ppr-csv.mjs",
     "ppr:rebuild-summaries": "node scripts/rebuild-ppr-summaries.mjs"
   },

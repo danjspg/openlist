@@ -4,6 +4,7 @@ import {
   compactAddress,
   formatPprCurrency,
   formatPprDate,
+  formatPropertyTags,
   type PprSale,
 } from "@/lib/ppr"
 
@@ -11,6 +12,7 @@ export default function PprSaleCard({ sale }: { sale: PprSale }) {
   const locality = sale.locality?.trim()
   const county = sale.county?.trim()
   const area = sale.area_slug || (locality ? areaSlug(locality) : "")
+  const tags = formatPropertyTags(sale)
 
   return (
     <article className="rounded-[28px] border border-stone-200 bg-white p-5 shadow-sm transition hover:shadow-md sm:p-6">
@@ -38,21 +40,14 @@ export default function PprSaleCard({ sale }: { sale: PprSale }) {
       </div>
 
       <div className="mt-5 flex flex-wrap gap-2">
-        {sale.property_description_raw && (
-          <span className="rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-xs font-medium text-stone-600">
-            {sale.property_description_raw}
+        {tags.map((tag) => (
+          <span
+            key={tag}
+            className="rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-xs font-medium text-stone-600"
+          >
+            {tag}
           </span>
-        )}
-        {sale.is_new_dwelling !== null && sale.is_new_dwelling !== undefined && (
-          <span className="rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-xs font-medium text-stone-600">
-            {sale.is_new_dwelling ? "New dwelling" : "Second-hand dwelling"}
-          </span>
-        )}
-        {sale.vat_exclusive !== null && sale.vat_exclusive !== undefined && (
-          <span className="rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-xs font-medium text-stone-600">
-            {sale.vat_exclusive ? "VAT exclusive" : "VAT included"}
-          </span>
-        )}
+        ))}
       </div>
 
       {county && area && (
