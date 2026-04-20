@@ -41,13 +41,13 @@ export default function RootLayout({
                 <img
                   src="/logo-small.png"
                   alt="OpenList"
-                  className="h-8 w-auto sm:hidden"
+                  className="h-10 w-auto sm:hidden"
                 />
 
                 <img
                   src="/logo.png"
                   alt="OpenList"
-                  className="hidden h-12 w-auto sm:block md:h-16 lg:h-[72px]"
+                  className="hidden h-14 w-auto sm:block md:h-20 lg:h-24"
                 />
               </Link>
 
