@@ -15,6 +15,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  viewportFit: "cover",
 }
 
 export default function RootLayout({
@@ -23,8 +24,15 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className="bg-stone-50 text-stone-900">
+    <html lang="en" className="overflow-x-hidden">
+      <head>
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1, viewport-fit=cover"
+        />
+      </head>
+      <body className="overflow-x-hidden bg-stone-50 text-stone-900">
+        {/* your existing layout content */}
         <div className="border-b border-stone-800 bg-stone-900 text-white">
           <div className="mx-auto max-w-6xl px-4 py-2 text-center text-xs font-medium tracking-[0.14em] sm:px-6 sm:text-sm">
             <span className="opacity-80">Private beta</span>
