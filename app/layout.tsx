@@ -1,4 +1,4 @@
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import Link from "next/link"
 import Nav from "@/components/Nav"
 import "./globals.css"
@@ -10,6 +10,11 @@ export const metadata: Metadata = {
     icon: "/favicon-v2.ico",
     apple: "/apple-icon-v2.png",
   },
+}
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 }
 
 export default function RootLayout({
