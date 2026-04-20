@@ -2,12 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react"
 import SellerEmailField from "@/components/SellerEmailField"
+import { supabase } from "@/lib/supabase"
 import {
   IRISH_COUNTIES,
   PROPERTY_TYPES,
   SALE_METHODS,
   STATUS_OPTIONS,
   generateListingTitle,
+  getAreaDisplay,
   getAreaUnitOptions,
   getSubtypeOptions,
 } from "@/lib/property"
@@ -46,11 +48,50 @@ type PreviewImage = {
   previewUrl: string
 }
 
+type CloneListing = {
+  slug: string
+  title: string
+  seller_email?: string | null
+  type?: string | null
+  subtype?: string | null
+  sale_method?: string | null
+  county?: string | null
+  address_line_2?: string | null
+  eircode?: string | null
+  price?: string | null
+  beds?: number | null
+  baths?: number | null
+  area_value?: number | null
+  area_unit?: string | null
+  excerpt?: string | null
+  description?: string | null
+  status?: string | null
+  highlights?: string[] | null
+  image?: string | null
+  images?: string[] | null
+  created_at?: string | null
+}
+
+function formatEuro(value: string) {
+  const numeric = Number(value.replace(/[^0-9.]/g, ""))
+
+  if (Number.isNaN(numeric)) {
+    return value
+  }
+
+  return new Intl.NumberFormat("en-IE", {
+    style: "currency",
+    currency: "EUR",
+    maximumFractionDigits: 0,
+  }).format(numeric)
+}
+
 export default function SellerListingV2Form({
   mode,
   submitAction,
   initialData,
 }: Props) {
+  const [sellerEmail, setSellerEmail] = useState(initialData?.sellerEmail || "")
   const [type, setType] = useState(initialData?.type || "House")
   const [subtype, setSubtype] = useState(
     initialData?.subtype || getSubtypeOptions(initialData?.type || "House")[0] || ""
@@ -83,6 +124,13 @@ export default function SellerListingV2Form({
   const [previewImages, setPreviewImages] = useState<PreviewImage[]>([])
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [imageError, setImageError] = useState("")
+  const [imageUrl, setImageUrl] = useState("")
+  const [clonedImages, setClonedImages] = useState<string[]>(initialData?.images || [])
+  const [cloneListings, setCloneListings] = useState<CloneListing[]>([])
+  const [cloneStatus, setCloneStatus] = useState<"idle" | "loading" | "ready" | "error">("idle")
+  const [cloneError, setCloneError] = useState("")
+  const [isPreviewing, setIsPreviewing] = useState(false)
+  const [previewError, setPreviewError] = useState("")
 
   const isSite = type === "Site"
   const isResidential = type === "House" || type === "Apartment"
@@ -118,6 +166,52 @@ export default function SellerListingV2Form({
       previewImages.forEach((img) => URL.revokeObjectURL(img.previewUrl))
     }
   }, [previewImages])
+
+  useEffect(() => {
+    if (mode !== "create") return
+
+    const trimmedEmail = sellerEmail.trim().toLowerCase()
+
+    if (!trimmedEmail) {
+      setCloneListings([])
+      setCloneStatus("idle")
+      setCloneError("")
+      return
+    }
+
+    let cancelled = false
+
+    async function loadCloneListings() {
+      setCloneStatus("loading")
+      setCloneError("")
+
+      const { data, error } = await supabase
+        .from("listings")
+        .select(
+          "slug,title,seller_email,type,subtype,sale_method,county,address_line_2,eircode,price,beds,baths,area_value,area_unit,excerpt,description,status,highlights,image,images,created_at"
+        )
+        .eq("seller_email", trimmedEmail)
+        .order("created_at", { ascending: false })
+
+      if (cancelled) return
+
+      if (error) {
+        setCloneListings([])
+        setCloneStatus("error")
+        setCloneError(error.message)
+        return
+      }
+
+      setCloneListings((data ?? []) as CloneListing[])
+      setCloneStatus("ready")
+    }
+
+    loadCloneListings()
+
+    return () => {
+      cancelled = true
+    }
+  }, [mode, sellerEmail])
 
   function handleImageChange(event: React.ChangeEvent<HTMLInputElement>) {
     previewImages.forEach((img) => URL.revokeObjectURL(img.previewUrl))
@@ -214,8 +308,104 @@ export default function SellerListingV2Form({
     }
   }
 
+  function normaliseImageList(listing: CloneListing) {
+    if (listing.images && listing.images.length > 0) {
+      return listing.images.filter(Boolean)
+    }
+
+    return listing.image ? [listing.image] : []
+  }
+
+  function applyClone(slug: string) {
+    const listing = cloneListings.find((item) => item.slug === slug)
+    if (!listing) return
+
+    const nextType = listing.type || "House"
+    const nextSubtype =
+      listing.subtype || getSubtypeOptions(nextType)[0] || ""
+
+    setType(nextType)
+    setSubtype(nextSubtype)
+    setSaleMethod(listing.sale_method || "Private Sale")
+    setCounty(listing.county || "Cork")
+    setAddressLine2(listing.address_line_2 || "")
+    setEircode(listing.eircode || "")
+    setPrice(listing.price || "")
+    setBeds(String(listing.beds ?? 0))
+    setBaths(String(listing.baths ?? 0))
+    setAreaValue(
+      listing.area_value !== undefined && listing.area_value !== null
+        ? String(listing.area_value)
+        : ""
+    )
+    setAreaUnit(
+      listing.area_unit || getAreaUnitOptions(nextType)[0] || "sqft"
+    )
+    setExcerpt(listing.excerpt || "")
+    setDescription(listing.description || "")
+    setStatus("For Sale")
+    setSuggestedHighlights(listing.highlights || [])
+    setSelectedHighlights(listing.highlights || [])
+    setClonedImages(normaliseImageList(listing))
+    setImageUrl("")
+    setIsPreviewing(false)
+    setPreviewError("")
+  }
+
+  function handleSellerEmailChange(value: string) {
+    if (
+      sellerEmail.trim().toLowerCase() !== value.trim().toLowerCase() &&
+      clonedImages.length > 0
+    ) {
+      setClonedImages([])
+    }
+
+    setSellerEmail(value)
+  }
+
+  function getPreviewImages() {
+    if (previewImages.length > 0) {
+      return [
+        ...previewImages.map((image) => image.previewUrl),
+        ...clonedImages,
+      ]
+    }
+
+    if (clonedImages.length > 0) {
+      return clonedImages
+    }
+
+    if (imageUrl.trim()) {
+      return [imageUrl.trim()]
+    }
+
+    return []
+  }
+
+  function handlePreview() {
+    const form = document.getElementById("seller-listing-form") as HTMLFormElement | null
+
+    setPreviewError("")
+
+    if (form && !form.reportValidity()) {
+      setPreviewError("Please complete the required fields before previewing.")
+      return
+    }
+
+    setIsPreviewing(true)
+    window.scrollTo({ top: 0, behavior: "smooth" })
+  }
+
+  const previewDisplayImages = getPreviewImages()
+  const previewArea = getAreaDisplay({
+    type,
+    areaValue: Number(areaValue) || null,
+    areaUnit,
+  })
+  const previewPrice = formatEuro(price)
+
   return (
-    <form action={submitAction} className="space-y-10">
+    <form id="seller-listing-form" action={submitAction} className="space-y-10">
       {mode === "edit" && initialData?.slug && (
         <input type="hidden" name="slug" value={initialData.slug} />
       )}
@@ -236,6 +426,16 @@ export default function SellerListingV2Form({
         />
       ))}
 
+      {clonedImages.map((image) => (
+        <input
+          key={image}
+          type="hidden"
+          name="clonedImageUrls"
+          value={image}
+        />
+      ))}
+
+      <div className={isPreviewing ? "hidden" : "space-y-10"}>
       <section className="rounded-[28px] border border-stone-200 bg-stone-50 p-6 shadow-sm">
         <div className="mb-6 border-b border-stone-200 pb-5">
           <p className="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">
@@ -256,8 +456,61 @@ export default function SellerListingV2Form({
           required
           defaultValue={initialData?.sellerEmail || ""}
           helperText=""
+          onValueChange={handleSellerEmailChange}
           className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-stone-500"
         />
+
+        {mode === "create" && (
+          <div className="mt-5 rounded-[24px] border border-stone-200 bg-white p-5">
+            <div className="flex flex-col gap-4 md:flex-row md:items-end">
+              <div className="flex-1">
+                <p className="text-sm font-semibold tracking-tight text-stone-700">
+                  Clone one of your existing listings
+                </p>
+                <p className="mt-2 text-sm leading-6 text-stone-500">
+                  Use a previous listing as a starting point, then adjust the details before previewing.
+                </p>
+              </div>
+
+              <div className="w-full md:w-80">
+                <label className="mb-2 block text-sm font-medium text-stone-700">
+                  Existing listing
+                </label>
+                <select
+                  value=""
+                  onChange={(e) => applyClone(e.target.value)}
+                  disabled={cloneStatus !== "ready" || cloneListings.length === 0}
+                  className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition focus:border-stone-500 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400"
+                >
+                  <option value="">
+                    {cloneStatus === "loading"
+                      ? "Loading listings..."
+                      : cloneListings.length > 0
+                        ? "Choose a listing to clone"
+                        : "No listings found"}
+                  </option>
+                  {cloneListings.map((listing) => (
+                    <option key={listing.slug} value={listing.slug}>
+                      {listing.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {cloneError && (
+              <p className="mt-3 text-sm text-red-600">
+                Could not load your listings: {cloneError}
+              </p>
+            )}
+
+            {clonedImages.length > 0 && (
+              <p className="mt-3 text-sm text-stone-500">
+                Cloned photos will be reused unless you upload new photos.
+              </p>
+            )}
+          </div>
+        )}
 
         <div className="mt-5 rounded-2xl border border-stone-200 bg-white px-4 py-4 text-sm leading-6 text-stone-600">
           This email is not shown publicly. Enquiries from buyers in Ireland are sent directly to you.
@@ -645,6 +898,33 @@ export default function SellerListingV2Form({
           </div>
         )}
 
+        {mode === "create" && clonedImages.length > 0 && (
+          <div className="mb-6">
+            <p className="mb-3 text-sm font-medium text-stone-700">
+              Cloned photos
+            </p>
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+              {clonedImages.map((url, index) => (
+                <div
+                  key={`${url}-${index}`}
+                  className="overflow-hidden rounded-[20px] border border-stone-200 bg-white shadow-sm"
+                >
+                  <div className="aspect-[3/2] w-full bg-stone-100">
+                    <img
+                      src={url}
+                      alt={`Cloned photo ${index + 1}`}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                  <div className="border-t border-stone-200 px-3 py-2 text-xs text-stone-500">
+                    {index === 0 ? "Main photo" : `Photo ${index + 1}`}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div>
           <label className="mb-2 block text-sm font-medium text-stone-700">
             Upload photos
@@ -710,6 +990,8 @@ export default function SellerListingV2Form({
           <input
             name="imageUrl"
             type="url"
+            value={imageUrl}
+            onChange={(e) => setImageUrl(e.target.value)}
             placeholder="https://images.unsplash.com/..."
             className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition focus:border-stone-500"
           />
@@ -721,17 +1003,179 @@ export default function SellerListingV2Form({
           By submitting this listing, you confirm that the information provided is accurate to the best of your knowledge and that you have the right to market the property.
         </p>
       </section>
+      </div>
+
+      {isPreviewing && (
+        <section className="overflow-hidden rounded-[32px] border border-stone-200 bg-white shadow-sm">
+          <div className="border-b border-stone-200 bg-gradient-to-br from-stone-50 via-white to-stone-100 px-5 py-6 sm:px-6 md:px-8">
+            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">
+              Listing preview
+            </p>
+            <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center rounded-full bg-stone-900 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-white">
+                    {status}
+                  </span>
+                  <span className="inline-flex items-center rounded-full border border-stone-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-600">
+                    {type}
+                  </span>
+                  {subtype && (
+                    <span className="inline-flex items-center rounded-full border border-stone-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-600">
+                      {subtype}
+                    </span>
+                  )}
+                </div>
+
+                <h2 className="mt-4 break-words text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl">
+                  {generatedTitle}
+                </h2>
+                <p className="mt-3 text-base leading-7 text-stone-600">
+                  {[addressLine2, county].filter(Boolean).join(", ")}
+                </p>
+              </div>
+
+              <div className="rounded-[24px] border border-stone-200 bg-white px-5 py-4 shadow-sm">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500">
+                  Guide price
+                </div>
+                <div className="mt-2 text-3xl font-semibold tracking-tight text-stone-900">
+                  {previewPrice}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-5 sm:p-6 md:p-8">
+            {previewDisplayImages.length > 0 ? (
+              <div className="overflow-hidden rounded-[28px] border border-stone-200 bg-stone-100">
+                <img
+                  src={previewDisplayImages[0]}
+                  alt={generatedTitle}
+                  className="h-[280px] w-full object-cover sm:h-[380px]"
+                />
+              </div>
+            ) : (
+              <div className="flex h-[260px] items-center justify-center rounded-[28px] border border-stone-200 bg-stone-100 text-stone-400">
+                No photos selected
+              </div>
+            )}
+
+            {previewDisplayImages.length > 1 && (
+              <div className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-4">
+                {previewDisplayImages.slice(1, 5).map((image, index) => (
+                  <div
+                    key={`${image}-${index}`}
+                    className="overflow-hidden rounded-2xl border border-stone-200 bg-stone-100"
+                  >
+                    <img
+                      src={image}
+                      alt={`${generatedTitle} preview ${index + 2}`}
+                      className="aspect-[4/3] w-full object-cover"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="mt-8 grid gap-4 sm:grid-cols-3">
+              {isResidential && (
+                <>
+                  <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-stone-500">
+                      Beds
+                    </p>
+                    <p className="mt-2 text-xl font-semibold text-stone-900">
+                      {beds || "0"}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-stone-500">
+                      Baths
+                    </p>
+                    <p className="mt-2 text-xl font-semibold text-stone-900">
+                      {baths || "0"}
+                    </p>
+                  </div>
+                </>
+              )}
+              <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
+                <p className="text-xs uppercase tracking-[0.18em] text-stone-500">
+                  Area
+                </p>
+                <p className="mt-2 text-xl font-semibold text-stone-900">
+                  {previewArea}
+                </p>
+              </div>
+            </div>
+
+            {selectedHighlights.length > 0 && (
+              <div className="mt-8 flex flex-wrap gap-3">
+                {selectedHighlights.map((highlight) => (
+                  <span
+                    key={highlight}
+                    className="rounded-full border border-stone-200 bg-stone-50 px-4 py-2 text-sm font-medium text-stone-700"
+                  >
+                    {highlight}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {excerpt && (
+              <p className="mt-8 text-xl font-medium leading-8 text-stone-900">
+                {excerpt}
+              </p>
+            )}
+
+            <div className="mt-6 whitespace-pre-wrap text-base leading-8 text-stone-600">
+              {description}
+            </div>
+          </div>
+        </section>
+      )}
 
       <div className="flex flex-col items-start gap-3 border-t border-stone-200 pt-8">
-        <button
-          type="submit"
-          className="inline-flex items-center rounded-full bg-stone-900 px-7 py-3.5 text-base font-medium text-white shadow-sm transition hover:bg-stone-700"
-        >
-          {mode === "create" ? "Create listing" : "Save changes"}
-        </button>
+        {mode === "create" && !isPreviewing ? (
+          <button
+            type="button"
+            onClick={handlePreview}
+            className="inline-flex items-center rounded-full bg-stone-900 px-7 py-3.5 text-base font-medium text-white shadow-sm transition hover:bg-stone-700"
+          >
+            Preview listing
+          </button>
+        ) : (
+          <div className="flex flex-wrap gap-3">
+            {mode === "create" && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsPreviewing(false)
+                  window.scrollTo({ top: 0, behavior: "smooth" })
+                }}
+                className="inline-flex items-center rounded-full border border-stone-300 bg-white px-6 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900"
+              >
+                Return to edit
+              </button>
+            )}
+
+            <button
+              type="submit"
+              className="inline-flex items-center rounded-full bg-stone-900 px-7 py-3.5 text-base font-medium text-white shadow-sm transition hover:bg-stone-700"
+            >
+              {mode === "create" ? "Submit listing" : "Save changes"}
+            </button>
+          </div>
+        )}
+
+        {previewError && (
+          <p className="text-sm text-red-600">{previewError}</p>
+        )}
 
         <p className="text-sm text-stone-500">
-          You can come back and edit the listing or add more photos later.
+          {mode === "create"
+            ? "Preview your listing before submitting it."
+            : "You can come back and edit the listing or add more photos later."}
         </p>
       </div>
     </form>

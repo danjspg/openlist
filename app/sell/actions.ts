@@ -108,6 +108,13 @@ function getOrderedFiles(formData: FormData) {
     .filter((v): v is File => v instanceof File && v.size > 0)
 }
 
+function getImageUrlValues(formData: FormData, fieldName: string) {
+  return formData
+    .getAll(fieldName)
+    .map((value) => String(value).trim())
+    .filter(Boolean)
+}
+
 function getSharedValues(formData: FormData) {
   const sellerEmail = String(formData.get("sellerEmail") ?? "").trim()
   const type = String(formData.get("type") ?? "House").trim()
@@ -165,11 +172,19 @@ export async function createListing(formData: FormData) {
   )
 
   const files = getOrderedFiles(formData)
+  const clonedImages = getImageUrlValues(formData, "clonedImageUrls")
+  const fallbackImageUrl = String(formData.get("imageUrl") ?? "").trim()
 
   let images: string[] = []
 
   if (files.length > 0) {
     images = await Promise.all(files.map((f) => uploadImageFile(f, slug)))
+  }
+
+  images = [...images, ...clonedImages]
+
+  if (images.length === 0 && fallbackImageUrl) {
+    images = [fallbackImageUrl]
   }
 
   if (images.length === 0) {
