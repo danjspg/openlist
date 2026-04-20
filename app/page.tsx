@@ -42,7 +42,7 @@ export default async function HomePage() {
       <section className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:gap-12 lg:py-24">
         <div>
           <p className="text-sm uppercase tracking-[0.25em] text-stone-500">
-            Private property sales in Ireland
+            PRIVATE PROPERTY SALES IN IRELAND
           </p>
 
           <h1 className="mt-4 max-w-3xl text-4xl font-semibold tracking-tight text-stone-900 sm:mt-5 sm:text-5xl md:text-6xl">
@@ -50,8 +50,11 @@ export default async function HomePage() {
           </h1>
 
           <p className="mt-5 max-w-2xl text-base leading-7 text-stone-600 sm:mt-6 sm:text-lg sm:leading-8">
-            Use real sale prices to guide your decisions and create a clear,
-            straightforward listing.
+            Use real sale prices to guide your decisions and create a clear, straightforward listing.
+          </p>
+
+          <p className="mt-3 text-sm leading-6 text-stone-500 sm:text-base">
+            Designed for people who want to manage their own home sale.
           </p>
 
           <div className="mt-7 flex flex-wrap gap-3 sm:mt-8 sm:gap-4">
@@ -76,21 +79,17 @@ export default async function HomePage() {
           <div className="mt-8 grid grid-cols-1 gap-5 text-sm text-stone-500 sm:mt-10 sm:grid-cols-3 sm:gap-8">
             <div>
               <div className="text-2xl font-semibold text-stone-900">Fixed fee</div>
-              <div className="mt-1">No traditional commission drag</div>
+              <div className="mt-1">No traditional commission.</div>
             </div>
             <div>
-              <div className="text-2xl font-semibold text-stone-900">Clear</div>
-              <div className="mt-1">Straightforward, well-presented listings</div>
+              <div className="text-2xl font-semibold text-stone-900">Stay in control</div>
+              <div className="mt-1">Manage your own sale and deal directly with buyers.</div>
             </div>
             <div>
-              <div className="text-2xl font-semibold text-stone-900">Direct</div>
-              <div className="mt-1">Buyers connect directly with sellers</div>
+              <div className="text-2xl font-semibold text-stone-900">Clear listings</div>
+              <div className="mt-1">Present your property in a simple, well-structured format.</div>
             </div>
           </div>
-
-          <p className="mt-6 text-sm leading-6 text-stone-500">
-            Built for how private property is actually marketed and sold in Ireland.
-          </p>
 
           <div className="mt-8 rounded-2xl border border-stone-200 bg-white/80 px-5 py-4 shadow-sm sm:mt-10">
             <p className="text-sm leading-6 text-stone-600">
