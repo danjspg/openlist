@@ -137,7 +137,7 @@ export default async function ListingPage({
 
   if (error) {
     return (
-      <main className="min-h-screen bg-stone-50 p-10">
+      <main className="min-h-screen bg-stone-50 p-6 sm:p-10">
         <h1 className="text-2xl font-semibold text-stone-900">Database error</h1>
         <p className="mt-3 text-stone-600">{error.message}</p>
       </main>
@@ -155,7 +155,7 @@ export default async function ListingPage({
 
   return (
     <main className="min-h-screen bg-stone-50">
-      <section className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
+      <section className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
         {created === "1" && (
           <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-emerald-800">
             Listing created successfully.
@@ -168,9 +168,9 @@ export default async function ListingPage({
           </div>
         )}
 
-        <div className="mb-6 overflow-hidden rounded-[32px] border border-stone-200 bg-white shadow-sm">
-          <div className="border-b border-stone-200 bg-gradient-to-br from-stone-50 via-white to-stone-100 px-5 py-6 sm:px-6 md:px-8 md:py-7">
-            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+        <div className="mb-5 overflow-hidden rounded-[28px] border border-stone-200 bg-white shadow-sm sm:mb-6 sm:rounded-[32px]">
+          <div className="border-b border-stone-200 bg-gradient-to-br from-stone-50 via-white to-stone-100 px-4 py-5 sm:px-6 sm:py-6 md:px-8 md:py-7">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="max-w-3xl">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="inline-flex items-center rounded-full bg-stone-900 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-white">
@@ -188,12 +188,12 @@ export default async function ListingPage({
                   )}
                 </div>
 
-                <h1 className="mt-4 text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl md:text-[2.7rem]">
+                <h1 className="mt-3 text-2xl font-semibold tracking-tight text-stone-900 sm:mt-4 sm:text-4xl md:text-[2.7rem]">
                   {listing.title}
                 </h1>
 
-                <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-stone-600">
-                  <div className="inline-flex items-center text-base md:text-lg">
+                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-stone-600 sm:mt-4">
+                  <div className="inline-flex items-center text-sm sm:text-base md:text-lg">
                     <svg
                       className="mr-2 h-4 w-4 text-stone-400"
                       viewBox="0 0 24 24"
@@ -221,22 +221,22 @@ export default async function ListingPage({
                 </div>
               </div>
 
-              <div className="min-w-[220px] rounded-[28px] border border-stone-200 bg-white px-5 py-4 shadow-sm">
-                <div className="text-xs font-semibold uppercase tracking-[0.22em] text-stone-500">
+              <div className="w-full rounded-[24px] border border-stone-200 bg-white px-4 py-4 shadow-sm sm:w-auto sm:min-w-[220px] sm:px-5">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500">
                   Guide price
                 </div>
-                <div className="mt-2 text-3xl font-semibold tracking-tight text-stone-900 md:text-4xl">
+                <div className="mt-2 text-2xl font-semibold tracking-tight text-stone-900 sm:text-3xl md:text-4xl">
                   {formattedPrice}
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="px-5 py-4 sm:px-6 md:px-8">
-            <div className="flex flex-wrap gap-3">
+          <div className="px-4 py-4 sm:px-6 md:px-8">
+            <div className="flex flex-wrap gap-2.5 sm:gap-3">
               <Link
                 href={`/listings/${listing.slug}/edit`}
-                className="inline-flex items-center rounded-full bg-stone-900 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-stone-700"
+                className="inline-flex items-center rounded-full bg-stone-900 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-stone-700 sm:px-5"
               >
                 <svg
                   className="mr-2 h-4 w-4"
@@ -257,7 +257,7 @@ export default async function ListingPage({
               {dashboardEmail && (
                 <Link
                   href={`/my-listings?email=${encodeURIComponent(dashboardEmail)}`}
-                  className="inline-flex items-center rounded-full border border-stone-300 bg-white px-5 py-2.5 text-sm font-medium text-stone-700 shadow-sm transition hover:bg-stone-50"
+                  className="inline-flex items-center rounded-full border border-stone-300 bg-white px-4 py-2.5 text-sm font-medium text-stone-700 shadow-sm transition hover:bg-stone-50 sm:px-5"
                 >
                   <svg
                     className="mr-2 h-4 w-4 text-stone-500"
@@ -282,7 +282,7 @@ export default async function ListingPage({
 
               <Link
                 href="/listings"
-                className="inline-flex items-center rounded-full border border-stone-200 bg-white px-5 py-2.5 text-sm font-medium text-stone-700 transition hover:bg-stone-50"
+                className="inline-flex items-center rounded-full border border-stone-200 bg-white px-4 py-2.5 text-sm font-medium text-stone-700 transition hover:bg-stone-50 sm:px-5"
               >
                 <svg
                   className="mr-2 h-4 w-4 text-stone-400"
@@ -302,12 +302,12 @@ export default async function ListingPage({
           </div>
         </div>
 
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1.55fr)_360px]">
+        <div className="grid gap-6 sm:gap-8 lg:grid-cols-[minmax(0,1.55fr)_360px]">
           <div>
             <ListingGallery images={images} title={listing.title} />
 
-            <div className="rounded-[32px] border border-stone-200 bg-white p-5 shadow-sm sm:p-6 md:p-8">
-              <p className="text-lg leading-8 text-stone-700 sm:text-xl">
+            <div className="rounded-[28px] border border-stone-200 bg-white p-5 shadow-sm sm:rounded-[32px] sm:p-6 md:p-8">
+              <p className="text-base leading-7 text-stone-700 sm:text-lg sm:leading-8">
                 {listing.excerpt}
               </p>
 
@@ -315,7 +315,7 @@ export default async function ListingPage({
                 <h2 className="text-xl font-semibold text-stone-900">
                   About this property
                 </h2>
-                <div className="mt-4 whitespace-pre-line leading-8 text-stone-700">
+                <div className="mt-4 whitespace-pre-line leading-7 text-stone-700 sm:leading-8">
                   {listing.description}
                 </div>
               </div>
@@ -334,9 +334,9 @@ export default async function ListingPage({
             </div>
           </div>
 
-          <div className="space-y-6 lg:sticky lg:top-24 lg:self-start">
-            <aside className="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm">
-              <p className="text-3xl font-semibold text-stone-900">
+          <div className="space-y-5 sm:space-y-6 lg:sticky lg:top-24 lg:self-start">
+            <aside className="rounded-3xl border border-stone-200 bg-white p-5 shadow-sm sm:p-6">
+              <p className="text-2xl font-semibold text-stone-900 sm:text-3xl">
                 {formattedPrice}
               </p>
 
@@ -346,9 +346,9 @@ export default async function ListingPage({
                 No agent fees
               </div>
 
-              <div className="mt-6 border-t border-stone-200 pt-6">
+              <div className="mt-5 border-t border-stone-200 pt-5 sm:mt-6 sm:pt-6">
                 {isSite ? (
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="grid grid-cols-2 gap-3 text-sm sm:gap-4">
                     <div className="rounded-2xl bg-stone-50 p-4">
                       <p className="text-xs uppercase tracking-wide text-stone-500">
                         Site Area
@@ -368,7 +368,7 @@ export default async function ListingPage({
                     </div>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-3 gap-4 text-sm">
+                  <div className="grid grid-cols-3 gap-3 text-sm sm:gap-4">
                     <div className="rounded-2xl bg-stone-50 p-4">
                       <p className="text-xs uppercase tracking-wide text-stone-500">
                         Beds
@@ -399,7 +399,7 @@ export default async function ListingPage({
                 )}
               </div>
 
-              <div className="mt-6 space-y-4 border-t border-stone-200 pt-6 text-sm">
+              <div className="mt-5 space-y-4 border-t border-stone-200 pt-5 text-sm sm:mt-6 sm:pt-6">
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-stone-500">County</span>
                   <span className="font-medium text-stone-900">
@@ -441,7 +441,7 @@ export default async function ListingPage({
               </div>
             </aside>
 
-            <div className="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm">
+            <div className="rounded-3xl border border-stone-200 bg-white p-5 shadow-sm sm:p-6">
               <div className="mb-4">
                 <h3 className="text-lg font-semibold text-stone-900">
                   Enquire about this property

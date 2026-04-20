@@ -13,8 +13,8 @@ export default function ListingGallery({
 
   if (!images || images.length === 0) {
     return (
-      <div className="mb-8 overflow-hidden rounded-[28px] border border-stone-200 bg-stone-100 shadow-sm">
-        <div className="flex aspect-[16/10] w-full items-center justify-center text-stone-400">
+      <div className="mb-6 overflow-hidden rounded-[28px] border border-stone-200 bg-stone-100 shadow-sm sm:mb-8">
+        <div className="flex aspect-[4/3] w-full items-center justify-center text-stone-400 md:aspect-[3/2]">
           No images available
         </div>
       </div>
@@ -33,7 +33,7 @@ export default function ListingGallery({
   }
 
   return (
-    <div className="mb-8">
+    <div className="mb-6 sm:mb-8">
       <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[28px] border border-stone-200 bg-stone-100 shadow-sm md:aspect-[3/2]">
         <img
           src={activeImage}
@@ -48,7 +48,7 @@ export default function ListingGallery({
             <button
               type="button"
               onClick={goPrev}
-              className="absolute left-3 top-1/2 z-20 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-stone-900 shadow-lg backdrop-blur transition hover:bg-white sm:left-5 sm:h-12 sm:w-12"
+              className="absolute left-2 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-stone-900 shadow-lg backdrop-blur transition hover:bg-white sm:left-3 sm:h-11 sm:w-11"
               aria-label="Previous image"
             >
               <svg
@@ -67,7 +67,7 @@ export default function ListingGallery({
             <button
               type="button"
               onClick={goNext}
-              className="absolute right-3 top-1/2 z-20 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-stone-900 shadow-lg backdrop-blur transition hover:bg-white sm:right-5 sm:h-12 sm:w-12"
+              className="absolute right-2 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-stone-900 shadow-lg backdrop-blur transition hover:bg-white sm:right-3 sm:h-11 sm:w-11"
               aria-label="Next image"
             >
               <svg
@@ -83,7 +83,7 @@ export default function ListingGallery({
               </svg>
             </button>
 
-            <div className="absolute bottom-3 right-3 z-20 rounded-full bg-black/70 px-3 py-1.5 text-xs font-medium text-white backdrop-blur sm:bottom-5 sm:right-5">
+            <div className="absolute bottom-3 right-3 z-20 rounded-full bg-black/70 px-3 py-1.5 text-xs font-medium text-white backdrop-blur">
               {safeIndex + 1} / {images.length}
             </div>
           </>
@@ -91,8 +91,8 @@ export default function ListingGallery({
       </div>
 
       {images.length > 1 && (
-        <div className="relative mt-4">
-          <div className="flex gap-3 overflow-x-auto pb-2">
+        <div className="relative mt-3 sm:mt-4">
+          <div className="flex gap-2.5 overflow-x-auto pb-2 sm:gap-3">
             {images.map((image, index) => {
               const isActive = index === safeIndex
 
@@ -108,7 +108,7 @@ export default function ListingGallery({
                   }`}
                   aria-label={`Show image ${index + 1}`}
                 >
-                  <div className="relative h-20 w-28 bg-stone-100 sm:h-24 sm:w-36">
+                  <div className="relative h-16 w-24 bg-stone-100 sm:h-20 sm:w-28 md:h-24 md:w-36">
                     <img
                       src={image}
                       alt={`${title} thumbnail ${index + 1}`}
