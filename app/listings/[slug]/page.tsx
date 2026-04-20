@@ -4,6 +4,11 @@ import { supabase } from "@/lib/supabase"
 import EnquiryForm from "./EnquiryForm"
 import ListingGallery from "./ListingGallery"
 import CopyListingLinkButton from "@/components/CopyListingLinkButton"
+import {
+  formatPprCurrency,
+  formatPprDate,
+  getNearbySalesForListing,
+} from "@/lib/ppr"
 
 function formatEuro(value: string) {
   const numeric = Number(value.replace(/[^0-9.]/g, ""))
@@ -152,6 +157,10 @@ export default async function ListingPage({
   const formattedPrice = formatEuro(listing.price)
   const images = normaliseImages(listing.images, listing.image)
   const dashboardEmail = email || listing.seller_email || ""
+  const nearbySales = await getNearbySalesForListing({
+    county: listing.county,
+    area: listing.address_line_2,
+  })
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-stone-50">
@@ -359,6 +368,56 @@ export default async function ListingPage({
                 </p>
               </div>
             </div>
+
+            {nearbySales.length > 0 && (
+              <section className="mt-6 rounded-[28px] border border-stone-200 bg-white p-5 shadow-sm sm:rounded-[32px] sm:p-6 md:p-8">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-stone-500">
+                      Public sales register
+                    </p>
+                    <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">
+                      Recent sale prices nearby
+                    </h2>
+                    <p className="mt-3 max-w-2xl text-sm leading-6 text-stone-600">
+                      Public Property Price Register sales can provide useful
+                      local context. They are not a formal valuation or official
+                      price index.
+                    </p>
+                  </div>
+
+                  <Link
+                    href={`/sold-prices/search?county=${encodeURIComponent(listing.county)}&area=${encodeURIComponent(listing.address_line_2 || "")}`}
+                    className="inline-flex shrink-0 rounded-full border border-stone-300 px-4 py-2.5 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900"
+                  >
+                    Search sold prices
+                  </Link>
+                </div>
+
+                <div className="mt-5 grid gap-3">
+                  {nearbySales.map((sale) => (
+                    <div
+                      key={sale.id}
+                      className="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-4"
+                    >
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="font-medium text-stone-900">
+                            {sale.locality || sale.county || "Nearby sale"}
+                          </p>
+                          <p className="mt-1 text-sm text-stone-500">
+                            {formatPprDate(sale.date_of_sale)}
+                          </p>
+                        </div>
+                        <p className="text-xl font-semibold text-stone-900">
+                          {formatPprCurrency(sale.price_eur)}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
           </div>
 
           <div className="space-y-5 sm:space-y-6 lg:sticky lg:top-24 lg:self-start">
