@@ -19,8 +19,7 @@ export const dynamic = "force-dynamic"
 
 export const metadata: Metadata = {
   title: "Sold Prices Ireland | OpenList",
-  description:
-    "Browse recent Irish residential sold prices using public Property Price Register data.",
+  description: "Search over 640,000 public property sales since 2015.",
 }
 
 export default async function SoldPricesPage() {
@@ -30,9 +29,6 @@ export default async function SoldPricesPage() {
     getPprQuickAreas(),
     searchPprSales(defaultSearch),
   ])
-  const formattedSalesCount = new Intl.NumberFormat("en-IE", {
-    maximumSignificantDigits: 2,
-  }).format(kpis.salesCount)
   const featuredMarkets = FEATURED_PPR_MARKETS.map((slug) =>
     PPR_MARKETS.find((market) => market.slug === slug)
   ).filter((market): market is (typeof PPR_MARKETS)[number] => Boolean(market))
@@ -43,20 +39,18 @@ export default async function SoldPricesPage() {
         <div className="overflow-hidden rounded-[32px] border border-stone-200 bg-white shadow-sm">
           <div className="bg-gradient-to-br from-stone-50 via-white to-stone-100 px-5 py-8 sm:px-8 md:px-10 md:py-12">
             <p className="text-sm font-medium uppercase tracking-[0.24em] text-stone-500">
-              Public sold prices
+              PUBLIC SOLD PRICES
             </p>
             <h1 className="mt-3 max-w-4xl text-4xl font-semibold tracking-tight text-stone-900 sm:text-5xl">
-              See what homes actually sold for across Ireland.
+              See what homes sold for across Ireland
             </h1>
-            <p className="mt-5 max-w-3xl text-base leading-7 text-stone-600 sm:text-lg sm:leading-8">
-              Search over {new Intl.NumberFormat("en-IE").format(kpis.salesCount)}{" "}
-              verified property sales since 2015, then use recent results as
-              grounded market context before deciding how to present your own
-              home.
+            <p className="mt-5 max-w-3xl whitespace-pre-line text-base leading-7 text-stone-600 sm:text-lg sm:leading-8">
+              Search over 640,000 public property sales since 2015.
+              {"\n"}Use recent results to understand your local market before
+              deciding how to present your home.
             </p>
             <p className="mt-4 text-sm font-medium text-stone-700">
-              Based on {formattedSalesCount}+ public Property Price Register
-              records since 2015.
+              Based on public Property Price Register data since 2015.
             </p>
           </div>
 
@@ -145,7 +139,7 @@ export default async function SoldPricesPage() {
                   Quick areas
                 </p>
                 <h2 className="mt-2 text-3xl font-semibold tracking-tight text-stone-900">
-                  Explore active local markets.
+                  Popular areas
                 </h2>
               </div>
             </div>
@@ -184,7 +178,7 @@ export default async function SoldPricesPage() {
                 Popular markets
               </p>
               <h2 className="mt-2 text-3xl font-semibold tracking-tight text-stone-900">
-                Start with the markets people search most.
+                Popular areas
               </h2>
               <div className="mt-5 flex flex-wrap gap-3">
                 {featuredMarkets.map((market) => (

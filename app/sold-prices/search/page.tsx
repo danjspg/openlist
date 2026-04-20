@@ -16,8 +16,7 @@ export const dynamic = "force-dynamic"
 
 export const metadata: Metadata = {
   title: "Search Sold Prices | OpenList",
-  description:
-    "Search Irish residential sale prices from public Property Price Register data.",
+  description: "Search over 640,000 public property sales since 2015.",
 }
 
 type SearchParams = {
@@ -66,11 +65,10 @@ export default async function SoldPricesSearchPage({
               Sold prices
             </p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl">
-              Search public sale prices.
+              See what homes sold for across Ireland
             </h1>
             <p className="mt-3 max-w-3xl text-base leading-7 text-stone-600">
-              See what homes actually sold for across Ireland, then refine by
-              town, county, sale date and price range.
+              Use recent sale prices to understand your local market before deciding how to present your home.
             </p>
             <p className="mt-3 text-sm font-medium text-stone-700">
               See prices near your own home by searching your town, suburb or

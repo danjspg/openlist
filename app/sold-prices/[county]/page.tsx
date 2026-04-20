@@ -66,15 +66,13 @@ export default async function PprMarketPage({ params }: Props) {
               {marketTypeLabel(market.marketType)}
             </p>
             <h1 className="mt-2 max-w-4xl text-4xl font-semibold tracking-tight text-stone-900 sm:text-5xl">
-              Sold house prices in {market.name}.
+              See what homes sold for in {market.name}
             </h1>
             <p className="mt-5 max-w-3xl text-base leading-7 text-stone-600 sm:text-lg sm:leading-8">
-              See recent public Property Price Register sale prices for{" "}
-              {market.name}. Use these records as market context, not as a
-              formal valuation or official price index.
+              Use recent sale prices to understand your local market before deciding how to present your home.
             </p>
             <p className="mt-4 text-sm font-medium text-stone-700">
-              Based on public Irish Property Price Register data since 2015.
+              Based on public Property Price Register data since 2015.
             </p>
             <Link
               href="/sold-prices"
