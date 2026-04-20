@@ -7,8 +7,8 @@ export const metadata: Metadata = {
   title: "OpenList",
   description: "A modern platform for private property listings in Ireland",
   icons: {
-    icon: "/favicon-v2.ico",
-    apple: "/apple-icon-v2.png",
+    icon: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
   },
 }
 
@@ -25,14 +25,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="overflow-x-hidden">
-      <head>
-        <meta
-          name="viewport"
-          content="width=device-width, initial-scale=1, viewport-fit=cover"
-        />
-      </head>
       <body className="overflow-x-hidden bg-stone-50 text-stone-900">
-        {/* your existing layout content */}
+        
+        {/* Private beta banner */}
         <div className="border-b border-stone-800 bg-stone-900 text-white">
           <div className="mx-auto max-w-6xl px-4 py-2 text-center text-xs font-medium tracking-[0.14em] sm:px-6 sm:text-sm">
             <span className="opacity-80">Private beta</span>
@@ -41,27 +36,45 @@ export default function RootLayout({
           </div>
         </div>
 
+        {/* Header */}
         <header className="sticky top-0 z-50 border-b border-stone-200/80 bg-white/90 backdrop-blur-md">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
-            <div className="flex items-center justify-between gap-6 py-4 sm:py-5 md:py-6">
+            <div className="flex items-center justify-between gap-4 py-3 sm:py-5 md:py-6">
+
+              {/* Logo */}
               <Link href="/" className="flex shrink-0 items-center">
+                
+                {/* Mobile logo */}
                 <img
-                  src="/logo-v2.png"
+                  src="/logo-small.png"
                   alt="OpenList"
-                  className="h-11 w-auto sm:h-14 md:h-20 lg:h-24"
+                  className="h-8 w-auto sm:hidden"
+                />
+
+                {/* Desktop logo */}
+                <img
+                  src="/logo.png"
+                  alt="OpenList"
+                  className="hidden h-12 w-auto sm:block md:h-16 lg:h-[72px]"
                 />
               </Link>
 
+              {/* Navigation */}
               <Nav />
+
             </div>
           </div>
         </header>
 
+        {/* Page content */}
         {children}
 
+        {/* Footer */}
         <footer className="mt-16 border-t border-stone-200 bg-white">
           <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
             <div className="grid gap-10 md:grid-cols-2">
+              
+              {/* Left */}
               <div>
                 <p className="text-sm font-semibold tracking-tight text-stone-900">
                   OpenList
@@ -72,8 +85,12 @@ export default function RootLayout({
                 </p>
 
                 <div className="mt-6 space-y-3 text-xs text-stone-500">
-                  <p>OpenList is a marketing platform for private property listings.</p>
-                  <p>Listing information is provided by sellers and has not been independently verified.</p>
+                  <p>
+                    OpenList is a marketing platform for private property listings.
+                  </p>
+                  <p>
+                    Listing information is provided by sellers and has not been independently verified.
+                  </p>
                   <p>
                     OpenList does not act as an estate agent and does not provide
                     valuation, negotiation, or legal services.
@@ -81,17 +98,18 @@ export default function RootLayout({
                 </div>
               </div>
 
+              {/* Right */}
               <div className="flex flex-col gap-3 text-sm text-stone-600 md:items-end">
-                <Link href="/listings" className="hover:text-stone-900">
+                <Link href="/listings" className="transition hover:text-stone-900">
                   View listings
                 </Link>
-                <Link href="/my-listings" className="hover:text-stone-900">
+                <Link href="/my-listings" className="transition hover:text-stone-900">
                   My listings
                 </Link>
-                <Link href="/sell" className="hover:text-stone-900">
+                <Link href="/sell" className="transition hover:text-stone-900">
                   Create a listing
                 </Link>
-                <Link href="/about" className="hover:text-stone-900">
+                <Link href="/about" className="transition hover:text-stone-900">
                   About OpenList
                 </Link>
               </div>
@@ -102,6 +120,7 @@ export default function RootLayout({
             </div>
           </div>
         </footer>
+
       </body>
     </html>
   )
