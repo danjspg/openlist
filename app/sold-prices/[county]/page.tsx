@@ -3,6 +3,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import PprDisclaimer from "@/components/ppr/PprDisclaimer"
 import PprSaleCard from "@/components/ppr/PprSaleCard"
+import PprSellConversion from "@/components/ppr/PprSellConversion"
 import { PPR_MARKETS, getPprMarket } from "@/lib/ppr-markets"
 import { getMarketSoldPrices } from "@/lib/ppr"
 
@@ -142,24 +143,7 @@ export default async function PprMarketPage({ params }: Props) {
                 Back to sold prices
               </Link>
             </div>
-            <div className="rounded-[28px] border border-stone-200 bg-white p-6 shadow-sm">
-              <p className="text-sm uppercase tracking-[0.18em] text-stone-500">
-                Looking to sell in {market.name}?
-              </p>
-              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">
-                Use local sales to guide a more credible listing.
-              </h2>
-              <p className="mt-3 text-sm leading-6 text-stone-600">
-                Recent sale prices can help you position your property more
-                clearly before it goes to market.
-              </p>
-              <Link
-                href="/sell"
-                className="mt-5 inline-flex rounded-full border border-stone-300 bg-white px-5 py-2.5 text-sm font-medium text-stone-900 transition hover:border-stone-900"
-              >
-                Create your listing
-              </Link>
-            </div>
+            <PprSellConversion />
           </aside>
         </div>
       </section>

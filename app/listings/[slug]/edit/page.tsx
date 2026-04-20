@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import SellerListingV2Form from "@/components/SellerListingV2Form"
@@ -5,6 +6,14 @@ import { updateListing } from "@/app/sell/actions"
 
 type Props = {
   params: Promise<{ slug: string }>
+}
+
+export const metadata: Metadata = {
+  title: "Edit Listing | OpenList",
+  robots: {
+    index: false,
+    follow: false,
+  },
 }
 
 export default async function EditListingPage({ params }: Props) {

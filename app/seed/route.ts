@@ -235,8 +235,22 @@ export async function GET() {
   const { error } = await supabase.from("listings").insert(listings)
 
   if (error) {
-    return Response.json({ success: false, error: error.message })
+    return Response.json(
+      { success: false, error: error.message },
+      {
+        headers: {
+          "X-Robots-Tag": "noindex, nofollow",
+        },
+      }
+    )
   }
 
-  return Response.json({ success: true, inserted: listings.length })
+  return Response.json(
+    { success: true, inserted: listings.length },
+    {
+      headers: {
+        "X-Robots-Tag": "noindex, nofollow",
+      },
+    }
+  )
 }

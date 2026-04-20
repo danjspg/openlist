@@ -1,5 +1,14 @@
+import type { Metadata } from "next"
 import SellerListingV2Form from "@/components/SellerListingV2Form"
 import { createListing } from "./actions"
+
+export const metadata: Metadata = {
+  title: "List Your Home Privately | OpenList",
+  robots: {
+    index: false,
+    follow: false,
+  },
+}
 
 export default function SellPage() {
   return (
@@ -11,21 +20,22 @@ export default function SellPage() {
           </p>
 
           <h1 className="mt-4 text-4xl font-semibold tracking-tight text-stone-900 sm:text-5xl md:text-6xl">
-            Create your property listing
+            List your home privately
           </h1>
 
           <p className="mx-auto mt-6 max-w-2xl text-base leading-7 text-stone-600 sm:text-lg sm:leading-8">
-            Create a clear, well-presented property listing for the Irish market,
-            add your own wording, and receive enquiries directly from buyers.
+            Create a clear, well-presented private sale listing for the Irish
+            market, add your own wording, and receive enquiries directly from buyers.
           </p>
 
           <p className="mt-4 text-sm text-stone-500">
-            No traditional commission model. No unnecessary layers. Just a more direct way to market your property.
+            No traditional commission model. Just a more direct way to market
+            your property privately.
           </p>
 
           <div className="mx-auto mt-8 max-w-xl rounded-2xl border border-stone-200 bg-white/80 px-5 py-4 text-sm text-stone-600 shadow-sm">
-            You stay in control of the listing, the enquiries and the process.
-            OpenList provides the platform, structure and presentation.
+            You stay in control of the listing, the enquiries and the private
+            sale process. OpenList provides the platform, structure and presentation.
           </div>
         </div>
       </section>

@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import PprDisclaimer from "@/components/ppr/PprDisclaimer"
 import PprSaleCard from "@/components/ppr/PprSaleCard"
+import PprSellConversion from "@/components/ppr/PprSellConversion"
 import SoldPricesSearchForm from "@/components/ppr/SoldPricesSearchForm"
 import {
   areaNameFromSlug,
@@ -201,45 +202,11 @@ export default async function SoldPricesPage() {
 
           <aside className="space-y-5">
             <PprDisclaimer />
-            <div className="rounded-[28px] bg-stone-900 p-6 text-white shadow-sm">
-              <p className="text-sm uppercase tracking-[0.2em] text-stone-300">
-                Thinking of selling?
-              </p>
-              <h2 className="mt-3 text-2xl font-semibold tracking-tight">
-                Present your property with more care.
-              </h2>
-              <p className="mt-3 text-sm leading-6 text-stone-300">
-                Sold prices give context. A clear, thoughtful listing helps
-                buyers understand what makes your property different.
-              </p>
-              <Link
-                href="/sell"
-                className="mt-6 inline-flex rounded-full bg-white px-5 py-2.5 text-sm font-medium text-stone-900 transition hover:bg-stone-200"
-              >
-                Create a listing
-              </Link>
-            </div>
+            <PprSellConversion theme="dark" />
           </aside>
         </div>
 
-        <section className="mt-10 rounded-[32px] border border-stone-200 bg-white p-6 shadow-sm sm:p-8">
-          <p className="text-sm font-medium uppercase tracking-[0.2em] text-stone-500">
-            Thinking of selling your property?
-          </p>
-          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-stone-900">
-            Use recent sales to shape a stronger listing.
-          </h2>
-          <p className="mt-3 max-w-3xl text-base leading-7 text-stone-600">
-            Use these recent sales to understand your local market, set a
-            realistic price, and present your home effectively.
-          </p>
-          <Link
-            href="/sell"
-            className="mt-6 inline-flex rounded-full bg-stone-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-stone-700"
-          >
-            Create your listing
-          </Link>
-        </section>
+        <PprSellConversion className="mt-10 rounded-[32px] sm:p-8" />
       </section>
     </main>
   )

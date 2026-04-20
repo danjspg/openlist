@@ -3,6 +3,7 @@ import Link from "next/link"
 import PprDisclaimer from "@/components/ppr/PprDisclaimer"
 import PprMonthlyChart from "@/components/ppr/PprMonthlyChart"
 import PprSaleCard from "@/components/ppr/PprSaleCard"
+import PprSellConversion from "@/components/ppr/PprSellConversion"
 import {
   areaNameFromSlug,
   formatPprCurrency,
@@ -143,24 +144,7 @@ export default async function PprAreaPage({ params }: Props) {
               </div>
             )}
 
-            <div className="rounded-[28px] bg-stone-900 p-6 text-white shadow-sm">
-              <p className="text-sm uppercase tracking-[0.2em] text-stone-300">
-                Selling in {areaName}?
-              </p>
-              <h2 className="mt-3 text-2xl font-semibold tracking-tight">
-                Create a calmer, clearer listing.
-              </h2>
-              <p className="mt-3 text-sm leading-6 text-stone-300">
-                OpenList helps private sellers present property with more care,
-                structure and direct buyer enquiry.
-              </p>
-              <Link
-                href="/sell"
-                className="mt-6 inline-flex rounded-full bg-white px-5 py-2.5 text-sm font-medium text-stone-900 transition hover:bg-stone-200"
-              >
-                Create a listing
-              </Link>
-            </div>
+            <PprSellConversion theme="dark" />
           </aside>
         </div>
       </section>

@@ -1,6 +1,15 @@
+import type { Metadata } from "next"
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
 import SellerEmailField from "@/components/SellerEmailField"
+
+export const metadata: Metadata = {
+  title: "Enquiries | OpenList",
+  robots: {
+    index: false,
+    follow: false,
+  },
+}
 
 type ListingRow = {
   slug: string

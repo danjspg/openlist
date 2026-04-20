@@ -46,15 +46,12 @@ export default async function HomePage() {
           </p>
 
           <h1 className="mt-4 max-w-3xl text-4xl font-semibold tracking-tight text-stone-900 sm:mt-5 sm:text-5xl md:text-6xl">
-            Sell beautifully.
-            <br />
-            Keep more of the value.
+            A simpler way to sell your home privately in Ireland
           </h1>
 
           <p className="mt-5 max-w-2xl text-base leading-7 text-stone-600 sm:mt-6 sm:text-lg sm:leading-8">
-            OpenList is a modern platform for property listings in Ireland, helping
-            private sellers present property properly and connect directly with buyers
-            in a clearer, more considered way.
+            Use real sale prices to guide your decisions and create a clear,
+            straightforward listing.
           </p>
 
           <div className="mt-7 flex flex-wrap gap-3 sm:mt-8 sm:gap-4">
@@ -62,15 +59,19 @@ export default async function HomePage() {
               href="/sell"
               className="rounded-full bg-stone-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-stone-700 sm:px-6"
             >
-              Create a listing
+              Start your listing
             </Link>
             <Link
-              href="/listings"
+              href="/sold-prices"
               className="rounded-full border border-stone-300 px-5 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900 sm:px-6"
             >
-              View listings
+              View sold prices
             </Link>
           </div>
+
+          <p className="mt-3 text-sm leading-6 text-stone-500">
+            No estate agent required.
+          </p>
 
           <div className="mt-8 grid grid-cols-1 gap-5 text-sm text-stone-500 sm:mt-10 sm:grid-cols-3 sm:gap-8">
             <div>
@@ -244,12 +245,96 @@ export default async function HomePage() {
       </section>
 
       <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16">
+        <div className="rounded-[32px] border border-stone-200 bg-white p-7 shadow-sm sm:p-8 md:p-10">
+          <h2 className="text-3xl font-semibold tracking-tight text-stone-900 md:text-4xl">
+            See what homes sold for
+          </h2>
+          <p className="mt-4 max-w-2xl whitespace-pre-line text-base leading-7 text-stone-600 sm:text-lg sm:leading-8">
+            Search over 640,000 public property sales since 2015.
+            {"\n"}Use real data to understand your local market before you
+            decide to sell.
+          </p>
+          <div className="mt-4 flex flex-wrap items-center gap-2 text-sm text-stone-600">
+            <span className="font-medium text-stone-700">Popular areas:</span>
+            <Link
+              href="/sold-prices/dublin"
+              className="rounded-full border border-stone-300 px-3 py-1.5 transition hover:border-stone-900 hover:text-stone-900"
+            >
+              Dublin
+            </Link>
+            <Link
+              href="/sold-prices/cork"
+              className="rounded-full border border-stone-300 px-3 py-1.5 transition hover:border-stone-900 hover:text-stone-900"
+            >
+              Cork
+            </Link>
+            <Link
+              href="/sold-prices/galway"
+              className="rounded-full border border-stone-300 px-3 py-1.5 transition hover:border-stone-900 hover:text-stone-900"
+            >
+              Galway
+            </Link>
+            <Link
+              href="/sold-prices/limerick"
+              className="rounded-full border border-stone-300 px-3 py-1.5 transition hover:border-stone-900 hover:text-stone-900"
+            >
+              Limerick
+            </Link>
+            <Link
+              href="/sold-prices/waterford"
+              className="rounded-full border border-stone-300 px-3 py-1.5 transition hover:border-stone-900 hover:text-stone-900"
+            >
+              Waterford
+            </Link>
+            <Link
+              href="/sold-prices/drogheda"
+              className="rounded-full border border-stone-300 px-3 py-1.5 transition hover:border-stone-900 hover:text-stone-900"
+            >
+              Drogheda
+            </Link>
+            <Link
+              href="/sold-prices/swords"
+              className="rounded-full border border-stone-300 px-3 py-1.5 transition hover:border-stone-900 hover:text-stone-900"
+            >
+              Swords
+            </Link>
+            <Link
+              href="/sold-prices/bray"
+              className="rounded-full border border-stone-300 px-3 py-1.5 transition hover:border-stone-900 hover:text-stone-900"
+            >
+              Bray
+            </Link>
+            <Link
+              href="/sold-prices/dundalk"
+              className="rounded-full border border-stone-300 px-3 py-1.5 transition hover:border-stone-900 hover:text-stone-900"
+            >
+              Dundalk
+            </Link>
+            <Link
+              href="/sold-prices/navan"
+              className="rounded-full border border-stone-300 px-3 py-1.5 transition hover:border-stone-900 hover:text-stone-900"
+            >
+              Navan
+            </Link>
+          </div>
+          <div className="mt-6">
+            <Link
+              href="/sold-prices"
+              className="inline-block rounded-full bg-stone-900 px-6 py-3 text-sm font-medium text-white transition hover:bg-stone-700"
+            >
+              View sold prices
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16">
         <div className="max-w-2xl">
           <p className="text-sm uppercase tracking-[0.2em] text-stone-500">
             How it works
           </p>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">
-            A simpler way to sell property in Ireland.
+            A simpler way to sell your home privately in Ireland.
           </h2>
         </div>
 
@@ -258,17 +343,17 @@ export default async function HomePage() {
             {
               step: "01",
               title: "Create your listing",
-              text: "Add your property details, photos and key information in a clear format that feels professional from the outset.",
+              text: "Add your property details, photos and key information in a clear, straightforward format.",
             },
             {
               step: "02",
-              title: "Publish with confidence",
-              text: "Launch a clean, well-structured listing that presents the property properly and gives buyers the detail they need.",
+              title: "Go live",
+              text: "Put your listing online with a clean layout that gives buyers the information they need.",
             },
             {
               step: "03",
               title: "Deal directly",
-              text: "Manage enquiries, viewings and buyer conversations directly, without unnecessary layers or old-fashioned friction.",
+              text: "Handle enquiries, viewings and buyer conversations yourself, without an estate agent in the middle.",
             },
           ].map((item) => (
             <div
@@ -293,14 +378,12 @@ export default async function HomePage() {
         <div className="rounded-[2rem] bg-stone-900 px-6 py-10 text-white sm:px-8 sm:py-12 md:px-12 md:py-16">
           <div className="max-w-2xl">
             <p className="text-sm uppercase tracking-[0.2em] text-stone-400">
-              For sellers
+              THINKING OF SELLING?
             </p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">
-              Better presentation. Less friction. More control.
-            </h2>
-            <p className="mt-5 text-base leading-7 text-stone-300 sm:text-lg sm:leading-8">
-              OpenList is built for homeowners in Ireland who want a more thoughtful,
-              more direct way to sell — without defaulting to the usual high-friction model.
+            <p className="mt-5 whitespace-pre-line text-base leading-7 text-stone-300 sm:text-lg sm:leading-8">
+              Sell your home privately with a clear, well-presented listing.
+              {"\n"}Use recent sale prices to guide how you position your
+              property for buyers.
             </p>
 
             <div className="mt-8">
@@ -308,8 +391,20 @@ export default async function HomePage() {
                 href="/sell"
                 className="inline-block rounded-full bg-white px-6 py-3 text-sm font-medium text-stone-900 transition hover:bg-stone-200"
               >
-                Create a listing
+                List your home privately
               </Link>
+            </div>
+
+            <p className="mt-3 text-sm leading-6 text-stone-300">
+              No estate agent required.
+            </p>
+
+            <div className="mt-8 border-t border-white/10 pt-6">
+              <p className="whitespace-pre-line text-sm leading-6 text-stone-300">
+                Need a bit of guidance?
+                {"\n"}We can point you toward trusted professionals if you’d
+                like support.
+              </p>
             </div>
 
             <div className="mt-8 border-t border-white/10 pt-6">

@@ -5,7 +5,7 @@ import "./globals.css"
 
 export const metadata: Metadata = {
   title: "OpenList",
-  description: "A modern platform for private property listings in Ireland",
+  description: "A private home sale platform for Ireland.",
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL || "https://www.openlist.ie"
   ),
@@ -79,26 +79,26 @@ export default function RootLayout({
                 </div>
 
                 <p className="mt-4 max-w-md text-sm leading-6 text-stone-600">
-                  A modern platform for private property listings in Ireland.
+                  A private home sale platform for Ireland.
                 </p>
 
                 <div className="mt-6 space-y-3 text-xs leading-5 text-stone-500">
                   <p>
-                    OpenList is a marketing platform for private property listings in Ireland.
+                    OpenList is a platform for private property sales in Ireland.
                   </p>
                   <p>
-                    Listing information is provided by sellers and has not been independently verified.
+                    Listing details are provided by sellers and have not been independently verified.
                   </p>
                   <p>
-                    OpenList does not act as an estate agent and does not provide
-                    valuation, negotiation, or legal services. Buyers and sellers
-                    deal directly, and interested parties should satisfy themselves
-                    as to accuracy.
+                    OpenList is not an estate agent and does not provide
+                    valuation, negotiation or legal services. Buyers and sellers
+                    deal directly, and all parties should satisfy themselves as
+                    to the accuracy of any information.
                   </p>
                 </div>
               </div>
 
-              <div className="flex flex-col gap-3 text-sm text-stone-600 md:items-end">
+              <div className="flex flex-col gap-3 text-sm text-stone-600 md:items-end md:pt-12">
                 <Link href="/listings" className="transition hover:text-stone-900">
                   View listings
                 </Link>
@@ -109,7 +109,7 @@ export default function RootLayout({
                   My listings
                 </Link>
                 <Link href="/sell" className="transition hover:text-stone-900">
-                  Create a listing
+                  List privately
                 </Link>
                 <Link href="/about" className="transition hover:text-stone-900">
                   About OpenList

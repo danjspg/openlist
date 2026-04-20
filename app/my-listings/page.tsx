@@ -1,7 +1,16 @@
+import type { Metadata } from "next"
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
 import SellerEmailField from "@/components/SellerEmailField"
 import CopyListingLinkButton from "@/components/CopyListingLinkButton"
+
+export const metadata: Metadata = {
+  title: "My Listings | OpenList",
+  robots: {
+    index: false,
+    follow: false,
+  },
+}
 
 function formatEuro(value: string) {
   const numeric = Number(value.replace(/[^0-9.]/g, ""))

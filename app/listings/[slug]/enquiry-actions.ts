@@ -238,7 +238,7 @@ export async function submitEnquiry(formData: FormData) {
     </div>
 
     <div style="margin-bottom:24px; font-size:15px; line-height:1.8; color:#475569;">
-      The listing owner should come back to you using the contact details below.
+      The private seller should come back to you using the contact details below.
     </div>
 
     ${detailBlock(
@@ -256,14 +256,14 @@ export async function submitEnquiry(formData: FormData) {
   const sellerEmailHtml = renderEmailShell({
     eyebrow: "New enquiry",
     title: "New enquiry received",
-    intro: "You’ve received a new enquiry for your listing.",
+    intro: "You’ve received a new enquiry for your private sale listing.",
     content: sellerContent,
     footer: `
       <p style="margin:0; font-size:13px; color:#64748b;">
         Reply directly to this email to respond to the buyer.
       </p>
       <p style="margin:12px 0 0 0; font-size:12px; color:#94a3b8;">
-        This enquiry was sent via OpenList. OpenList is a marketing platform and does not act as an estate agent.
+        This enquiry was sent via OpenList, a platform for private property listings in Ireland. OpenList does not act as an estate agent.
       </p>
     `,
   })
@@ -271,14 +271,14 @@ export async function submitEnquiry(formData: FormData) {
   const buyerConfirmationHtml = renderEmailShell({
     eyebrow: "Enquiry sent",
     title: "Your enquiry has been sent",
-    intro: `Thanks ${safeName} — we’ve sent your enquiry to the listing owner.`,
+    intro: `Thanks ${safeName} — we’ve sent your enquiry directly to the private seller.`,
     content: buyerContent,
     footer: `
       <p style="margin:0; font-size:13px; color:#64748b;">
         This is an automated confirmation from OpenList.
       </p>
       <p style="margin:12px 0 0 0; font-size:12px; color:#94a3b8;">
-        OpenList is a marketing platform and does not act as an estate agent.
+        OpenList is a platform for private property listings in Ireland and does not act as an estate agent.
       </p>
     `,
   })
