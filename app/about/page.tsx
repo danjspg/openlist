@@ -22,13 +22,13 @@ export default function AboutPage() {
           </p>
 
           <h1 className="mx-auto mt-4 max-w-4xl text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl">
-            A more modern way to present property
+            A more considered way to present property in Ireland
           </h1>
 
           <p className="mx-auto mt-6 max-w-3xl text-lg leading-8 text-slate-600 sm:text-xl">
-            OpenList is designed to help property listings feel clearer, more considered,
-            and more trustworthy online — starting with private sellers and a simpler,
-            more direct way to market property.
+            OpenList is built to help property feel clearer, better presented and
+            easier to trust online — starting with private sellers and a more
+            straightforward way to market homes and sites across Ireland.
           </p>
         </div>
 
@@ -44,28 +44,28 @@ export default function AboutPage() {
 
             <div className="mt-8 space-y-6 text-lg leading-8 text-slate-600">
               <p>
-                Most property platforms are built around volume. OpenList is
-                built around presentation. The aim is not just to host listings,
-                but to help each property appear with more clarity, quality, and intent.
+                Most property platforms are built around volume. OpenList is built
+                around presentation, clarity and trust. The aim is not simply to
+                host listings, but to help each property appear properly online.
               </p>
 
               <p>
-                That means cleaner layouts, stronger imagery, calmer spacing,
-                and a more focused experience for both buyers and sellers.
-                The property should feel properly presented, not compressed into
-                a noisy template.
+                In practice, that means cleaner layouts, stronger imagery, calmer
+                spacing and a more focused experience for both buyers and sellers.
+                The property should feel well presented, not squeezed into a noisy,
+                over-crowded template.
               </p>
 
               <p>
-                Whether it is a site, a family home, or a standout contemporary
-                property, OpenList is designed to give sellers a more polished
-                way to market property and buyers a more trustworthy way to browse it.
+                Whether it is a site, a family home, or a standout modern property,
+                OpenList is designed to give sellers in Ireland a more polished way
+                to market property and buyers a clearer way to browse it.
               </p>
 
               <p>
-                While OpenList is initially focused on private sellers, the
-                underlying approach is designed to support a wider range of
-                property listings over time.
+                OpenList is initially focused on private sellers, but the broader
+                idea is simple: property in Ireland can be presented better, with
+                fewer unnecessary layers between the listing and the buyer.
               </p>
             </div>
           </div>
@@ -79,7 +79,7 @@ export default function AboutPage() {
               <div className="rounded-2xl bg-slate-50 p-5">
                 <h3 className="text-lg font-semibold text-slate-900">Clarity</h3>
                 <p className="mt-2 leading-7 text-slate-600">
-                  Information should be easy to scan, easy to understand, and easy to trust.
+                  Property information should be easy to scan, easy to understand and easy to trust.
                 </p>
               </div>
 
@@ -88,14 +88,14 @@ export default function AboutPage() {
                   Presentation
                 </h3>
                 <p className="mt-2 leading-7 text-slate-600">
-                  Strong property marketing starts with strong presentation — not cluttered templates or visual noise.
+                  Good property marketing starts with good presentation — strong imagery, clear structure and less visual clutter.
                 </p>
               </div>
 
               <div className="rounded-2xl bg-slate-50 p-5">
-                <h3 className="text-lg font-semibold text-slate-900">Trust</h3>
+                <h3 className="text-lg font-semibold text-slate-900">Directness</h3>
                 <p className="mt-2 leading-7 text-slate-600">
-                  A cleaner, more transparent experience helps buyers engage with more confidence and helps sellers present more professionally.
+                  Buyers and sellers should be able to connect more directly, without unnecessary friction or confusion.
                 </p>
               </div>
             </div>
@@ -109,13 +109,14 @@ export default function AboutPage() {
 
           <div className="mt-5 space-y-5 text-base leading-7 text-slate-600">
             <p>
-              OpenList is a marketing platform designed to help individuals and
-              property owners present listings professionally and receive enquiries directly.
+              OpenList is a marketing platform for private property listings in
+              Ireland. It is designed to help individuals and property owners
+              present listings properly and receive enquiries directly.
             </p>
 
             <p>
               OpenList does not act as an estate agent and does not provide
-              valuation, negotiation, conveyancing, or legal services. Listing
+              valuation, negotiation, conveyancing or legal services. Listing
               information is supplied by sellers, and interested parties should
               satisfy themselves as to accuracy.
             </p>
@@ -129,7 +130,7 @@ export default function AboutPage() {
             </p>
             <p className="mt-4 leading-8 text-slate-600">
               Browse listings in a calmer environment where the property itself
-              is allowed to stand out.
+              can stand out and the key information is easier to follow.
             </p>
           </div>
 
@@ -138,8 +139,8 @@ export default function AboutPage() {
               For sellers
             </p>
             <p className="mt-4 leading-8 text-slate-600">
-              Present your property with a more polished, premium feel that
-              better reflects its value and gives you more control over the process.
+              Present your property in a way that feels clearer, stronger and more
+              reflective of its value, while keeping more control over the process.
             </p>
           </div>
 
@@ -148,9 +149,9 @@ export default function AboutPage() {
               For the future
             </p>
             <p className="mt-4 leading-8 text-slate-600">
-              OpenList is being built as a more modern platform for property
-              listings — with better presentation, simpler tools, and a more
-              direct experience for sellers and property owners.
+              OpenList is being built as a more modern property platform for
+              Ireland — with better presentation, simpler tools and a more direct
+              experience for sellers and property owners.
             </p>
           </div>
         </div>
@@ -162,18 +163,18 @@ export default function AboutPage() {
             </p>
 
             <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
-              Thoughtful property presentation for a more modern market.
+              Thoughtful property presentation for a more modern Irish market.
             </h2>
 
             <p className="mt-5 leading-8 text-slate-300">
-              The ambition is simple: make online property feel more refined,
-              more intentional, and more trustworthy — for every kind of home,
-              site, and standout listing.
+              The ambition is straightforward: make property online feel more
+              refined, more intentional and easier to trust — whether it is a
+              home, a site or a standout listing.
             </p>
 
             <p className="mt-5 leading-8 text-slate-300">
-              OpenList is built for private property listings, with presentation
-              and clarity at the centre of the experience.
+              OpenList is built for private property listings in Ireland, with
+              presentation, clarity and direct connection at the centre of the experience.
             </p>
 
             <div className="mt-8">
