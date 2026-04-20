@@ -13,7 +13,7 @@ export default function ListingGallery({
 
   if (!images || images.length === 0) {
     return (
-      <div className="mb-6 overflow-hidden rounded-[28px] border border-stone-200 bg-stone-100 shadow-sm sm:mb-8">
+      <div className="mb-6 min-w-0 overflow-hidden rounded-[28px] border border-stone-200 bg-stone-100 shadow-sm sm:mb-8">
         <div className="flex aspect-[5/4] w-full items-center justify-center text-stone-400 sm:aspect-[4/3] md:aspect-[3/2]">
           No images available
         </div>
@@ -33,7 +33,7 @@ export default function ListingGallery({
   }
 
   return (
-    <div className="mb-6 sm:mb-8">
+    <div className="mb-6 min-w-0 overflow-x-hidden sm:mb-8">
       <div className="relative aspect-[5/4] w-full overflow-hidden rounded-[28px] border border-stone-200 bg-stone-100 shadow-sm sm:aspect-[4/3] md:aspect-[3/2]">
         <img
           src={activeImage}
@@ -91,8 +91,8 @@ export default function ListingGallery({
       </div>
 
       {images.length > 1 && (
-        <div className="relative mt-3 sm:mt-4">
-          <div className="flex gap-2.5 overflow-x-auto pb-2 sm:gap-3">
+        <div className="relative mt-3 min-w-0 sm:mt-4">
+          <div className="flex gap-2.5 overflow-x-auto pb-2 pr-4 sm:gap-3">
             {images.map((image, index) => {
               const isActive = index === safeIndex
 

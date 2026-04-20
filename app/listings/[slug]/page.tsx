@@ -154,8 +154,8 @@ export default async function ListingPage({
   const dashboardEmail = email || listing.seller_email || ""
 
   return (
-    <main className="min-h-screen bg-stone-50">
-      <section className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
+    <main className="min-h-screen overflow-x-hidden bg-stone-50">
+      <section className="mx-auto max-w-6xl overflow-x-hidden px-4 py-6 sm:px-6 sm:py-10">
         {created === "1" && (
           <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-emerald-800">
             Listing created successfully.
@@ -171,7 +171,7 @@ export default async function ListingPage({
         <div className="mb-5 overflow-hidden rounded-[28px] border border-stone-200 bg-white shadow-sm sm:mb-6 sm:rounded-[32px]">
           <div className="border-b border-stone-200 bg-gradient-to-br from-stone-50 via-white to-stone-100 px-4 py-5 sm:px-6 sm:py-6 md:px-8 md:py-7">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div className="max-w-3xl">
+              <div className="max-w-3xl min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="inline-flex items-center rounded-full bg-stone-900 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-white">
                     {listing.status}
@@ -188,7 +188,7 @@ export default async function ListingPage({
                   )}
                 </div>
 
-                <h1 className="mt-3 text-2xl font-semibold tracking-tight text-stone-900 sm:mt-4 sm:text-4xl md:text-[2.7rem]">
+                <h1 className="mt-3 break-words text-2xl font-semibold tracking-tight text-stone-900 sm:mt-4 sm:text-4xl md:text-[2.7rem]">
                   {listing.title}
                 </h1>
 
@@ -303,11 +303,11 @@ export default async function ListingPage({
         </div>
 
         <div className="grid gap-6 sm:gap-8 lg:grid-cols-[minmax(0,1.55fr)_360px]">
-          <div>
+          <div className="min-w-0">
             <ListingGallery images={images} title={listing.title} />
 
-            <div className="rounded-[28px] border border-stone-200 bg-white p-5 shadow-sm sm:rounded-[32px] sm:p-6 md:p-8">
-              <p className="text-base leading-7 text-stone-700 sm:text-lg sm:leading-8">
+            <div className="min-w-0 overflow-hidden rounded-[28px] border border-stone-200 bg-white p-5 shadow-sm sm:rounded-[32px] sm:p-6 md:p-8">
+              <p className="break-words text-base leading-7 text-stone-700 sm:text-lg sm:leading-8">
                 {listing.excerpt}
               </p>
 
@@ -315,7 +315,7 @@ export default async function ListingPage({
                 <h2 className="text-xl font-semibold text-stone-900">
                   About this property
                 </h2>
-                <div className="mt-4 whitespace-pre-line leading-7 text-stone-700 sm:leading-8">
+                <div className="mt-4 whitespace-pre-line break-words leading-7 text-stone-700 sm:leading-8">
                   {listing.description}
                 </div>
               </div>
