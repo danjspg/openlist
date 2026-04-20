@@ -155,7 +155,7 @@ export default async function ListingPage({
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-stone-50">
-      <section className="mx-auto max-w-6xl overflow-x-hidden px-4 py-6 sm:px-6 sm:py-10">
+      <section className="mx-auto max-w-6xl overflow-x-hidden px-4 py-6 pb-28 sm:px-6 sm:py-10 sm:pb-10">
         {created === "1" && (
           <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-emerald-800">
             Listing created successfully.
@@ -233,7 +233,34 @@ export default async function ListingPage({
           </div>
 
           <div className="px-4 py-4 sm:px-6 md:px-8">
-            <div className="flex flex-wrap gap-2.5 sm:gap-3">
+            {/* Mobile actions */}
+            <div className="flex flex-col gap-2.5 sm:hidden">
+              <a
+                href="#enquiry-form"
+                className="inline-flex w-full items-center justify-center rounded-full bg-stone-900 px-4 py-3 text-sm font-medium text-white shadow-sm transition hover:bg-stone-700"
+              >
+                Enquire now
+              </a>
+
+              <div className="grid grid-cols-2 gap-2.5">
+                <Link
+                  href={`/listings/${listing.slug}/edit`}
+                  className="inline-flex items-center justify-center rounded-full border border-stone-300 bg-white px-3 py-2.5 text-xs font-medium text-stone-700 shadow-sm transition hover:bg-stone-50"
+                >
+                  Edit
+                </Link>
+
+                <Link
+                  href="/listings"
+                  className="inline-flex items-center justify-center rounded-full border border-stone-300 bg-white px-3 py-2.5 text-xs font-medium text-stone-700 shadow-sm transition hover:bg-stone-50"
+                >
+                  View listings
+                </Link>
+              </div>
+            </div>
+
+            {/* Desktop actions */}
+            <div className="hidden flex-wrap gap-2.5 sm:flex sm:gap-3">
               <Link
                 href={`/listings/${listing.slug}/edit`}
                 className="inline-flex items-center rounded-full bg-stone-900 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-stone-700 sm:px-5"
@@ -441,7 +468,10 @@ export default async function ListingPage({
               </div>
             </aside>
 
-            <div className="rounded-3xl border border-stone-200 bg-white p-5 shadow-sm sm:p-6">
+            <div
+              id="enquiry-form"
+              className="rounded-3xl border border-stone-200 bg-white p-5 shadow-sm sm:p-6"
+            >
               <div className="mb-4">
                 <h3 className="text-lg font-semibold text-stone-900">
                   Enquire about this property
@@ -459,6 +489,16 @@ export default async function ListingPage({
           </div>
         </div>
       </section>
+
+      {/* Sticky mobile enquiry bar */}
+      <div className="fixed inset-x-4 bottom-4 z-40 sm:hidden">
+        <a
+          href="#enquiry-form"
+          className="inline-flex w-full items-center justify-center rounded-full bg-stone-900 px-5 py-3.5 text-sm font-medium text-white shadow-[0_12px_30px_rgba(15,23,42,0.22)] transition hover:bg-stone-700"
+        >
+          Enquire now
+        </a>
+      </div>
     </main>
   )
 }
