@@ -109,7 +109,7 @@ export default async function HomePage() {
             className="group relative block overflow-hidden rounded-3xl bg-white shadow-sm sm:col-span-2"
           >
             <img
-              src="https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1600&q=80"
+              src="/home-hero-1.jpg"
               alt="Browse OpenList property listings"
               className="h-[300px] w-full object-cover transition duration-500 group-hover:scale-[1.02] sm:h-[360px] lg:h-[420px]"
             />
@@ -129,7 +129,7 @@ export default async function HomePage() {
             className="group block overflow-hidden rounded-3xl bg-white shadow-sm"
           >
             <img
-              src="https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=1000&q=80"
+              src="/home-hero-2.jpg"
               alt="Modern interior on OpenList"
               className="h-48 w-full object-cover transition duration-500 group-hover:scale-[1.02] sm:h-56"
             />
@@ -140,7 +140,7 @@ export default async function HomePage() {
             className="group block overflow-hidden rounded-3xl bg-white shadow-sm"
           >
             <img
-              src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1000&q=80"
+              src="/home-hero-3.jpg"
               alt="Elegant home on OpenList"
               className="h-48 w-full object-cover transition duration-500 group-hover:scale-[1.02] sm:h-56"
             />
