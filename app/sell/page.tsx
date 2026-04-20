@@ -7,25 +7,25 @@ export default function SellPage() {
       <section className="relative overflow-hidden border-b border-stone-200 bg-gradient-to-b from-white via-stone-50 to-stone-100/60">
         <div className="mx-auto max-w-4xl px-4 py-14 text-center sm:px-6 sm:py-16 md:py-20">
           <p className="text-sm font-medium uppercase tracking-[0.28em] text-stone-500">
-            OpenList
+            Private property sales in Ireland
           </p>
 
           <h1 className="mt-4 text-4xl font-semibold tracking-tight text-stone-900 sm:text-5xl md:text-6xl">
-            Sell your property professionally
+            Create your property listing
           </h1>
 
           <p className="mx-auto mt-6 max-w-2xl text-base leading-7 text-stone-600 sm:text-lg sm:leading-8">
-            Create a polished listing, generate premium copy with AI, and
-            receive enquiries directly.
+            Create a clear, well-presented property listing for the Irish market,
+            add your own wording, and receive enquiries directly from buyers.
           </p>
 
           <p className="mt-4 text-sm text-stone-500">
-            No traditional agent model. No commission structure. Just a simpler way to sell.
+            No traditional commission model. No unnecessary layers. Just a more direct way to market your property.
           </p>
 
           <div className="mx-auto mt-8 max-w-xl rounded-2xl border border-stone-200 bg-white/80 px-5 py-4 text-sm text-stone-600 shadow-sm">
-            You stay in control of your listing, enquiries, and process.
-            OpenList simply provides the platform and presentation.
+            You stay in control of the listing, the enquiries and the process.
+            OpenList provides the platform, structure and presentation.
           </div>
         </div>
       </section>
@@ -40,7 +40,7 @@ export default function SellPage() {
 
         <div className="mt-10 space-y-3 text-center text-xs leading-5 text-stone-500">
           <p>
-            OpenList is a marketing platform for private property listings.
+            OpenList is a marketing platform for private property listings in Ireland.
           </p>
           <p>
             Sellers are responsible for the accuracy of listing details.

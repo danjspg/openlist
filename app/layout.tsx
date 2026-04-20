@@ -26,8 +26,6 @@ export default function RootLayout({
   return (
     <html lang="en" className="overflow-x-hidden">
       <body className="overflow-x-hidden bg-stone-50 text-stone-900">
-        
-        {/* Private beta banner */}
         <div className="border-b border-stone-800 bg-stone-900 text-white">
           <div className="mx-auto max-w-6xl px-4 py-2 text-center text-xs font-medium tracking-[0.14em] sm:px-6 sm:text-sm">
             <span className="opacity-80">Private beta</span>
@@ -36,22 +34,16 @@ export default function RootLayout({
           </div>
         </div>
 
-        {/* Header */}
         <header className="sticky top-0 z-50 border-b border-stone-200/80 bg-white/90 backdrop-blur-md">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <div className="flex items-center justify-between gap-4 py-3 sm:py-5 md:py-6">
-
-              {/* Logo */}
               <Link href="/" className="flex shrink-0 items-center">
-                
-                {/* Mobile logo */}
                 <img
                   src="/logo-small.png"
                   alt="OpenList"
                   className="h-8 w-auto sm:hidden"
                 />
 
-                {/* Desktop logo */}
                 <img
                   src="/logo.png"
                   alt="OpenList"
@@ -59,22 +51,16 @@ export default function RootLayout({
                 />
               </Link>
 
-              {/* Navigation */}
               <Nav />
-
             </div>
           </div>
         </header>
 
-        {/* Page content */}
         {children}
 
-        {/* Footer */}
         <footer className="mt-16 border-t border-stone-200 bg-white">
           <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
             <div className="grid gap-10 md:grid-cols-2">
-              
-              {/* Left */}
               <div>
                 <p className="text-sm font-semibold tracking-tight text-stone-900">
                   OpenList
@@ -84,21 +70,22 @@ export default function RootLayout({
                   A modern platform for private property listings in Ireland.
                 </p>
 
-                <div className="mt-6 space-y-3 text-xs text-stone-500">
+                <div className="mt-6 space-y-3 text-xs leading-5 text-stone-500">
                   <p>
-                    OpenList is a marketing platform for private property listings.
+                    OpenList is a marketing platform for private property listings in Ireland.
                   </p>
                   <p>
                     Listing information is provided by sellers and has not been independently verified.
                   </p>
                   <p>
                     OpenList does not act as an estate agent and does not provide
-                    valuation, negotiation, or legal services.
+                    valuation, negotiation, or legal services. Buyers and sellers
+                    deal directly, and interested parties should satisfy themselves
+                    as to accuracy.
                   </p>
                 </div>
               </div>
 
-              {/* Right */}
               <div className="flex flex-col gap-3 text-sm text-stone-600 md:items-end">
                 <Link href="/listings" className="transition hover:text-stone-900">
                   View listings
@@ -120,7 +107,6 @@ export default function RootLayout({
             </div>
           </div>
         </footer>
-
       </body>
     </html>
   )

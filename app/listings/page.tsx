@@ -139,7 +139,7 @@ export default function ListingsPage() {
               </h1>
 
               <p className="mt-3 max-w-2xl text-base leading-7 text-stone-600 sm:text-lg sm:leading-8">
-                A cleaner way to explore property — with better presentation and less noise.
+                A cleaner way to explore property in Ireland — with better presentation and less noise.
               </p>
 
               <div className="mt-5 flex flex-wrap gap-3">

@@ -242,10 +242,10 @@ export default function SellerListingV2Form({
             Seller details
           </p>
           <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">
-            Who should receive enquiries
+            Where enquiries should go
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">
-            This email is used to receive enquiries and can be pre-filled across the site on this device.
+            This is the email address that will receive buyer enquiries. It can also be remembered on this device for future listings.
           </p>
         </div>
 
@@ -260,7 +260,7 @@ export default function SellerListingV2Form({
         />
 
         <div className="mt-5 rounded-2xl border border-stone-200 bg-white px-4 py-4 text-sm leading-6 text-stone-600">
-          This private email is not shown publicly. Buyer enquiries are sent directly to you.
+          This email is not shown publicly. Enquiries from buyers in Ireland are sent directly to you.
         </div>
       </section>
 
@@ -270,10 +270,10 @@ export default function SellerListingV2Form({
             Property details
           </p>
           <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">
-            Build the core of your listing
+            Add the main details
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">
-            Add the main details buyers expect first — type, location, pricing, and size.
+            Start with the basics buyers expect to see first — property type, location, price and size.
           </p>
         </div>
 
@@ -377,7 +377,7 @@ export default function SellerListingV2Form({
               Generated title
             </label>
             <div className="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-stone-900">
-              {generatedTitle || "Title will be generated from subtype, local area and county."}
+              {generatedTitle || "The title will be generated from the property type, local area and county."}
             </div>
           </div>
 
@@ -482,7 +482,7 @@ export default function SellerListingV2Form({
             Write your listing
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">
-            Add the key points buyers need to know. You can write this yourself, or use optional AI help to generate a draft.
+            Add the details buyers need to know. You can write this yourself, or use optional AI help to generate a first draft.
           </p>
         </div>
 
@@ -495,11 +495,11 @@ export default function SellerListingV2Form({
             rows={4}
             value={features}
             onChange={(e) => setFeatures(e.target.value)}
-            placeholder="Quiet setting, strong natural light, close to beach, large site, modern finish..."
+            placeholder="Quiet setting, strong natural light, close to the village, large site, modern finish..."
             className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition focus:border-stone-500"
           />
           <p className="mt-2 text-xs text-stone-500">
-            Add a few plain-English notes about the property, setting, finish, layout or standout features.
+            Add a few simple notes about the property, the setting, the finish or anything that stands out.
           </p>
         </div>
 
@@ -511,11 +511,11 @@ export default function SellerListingV2Form({
             name="excerpt"
             value={excerpt}
             onChange={(e) => setExcerpt(e.target.value)}
-            placeholder="Shown on listing cards and previews before a buyer opens the full listing."
+            placeholder="A short summary shown on listing cards before a buyer opens the full page."
             className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition focus:border-stone-500"
           />
           <p className="mt-2 text-xs text-stone-500">
-            A short summary used on listing cards and previews. The full description appears on the main listing page.
+            This is the short summary shown on listing cards and previews. The full description appears on the main listing page.
           </p>
         </div>
 
@@ -528,7 +528,7 @@ export default function SellerListingV2Form({
             rows={7}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Describe the property, setting, layout and key selling points."
+            placeholder="Describe the property, the layout, the setting and the main selling points."
             required
             className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition focus:border-stone-500"
           />
@@ -541,8 +541,7 @@ export default function SellerListingV2Form({
                 Optional AI help
               </p>
               <p className="mt-2 text-sm leading-6 text-stone-500">
-                Need a starting point? Generate a draft summary, description and suggested highlights from your property details.
-                You can edit everything before publishing.
+                Need a starting point? Generate a draft summary, description and suggested highlights from the details you have entered above. You can edit everything before publishing.
               </p>
               <p className="mt-2 text-xs font-medium uppercase tracking-[0.18em] text-stone-400">
                 Optional · Nothing is published automatically
@@ -609,10 +608,10 @@ export default function SellerListingV2Form({
             Photography
           </p>
           <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">
-            Add imagery that sells the property
+            Add photos of the property
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">
-            Upload multiple images and drag them into your preferred order. The first image becomes the main photo.
+            Upload multiple images and drag them into your preferred order. The first image will be used as the main photo.
           </p>
         </div>
 
@@ -641,7 +640,7 @@ export default function SellerListingV2Form({
               ))}
             </div>
             <p className="mt-3 text-xs text-stone-500">
-              This form preserves existing photos. New uploads are appended after them.
+              Existing photos are kept. Any new uploads are added after them.
             </p>
           </div>
         )}
@@ -663,7 +662,7 @@ export default function SellerListingV2Form({
             <p className="mt-3 text-sm text-red-600">{imageError}</p>
           )}
           <p className="mt-2 text-xs text-stone-500">
-            Max 6MB per image. Keep total upload size under 20MB.
+            Maximum 6MB per image. Keep the total upload size under 20MB.
           </p>
         </div>
 
@@ -719,8 +718,7 @@ export default function SellerListingV2Form({
 
       <section className="rounded-2xl border border-stone-200 bg-stone-50 px-5 py-4">
         <p className="text-sm leading-6 text-stone-600">
-          By submitting this listing, you confirm that the information provided is accurate
-          to the best of your knowledge and that you have the right to market the property.
+          By submitting this listing, you confirm that the information provided is accurate to the best of your knowledge and that you have the right to market the property.
         </p>
       </section>
 
@@ -733,7 +731,7 @@ export default function SellerListingV2Form({
         </button>
 
         <p className="text-sm text-stone-500">
-          You can edit your listing and add more photos later.
+          You can come back and edit the listing or add more photos later.
         </p>
       </div>
     </form>
