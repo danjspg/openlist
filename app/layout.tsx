@@ -62,11 +62,15 @@ export default function RootLayout({
           <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
             <div className="grid gap-10 md:grid-cols-2">
               <div>
-                <p className="text-sm font-semibold tracking-tight text-stone-900">
-                  OpenList
-                </p>
+                <div className="flex items-center">
+                  <img
+                    src="/logo-small.png"
+                    alt="OpenList"
+                    className="h-8 w-auto"
+                  />
+                </div>
 
-                <p className="mt-3 max-w-md text-sm leading-6 text-stone-600">
+                <p className="mt-4 max-w-md text-sm leading-6 text-stone-600">
                   A modern platform for private property listings in Ireland.
                 </p>
 
