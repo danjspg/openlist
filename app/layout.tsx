@@ -109,7 +109,7 @@ export default function RootLayout({
                   My listings
                 </Link>
                 <Link href="/sell" className="transition hover:text-stone-900">
-                  List privately
+                  Start your listing
                 </Link>
                 <Link href="/about" className="transition hover:text-stone-900">
                   About OpenList

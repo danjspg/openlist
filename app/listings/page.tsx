@@ -148,7 +148,7 @@ export default function ListingsPage() {
                   href="/sell"
                   className="inline-flex items-center rounded-full bg-stone-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-stone-700"
                 >
-                  List privately
+                  Start your listing
                 </Link>
 
                 <Link
@@ -158,6 +158,9 @@ export default function ListingsPage() {
                   My listings
                 </Link>
               </div>
+              <p className="mt-3 text-sm leading-6 text-stone-500">
+                No estate agent required.
+              </p>
             </div>
           </div>
 

@@ -390,7 +390,7 @@ export default async function HomePage() {
                 href="/sell"
                 className="inline-block rounded-full bg-white px-6 py-3 text-sm font-medium text-stone-900 transition hover:bg-stone-200"
               >
-                List your home privately
+                Start your listing
               </Link>
             </div>
 

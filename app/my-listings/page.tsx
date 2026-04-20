@@ -174,9 +174,13 @@ export default async function MyListingsPage({
               href="/sell"
               className="inline-flex h-11 items-center justify-center rounded-full border border-stone-300 bg-white px-5 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:text-stone-900"
             >
-              Create listing
+              Start your listing
             </Link>
           </form>
+
+          <p className="mt-3 text-sm leading-6 text-stone-500">
+            No estate agent required.
+          </p>
 
           {trimmedEmail && (
             <div className="mt-4 flex flex-wrap gap-3">

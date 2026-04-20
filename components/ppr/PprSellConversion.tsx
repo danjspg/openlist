@@ -49,8 +49,11 @@ export default function PprSellConversion({
             : "bg-stone-900 text-white hover:bg-stone-700"
         }`}
       >
-        List your home privately
+        Start your listing
       </Link>
+      <p className={`mt-3 text-xs ${isDark ? "text-stone-400" : "text-stone-500"}`}>
+        No estate agent required.
+      </p>
     </div>
   )
 }
