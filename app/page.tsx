@@ -34,18 +34,8 @@ export default async function HomePage() {
     .order("created_at", { ascending: false })
     .limit(3)
 
-  const { data: latestData, error: latestError } = await supabase
-    .from("listings")
-    .select("slug,title,county,price,image,images,status,created_at")
-    .order("created_at", { ascending: false })
-    .limit(3)
-
   const featuredListings: Listing[] =
-    !featuredError && featuredData && featuredData.length > 0
-      ? featuredData
-      : !latestError && latestData
-        ? latestData
-        : []
+    !featuredError && featuredData ? featuredData : []
 
   return (
     <main className="min-h-screen bg-stone-50 text-stone-900">
@@ -169,7 +159,7 @@ export default async function HomePage() {
             </h2>
           </div>
 
-          <div className="mt-8 grid gap-6 sm:mt-10 md:grid-cols-3 md:gap-8">
+          <div className="mt-8 grid grid-cols-1 gap-6 sm:mt-10 sm:grid-cols-2 md:grid-cols-3 md:gap-8">
             {featuredListings.length > 0 ? (
               featuredListings.map((listing) => {
                 const displayImage =
@@ -237,7 +227,7 @@ export default async function HomePage() {
               })
             ) : (
               <div className="rounded-3xl border border-stone-200 bg-white p-8 text-stone-600 md:col-span-3">
-                No featured listings yet.
+                Featured listings will appear here soon.
               </div>
             )}
           </div>
