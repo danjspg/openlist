@@ -14,7 +14,7 @@ export default function ListingGallery({
   if (!images || images.length === 0) {
     return (
       <div className="mb-6 overflow-hidden rounded-[28px] border border-stone-200 bg-stone-100 shadow-sm sm:mb-8">
-        <div className="flex aspect-[4/3] w-full items-center justify-center text-stone-400 md:aspect-[3/2]">
+        <div className="flex aspect-[5/4] w-full items-center justify-center text-stone-400 sm:aspect-[4/3] md:aspect-[3/2]">
           No images available
         </div>
       </div>
@@ -34,25 +34,25 @@ export default function ListingGallery({
 
   return (
     <div className="mb-6 sm:mb-8">
-      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[28px] border border-stone-200 bg-stone-100 shadow-sm md:aspect-[3/2]">
+      <div className="relative aspect-[5/4] w-full overflow-hidden rounded-[28px] border border-stone-200 bg-stone-100 shadow-sm sm:aspect-[4/3] md:aspect-[3/2]">
         <img
           src={activeImage}
           alt={`${title} image ${safeIndex + 1}`}
           className="absolute inset-0 h-full w-full object-cover"
         />
 
-        <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-black/5 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-black/5 to-transparent" />
 
         {images.length > 1 && (
           <>
             <button
               type="button"
               onClick={goPrev}
-              className="absolute left-2 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-stone-900 shadow-lg backdrop-blur transition hover:bg-white sm:left-3 sm:h-11 sm:w-11"
+              className="absolute left-2 top-1/2 z-20 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/92 text-stone-900 shadow-lg backdrop-blur transition hover:bg-white sm:left-3 sm:h-10 sm:w-10 md:left-5 md:h-12 md:w-12"
               aria-label="Previous image"
             >
               <svg
-                className="h-5 w-5"
+                className="h-4 w-4 sm:h-5 sm:w-5"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -67,11 +67,11 @@ export default function ListingGallery({
             <button
               type="button"
               onClick={goNext}
-              className="absolute right-2 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-stone-900 shadow-lg backdrop-blur transition hover:bg-white sm:right-3 sm:h-11 sm:w-11"
+              className="absolute right-2 top-1/2 z-20 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/92 text-stone-900 shadow-lg backdrop-blur transition hover:bg-white sm:right-3 sm:h-10 sm:w-10 md:right-5 md:h-12 md:w-12"
               aria-label="Next image"
             >
               <svg
-                className="h-5 w-5"
+                className="h-4 w-4 sm:h-5 sm:w-5"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -83,7 +83,7 @@ export default function ListingGallery({
               </svg>
             </button>
 
-            <div className="absolute bottom-3 right-3 z-20 rounded-full bg-black/70 px-3 py-1.5 text-xs font-medium text-white backdrop-blur">
+            <div className="absolute bottom-2 right-2 z-20 rounded-full bg-black/70 px-2.5 py-1 text-[11px] font-medium text-white backdrop-blur sm:bottom-3 sm:right-3 sm:px-3 sm:py-1.5 sm:text-xs">
               {safeIndex + 1} / {images.length}
             </div>
           </>
@@ -108,7 +108,7 @@ export default function ListingGallery({
                   }`}
                   aria-label={`Show image ${index + 1}`}
                 >
-                  <div className="relative h-16 w-24 bg-stone-100 sm:h-20 sm:w-28 md:h-24 md:w-36">
+                  <div className="relative h-14 w-20 bg-stone-100 sm:h-16 sm:w-24 md:h-24 md:w-36">
                     <img
                       src={image}
                       alt={`${title} thumbnail ${index + 1}`}
