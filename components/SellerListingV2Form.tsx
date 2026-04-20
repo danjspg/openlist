@@ -476,13 +476,13 @@ export default function SellerListingV2Form({
       <section className="rounded-[28px] border border-stone-200 bg-white p-6 shadow-sm">
         <div className="mb-6 border-b border-stone-200 pb-5">
           <p className="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">
-            Positioning and copy
+            Listing description
           </p>
           <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">
-            Shape how the property is presented
+            Write your listing
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">
-            Add key selling points, then use AI to generate cleaner draft copy you can refine.
+            Add the key points buyers need to know. You can write this yourself, or use optional AI help to generate a draft.
           </p>
         </div>
 
@@ -498,16 +498,54 @@ export default function SellerListingV2Form({
             placeholder="Quiet setting, strong natural light, close to beach, large site, modern finish..."
             className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition focus:border-stone-500"
           />
+          <p className="mt-2 text-xs text-stone-500">
+            Add a few plain-English notes about the property, setting, finish, layout or standout features.
+          </p>
         </div>
 
-        <div className="mt-6 rounded-[24px] border border-stone-200 bg-stone-50 p-5">
+        <div className="mt-6">
+          <label className="mb-2 block text-sm font-medium text-stone-700">
+            Listing card summary
+          </label>
+          <input
+            name="excerpt"
+            value={excerpt}
+            onChange={(e) => setExcerpt(e.target.value)}
+            placeholder="Shown on listing cards and previews before a buyer opens the full listing."
+            className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition focus:border-stone-500"
+          />
+          <p className="mt-2 text-xs text-stone-500">
+            A short summary used on listing cards and previews. The full description appears on the main listing page.
+          </p>
+        </div>
+
+        <div className="mt-6">
+          <label className="mb-2 block text-sm font-medium text-stone-700">
+            Description
+          </label>
+          <textarea
+            name="description"
+            rows={7}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Describe the property, setting, layout and key selling points."
+            required
+            className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition focus:border-stone-500"
+          />
+        </div>
+
+        <div className="mt-8 rounded-[24px] border border-stone-200 bg-stone-50 p-5">
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
+            <div className="max-w-2xl">
               <p className="text-sm font-semibold tracking-tight text-stone-700">
-                AI writing assistant
+                Optional AI help
               </p>
-              <p className="mt-2 text-sm text-stone-500">
-                Generate a polished summary, description and feature highlights. Review before publishing.
+              <p className="mt-2 text-sm leading-6 text-stone-500">
+                Need a starting point? Generate a draft summary, description and suggested highlights from your property details.
+                You can edit everything before publishing.
+              </p>
+              <p className="mt-2 text-xs font-medium uppercase tracking-[0.18em] text-stone-400">
+                Optional · Nothing is published automatically
               </p>
             </div>
 
@@ -515,9 +553,9 @@ export default function SellerListingV2Form({
               type="button"
               onClick={handleGenerateAI}
               disabled={isGenerating}
-              className="inline-flex items-center rounded-full bg-stone-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center rounded-full border border-stone-300 bg-white px-5 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isGenerating ? "Generating..." : "Generate with AI"}
+              {isGenerating ? "Generating..." : "Generate draft with AI"}
             </button>
           </div>
 
@@ -563,37 +601,6 @@ export default function SellerListingV2Form({
             </div>
           </div>
         )}
-
-        <div className="mt-6">
-          <label className="mb-2 block text-sm font-medium text-stone-700">
-            Listing card summary
-          </label>
-          <input
-            name="excerpt"
-            value={excerpt}
-            onChange={(e) => setExcerpt(e.target.value)}
-            placeholder="Shown on listing cards and previews before a buyer opens the full listing."
-            className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition focus:border-stone-500"
-          />
-          <p className="mt-2 text-xs text-stone-500">
-            A short summary used on listing cards and previews. The full description appears on the main listing page.
-          </p>
-        </div>
-
-        <div className="mt-6">
-          <label className="mb-2 block text-sm font-medium text-stone-700">
-            Description
-          </label>
-          <textarea
-            name="description"
-            rows={7}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Describe the property, setting, layout and key selling points."
-            required
-            className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition focus:border-stone-500"
-          />
-        </div>
       </section>
 
       <section className="rounded-[28px] border border-stone-200 bg-white p-6 shadow-sm">
