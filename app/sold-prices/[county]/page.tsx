@@ -34,6 +34,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     alternates: {
       canonical: `/sold-prices/${market.slug}`,
     },
+    robots: {
+      index: true,
+      follow: true,
+    },
   }
 }
 
@@ -71,6 +75,12 @@ export default async function PprMarketPage({ params }: Props) {
             <p className="mt-4 text-sm font-medium text-stone-700">
               Based on public Irish Property Price Register data since 2015.
             </p>
+            <Link
+              href="/sold-prices"
+              className="mt-5 inline-flex text-sm font-medium text-stone-600 transition hover:text-stone-900"
+            >
+              Back to Sold Prices
+            </Link>
           </div>
         </div>
 
@@ -130,6 +140,24 @@ export default async function PprMarketPage({ params }: Props) {
                 className="mt-5 inline-flex rounded-full bg-stone-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-stone-700"
               >
                 Back to sold prices
+              </Link>
+            </div>
+            <div className="rounded-[28px] border border-stone-200 bg-white p-6 shadow-sm">
+              <p className="text-sm uppercase tracking-[0.18em] text-stone-500">
+                Looking to sell in {market.name}?
+              </p>
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">
+                Use local sales to guide a more credible listing.
+              </h2>
+              <p className="mt-3 text-sm leading-6 text-stone-600">
+                Recent sale prices can help you position your property more
+                clearly before it goes to market.
+              </p>
+              <Link
+                href="/sell"
+                className="mt-5 inline-flex rounded-full border border-stone-300 bg-white px-5 py-2.5 text-sm font-medium text-stone-900 transition hover:border-stone-900"
+              >
+                Create your listing
               </Link>
             </div>
           </aside>

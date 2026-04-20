@@ -6,6 +6,9 @@ import "./globals.css"
 export const metadata: Metadata = {
   title: "OpenList",
   description: "A modern platform for private property listings in Ireland",
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL || "https://www.openlist.ie"
+  ),
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "16x16 32x32", type: "image/x-icon" },
@@ -46,13 +49,13 @@ export default function RootLayout({
                 <img
                   src="/logo-small.png"
                   alt="OpenList"
-                  className="h-12 w-auto sm:hidden"
+                  className="h-[46px] w-auto sm:hidden"
                 />
 
                 <img
                   src="/logo.png"
                   alt="OpenList"
-                  className="hidden h-20 w-auto sm:block md:h-28 lg:h-32"
+                  className="hidden h-[78px] w-auto sm:block md:h-[110px] lg:h-[126px]"
                 />
               </Link>
 

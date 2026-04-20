@@ -114,6 +114,17 @@ export const PPR_MARKETS = [
   { name: "Leopardstown", slug: "leopardstown", marketType: "town_suburb" },
 ] as const satisfies readonly PprMarket[]
 
+export const FEATURED_PPR_MARKETS = [
+  "dublin",
+  "cork",
+  "galway",
+  "limerick",
+  "drogheda",
+  "dundalk",
+  "swords",
+  "bray",
+] as const
+
 export function getPprMarket(slug: string) {
   return PPR_MARKETS.find((market) => market.slug === slug)
 }

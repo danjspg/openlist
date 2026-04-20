@@ -62,6 +62,11 @@ export type PprSearchFilters = {
   page?: string
 }
 
+export type PprSearchSummary = {
+  count: number
+  latestSaleDate: string | null
+}
+
 export const PPR_PAGE_SIZE = 12
 
 export function formatPprDateInput(date: Date) {
@@ -317,8 +322,6 @@ export async function searchPprSales(filters: PprSearchFilters) {
   const page = safePage(resolvedFilters.page)
   const from = (page - 1) * PPR_PAGE_SIZE
   const to = from + PPR_PAGE_SIZE - 1
-  const minPrice = numericFilter(resolvedFilters.minPrice)
-  const maxPrice = numericFilter(resolvedFilters.maxPrice)
   const sort = sortOption(resolvedFilters.sort)
 
   let query = supabase
@@ -335,6 +338,9 @@ export async function searchPprSales(filters: PprSearchFilters) {
   } else {
     query = query.order("date_of_sale", { ascending: false })
   }
+
+  const minPrice = numericFilter(resolvedFilters.minPrice)
+  const maxPrice = numericFilter(resolvedFilters.maxPrice)
 
   if (resolvedFilters.county) {
     query = query.ilike("county", resolvedFilters.county)
@@ -370,6 +376,78 @@ export async function searchPprSales(filters: PprSearchFilters) {
     count: count ?? 0,
     page,
     error: "",
+  }
+}
+
+export async function getPprSearchSummary(filters: PprSearchFilters): Promise<PprSearchSummary> {
+  const resolvedFilters = withDefaultPprSearchFilters(filters)
+  const minPrice = numericFilter(resolvedFilters.minPrice)
+  const maxPrice = numericFilter(resolvedFilters.maxPrice)
+
+  let countQuery = supabase
+    .from("ppr_sales")
+    .select("id", { count: "estimated", head: true })
+
+  let latestQuery = supabase
+    .from("ppr_sales")
+    .select("date_of_sale")
+    .order("date_of_sale", { ascending: false })
+    .limit(1)
+
+  if (resolvedFilters.county) {
+    countQuery = countQuery.ilike("county", resolvedFilters.county)
+    latestQuery = latestQuery.ilike("county", resolvedFilters.county)
+  }
+
+  if (resolvedFilters.area) {
+    const area = resolvedFilters.area.trim()
+    if (area) {
+      const expression = areaFilterExpression(area, !resolvedFilters.county)
+      if (expression) {
+        countQuery = countQuery.or(expression)
+        latestQuery = latestQuery.or(expression)
+      }
+    }
+  }
+
+  if (minPrice !== null) {
+    countQuery = countQuery.gte("price_eur", minPrice)
+    latestQuery = latestQuery.gte("price_eur", minPrice)
+  }
+
+  if (maxPrice !== null) {
+    countQuery = countQuery.lte("price_eur", maxPrice)
+    latestQuery = latestQuery.lte("price_eur", maxPrice)
+  }
+
+  if (resolvedFilters.dateFrom) {
+    countQuery = countQuery.gte("date_of_sale", resolvedFilters.dateFrom)
+    latestQuery = latestQuery.gte("date_of_sale", resolvedFilters.dateFrom)
+  }
+
+  if (resolvedFilters.dateTo) {
+    countQuery = countQuery.lte("date_of_sale", resolvedFilters.dateTo)
+    latestQuery = latestQuery.lte("date_of_sale", resolvedFilters.dateTo)
+  }
+
+  if (resolvedFilters.newBuild === "true") {
+    countQuery = countQuery.eq("is_new_dwelling", true)
+    latestQuery = latestQuery.eq("is_new_dwelling", true)
+  }
+
+  const propertyStyleExpression = propertyStyleFilterExpression(
+    resolvedFilters.propertyStyle
+  )
+  if (propertyStyleExpression) {
+    countQuery = countQuery.or(propertyStyleExpression)
+    latestQuery = latestQuery.or(propertyStyleExpression)
+  }
+
+  const [{ count }, { data: latest }] = await Promise.all([countQuery, latestQuery])
+
+  return {
+    count: count ?? 0,
+    latestSaleDate: latest?.[0]?.date_of_sale ?? null,
   }
 }
 
