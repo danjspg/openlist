@@ -4,6 +4,11 @@ import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
 import { formatLocation, getAreaDisplay } from "@/lib/property"
+import {
+  PUBLIC_SALE_STATUSES,
+  isPublicSaleStatus,
+  normalizeListingStatus,
+} from "@/lib/listing-status"
 
 type Listing = {
   id?: number
@@ -29,6 +34,7 @@ type Listing = {
   viewing?: string | null
   created_at?: string
   highlights?: string[] | null
+  featured?: boolean
 }
 
 function formatEuro(value: string) {
@@ -57,25 +63,23 @@ export default function ListingsPage() {
 
   useEffect(() => {
     async function loadListings() {
-      const { data: featured, error: featuredError } = await supabase
+      const { data, error } = await supabase
         .from("listings")
         .select("*")
-        .eq("status", "Featured")
         .order("created_at", { ascending: false })
 
-      const { data: others, error: othersError } = await supabase
-        .from("listings")
-        .select("*")
-        .neq("status", "Featured")
-        .order("created_at", { ascending: false })
-
-      if (featuredError || othersError) {
-        setError(featuredError?.message || othersError?.message || "Unknown error")
+      if (error) {
+        setError(error.message || "Unknown error")
         setLoading(false)
         return
       }
 
-      setListings([...(featured ?? []), ...(others ?? [])] as Listing[])
+      const normalized = ((data ?? []) as Listing[])
+        .map((listing) => normalizeListingStatus(listing))
+        .filter((listing) => isPublicSaleStatus(listing.status))
+        .sort((a, b) => Number(b.featured) - Number(a.featured))
+
+      setListings(normalized)
       setLoading(false)
     }
 
@@ -93,7 +97,9 @@ export default function ListingsPage() {
   }, [listings])
 
   const statuses = useMemo(() => {
-    const values = Array.from(new Set(listings.map((listing) => listing.status))).sort()
+    const values = PUBLIC_SALE_STATUSES.filter((status) =>
+      listings.some((listing) => listing.status === status)
+    )
     return ["All", ...values]
   }, [listings])
 
@@ -139,8 +145,8 @@ export default function ListingsPage() {
               </h1>
 
               <p className="mt-3 max-w-2xl text-base leading-7 text-stone-600 sm:text-lg sm:leading-8">
-                Browse private sale property listings in Ireland, presented with
-                more clarity and less noise.
+                Browse private sale property listings in Ireland, direct from
+                sellers.
               </p>
 
               <div className="mt-5 flex flex-wrap gap-3">
@@ -227,7 +233,7 @@ export default function ListingsPage() {
                 htmlFor="status"
                 className="mb-2 block text-sm font-medium text-stone-700"
               >
-                Status
+                Sale status
               </label>
               <select
                 id="status"
@@ -307,7 +313,6 @@ export default function ListingsPage() {
 
               const displayImage = images[0]
               const photoCount = images.length
-              const isFeatured = listing.status === "Featured"
               const areaDisplay = getAreaDisplay({
                 type: listing.type,
                 areaValue: listing.area_value,
@@ -340,15 +345,14 @@ export default function ListingsPage() {
                       <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/12 via-transparent to-transparent" />
 
                       <div className="absolute left-4 top-4 z-10 flex flex-wrap gap-2">
-                        <span
-                          className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] shadow-sm backdrop-blur ${
-                            isFeatured
-                              ? "bg-stone-900 text-white"
-                              : "bg-white/92 text-stone-700"
-                          }`}
-                        >
-                          {isFeatured ? "Featured" : listing.status}
+                        <span className="inline-flex items-center rounded-full bg-white/92 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-700 shadow-sm backdrop-blur">
+                          {listing.status}
                         </span>
+                        {listing.featured && (
+                          <span className="inline-flex items-center rounded-full bg-stone-900 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white shadow-sm backdrop-blur">
+                            Featured
+                          </span>
+                        )}
                       </div>
 
                       {photoCount > 1 && (

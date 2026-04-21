@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
 import SellerEmailField from "@/components/SellerEmailField"
+import { normalizeListingStatus } from "@/lib/listing-status"
 
 export const metadata: Metadata = {
   title: "Enquiries | OpenList",
@@ -16,6 +17,7 @@ type ListingRow = {
   title: string
   county: string
   status: string
+  featured?: boolean
   seller_email: string | null
 }
 
@@ -63,14 +65,16 @@ export default async function EnquiriesPage({
   if (trimmedEmail) {
     const { data: listingData, error: listingsError } = await supabase
       .from("listings")
-      .select("slug,title,county,status,seller_email")
+      .select("*")
       .eq("seller_email", trimmedEmail)
       .order("created_at", { ascending: false })
 
     if (listingsError) {
       errorMessage = listingsError.message
     } else {
-      listings = listingData ?? []
+      listings = ((listingData ?? []) as ListingRow[]).map((listing) =>
+        normalizeListingStatus(listing)
+      )
 
       const slugs = listings.map((listing) => listing.slug)
 

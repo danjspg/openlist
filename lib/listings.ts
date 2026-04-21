@@ -13,6 +13,7 @@ export type Listing = {
   excerpt: string
   description: string
   status: string
+  featured?: boolean
   type: string
   planning?: string | null
   viewing?: string | null

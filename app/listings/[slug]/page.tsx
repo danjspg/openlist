@@ -9,6 +9,9 @@ import {
   formatPprDate,
   getNearbySalesForListing,
 } from "@/lib/ppr"
+import { normalizeListingStatus } from "@/lib/listing-status"
+import { getCurrentUserIsAdmin } from "@/lib/admin-auth"
+import AdminFeaturedToggle from "@/components/AdminFeaturedToggle"
 
 function formatEuro(value: string) {
   const numeric = Number(value.replace(/[^0-9.]/g, ""))
@@ -153,13 +156,16 @@ export default async function ListingPage({
     notFound()
   }
 
-  const isSite = listing.type === "Site"
-  const formattedPrice = formatEuro(listing.price)
-  const images = normaliseImages(listing.images, listing.image)
-  const dashboardEmail = email || listing.seller_email || ""
+  const normalizedListing = normalizeListingStatus(listing)
+  const isAdmin = await getCurrentUserIsAdmin()
+
+  const isSite = normalizedListing.type === "Site"
+  const formattedPrice = formatEuro(normalizedListing.price)
+  const images = normaliseImages(normalizedListing.images, normalizedListing.image)
+  const dashboardEmail = email || normalizedListing.seller_email || ""
   const nearbySales = await getNearbySalesForListing({
-    county: listing.county,
-    area: listing.address_line_2,
+    county: normalizedListing.county,
+    area: normalizedListing.address_line_2,
   })
 
   return (
@@ -183,22 +189,27 @@ export default async function ListingPage({
               <div className="max-w-3xl min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="inline-flex items-center rounded-full bg-stone-900 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-white">
-                    {listing.status}
+                    {normalizedListing.status}
                   </span>
+                  {normalizedListing.featured && (
+                    <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-700">
+                      Featured
+                    </span>
+                  )}
 
                   <span className="inline-flex items-center rounded-full border border-stone-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-600">
-                    {listing.type}
+                    {normalizedListing.type}
                   </span>
 
-                  {listing.subtype && (
+                  {normalizedListing.subtype && (
                     <span className="inline-flex items-center rounded-full border border-stone-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-600">
-                      {listing.subtype}
+                      {normalizedListing.subtype}
                     </span>
                   )}
                 </div>
 
                 <h1 className="mt-3 break-words text-2xl font-semibold tracking-tight text-stone-900 sm:mt-4 sm:text-4xl md:text-[2.7rem]">
-                  {listing.title}
+                  {normalizedListing.title}
                 </h1>
 
                 <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-stone-600 sm:mt-4">
@@ -217,8 +228,8 @@ export default async function ListingPage({
                       <circle cx="12" cy="10" r="2.5" />
                     </svg>
                     <span>
-                      {listing.address_line_2 ? `${listing.address_line_2}, ` : ""}
-                      {listing.county}
+                      {normalizedListing.address_line_2 ? `${normalizedListing.address_line_2}, ` : ""}
+                      {normalizedListing.county}
                     </span>
                   </div>
 
@@ -253,7 +264,7 @@ export default async function ListingPage({
 
               <div className="grid grid-cols-2 gap-2.5">
                 <Link
-                  href={`/listings/${listing.slug}/edit`}
+                  href={`/listings/${normalizedListing.slug}/edit`}
                   className="inline-flex items-center justify-center rounded-full border border-stone-300 bg-white px-3 py-2.5 text-xs font-medium text-stone-700 shadow-sm transition hover:bg-stone-50"
                 >
                   Edit
@@ -271,7 +282,7 @@ export default async function ListingPage({
             {/* Desktop actions */}
             <div className="hidden flex-wrap gap-2.5 sm:flex sm:gap-3">
               <Link
-                href={`/listings/${listing.slug}/edit`}
+                href={`/listings/${normalizedListing.slug}/edit`}
                 className="inline-flex items-center rounded-full bg-stone-900 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-stone-700 sm:px-5"
               >
                 <svg
@@ -314,7 +325,7 @@ export default async function ListingPage({
                 </Link>
               )}
 
-              <CopyListingLinkButton slug={listing.slug} />
+              <CopyListingLinkButton slug={normalizedListing.slug} />
 
               <Link
                 href="/listings"
@@ -340,11 +351,11 @@ export default async function ListingPage({
 
         <div className="grid gap-6 sm:gap-8 lg:grid-cols-[minmax(0,1.55fr)_360px]">
           <div className="min-w-0">
-            <ListingGallery images={images} title={listing.title} />
+            <ListingGallery images={images} title={normalizedListing.title} />
 
             <div className="min-w-0 overflow-hidden rounded-[28px] border border-stone-200 bg-white p-5 shadow-sm sm:rounded-[32px] sm:p-6 md:p-8">
               <p className="break-words text-base leading-7 text-stone-700 sm:text-lg sm:leading-8">
-                {listing.excerpt}
+                {normalizedListing.excerpt}
               </p>
 
               <div className="mt-8">
@@ -352,7 +363,7 @@ export default async function ListingPage({
                   About this property
                 </h2>
                 <div className="mt-4 whitespace-pre-line break-words leading-7 text-stone-700 sm:leading-8">
-                  {listing.description}
+                  {normalizedListing.description}
                 </div>
               </div>
 
@@ -387,7 +398,7 @@ export default async function ListingPage({
                   </div>
 
                   <Link
-                    href={`/sold-prices/search?county=${encodeURIComponent(listing.county)}&area=${encodeURIComponent(listing.address_line_2 || "")}`}
+                    href={`/sold-prices/search?county=${encodeURIComponent(normalizedListing.county)}&area=${encodeURIComponent(normalizedListing.address_line_2 || "")}`}
                     className="inline-flex shrink-0 rounded-full border border-stone-300 px-4 py-2.5 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900"
                   >
                     Search sold prices
@@ -421,15 +432,20 @@ export default async function ListingPage({
           </div>
 
           <div className="space-y-5 sm:space-y-6 lg:sticky lg:top-24 lg:self-start">
+            {isAdmin && (
+              <AdminFeaturedToggle
+                slug={normalizedListing.slug}
+                featured={normalizedListing.featured}
+              />
+            )}
+
             <aside className="rounded-3xl border border-stone-200 bg-white p-5 shadow-sm sm:p-6">
               <p className="text-2xl font-semibold text-stone-900 sm:text-3xl">
                 {formattedPrice}
               </p>
 
               <div className="mt-3 inline-flex items-center rounded-full border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs font-medium text-stone-700">
-                Direct to seller
-                <span className="mx-2 h-1 w-1 rounded-full bg-stone-300" />
-                No agent fees
+                Private Sale
               </div>
 
               <div className="mt-5 border-t border-stone-200 pt-5 sm:mt-6 sm:pt-6">
@@ -440,7 +456,7 @@ export default async function ListingPage({
                         Site Area
                       </p>
                       <p className="mt-2 text-lg font-semibold text-stone-900">
-                        {formatNumber(listing.sqft)}
+                        {formatNumber(normalizedListing.sqft)}
                       </p>
                     </div>
 
@@ -449,7 +465,7 @@ export default async function ListingPage({
                         Planning
                       </p>
                       <p className="mt-2 text-lg font-semibold text-stone-900">
-                        {listing.planning || "—"}
+                        {normalizedListing.planning || "—"}
                       </p>
                     </div>
                   </div>
@@ -460,7 +476,7 @@ export default async function ListingPage({
                         Beds
                       </p>
                       <p className="mt-2 text-lg font-semibold text-stone-900">
-                        {formatNumber(listing.beds)}
+                        {formatNumber(normalizedListing.beds)}
                       </p>
                     </div>
 
@@ -469,7 +485,7 @@ export default async function ListingPage({
                         Baths
                       </p>
                       <p className="mt-2 text-lg font-semibold text-stone-900">
-                        {formatNumber(listing.baths)}
+                        {formatNumber(normalizedListing.baths)}
                       </p>
                     </div>
 
@@ -478,7 +494,7 @@ export default async function ListingPage({
                         Sq Ft
                       </p>
                       <p className="mt-2 text-lg font-semibold text-stone-900">
-                        {formatNumber(listing.sqft)}
+                        {formatNumber(normalizedListing.sqft)}
                       </p>
                     </div>
                   </div>
@@ -489,29 +505,36 @@ export default async function ListingPage({
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-stone-500">County</span>
                   <span className="font-medium text-stone-900">
-                    {listing.county}
+                    {normalizedListing.county}
                   </span>
                 </div>
 
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-stone-500">Status</span>
                   <span className="font-medium text-stone-900">
-                    {listing.status}
+                    {normalizedListing.status}
                   </span>
                 </div>
+
+                {normalizedListing.featured && (
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-stone-500">Featured Listing</span>
+                    <span className="font-medium text-stone-900">On</span>
+                  </div>
+                )}
 
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-stone-500">Type</span>
                   <span className="font-medium text-stone-900">
-                    {listing.type}
+                    {normalizedListing.type}
                   </span>
                 </div>
 
-                {listing.viewing && (
+                {normalizedListing.viewing && (
                   <div className="flex items-center justify-between gap-4">
                     <span className="text-stone-500">Viewing</span>
                     <span className="font-medium text-stone-900">
-                      {listing.viewing}
+                      {normalizedListing.viewing}
                     </span>
                   </div>
                 )}

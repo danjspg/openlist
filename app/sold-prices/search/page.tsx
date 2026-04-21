@@ -2,7 +2,6 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import PprDisclaimer from "@/components/ppr/PprDisclaimer"
 import PprSaleCard from "@/components/ppr/PprSaleCard"
-import PprSellConversion from "@/components/ppr/PprSellConversion"
 import SoldPricesSearchForm from "@/components/ppr/SoldPricesSearchForm"
 import {
   formatPprDate,
@@ -66,12 +65,8 @@ export default async function SoldPricesSearchPage({
               Sold prices
             </p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl">
-              Search public sale prices.
+              See what homes sold for across Ireland
             </h1>
-            <p className="mt-3 max-w-3xl text-base leading-7 text-stone-600">
-              See what homes actually sold for across Ireland, then refine by
-              town, county, sale date and price range.
-            </p>
             <p className="mt-3 text-sm font-medium text-stone-700">
               See prices near your own home by searching your town, suburb or
               address.
@@ -165,11 +160,8 @@ export default async function SoldPricesSearchPage({
 
           <aside className="space-y-5">
             <PprDisclaimer />
-            <PprSellConversion />
           </aside>
         </div>
-
-        <PprSellConversion className="mt-10 rounded-[32px] sm:p-8" />
       </section>
     </main>
   )

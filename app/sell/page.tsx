@@ -29,7 +29,7 @@ export default function SellPage() {
           </p>
 
           <p className="mt-4 text-sm text-stone-500">
-            No traditional commission model. Just a more direct way to market
+            A more direct way to market
             your property privately.
           </p>
 

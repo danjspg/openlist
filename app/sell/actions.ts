@@ -9,6 +9,7 @@ import {
   generateListingTitle,
   getLegacySqftValue,
 } from "@/lib/property"
+import { normalizeSaleStatus } from "@/lib/listing-status"
 
 async function makeUniqueSlug(baseSlug: string) {
   let slug = baseSlug
@@ -130,7 +131,7 @@ function getSharedValues(formData: FormData) {
   const areaUnit = String(formData.get("areaUnit") ?? "").trim()
   const excerpt = String(formData.get("excerpt") ?? "").trim()
   const description = formatDescription(String(formData.get("description") ?? ""))
-  const status = String(formData.get("status") ?? "For Sale").trim()
+  const status = normalizeSaleStatus(formData.get("status"))
   const highlights = formData.getAll("highlights").map(String).filter(Boolean)
 
   return {
@@ -222,7 +223,7 @@ export async function createListing(formData: FormData) {
     excerpt: values.excerpt || values.description.slice(0, 110),
     description: values.description,
     highlights: values.highlights.length > 0 ? values.highlights : null,
-    status: values.status || "For Sale",
+    status: normalizeSaleStatus(values.status),
     image: images[0],
     images,
   })
@@ -326,7 +327,7 @@ export async function updateListing(formData: FormData) {
       excerpt: values.excerpt || values.description.slice(0, 110),
       description: values.description,
       highlights: values.highlights.length > 0 ? values.highlights : null,
-      status: values.status || "For Sale",
+      status: normalizeSaleStatus(values.status),
       image: finalImages[0] ?? null,
       images: finalImages,
     })

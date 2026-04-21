@@ -6,7 +6,6 @@ import { supabase } from "@/lib/supabase"
 import {
   IRISH_COUNTIES,
   PROPERTY_TYPES,
-  SALE_METHODS,
   STATUS_OPTIONS,
   generateListingTitle,
   getAreaDisplay,
@@ -96,7 +95,6 @@ export default function SellerListingV2Form({
   const [subtype, setSubtype] = useState(
     initialData?.subtype || getSubtypeOptions(initialData?.type || "House")[0] || ""
   )
-  const [saleMethod, setSaleMethod] = useState(initialData?.saleMethod || "Private Sale")
   const [county, setCounty] = useState(initialData?.county || "Cork")
   const [addressLine2, setAddressLine2] = useState(initialData?.addressLine2 || "")
   const [eircode, setEircode] = useState(initialData?.eircode || "")
@@ -284,7 +282,7 @@ export default function SellerListingV2Form({
       const result = await generateListingCopy({
         type,
         subtype,
-        saleMethod,
+        saleMethod: "Private Sale",
         county,
         addressLine2,
         price,
@@ -326,7 +324,6 @@ export default function SellerListingV2Form({
 
     setType(nextType)
     setSubtype(nextSubtype)
-    setSaleMethod(listing.sale_method || "Private Sale")
     setCounty(listing.county || "Cork")
     setAddressLine2(listing.address_line_2 || "")
     setEircode(listing.eircode || "")
@@ -411,6 +408,7 @@ export default function SellerListingV2Form({
       )}
 
       <input type="hidden" name="generatedTitle" value={generatedTitle} />
+      <input type="hidden" name="saleMethod" value="Private Sale" />
       <input
         type="hidden"
         name="imageOrder"
@@ -565,22 +563,6 @@ export default function SellerListingV2Form({
 
           <div>
             <label className="mb-2 block text-sm font-medium text-stone-700">
-              Sale method
-            </label>
-            <select
-              name="saleMethod"
-              value={saleMethod}
-              onChange={(e) => setSaleMethod(e.target.value)}
-              className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition focus:border-stone-500"
-            >
-              {SALE_METHODS.map((option) => (
-                <option key={option}>{option}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm font-medium text-stone-700">
               County
             </label>
             <select
@@ -710,7 +692,7 @@ export default function SellerListingV2Form({
 
           <div>
             <label className="mb-2 block text-sm font-medium text-stone-700">
-              Status
+              Sale status
             </label>
             <select
               name="status"
@@ -794,7 +776,10 @@ export default function SellerListingV2Form({
                 Optional AI help
               </p>
               <p className="mt-2 text-sm leading-6 text-stone-500">
-                Need a starting point? Generate a draft summary, description and suggested highlights from the details you have entered above. You can edit everything before publishing.
+                Need a starting point? Generate a draft summary and description from the details you have entered above. You can edit everything before publishing.
+              </p>
+              <p className="mt-2 text-xs leading-6 text-stone-500">
+                This tool helps format listing text only. It does not provide valuation services, pricing advice, negotiation advice, legal advice, or transaction services.
               </p>
               <p className="mt-2 text-xs font-medium uppercase tracking-[0.18em] text-stone-400">
                 Optional · Nothing is published automatically

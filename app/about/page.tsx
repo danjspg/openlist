@@ -28,32 +28,34 @@ export default function AboutPage() {
 
         <div className="mt-10 grid gap-8 lg:grid-cols-[1.2fr_0.8fr] sm:mt-12">
           <div className="rounded-[28px] border border-slate-200 bg-white p-8 shadow-sm">
-            <div className="space-y-5 text-base leading-7 text-slate-600">
+            <div className="max-w-2xl space-y-5 text-base leading-7 text-slate-600 sm:space-y-6">
               <p>
-                It combines real sale price data with a simple listing
-                approach, so you can make informed decisions and manage your
-                own sale.
+                OpenList is a self-service platform for private property
+                listings in Ireland.
               </p>
 
               <p>
-                Selling a home often means relying on estimates, agents and
-                limited visibility into real market prices.
+                Listings are created by property owners and enquiries go
+                directly to them.
               </p>
 
               <p>
-                OpenList takes a more direct approach — giving you access to
-                actual sale prices and a clear way to present your property.
+                It combines public sale price data with a simple listing tool.
               </p>
 
               <p>
-                It is a platform for private sellers who want a simpler, more
-                direct way to manage their own sale.
+                It provides access to recent sale prices and a way to create
+                and manage your own listing.
               </p>
 
               <p>
-                The aim is simple — to make it easier for people in Ireland to
-                sell property privately, using real information and a clearer
-                process.
+                The aim is simple — to make it easier to create and manage a
+                private property listing using public information.
+              </p>
+
+              <p>
+                OpenList was created to provide a straightforward platform for
+                private sellers where one did not previously exist.
               </p>
             </div>
           </div>
@@ -64,8 +66,8 @@ export default function AboutPage() {
                 With OpenList you can
               </p>
               <ul className="mt-5 list-disc space-y-3 pl-5 text-base leading-7 text-slate-700">
-                <li>see what similar homes have sold for</li>
-                <li>understand your local market</li>
+                <li>see public sale prices</li>
+                <li>browse property listings</li>
                 <li>create a straightforward listing</li>
                 <li>deal directly with buyers</li>
               </ul>
@@ -88,8 +90,7 @@ export default function AboutPage() {
             Important
           </p>
           <p className="mt-4 max-w-4xl text-base leading-7 text-slate-600">
-            OpenList provides tools and information for private property sales.
-            We do not provide legal, financial or property advice.
+            OpenList is a self-service listing and marketing platform. It does not act as an estate agent or auctioneer and does not provide valuation services, pricing advice, negotiation services, legal services, brokerage services, or transaction management.
           </p>
         </div>
       </section>

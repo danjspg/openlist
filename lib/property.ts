@@ -40,17 +40,13 @@ export const PROPERTY_TYPES = [
   "Commercial",
 ] as const
 
-export const SALE_METHODS = [
-  "Private Sale",
-  "Agent Listing",
-] as const
-
 export const STATUS_OPTIONS = [
+  "Draft",
   "For Sale",
-  "Featured",
   "Sale Agreed",
   "Sold",
-  "To Let",
+  "Paused",
+  "Archived",
 ] as const
 
 export function getSubtypeOptions(type: string): string[] {
