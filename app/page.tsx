@@ -50,11 +50,11 @@ export default async function HomePage() {
           </h1>
 
           <p className="mt-5 max-w-2xl text-base leading-7 text-stone-600 sm:mt-6 sm:text-lg sm:leading-8">
-            Use real sale prices to guide your decisions and create a clear, straightforward listing.
+            Create a clear, straightforward property listing for the Irish market.
           </p>
 
           <p className="mt-3 text-sm leading-6 text-stone-500 sm:text-base">
-            Designed for people who want to manage their own home sale.
+            Designed for people who want to create and manage their own property listing.
           </p>
 
           <div className="mt-7 flex flex-wrap gap-3 sm:mt-8 sm:gap-4">
@@ -72,18 +72,16 @@ export default async function HomePage() {
             </Link>
           </div>
 
-          <p className="mt-3 text-sm leading-6 text-stone-500">
-            No estate agent required.
-          </p>
+          <div className="mt-3 rounded-2xl border border-stone-200 bg-white/80 px-5 py-4 shadow-sm">
+            <p className="text-sm leading-6 text-stone-600">
+              OpenList provides tools to create and manage your listing. You remain the seller at all times.
+            </p>
+          </div>
 
-          <div className="mt-8 grid grid-cols-1 gap-5 text-sm text-stone-500 sm:mt-10 sm:grid-cols-3 sm:gap-8">
-            <div>
-              <div className="text-2xl font-semibold text-stone-900">Fixed fee</div>
-              <div className="mt-1">No traditional commission.</div>
-            </div>
+          <div className="mt-8 grid grid-cols-1 gap-5 text-sm text-stone-500 sm:mt-10 sm:grid-cols-2 sm:gap-8">
             <div>
               <div className="text-2xl font-semibold text-stone-900">Stay in control</div>
-              <div className="mt-1">Manage your own sale and deal directly with buyers.</div>
+              <div className="mt-1">Manage your own listing and receive enquiries directly from buyers.</div>
             </div>
             <div>
               <div className="text-2xl font-semibold text-stone-900">Clear listings</div>
@@ -93,12 +91,11 @@ export default async function HomePage() {
 
           <div className="mt-8 rounded-2xl border border-stone-200 bg-white/80 px-5 py-4 shadow-sm sm:mt-10">
             <p className="text-sm leading-6 text-stone-600">
-              OpenList is a marketing platform for private property listings in Ireland.
+              OpenList is a self-service platform for private property listings in Ireland.
             </p>
             <p className="mt-2 text-sm leading-6 text-stone-600">
               Listing information is provided by sellers and has not been independently verified.
-              OpenList does not act as an estate agent and does not provide valuation,
-              negotiation, or legal services.
+              OpenList is a self-service listing and marketing platform. It does not act as an estate agent and does not provide valuation services, pricing advice, negotiation services, legal services, brokerage services, or transaction management.
             </p>
           </div>
         </div>
@@ -250,8 +247,9 @@ export default async function HomePage() {
           </h2>
           <p className="mt-4 max-w-2xl whitespace-pre-line text-base leading-7 text-stone-600 sm:text-lg sm:leading-8">
             Search over 640,000 public property sales since 2015.
-            {"\n"}Use real data to understand your local market before you
-            decide to sell.
+          </p>
+          <p className="mt-4 max-w-3xl text-sm leading-6 text-stone-600">
+            Property price information is provided for general information only and as market context only. It does not constitute a valuation, pricing advice, investment advice, legal advice, or a recommendation about how any property should be marketed or sold.
           </p>
           <div className="mt-4 flex flex-wrap items-center gap-2 text-sm text-stone-600">
             <span className="font-medium text-stone-700">Popular areas:</span>
@@ -352,7 +350,7 @@ export default async function HomePage() {
             {
               step: "03",
               title: "Deal directly",
-              text: "Handle enquiries, viewings and buyer conversations yourself, without an estate agent in the middle.",
+              text: "Handle enquiries and viewings yourself, with buyers contacting you directly through the listing.",
             },
           ].map((item) => (
             <div
@@ -380,9 +378,7 @@ export default async function HomePage() {
               THINKING OF SELLING?
             </p>
             <p className="mt-5 whitespace-pre-line text-base leading-7 text-stone-300 sm:text-lg sm:leading-8">
-              Sell your home privately with a clear, well-presented listing.
-              {"\n"}Use recent sale prices to guide how you position your
-              property for buyers.
+              Create a clear, well-presented private sale listing and receive enquiries directly from buyers.
             </p>
 
             <div className="mt-8">
@@ -394,15 +390,9 @@ export default async function HomePage() {
               </Link>
             </div>
 
-            <p className="mt-3 text-sm leading-6 text-stone-300">
-              No estate agent required.
-            </p>
-
             <div className="mt-8 border-t border-white/10 pt-6">
               <p className="whitespace-pre-line text-sm leading-6 text-stone-300">
-                Need a bit of guidance?
-                {"\n"}We can point you toward trusted professionals if you’d
-                like support.
+                You manage the sale yourself and can choose your own professional advisers where needed.
               </p>
             </div>
 

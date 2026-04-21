@@ -30,9 +30,9 @@ export default function AboutPage() {
           <div className="rounded-[28px] border border-slate-200 bg-white p-8 shadow-sm">
             <div className="space-y-5 text-base leading-7 text-slate-600">
               <p>
-                It combines real sale price data with a simple listing
-                approach, so you can make informed decisions and manage your
-                own sale.
+                It combines public sale price data with a simple listing
+                approach, so you can view public sale prices and manage your
+                own listing.
               </p>
 
               <p>
@@ -64,8 +64,8 @@ export default function AboutPage() {
                 With OpenList you can
               </p>
               <ul className="mt-5 list-disc space-y-3 pl-5 text-base leading-7 text-slate-700">
-                <li>see what similar homes have sold for</li>
-                <li>understand your local market</li>
+                <li>see public sale prices</li>
+                <li>browse property listings</li>
                 <li>create a straightforward listing</li>
                 <li>deal directly with buyers</li>
               </ul>

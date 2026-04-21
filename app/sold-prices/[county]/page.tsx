@@ -3,7 +3,6 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import PprDisclaimer from "@/components/ppr/PprDisclaimer"
 import PprSaleCard from "@/components/ppr/PprSaleCard"
-import PprSellConversion from "@/components/ppr/PprSellConversion"
 import { PPR_MARKETS, getPprMarket } from "@/lib/ppr-markets"
 import { getMarketSoldPrices } from "@/lib/ppr"
 
@@ -69,10 +68,10 @@ export default async function PprMarketPage({ params }: Props) {
               See what homes sold for in {market.name}
             </h1>
             <p className="mt-5 max-w-3xl text-base leading-7 text-stone-600 sm:text-lg sm:leading-8">
-              Use recent sale prices to understand your local market before deciding how to present your home.
+              Search over 640,000 public property sales since 2015.
             </p>
             <p className="mt-4 text-sm font-medium text-stone-700">
-              Based on public Property Price Register data since 2015.
+              Based on publicly available Property Price Register data.
             </p>
             <Link
               href="/sold-prices"
@@ -141,7 +140,6 @@ export default async function PprMarketPage({ params }: Props) {
                 Back to sold prices
               </Link>
             </div>
-            <PprSellConversion />
           </aside>
         </div>
       </section>

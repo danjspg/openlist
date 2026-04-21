@@ -139,8 +139,8 @@ export default function ListingsPage() {
               </h1>
 
               <p className="mt-3 max-w-2xl text-base leading-7 text-stone-600 sm:text-lg sm:leading-8">
-                Browse private sale property listings in Ireland, presented with
-                more clarity and less noise.
+                Browse private sale property listings in Ireland, direct from
+                sellers.
               </p>
 
               <div className="mt-5 flex flex-wrap gap-3">
@@ -148,7 +148,7 @@ export default function ListingsPage() {
                   href="/sell"
                   className="inline-flex items-center rounded-full bg-stone-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-stone-700"
                 >
-                  Start your listing
+                  List privately
                 </Link>
 
                 <Link
@@ -158,9 +158,6 @@ export default function ListingsPage() {
                   My listings
                 </Link>
               </div>
-              <p className="mt-3 text-sm leading-6 text-stone-500">
-                No estate agent required.
-              </p>
             </div>
           </div>
 

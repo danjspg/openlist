@@ -178,10 +178,6 @@ export default async function MyListingsPage({
             </Link>
           </form>
 
-          <p className="mt-3 text-sm leading-6 text-stone-500">
-            No estate agent required.
-          </p>
-
           {trimmedEmail && (
             <div className="mt-4 flex flex-wrap gap-3">
               <Link

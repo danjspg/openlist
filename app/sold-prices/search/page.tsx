@@ -2,7 +2,6 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import PprDisclaimer from "@/components/ppr/PprDisclaimer"
 import PprSaleCard from "@/components/ppr/PprSaleCard"
-import PprSellConversion from "@/components/ppr/PprSellConversion"
 import SoldPricesSearchForm from "@/components/ppr/SoldPricesSearchForm"
 import {
   formatPprDate,
@@ -16,7 +15,8 @@ export const dynamic = "force-dynamic"
 
 export const metadata: Metadata = {
   title: "Search Sold Prices | OpenList",
-  description: "Search over 640,000 public property sales since 2015.",
+  description:
+    "Search Irish residential sale prices from public Property Price Register data.",
 }
 
 type SearchParams = {
@@ -67,9 +67,6 @@ export default async function SoldPricesSearchPage({
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl">
               See what homes sold for across Ireland
             </h1>
-            <p className="mt-3 max-w-3xl text-base leading-7 text-stone-600">
-              Use recent sale prices to understand your local market before deciding how to present your home.
-            </p>
             <p className="mt-3 text-sm font-medium text-stone-700">
               See prices near your own home by searching your town, suburb or
               address.
@@ -163,11 +160,8 @@ export default async function SoldPricesSearchPage({
 
           <aside className="space-y-5">
             <PprDisclaimer />
-            <PprSellConversion />
           </aside>
         </div>
-
-        <PprSellConversion className="mt-10 rounded-[32px] sm:p-8" />
       </section>
     </main>
   )

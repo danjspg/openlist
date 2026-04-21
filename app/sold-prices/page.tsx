@@ -2,7 +2,6 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import PprDisclaimer from "@/components/ppr/PprDisclaimer"
 import PprSaleCard from "@/components/ppr/PprSaleCard"
-import PprSellConversion from "@/components/ppr/PprSellConversion"
 import SoldPricesSearchForm from "@/components/ppr/SoldPricesSearchForm"
 import {
   areaNameFromSlug,
@@ -46,11 +45,9 @@ export default async function SoldPricesPage() {
             </h1>
             <p className="mt-5 max-w-3xl whitespace-pre-line text-base leading-7 text-stone-600 sm:text-lg sm:leading-8">
               Search over 640,000 public property sales since 2015.
-              {"\n"}Use recent results to understand your local market before
-              deciding how to present your home.
             </p>
             <p className="mt-4 text-sm font-medium text-stone-700">
-              Based on public Property Price Register data since 2015.
+              Based on publicly available Property Price Register data.
             </p>
           </div>
 
@@ -97,6 +94,10 @@ export default async function SoldPricesPage() {
                 <div>
                   <p className="text-sm font-medium uppercase tracking-[0.2em] text-stone-500">
                     Recent sales
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-stone-500">
+                    Sold prices shown are for general information only and are
+                    not a valuation.
                   </p>
                   <h2 className="mt-2 text-3xl font-semibold tracking-tight text-stone-900">
                     Latest sold prices.
@@ -196,11 +197,8 @@ export default async function SoldPricesPage() {
 
           <aside className="space-y-5">
             <PprDisclaimer />
-            <PprSellConversion theme="dark" />
           </aside>
         </div>
-
-        <PprSellConversion className="mt-10 rounded-[32px] sm:p-8" />
       </section>
     </main>
   )

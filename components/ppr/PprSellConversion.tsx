@@ -31,15 +31,14 @@ export default function PprSellConversion({
           isDark ? "text-white" : "text-stone-900"
         }`}
       >
-        Sell your home privately with a clear, well-presented listing.
+        Create a clear, well-presented private sale listing.
       </h2>
       <p
         className={`mt-3 text-sm leading-6 ${
           isDark ? "text-stone-300" : "text-stone-600"
         }`}
       >
-        Use recent sale prices to guide how you position your property for
-        buyers.
+        Receive enquiries directly from buyers.
       </p>
       <Link
         href="/sell"
@@ -51,9 +50,6 @@ export default function PprSellConversion({
       >
         Start your listing
       </Link>
-      <p className={`mt-3 text-xs ${isDark ? "text-stone-400" : "text-stone-500"}`}>
-        No estate agent required.
-      </p>
     </div>
   )
 }
