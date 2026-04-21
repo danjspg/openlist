@@ -1,10 +1,11 @@
 import type { Metadata } from "next"
+import Image from "next/image"
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
 import SellerEmailField from "@/components/SellerEmailField"
 import CopyListingLinkButton from "@/components/CopyListingLinkButton"
 import { isLiveSaleStatus, normalizeListingStatus } from "@/lib/listing-status"
-import { getPublicListingTitle } from "@/lib/listings"
+import { getDisplayListingTitle } from "@/lib/listings"
 
 export const metadata: Metadata = {
   title: "My Listings | OpenList",
@@ -255,9 +256,12 @@ export default async function MyListingsPage({
                         <div className="bg-stone-100">
                           <div className="relative aspect-[4/3] w-full overflow-hidden">
                             {heroImage ? (
-                              <img
+                              <Image
                                 src={heroImage}
-                                alt={getPublicListingTitle(listing)}
+                                alt={getDisplayListingTitle(listing)}
+                                fill
+                                sizes="(max-width: 768px) 100vw, 280px"
+                                unoptimized
                                 className="h-full w-full object-cover"
                               />
                             ) : (
@@ -294,7 +298,7 @@ export default async function MyListingsPage({
                               </div>
 
                               <h2 className="mt-3 text-2xl font-semibold leading-snug tracking-tight text-stone-900 sm:text-[2rem]">
-                                {getPublicListingTitle(listing)}
+                                {getDisplayListingTitle(listing)}
                               </h2>
                             </div>
 

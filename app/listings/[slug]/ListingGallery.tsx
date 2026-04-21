@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import { useState } from "react"
 
 export default function ListingGallery({
@@ -35,9 +36,12 @@ export default function ListingGallery({
   return (
     <div className="mb-6 min-w-0 overflow-x-hidden sm:mb-8">
       <div className="relative aspect-[5/4] w-full overflow-hidden rounded-[28px] border border-stone-200 bg-stone-100 shadow-sm sm:aspect-[4/3] md:aspect-[3/2]">
-        <img
+        <Image
           src={activeImage}
           alt={`${title} image ${safeIndex + 1}`}
+          fill
+          sizes="(max-width: 640px) 100vw, (max-width: 768px) 100vw, 66vw"
+          unoptimized
           className="absolute inset-0 h-full w-full object-cover"
         />
 
@@ -109,9 +113,12 @@ export default function ListingGallery({
                   aria-label={`Show image ${index + 1}`}
                 >
                   <div className="relative h-14 w-20 bg-stone-100 sm:h-16 sm:w-24 md:h-24 md:w-36">
-                    <img
+                    <Image
                       src={image}
                       alt={`${title} thumbnail ${index + 1}`}
+                      fill
+                      sizes="(max-width: 640px) 80px, (max-width: 768px) 96px, 144px"
+                      unoptimized
                       className="h-full w-full object-cover"
                     />
                     {isActive && (

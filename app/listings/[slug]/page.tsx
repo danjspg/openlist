@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { supabase } from "@/lib/supabase"
+import { formatCanonicalSiteArea } from "@/lib/property"
 import EnquiryForm from "./EnquiryForm"
 import ListingGallery from "./ListingGallery"
 import CopyListingLinkButton from "@/components/CopyListingLinkButton"
@@ -13,7 +14,7 @@ import {
 import { normalizeListingStatus } from "@/lib/listing-status"
 import { getCurrentUserIsAdmin } from "@/lib/admin-auth"
 import AdminFeaturedToggle from "@/components/AdminFeaturedToggle"
-import { getPublicListingTitle } from "@/lib/listings"
+import { getDisplayListingTitle } from "@/lib/listings"
 
 function formatEuro(value: string) {
   const numeric = Number(value.replace(/[^0-9.]/g, ""))
@@ -160,7 +161,7 @@ export default async function ListingPage({
 
   const normalizedListing = normalizeListingStatus(listing)
   const isAdmin = await getCurrentUserIsAdmin()
-  const displayTitle = getPublicListingTitle(normalizedListing)
+  const displayTitle = getDisplayListingTitle(normalizedListing)
 
   const isSite = normalizedListing.type === "Site"
   const formattedPrice = formatEuro(normalizedListing.price)
@@ -169,6 +170,10 @@ export default async function ListingPage({
   const nearbySales = await getNearbySalesForListing({
     county: normalizedListing.county,
     area: normalizedListing.address_line_2,
+  })
+  const siteAreaDisplay = formatCanonicalSiteArea({
+    areaValue: normalizedListing.area_value,
+    areaUnit: normalizedListing.area_unit,
   })
 
   return (
@@ -458,8 +463,8 @@ export default async function ListingPage({
                       <p className="text-xs uppercase tracking-wide text-stone-500">
                         Site Area
                       </p>
-                      <p className="mt-2 text-lg font-semibold text-stone-900">
-                        {formatNumber(normalizedListing.sqft)}
+                      <p className="mt-2 text-base font-semibold leading-6 text-stone-900">
+                        {siteAreaDisplay}
                       </p>
                     </div>
 

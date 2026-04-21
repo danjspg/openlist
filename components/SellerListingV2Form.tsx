@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
@@ -13,6 +14,11 @@ import {
   getSubtypeOptions,
 } from "@/lib/property"
 import { generateListingCopy } from "@/app/sell/ai-actions"
+import {
+  getDisplayListingExcerpt,
+  getDisplayListingHighlights,
+  getDisplayListingTitle,
+} from "@/lib/listings"
 
 type InitialData = {
   slug?: string
@@ -85,6 +91,10 @@ function formatEuro(value: string) {
     currency: "EUR",
     maximumFractionDigits: 0,
   }).format(numeric)
+}
+
+function previewLocation(addressLine2: string, county: string) {
+  return [addressLine2.trim(), county.trim()].filter(Boolean).join(", ")
 }
 
 export default function SellerListingV2Form({
@@ -397,14 +407,162 @@ export default function SellerListingV2Form({
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
+  function focusListingTitleField() {
+    const input = document.getElementById("publicTitle") as HTMLInputElement | null
+    if (!input) return
+
+    input.focus()
+    input.scrollIntoView({ behavior: "smooth", block: "center" })
+  }
+
   const previewDisplayImages = getPreviewImages()
-  const previewTitle = publicTitle.trim() || generatedTitle
+  const previewTitle = getDisplayListingTitle({
+    title: generatedTitle,
+    public_title: publicTitle,
+    type,
+    subtype,
+    address_line_2: addressLine2,
+    county,
+    excerpt,
+    description,
+    highlights: selectedHighlights,
+  })
   const previewArea = getAreaDisplay({
     type,
     areaValue: Number(areaValue) || null,
     areaUnit,
   })
+  const previewHighlights = getDisplayListingHighlights(selectedHighlights)
   const previewPrice = formatEuro(price)
+  const previewSummary = getDisplayListingExcerpt({
+    title: previewTitle,
+    excerpt,
+  })
+  const previewBody =
+    description.trim() || "The full listing description will appear here as you edit."
+  const previewCardLocation = previewLocation(addressLine2, county)
+
+  const previewPanel = (
+    <div className="rounded-[28px] border border-stone-200 bg-white p-5 shadow-sm sm:p-6 lg:sticky lg:top-8">
+      <div className="mb-4 border-b border-stone-200 pb-4">
+        <p className="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">
+          Listing preview
+        </p>
+        <p className="mt-2 text-sm leading-6 text-stone-500">
+          Preview of public listing
+        </p>
+      </div>
+
+      <article className="overflow-hidden rounded-[30px] border border-stone-200 bg-white shadow-sm">
+        <div className="relative overflow-hidden">
+          <div className="aspect-[3/2] w-full bg-stone-100">
+            {previewDisplayImages[0] ? (
+              <img
+                src={previewDisplayImages[0]}
+                alt={previewTitle || "Listing preview"}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-sm text-stone-400">
+                No image selected
+              </div>
+            )}
+          </div>
+
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/12 via-transparent to-transparent" />
+
+          <div className="absolute left-4 top-4 z-10 flex flex-wrap gap-2">
+            <span className="inline-flex items-center rounded-full bg-white/92 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-700 shadow-sm backdrop-blur">
+              {status}
+            </span>
+          </div>
+
+          {previewDisplayImages.length > 1 && (
+            <div className="absolute right-4 top-4 z-10">
+              <span className="inline-flex items-center rounded-full bg-white/92 px-3 py-1 text-[11px] font-semibold text-stone-700 shadow-sm backdrop-blur">
+                {previewDisplayImages.length} photos
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-1 flex-col p-5 sm:p-6">
+          <div className="flex items-start justify-between gap-4">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500 sm:text-xs">
+              {subtype || type}
+            </span>
+            <span className="text-right text-sm text-stone-500">
+              {previewCardLocation || "Dublin 14"}
+            </span>
+          </div>
+
+          <h2 className="mt-3 line-clamp-2 text-xl font-semibold leading-snug tracking-tight text-stone-900 sm:text-2xl">
+            {previewTitle || "12 Willow Park, Dublin 14"}
+          </h2>
+
+          <button
+            type="button"
+            onClick={focusListingTitleField}
+            className="mt-2 inline-flex items-center text-sm font-medium text-stone-500 transition hover:text-stone-900"
+          >
+            Edit title
+          </button>
+
+          {previewSummary ? (
+            <p className="mt-3 line-clamp-2 text-sm leading-7 text-stone-600 sm:text-base">
+              {previewSummary}
+            </p>
+          ) : (
+            <p className="mt-3 text-sm leading-7 text-stone-400 sm:text-base">
+              A short listing summary will appear here if it adds something beyond the title.
+            </p>
+          )}
+
+          {previewHighlights.length > 0 && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {previewHighlights.slice(0, 3).map((highlight) => (
+                <span
+                  key={highlight}
+                  className="rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-xs text-stone-700"
+                >
+                  {highlight}
+                </span>
+              ))}
+            </div>
+          )}
+
+          <div className="mt-5 flex flex-wrap gap-x-4 gap-y-2 text-sm text-stone-500">
+            {isResidential && (
+              <>
+                <span>{beds || "0"} bed</span>
+                <span>{baths || "0"} bath</span>
+                <span>{previewArea}</span>
+              </>
+            )}
+            {!isResidential && <span>{previewArea}</span>}
+          </div>
+
+          <div className="mt-auto pt-6">
+            <div className="flex items-end justify-between gap-4 border-t border-stone-100 pt-5">
+              <p className="text-2xl font-semibold tracking-tight text-stone-900">
+                {price.trim() ? previewPrice : "Guide price"}
+              </p>
+              <span className="inline-flex items-center text-sm font-medium text-stone-600">
+                View listing
+              </span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <div className="mt-5 rounded-[24px] border border-stone-200 bg-stone-50 p-5">
+        <p className="text-sm font-medium text-stone-700">Listing page preview</p>
+        <p className="mt-3 text-sm leading-6 text-stone-600 line-clamp-6">
+          {previewBody}
+        </p>
+      </div>
+    </div>
+  )
 
   return (
     <form id="seller-listing-form" action={submitAction} className="space-y-10">
@@ -438,6 +596,13 @@ export default function SellerListingV2Form({
         />
       ))}
 
+      <div
+        className={
+          mode === "edit"
+            ? "grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start"
+            : ""
+        }
+      >
       <div className={isPreviewing ? "hidden" : "space-y-10"}>
       <section className="rounded-[28px] border border-stone-200 bg-stone-50 p-6 shadow-sm">
         <div className="mb-6 border-b border-stone-200 pb-5">
@@ -617,10 +782,11 @@ export default function SellerListingV2Form({
               Listing title
             </label>
             <input
+              id="publicTitle"
               name="publicTitle"
               value={publicTitle}
               onChange={(e) => setPublicTitle(e.target.value)}
-              placeholder="Myrtleville Site Full Planning - East"
+              placeholder="12 Willow Park, Dublin 14"
               className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition focus:border-stone-500"
             />
             <p className="mt-2 text-xs text-stone-500">
@@ -1011,134 +1177,15 @@ export default function SellerListingV2Form({
       </section>
       </div>
 
+      {mode === "edit" && !isPreviewing && (
+        <aside>
+          {previewPanel}
+        </aside>
+      )}
+      </div>
+
       {isPreviewing && (
-        <section className="overflow-hidden rounded-[32px] border border-stone-200 bg-white shadow-sm">
-          <div className="border-b border-stone-200 bg-gradient-to-br from-stone-50 via-white to-stone-100 px-5 py-6 sm:px-6 md:px-8">
-            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">
-              Listing preview
-            </p>
-            <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="inline-flex items-center rounded-full bg-stone-900 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-white">
-                    {status}
-                  </span>
-                  <span className="inline-flex items-center rounded-full border border-stone-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-600">
-                    {type}
-                  </span>
-                  {subtype && (
-                    <span className="inline-flex items-center rounded-full border border-stone-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-600">
-                      {subtype}
-                    </span>
-                  )}
-                </div>
-
-                <h2 className="mt-4 break-words text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl">
-                  {previewTitle}
-                </h2>
-                <p className="mt-3 text-base leading-7 text-stone-600">
-                  {[addressLine2, county].filter(Boolean).join(", ")}
-                </p>
-              </div>
-
-              <div className="rounded-[24px] border border-stone-200 bg-white px-5 py-4 shadow-sm">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500">
-                  Guide price
-                </div>
-                <div className="mt-2 text-3xl font-semibold tracking-tight text-stone-900">
-                  {previewPrice}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="p-5 sm:p-6 md:p-8">
-            {previewDisplayImages.length > 0 ? (
-              <div className="overflow-hidden rounded-[28px] border border-stone-200 bg-stone-100">
-                <img
-                  src={previewDisplayImages[0]}
-                  alt={previewTitle}
-                  className="h-[280px] w-full object-cover sm:h-[380px]"
-                />
-              </div>
-            ) : (
-              <div className="flex h-[260px] items-center justify-center rounded-[28px] border border-stone-200 bg-stone-100 text-stone-400">
-                No photos selected
-              </div>
-            )}
-
-            {previewDisplayImages.length > 1 && (
-              <div className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-4">
-                {previewDisplayImages.slice(1, 5).map((image, index) => (
-                  <div
-                    key={`${image}-${index}`}
-                    className="overflow-hidden rounded-2xl border border-stone-200 bg-stone-100"
-                  >
-                    <img
-                      src={image}
-                      alt={`${previewTitle} preview ${index + 2}`}
-                      className="aspect-[4/3] w-full object-cover"
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="mt-8 grid gap-4 sm:grid-cols-3">
-              {isResidential && (
-                <>
-                  <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
-                    <p className="text-xs uppercase tracking-[0.18em] text-stone-500">
-                      Beds
-                    </p>
-                    <p className="mt-2 text-xl font-semibold text-stone-900">
-                      {beds || "0"}
-                    </p>
-                  </div>
-                  <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
-                    <p className="text-xs uppercase tracking-[0.18em] text-stone-500">
-                      Baths
-                    </p>
-                    <p className="mt-2 text-xl font-semibold text-stone-900">
-                      {baths || "0"}
-                    </p>
-                  </div>
-                </>
-              )}
-              <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-stone-500">
-                  Area
-                </p>
-                <p className="mt-2 text-xl font-semibold text-stone-900">
-                  {previewArea}
-                </p>
-              </div>
-            </div>
-
-            {selectedHighlights.length > 0 && (
-              <div className="mt-8 flex flex-wrap gap-3">
-                {selectedHighlights.map((highlight) => (
-                  <span
-                    key={highlight}
-                    className="rounded-full border border-stone-200 bg-stone-50 px-4 py-2 text-sm font-medium text-stone-700"
-                  >
-                    {highlight}
-                  </span>
-                ))}
-              </div>
-            )}
-
-            {excerpt && (
-              <p className="mt-8 text-xl font-medium leading-8 text-stone-900">
-                {excerpt}
-              </p>
-            )}
-
-            <div className="mt-6 whitespace-pre-wrap text-base leading-8 text-stone-600">
-              {description}
-            </div>
-          </div>
-        </section>
+        <section>{previewPanel}</section>
       )}
 
       <div className="flex flex-col items-start gap-3 border-t border-stone-200 pt-8">

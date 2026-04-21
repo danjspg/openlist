@@ -1,7 +1,8 @@
+import Image from "next/image"
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
 import { normalizeListingStatus } from "@/lib/listing-status"
-import { getPublicListingTitle } from "@/lib/listings"
+import { getDisplayListingTitle } from "@/lib/listings"
 
 type Listing = {
   slug: string
@@ -100,12 +101,14 @@ export default async function HomePage() {
         <div className="grid gap-4 sm:grid-cols-2">
           <Link
             href="/listings"
-            className="group relative block overflow-hidden rounded-3xl bg-white shadow-sm sm:col-span-2"
+            className="group relative block h-[300px] overflow-hidden rounded-3xl bg-white shadow-sm sm:col-span-2 sm:h-[360px] lg:h-[420px]"
           >
-            <img
+            <Image
               src="/home-hero-1.jpg"
               alt="Browse OpenList property listings"
-              className="h-[300px] w-full object-cover transition duration-500 group-hover:scale-[1.02] sm:h-[360px] lg:h-[420px]"
+              fill
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 100vw, 50vw"
+              className="object-cover transition duration-500 group-hover:scale-[1.02]"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-black/10 to-transparent transition duration-300 group-hover:from-black/45" />
             <div className="absolute bottom-6 left-6">
@@ -120,23 +123,27 @@ export default async function HomePage() {
 
           <Link
             href="/listings"
-            className="group block overflow-hidden rounded-3xl bg-white shadow-sm"
+            className="group relative block h-48 overflow-hidden rounded-3xl bg-white shadow-sm sm:h-56"
           >
-            <img
+            <Image
               src="/home-hero-2.jpg"
               alt="Modern interior on OpenList"
-              className="h-48 w-full object-cover transition duration-500 group-hover:scale-[1.02] sm:h-56"
+              fill
+              sizes="(max-width: 640px) 100vw, 50vw"
+              className="object-cover transition duration-500 group-hover:scale-[1.02]"
             />
           </Link>
 
           <Link
             href="/listings"
-            className="group block overflow-hidden rounded-3xl bg-white shadow-sm"
+            className="group relative block h-48 overflow-hidden rounded-3xl bg-white shadow-sm sm:h-56"
           >
-            <img
+            <Image
               src="/home-hero-3.jpg"
               alt="Elegant home on OpenList"
-              className="h-48 w-full object-cover transition duration-500 group-hover:scale-[1.02] sm:h-56"
+              fill
+              sizes="(max-width: 640px) 100vw, 50vw"
+              className="object-cover transition duration-500 group-hover:scale-[1.02]"
             />
           </Link>
         </div>
@@ -180,11 +187,14 @@ export default async function HomePage() {
                     className="group block cursor-pointer overflow-hidden rounded-[30px] border border-stone-200 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-md"
                   >
                     <article>
-                      <div className="relative overflow-hidden">
-                        <img
+                      <div className="relative h-52 overflow-hidden sm:h-60">
+                        <Image
                           src={displayImage}
-                          alt={getPublicListingTitle(listing)}
-                          className="h-52 w-full object-cover transition duration-500 group-hover:scale-[1.02] sm:h-60"
+                          alt={getDisplayListingTitle(listing)}
+                          fill
+                          sizes="(max-width: 768px) 100vw, 33vw"
+                          unoptimized
+                          className="object-cover transition duration-500 group-hover:scale-[1.02]"
                         />
                         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent" />
 
@@ -207,7 +217,7 @@ export default async function HomePage() {
                         </div>
 
                         <h3 className="mt-3 text-xl font-semibold leading-snug tracking-tight text-stone-900 sm:text-2xl">
-                          {getPublicListingTitle(listing)}
+                          {getDisplayListingTitle(listing)}
                         </h3>
 
                         <div className="mt-5 inline-flex items-center text-sm font-medium text-stone-600 transition group-hover:text-stone-900">

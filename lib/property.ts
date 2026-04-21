@@ -122,6 +122,10 @@ function round(value: number) {
   return Math.round(value)
 }
 
+function roundToNearest(value: number, nearest: number) {
+  return Math.round(value / nearest) * nearest
+}
+
 function formatWhole(value: number) {
   return new Intl.NumberFormat("en-IE", {
     maximumFractionDigits: 0,
@@ -151,6 +155,35 @@ export function convertSqmToAcres(value: number) {
   return value / 4046.8564224
 }
 
+export function getCanonicalSiteAreaSqm(
+  areaValue?: number | null,
+  areaUnit?: string | null
+) {
+  if (!areaValue || !areaUnit) return null
+
+  if (areaUnit === "sqm") return areaValue
+  if (areaUnit === "acres") return convertAcresToSqm(areaValue)
+
+  return null
+}
+
+export function formatCanonicalSiteArea({
+  areaValue,
+  areaUnit,
+}: {
+  areaValue?: number | null
+  areaUnit?: string | null
+}) {
+  const siteAreaSqm = getCanonicalSiteAreaSqm(areaValue, areaUnit)
+
+  if (!siteAreaSqm) return "—"
+
+  const roundedSqm = roundToNearest(siteAreaSqm, 10)
+  const acres = siteAreaSqm / 4046.86
+
+  return `${formatOneDecimal(acres)} acres (approx. ${formatWhole(roundedSqm)} m²)`
+}
+
 export function getAreaDisplay({
   type,
   areaValue,
@@ -177,15 +210,7 @@ export function getAreaDisplay({
   }
 
   if (type === "Site") {
-    if (areaUnit === "acres") {
-      const sqm = round(convertAcresToSqm(areaValue))
-      return `${formatOneDecimal(areaValue)} acres / ${formatWhole(sqm)} sq m`
-    }
-
-    if (areaUnit === "sqm") {
-      const acres = convertSqmToAcres(areaValue)
-      return `${formatOneDecimal(acres)} acres / ${formatWhole(areaValue)} sq m`
-    }
+    return formatCanonicalSiteArea({ areaValue, areaUnit })
   }
 
   if (areaUnit === "sqm") {

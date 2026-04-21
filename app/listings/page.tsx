@@ -1,10 +1,15 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import Image from "next/image"
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
 import { formatLocation, getAreaDisplay } from "@/lib/property"
-import { getPublicListingTitle } from "@/lib/listings"
+import {
+  getDisplayListingExcerpt,
+  getDisplayListingHighlights,
+  getDisplayListingTitle,
+} from "@/lib/listings"
 import {
   PUBLIC_SALE_STATUSES,
   isPublicSaleStatus,
@@ -321,6 +326,12 @@ export default function ListingsPage() {
                 areaValue: listing.area_value,
                 areaUnit: listing.area_unit,
               })
+              const displayHighlights = getDisplayListingHighlights(listing.highlights)
+              const displayTitle = getDisplayListingTitle(listing)
+              const displayExcerpt = getDisplayListingExcerpt({
+                title: displayTitle,
+                excerpt: listing.excerpt,
+              })
               const location = formatLocation(listing.address_line_2, listing.county)
 
               return (
@@ -331,11 +342,14 @@ export default function ListingsPage() {
                 >
                   <article className="flex h-full flex-col">
                     <div className="relative overflow-hidden">
-                      <div className="aspect-[3/2] w-full bg-stone-100">
+                      <div className="relative aspect-[3/2] w-full bg-stone-100">
                         {displayImage ? (
-                          <img
+                          <Image
                             src={displayImage}
-                            alt={getPublicListingTitle(listing)}
+                            alt={displayTitle}
+                            fill
+                            sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw"
+                            unoptimized
                             className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.02]"
                           />
                         ) : (
@@ -378,16 +392,18 @@ export default function ListingsPage() {
                       </div>
 
                       <h2 className="mt-3 line-clamp-2 text-xl font-semibold leading-snug tracking-tight text-stone-900 sm:text-2xl">
-                        {getPublicListingTitle(listing)}
+                        {displayTitle}
                       </h2>
 
-                      <p className="mt-3 line-clamp-2 text-sm leading-7 text-stone-600 sm:text-base">
-                        {listing.excerpt}
-                      </p>
+                      {displayExcerpt && (
+                        <p className="mt-3 line-clamp-2 text-sm leading-7 text-stone-600 sm:text-base">
+                          {displayExcerpt}
+                        </p>
+                      )}
 
-                      {listing.highlights && listing.highlights.length > 0 && (
+                      {displayHighlights.length > 0 && (
                         <div className="mt-4 flex flex-wrap gap-2">
-                          {listing.highlights.slice(0, 3).map((highlight) => (
+                          {displayHighlights.slice(0, 3).map((highlight) => (
                             <span
                               key={highlight}
                               className="rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-xs text-stone-700"

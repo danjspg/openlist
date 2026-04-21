@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase"
 import SellerListingV2Form from "@/components/SellerListingV2Form"
 import { updateListing } from "@/app/sell/actions"
 import { normalizeListingStatus } from "@/lib/listing-status"
+import { getDisplayListingTitle } from "@/lib/listings"
 
 type Props = {
   params: Promise<{ slug: string }>
@@ -31,6 +32,7 @@ export default async function EditListingPage({ params }: Props) {
   }
 
   const normalizedListing = normalizeListingStatus(listing)
+  const initialPublicTitle = getDisplayListingTitle(normalizedListing)
 
   return (
     <main className="min-h-screen bg-white">
@@ -61,7 +63,7 @@ export default async function EditListingPage({ params }: Props) {
             county: normalizedListing.county ?? "Cork",
             addressLine2: normalizedListing.address_line_2 ?? "",
             eircode: normalizedListing.eircode ?? "",
-            publicTitle: normalizedListing.public_title ?? "",
+            publicTitle: initialPublicTitle,
             price: normalizedListing.price ?? "",
             beds: normalizedListing.beds ?? 0,
             baths: normalizedListing.baths ?? 0,
