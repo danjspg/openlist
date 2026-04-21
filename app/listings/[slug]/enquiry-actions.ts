@@ -2,7 +2,7 @@
 
 import { supabase } from "@/lib/supabase"
 import { getResendClient } from "@/lib/resend"
-import { getPublicListingTitle } from "@/lib/listings"
+import { getDisplayListingTitle } from "@/lib/listings"
 
 function escapeHtml(value: string) {
   return value
@@ -161,7 +161,7 @@ export async function submitEnquiry(formData: FormData) {
   }
 
   const sellerEmail = String(listing.seller_email).trim().toLowerCase()
-  const publicListingTitle = getPublicListingTitle(listing)
+  const publicListingTitle = getDisplayListingTitle(listing)
 
   const { error: insertError } = await supabase.from("enquiries").insert({
     listing_slug: listingSlug,

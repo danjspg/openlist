@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next"
+import Image from "next/image"
 import Link from "next/link"
 import Nav from "@/components/Nav"
 import "./globals.css"
@@ -46,15 +47,19 @@ export default function RootLayout({
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <div className="flex items-center justify-between gap-4 py-3 sm:py-5 md:py-6">
               <Link href="/" className="flex shrink-0 items-center">
-                <img
+                <Image
                   src="/logo-small.png"
                   alt="OpenList"
+                  width={160}
+                  height={45}
                   className="h-[45px] w-auto sm:hidden"
                 />
 
-                <img
+                <Image
                   src="/logo.png"
                   alt="OpenList"
+                  width={420}
+                  height={126}
                   className="hidden h-[78px] w-auto sm:block md:h-[110px] lg:h-[126px]"
                 />
               </Link>
@@ -71,9 +76,11 @@ export default function RootLayout({
             <div className="grid gap-10 md:grid-cols-2">
               <div>
                 <div className="flex items-center">
-                  <img
+                  <Image
                     src="/logo-small.png"
                     alt="OpenList"
+                    width={114}
+                    height={32}
                     className="h-8 w-auto"
                   />
                 </div>

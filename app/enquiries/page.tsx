@@ -3,7 +3,7 @@ import Link from "next/link"
 import { supabase } from "@/lib/supabase"
 import SellerEmailField from "@/components/SellerEmailField"
 import { normalizeListingStatus } from "@/lib/listing-status"
-import { getPublicListingTitle } from "@/lib/listings"
+import { getDisplayListingTitle } from "@/lib/listings"
 
 export const metadata: Metadata = {
   title: "Enquiries | OpenList",
@@ -188,7 +188,7 @@ export default async function EnquiriesPage({
                         Property
                       </p>
                       <p className="mt-2 font-medium text-slate-900">
-                        {listing ? getPublicListingTitle(listing) : enquiry.listing_title}
+                        {listing ? getDisplayListingTitle(listing) : enquiry.listing_title}
                       </p>
                       {listing && (
                         <p className="mt-1 text-sm text-slate-500">
