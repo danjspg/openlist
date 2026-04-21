@@ -392,7 +392,7 @@ export default async function HomePage() {
 
             <div className="mt-8 border-t border-white/10 pt-6">
               <p className="whitespace-pre-line text-sm leading-6 text-stone-300">
-                You manage the sale yourself and can choose your own professional advisers where needed.
+                You manage your listing and deal directly with buyers.
               </p>
             </div>
 

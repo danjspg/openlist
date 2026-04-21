@@ -140,7 +140,7 @@ export default async function MyListingsPage({
               My Listings
             </h1>
             <p className="mt-4 max-w-2xl text-base leading-7 text-stone-600 sm:text-lg sm:leading-8">
-              Manage your listings, review enquiry activity, and jump back into editing.
+              Manage your listings, review enquiry activity, and edit your listings.
             </p>
           </div>
 
