@@ -27,13 +27,6 @@ function getCookieMaxAge(session: Session) {
   return 60 * 60
 }
 
-export function getSafeRedirectPath(value: string | null | undefined, fallback = "/my-listings") {
-  if (!value) return fallback
-  if (!value.startsWith("/")) return fallback
-  if (value.startsWith("//")) return fallback
-  return value
-}
-
 export function isEmailOtpType(value: string | null): value is EmailOtpType {
   return value === "signup" || value === "magiclink" || value === "recovery" || value === "invite" || value === "email" || value === "email_change"
 }

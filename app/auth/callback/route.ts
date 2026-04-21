@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
+import { getSafeRedirectPath } from "@/lib/site-url"
 import {
   applySellerSessionCookies,
   createSupabaseAuthClient,
-  getSafeRedirectPath,
   isEmailOtpType,
 } from "@/lib/seller-auth"
 

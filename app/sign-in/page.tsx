@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import AuthEmailForm from "@/components/AuthEmailForm"
-import { getSafeRedirectPath } from "@/lib/seller-auth"
+import { getSafeRedirectPath } from "@/lib/site-url"
 
 export const metadata: Metadata = {
   title: "Sign in | OpenList",

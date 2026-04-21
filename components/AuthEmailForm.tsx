@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { getSellerAuthRedirectUrl } from "@/lib/site-url"
 import { supabase } from "@/lib/supabase"
 
 export default function AuthEmailForm({
@@ -19,7 +20,7 @@ export default function AuthEmailForm({
 
     try {
       setIsSubmitting(true)
-      const redirectUrl = `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTo)}`
+      const redirectUrl = getSellerAuthRedirectUrl(redirectTo)
 
       const { error } = await supabase.auth.signInWithOtp({
         email: email.trim(),
