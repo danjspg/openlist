@@ -5,6 +5,10 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import { buildSlug } from "@/lib/listings"
+import {
+  isMissingOwnerUserIdColumnError,
+  LISTING_OWNERSHIP_MIGRATION_MESSAGE,
+} from "@/lib/listing-ownership"
 import { requireSellerUser } from "@/lib/seller-auth"
 import { requireListingOwnerOrAdmin } from "@/lib/listing-permissions"
 import {
@@ -253,6 +257,10 @@ export async function createListing(formData: FormData) {
   })
 
   if (error) {
+    if (isMissingOwnerUserIdColumnError(error)) {
+      throw new Error(LISTING_OWNERSHIP_MIGRATION_MESSAGE)
+    }
+
     throw new Error(error.message)
   }
 

@@ -20,6 +20,7 @@ import {
   getDisplayListingHighlights,
   getDisplayListingTitle,
 } from "@/lib/listings"
+import { isMissingOwnerUserIdColumnError } from "@/lib/listing-ownership"
 
 type InitialData = {
   slug?: string
@@ -245,8 +246,13 @@ export default function SellerListingV2Form({
 
       if (error) {
         setCloneListings([])
-        setCloneStatus("error")
-        setCloneError(error.message)
+        if (isMissingOwnerUserIdColumnError(error)) {
+          setCloneStatus("ready")
+          setCloneError("")
+        } else {
+          setCloneStatus("error")
+          setCloneError(error.message)
+        }
         return
       }
 

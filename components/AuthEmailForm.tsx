@@ -41,7 +41,7 @@ export default function AuthEmailForm({
       }
 
       setSent(true)
-      setInfo("We’ve emailed both a sign-in link and a 6-digit code.")
+      setInfo("We’ve emailed both a sign-in link and a sign-in code.")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not send sign-in link.")
     } finally {
@@ -105,7 +105,7 @@ export default function AuthEmailForm({
             className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-stone-500"
           />
           <p className="mt-2 text-xs text-stone-500">
-            We&apos;ll email you a secure sign-in link and 6-digit code. If you don&apos;t have an account yet, one will be created for you.
+            We&apos;ll email you a secure sign-in link and sign-in code. If you don&apos;t have an account yet, one will be created for you.
           </p>
 
           {error && (

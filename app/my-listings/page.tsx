@@ -5,6 +5,10 @@ import { redirect } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import CopyListingLinkButton from "@/components/CopyListingLinkButton"
 import { isLiveSaleStatus, normalizeListingStatus } from "@/lib/listing-status"
+import {
+  isMissingOwnerUserIdColumnError,
+  LISTING_OWNERSHIP_MIGRATION_MESSAGE,
+} from "@/lib/listing-ownership"
 import { requireSellerUser } from "@/lib/seller-auth"
 import { getDisplayListingTitle } from "@/lib/listings"
 
@@ -91,7 +95,9 @@ export default async function MyListingsPage({
     .order("created_at", { ascending: false })
 
   if (listingsError) {
-    errorMessage = listingsError.message
+    errorMessage = isMissingOwnerUserIdColumnError(listingsError)
+      ? LISTING_OWNERSHIP_MIGRATION_MESSAGE
+      : listingsError.message
   } else {
     listings = ((listingData ?? []) as ListingRow[])
       .map((listing) => normalizeListingStatus(listing))
