@@ -13,11 +13,11 @@ export const metadata: Metadata = {
   ),
   icons: {
     icon: [
-      { url: "/favicon-v2.ico", sizes: "16x16 32x32", type: "image/x-icon" },
+      { url: "/favicon-v2.ico?v=2", sizes: "16x16 32x32", type: "image/x-icon" },
     ],
-    shortcut: "/favicon-v2.ico",
+    shortcut: "/favicon-v2.ico?v=2",
     apple: [
-      { url: "/apple-icon-v2.png", sizes: "180x180", type: "image/png" },
+      { url: "/apple-icon-v2.png?v=2", sizes: "180x180", type: "image/png" },
     ],
   },
 }

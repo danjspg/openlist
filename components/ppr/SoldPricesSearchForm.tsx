@@ -1,3 +1,6 @@
+"use client"
+
+import { useState } from "react"
 import {
   formatPprDateInput,
   getDefaultPprDateRange,
@@ -26,6 +29,21 @@ const propertyStyleFilters = [
   { value: "semi-detached", label: "Semi-detached" },
   { value: "apartment", label: "Apartment" },
 ]
+
+function normalisePriceInput(value: string) {
+  return value.replace(/[^0-9]/g, "")
+}
+
+function formatPriceDisplay(value: string) {
+  const digits = normalisePriceInput(value)
+  if (!digits) return ""
+
+  return new Intl.NumberFormat("en-IE", {
+    style: "currency",
+    currency: "EUR",
+    maximumFractionDigits: 0,
+  }).format(Number(digits))
+}
 
 function yearsAgo(years: number) {
   const date = new Date()
@@ -146,6 +164,12 @@ export default function SoldPricesSearchForm({
     (resolvedDefaults.dateFrom === defaultDates.dateFrom &&
       resolvedDefaults.dateTo === defaultDates.dateTo)
   const isLastThreeYears = resolvedDefaults.dateRange === "last-3-years"
+  const [minPrice, setMinPrice] = useState(
+    normalisePriceInput(resolvedDefaults.minPrice || "")
+  )
+  const [maxPrice, setMaxPrice] = useState(
+    normalisePriceInput(resolvedDefaults.maxPrice || "")
+  )
 
   return (
     <form
@@ -189,10 +213,13 @@ export default function SoldPricesSearchForm({
           <label className="mb-2 block text-sm font-medium text-stone-700">
             Min price
           </label>
+          <input type="hidden" name="minPrice" value={minPrice} />
           <input
-            name="minPrice"
+            aria-label="Min price"
+            type="text"
             inputMode="numeric"
-            defaultValue={resolvedDefaults.minPrice || ""}
+            value={formatPriceDisplay(minPrice)}
+            onChange={(event) => setMinPrice(normalisePriceInput(event.target.value))}
             placeholder="€250,000"
             className="h-11 w-full rounded-full border border-stone-300 bg-white px-4 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-stone-500"
           />
@@ -202,10 +229,13 @@ export default function SoldPricesSearchForm({
           <label className="mb-2 block text-sm font-medium text-stone-700">
             Max price
           </label>
+          <input type="hidden" name="maxPrice" value={maxPrice} />
           <input
-            name="maxPrice"
+            aria-label="Max price"
+            type="text"
             inputMode="numeric"
-            defaultValue={resolvedDefaults.maxPrice || ""}
+            value={formatPriceDisplay(maxPrice)}
+            onChange={(event) => setMaxPrice(normalisePriceInput(event.target.value))}
             placeholder="€750,000"
             className="h-11 w-full rounded-full border border-stone-300 bg-white px-4 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-stone-500"
           />
