@@ -28,32 +28,34 @@ export default function AboutPage() {
 
         <div className="mt-10 grid gap-8 lg:grid-cols-[1.2fr_0.8fr] sm:mt-12">
           <div className="rounded-[28px] border border-slate-200 bg-white p-8 shadow-sm">
-            <div className="space-y-5 text-base leading-7 text-slate-600">
+            <div className="max-w-2xl space-y-5 text-base leading-7 text-slate-600 sm:space-y-6">
               <p>
-                It combines public sale price data with a simple listing
-                approach, so you can view public sale prices and manage your
-                own listing.
+                OpenList is a self-service platform for private property
+                listings in Ireland.
               </p>
 
               <p>
-                Selling a home often means relying on estimates, agents and
-                limited visibility into real market prices.
+                Listings are created by property owners and enquiries go
+                directly to them.
               </p>
 
               <p>
-                OpenList takes a more direct approach — giving you access to
-                actual sale prices and a clear way to present your property.
+                It combines public sale price data with a simple listing tool.
               </p>
 
               <p>
-                It is a platform for private sellers who want a simpler, more
-                direct way to manage their own sale.
+                It provides access to recent sale prices and a way to create
+                and manage your own listing.
               </p>
 
               <p>
-                The aim is simple — to make it easier for people in Ireland to
-                sell property privately, using real information and a clearer
-                process.
+                The aim is simple — to make it easier to create and manage a
+                private property listing using public information.
+              </p>
+
+              <p>
+                OpenList was created to provide a straightforward platform for
+                private sellers where one did not previously exist.
               </p>
             </div>
           </div>
