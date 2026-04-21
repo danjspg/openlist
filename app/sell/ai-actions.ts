@@ -9,7 +9,6 @@ const client = new OpenAI({
 type GenerateListingCopyInput = {
   type: string
   subtype: string
-  saleMethod: string
   county: string
   addressLine2: string
   price: string
@@ -33,7 +32,6 @@ export async function generateListingCopy(input: GenerateListingCopyInput): Prom
   const price = input.price.trim()
   const viewing = input.viewing?.trim() || ""
   const features = input.features?.trim() || ""
-  const saleMethod = input.saleMethod?.trim() || "Private Sale"
 
   if (!type || !county) {
     throw new Error("Property type and county are required to generate copy.")
@@ -89,7 +87,6 @@ Avoid estate-agent clichés such as:
 Property details:
 - Type: ${type}
 - Subtype: ${subtype || "n/a"}
-- Sale method: ${saleMethod}
 - County: ${county}
 - Local area: ${addressLine2 || "n/a"}
 - Price: ${price || "n/a"}

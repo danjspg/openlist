@@ -17,6 +17,7 @@ type ListingRow = {
   slug: string
   title: string
   public_title?: string | null
+  seller_name?: string | null
   county: string
   status: string
   featured?: boolean

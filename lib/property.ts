@@ -184,6 +184,25 @@ export function formatCanonicalSiteArea({
   return `${formatOneDecimal(acres)} acres (approx. ${formatWhole(roundedSqm)} m²)`
 }
 
+export function formatCompactSiteArea({
+  areaValue,
+  areaUnit,
+}: {
+  areaValue?: number | null
+  areaUnit?: string | null
+}) {
+  const siteAreaSqm = getCanonicalSiteAreaSqm(areaValue, areaUnit)
+
+  if (!siteAreaSqm) return "—"
+
+  if (areaUnit === "sqm") {
+    return `${formatWhole(roundToNearest(siteAreaSqm, 10))} m²`
+  }
+
+  const acres = siteAreaSqm / 4046.86
+  return `${formatOneDecimal(acres)} acres`
+}
+
 export function getAreaDisplay({
   type,
   areaValue,

@@ -1,7 +1,8 @@
 /* eslint-disable @next/next/no-img-element */
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
+import { useEffect, useMemo, useState, type ReactNode } from "react"
 import SellerEmailField from "@/components/SellerEmailField"
 import { supabase } from "@/lib/supabase"
 import {
@@ -19,10 +20,14 @@ import {
   getDisplayListingHighlights,
   getDisplayListingTitle,
 } from "@/lib/listings"
+import { isMissingOwnerUserIdColumnError } from "@/lib/listing-ownership"
 
 type InitialData = {
   slug?: string
+  ownerUserId?: string
+  sellerName?: string
   sellerEmail?: string
+  sellerPhone?: string
   publicTitle?: string
   type?: string
   subtype?: string
@@ -35,6 +40,8 @@ type InitialData = {
   baths?: number
   areaValue?: number
   areaUnit?: string
+  planning?: string
+  viewing?: string
   excerpt?: string
   description?: string
   status?: string
@@ -45,6 +52,7 @@ type InitialData = {
 type Props = {
   mode: "create" | "edit"
   submitAction: (formData: FormData) => void | Promise<void>
+  archiveAction?: (formData: FormData) => void | Promise<void>
   initialData?: InitialData
 }
 
@@ -54,11 +62,15 @@ type PreviewImage = {
   previewUrl: string
 }
 
+type SectionKey = "seller" | "property" | "description" | "photos"
+
 type CloneListing = {
   slug: string
   title: string
+  seller_name?: string | null
   public_title?: string | null
   seller_email?: string | null
+  seller_phone?: string | null
   type?: string | null
   subtype?: string | null
   sale_method?: string | null
@@ -70,6 +82,8 @@ type CloneListing = {
   baths?: number | null
   area_value?: number | null
   area_unit?: string | null
+  planning?: string | null
+  viewing?: string | null
   excerpt?: string | null
   description?: string | null
   status?: string | null
@@ -100,9 +114,27 @@ function previewLocation(addressLine2: string, county: string) {
 export default function SellerListingV2Form({
   mode,
   submitAction,
+  archiveAction,
   initialData,
 }: Props) {
+  const defaultSectionState: Record<SectionKey, boolean> =
+    mode === "edit"
+      ? {
+          seller: false,
+          property: false,
+          description: false,
+          photos: false,
+        }
+      : {
+          seller: true,
+          property: true,
+          description: true,
+          photos: true,
+        }
+
   const [sellerEmail, setSellerEmail] = useState(initialData?.sellerEmail || "")
+  const [sellerName, setSellerName] = useState(initialData?.sellerName || "")
+  const [sellerPhone, setSellerPhone] = useState(initialData?.sellerPhone || "")
   const [type, setType] = useState(initialData?.type || "House")
   const [subtype, setSubtype] = useState(
     initialData?.subtype || getSubtypeOptions(initialData?.type || "House")[0] || ""
@@ -112,6 +144,8 @@ export default function SellerListingV2Form({
   const [eircode, setEircode] = useState(initialData?.eircode || "")
   const [publicTitle, setPublicTitle] = useState(initialData?.publicTitle || "")
   const [price, setPrice] = useState(initialData?.price || "")
+  const [planning, setPlanning] = useState(initialData?.planning || "")
+  const [viewing, setViewing] = useState(initialData?.viewing || "")
   const [beds, setBeds] = useState(String(initialData?.beds ?? 4))
   const [baths, setBaths] = useState(String(initialData?.baths ?? 3))
   const [areaValue, setAreaValue] = useState(
@@ -142,6 +176,8 @@ export default function SellerListingV2Form({
   const [cloneError, setCloneError] = useState("")
   const [isPreviewing, setIsPreviewing] = useState(false)
   const [previewError, setPreviewError] = useState("")
+  const [openSections, setOpenSections] =
+    useState<Record<SectionKey, boolean>>(defaultSectionState)
 
   const isSite = type === "Site"
   const isResidential = type === "House" || type === "Apartment"
@@ -181,9 +217,9 @@ export default function SellerListingV2Form({
   useEffect(() => {
     if (mode !== "create") return
 
-    const trimmedEmail = sellerEmail.trim().toLowerCase()
+    const ownerUserId = initialData?.ownerUserId?.trim()
 
-    if (!trimmedEmail) {
+    if (!ownerUserId) {
       setCloneListings([])
       setCloneStatus("idle")
       setCloneError("")
@@ -199,21 +235,28 @@ export default function SellerListingV2Form({
       const { data, error } = await supabase
         .from("listings")
         .select(
-          "slug,title,public_title,seller_email,type,subtype,sale_method,county,address_line_2,eircode,price,beds,baths,area_value,area_unit,excerpt,description,status,highlights,image,images,created_at"
+          "slug,title,seller_name,public_title,seller_email,seller_phone,type,subtype,sale_method,county,address_line_2,eircode,price,beds,baths,area_value,area_unit,planning,viewing,excerpt,description,status,highlights,image,images,created_at,owner_user_id"
+          + ",planning,viewing"
         )
-        .eq("seller_email", trimmedEmail)
+        .eq("owner_user_id", ownerUserId)
+        .neq("status", "Archived")
         .order("created_at", { ascending: false })
 
       if (cancelled) return
 
       if (error) {
         setCloneListings([])
-        setCloneStatus("error")
-        setCloneError(error.message)
+        if (isMissingOwnerUserIdColumnError(error)) {
+          setCloneStatus("ready")
+          setCloneError("")
+        } else {
+          setCloneStatus("error")
+          setCloneError(error.message)
+        }
         return
       }
 
-      setCloneListings((data ?? []) as CloneListing[])
+      setCloneListings((data ?? []) as unknown as CloneListing[])
       setCloneStatus("ready")
     }
 
@@ -222,7 +265,7 @@ export default function SellerListingV2Form({
     return () => {
       cancelled = true
     }
-  }, [mode, sellerEmail])
+  }, [initialData?.ownerUserId, mode])
 
   function handleImageChange(event: React.ChangeEvent<HTMLInputElement>) {
     previewImages.forEach((img) => URL.revokeObjectURL(img.previewUrl))
@@ -295,7 +338,6 @@ export default function SellerListingV2Form({
       const result = await generateListingCopy({
         type,
         subtype,
-        saleMethod: "Private Sale",
         county,
         addressLine2,
         price,
@@ -337,11 +379,15 @@ export default function SellerListingV2Form({
 
     setType(nextType)
     setSubtype(nextSubtype)
+    setSellerName(listing.seller_name || "")
+    setSellerPhone(listing.seller_phone || "")
     setCounty(listing.county || "Cork")
     setAddressLine2(listing.address_line_2 || "")
     setEircode(listing.eircode || "")
     setPublicTitle(listing.public_title || "")
     setPrice(listing.price || "")
+    setPlanning(listing.planning || "")
+    setViewing(listing.viewing || "")
     setBeds(String(listing.beds ?? 0))
     setBaths(String(listing.baths ?? 0))
     setAreaValue(
@@ -415,6 +461,25 @@ export default function SellerListingV2Form({
     input.scrollIntoView({ behavior: "smooth", block: "center" })
   }
 
+  function confirmArchive(event: React.MouseEvent<HTMLButtonElement>) {
+    const confirmed = window.confirm(
+      "Delete this listing? It will be removed from OpenList for buyers, but kept internally as an archived record."
+    )
+
+    if (!confirmed) {
+      event.preventDefault()
+    }
+  }
+
+  function toggleSection(section: SectionKey) {
+    if (mode !== "edit") return
+
+    setOpenSections((prev) => ({
+      ...prev,
+      [section]: !prev[section],
+    }))
+  }
+
   const previewDisplayImages = getPreviewImages()
   const previewTitle = getDisplayListingTitle({
     title: generatedTitle,
@@ -441,6 +506,121 @@ export default function SellerListingV2Form({
   const previewBody =
     description.trim() || "The full listing description will appear here as you edit."
   const previewCardLocation = previewLocation(addressLine2, county)
+  const sellerSummary =
+    [sellerName.trim(), sellerEmail.trim()].filter(Boolean).join(" · ") ||
+    "Add your contact details"
+  const propertySummary =
+    [publicTitle.trim() || generatedTitle, previewCardLocation || county]
+      .filter(Boolean)
+      .join(" · ") || "Add the main property details"
+  const descriptionSummary =
+    previewSummary ||
+    (description.trim()
+      ? description.trim().replace(/\s+/g, " ").slice(0, 100)
+      : "Add the main listing text")
+  const photoSummary =
+    previewDisplayImages.length > 0
+      ? `${previewDisplayImages.length} ${previewDisplayImages.length === 1 ? "photo" : "photos"}`
+      : "No photos added yet"
+  const propertySectionTitle = mode === "edit" ? "Edit the main details" : "Add the main details"
+  const descriptionSectionTitle = mode === "edit" ? "Edit your listing" : "Write your listing"
+  const photoSectionTitle =
+    mode === "edit" ? "Edit photos of the property" : "Add photos of the property"
+
+  function renderSectionShell({
+    section,
+    eyebrow,
+    title,
+    description,
+    summary,
+    children,
+    tone = "white",
+  }: {
+    section: SectionKey
+    eyebrow: string
+    title: string
+    description: string
+    summary: string
+    children: ReactNode
+    tone?: "white" | "stone"
+  }) {
+    const isOpen = openSections[section]
+    const baseClass =
+      tone === "stone"
+        ? "rounded-[28px] border border-stone-200 bg-stone-50 shadow-sm"
+        : "rounded-[28px] border border-stone-200 bg-white shadow-sm"
+
+    if (mode !== "edit") {
+      return (
+        <section className={`${baseClass} p-6`}>
+          <div className="mb-6 border-b border-stone-200 pb-5">
+            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">
+              {eyebrow}
+            </p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">
+              {title}
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">
+              {description}
+            </p>
+          </div>
+          {children}
+        </section>
+      )
+    }
+
+    return (
+      <section className={baseClass}>
+        <button
+          type="button"
+          onClick={() => toggleSection(section)}
+          className="flex w-full items-start justify-between gap-4 px-6 py-5 text-left transition hover:bg-stone-50/70"
+          aria-expanded={isOpen}
+        >
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-stone-500">
+              {eyebrow}
+            </p>
+            <h2 className="mt-2 text-xl font-semibold tracking-tight text-stone-900">
+              {title}
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-stone-600">
+              {description}
+            </p>
+            {!isOpen && (
+              <p className="mt-3 truncate text-sm text-stone-500">
+                {summary}
+              </p>
+            )}
+          </div>
+
+          <span className="mt-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-stone-200 bg-white text-stone-500 shadow-sm">
+            <svg
+              viewBox="0 0 20 20"
+              fill="none"
+              aria-hidden="true"
+              className={`h-4 w-4 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+            >
+              <path
+                d="M5 8l5 5 5-5"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
+        </button>
+
+        <div
+          className={isOpen ? "border-t border-stone-200 px-6 py-6" : "hidden border-t border-stone-200 px-6 py-6"}
+          aria-hidden={!isOpen}
+        >
+          {children}
+        </div>
+      </section>
+    )
+  }
 
   const previewPanel = (
     <div className="rounded-[28px] border border-stone-200 bg-white p-5 shadow-sm sm:p-6 lg:sticky lg:top-8">
@@ -557,10 +737,11 @@ export default function SellerListingV2Form({
 
       <div className="mt-5 rounded-[24px] border border-stone-200 bg-stone-50 p-5">
         <p className="text-sm font-medium text-stone-700">Listing page preview</p>
-        <p className="mt-3 text-sm leading-6 text-stone-600 line-clamp-6">
+        <div className="mt-3 whitespace-pre-line text-sm leading-6 text-stone-600">
           {previewBody}
-        </p>
+        </div>
       </div>
+
     </div>
   )
 
@@ -571,7 +752,6 @@ export default function SellerListingV2Form({
       )}
 
       <input type="hidden" name="generatedTitle" value={generatedTitle} />
-      <input type="hidden" name="saleMethod" value="Private Sale" />
       <input
         type="hidden"
         name="imageOrder"
@@ -603,30 +783,60 @@ export default function SellerListingV2Form({
             : ""
         }
       >
-      <div className={isPreviewing ? "hidden" : "space-y-10"}>
-      <section className="rounded-[28px] border border-stone-200 bg-stone-50 p-6 shadow-sm">
-        <div className="mb-6 border-b border-stone-200 pb-5">
-          <p className="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">
-            Seller details
-          </p>
-          <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">
-            Where enquiries should go
-          </h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">
-            This is the email address that will receive buyer enquiries. It can also be remembered on this device for future listings.
-          </p>
+      <div className={isPreviewing ? "hidden" : "space-y-6"}>
+      {renderSectionShell({
+        section: "seller",
+        eyebrow: "Your details",
+        title: "Your details",
+        description: "Not shown publicly. Used for enquiries about your listing.",
+        summary: sellerSummary,
+        tone: "stone",
+        children: (
+        <>
+        <div className="grid gap-6 md:grid-cols-2">
+          <div>
+            <label className="mb-2 block text-sm font-medium text-stone-700">
+              Full name
+            </label>
+            <input
+              name="sellerName"
+              value={sellerName}
+              onChange={(e) => setSellerName(e.target.value)}
+              required
+              placeholder="Jane Murphy"
+              className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-stone-500"
+            />
+            <p className="mt-2 text-xs text-stone-500">
+              Used when responding to enquiries
+            </p>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-medium text-stone-700">
+              Phone number (optional)
+            </label>
+            <input
+              name="sellerPhone"
+              value={sellerPhone}
+              onChange={(e) => setSellerPhone(e.target.value)}
+              placeholder="087 123 4567"
+              className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-stone-500"
+            />
+          </div>
         </div>
 
-        <SellerEmailField
-          id="sellerEmail"
-          name="sellerEmail"
-          label="Your email"
-          required
-          defaultValue={initialData?.sellerEmail || ""}
-          helperText=""
-          onValueChange={handleSellerEmailChange}
-          className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-stone-500"
-        />
+        <div className="mt-6">
+          <SellerEmailField
+            id="sellerEmail"
+            name="sellerEmail"
+            label="Email address"
+            required
+            defaultValue={initialData?.sellerEmail || ""}
+            helperText="Enquiries will be sent to this address"
+            onValueChange={handleSellerEmailChange}
+            className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-stone-500"
+          />
+        </div>
 
         {mode === "create" && (
           <div className="mt-5 rounded-[24px] border border-stone-200 bg-white p-5">
@@ -683,21 +893,18 @@ export default function SellerListingV2Form({
         <div className="mt-5 rounded-2xl border border-stone-200 bg-white px-4 py-4 text-sm leading-6 text-stone-600">
           This email is not shown publicly. Enquiries from buyers in Ireland are sent directly to you.
         </div>
-      </section>
+        </>
+        ),
+      })}
 
-      <section className="rounded-[28px] border border-stone-200 bg-white p-6 shadow-sm">
-        <div className="mb-6 border-b border-stone-200 pb-5">
-          <p className="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">
-            Property details
-          </p>
-          <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">
-            Add the main details
-          </h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">
-            Start with the basics buyers expect to see first — property type, location, price and size.
-          </p>
-        </div>
-
+      {renderSectionShell({
+        section: "property",
+        eyebrow: "Property details",
+        title: propertySectionTitle,
+        description:
+          "Start with the basics buyers expect to see first — property type, location, price and size.",
+        summary: propertySummary,
+        children: (
         <div className="grid gap-6 md:grid-cols-2">
           <div>
             <label className="mb-2 block text-sm font-medium text-stone-700">
@@ -853,7 +1060,7 @@ export default function SellerListingV2Form({
             <label className="mb-2 block text-sm font-medium text-stone-700">
               {isSite ? "Site area" : "Internal area"}
             </label>
-            <div className="grid grid-cols-[1fr_130px] gap-3">
+            <div className="grid grid-cols-[minmax(0,1fr)_112px] gap-3">
               <input
                 name="areaValue"
                 type="number"
@@ -862,13 +1069,13 @@ export default function SellerListingV2Form({
                 value={areaValue}
                 onChange={(e) => setAreaValue(e.target.value)}
                 placeholder={isSite ? "0.33" : "1550"}
-                className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition focus:border-stone-500"
+                className="min-w-0 w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition focus:border-stone-500"
               />
               <select
                 name="areaUnit"
                 value={areaUnit}
                 onChange={(e) => setAreaUnit(e.target.value)}
-                className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition focus:border-stone-500"
+                className="w-full rounded-2xl border border-stone-300 bg-white px-3 py-3 text-stone-900 outline-none transition focus:border-stone-500"
               >
                 {areaUnitOptions.map((option) => (
                   <option key={option}>{option}</option>
@@ -892,22 +1099,47 @@ export default function SellerListingV2Form({
               ))}
             </select>
           </div>
-        </div>
-      </section>
 
-      <section className="rounded-[28px] border border-stone-200 bg-white p-6 shadow-sm">
-        <div className="mb-6 border-b border-stone-200 pb-5">
-          <p className="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">
-            Listing description
-          </p>
-          <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">
-            Write your listing
-          </h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">
-            Add the details buyers need to know. You can write this yourself, or use optional AI help to generate a first draft.
-          </p>
-        </div>
+          {isSite && (
+            <div>
+              <label className="mb-2 block text-sm font-medium text-stone-700">
+                Planning
+              </label>
+              <input
+                name="planning"
+                value={planning}
+                onChange={(e) => setPlanning(e.target.value)}
+                placeholder="Full planning permission granted"
+                className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition focus:border-stone-500"
+              />
+            </div>
+          )}
 
+          <div>
+            <label className="mb-2 block text-sm font-medium text-stone-700">
+              Viewing
+            </label>
+            <input
+              name="viewing"
+              value={viewing}
+              onChange={(e) => setViewing(e.target.value)}
+              placeholder="By appointment"
+              className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition focus:border-stone-500"
+            />
+          </div>
+        </div>
+        ),
+      })}
+
+      {renderSectionShell({
+        section: "description",
+        eyebrow: "Listing description",
+        title: descriptionSectionTitle,
+        description:
+          "Add the details buyers need to know. You can write this yourself, or use optional AI help to generate a first draft.",
+        summary: descriptionSummary,
+        children: (
+        <>
         <div>
           <label className="mb-2 block text-sm font-medium text-stone-700">
             Key features / notes
@@ -1025,21 +1257,19 @@ export default function SellerListingV2Form({
             </div>
           </div>
         )}
-      </section>
+        </>
+        ),
+      })}
 
-      <section className="rounded-[28px] border border-stone-200 bg-white p-6 shadow-sm">
-        <div className="mb-6 border-b border-stone-200 pb-5">
-          <p className="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">
-            Photography
-          </p>
-          <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">
-            Add photos of the property
-          </h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">
-            Upload multiple images and drag them into your preferred order. The first image will be used as the main photo.
-          </p>
-        </div>
-
+      {renderSectionShell({
+        section: "photos",
+        eyebrow: "Photography",
+        title: photoSectionTitle,
+        description:
+          "Upload multiple images and drag them into your preferred order. The first image will be used as the main photo.",
+        summary: photoSummary,
+        children: (
+        <>
         {mode === "edit" && initialData?.images && initialData.images.length > 0 && (
           <div className="mb-6">
             <p className="mb-3 text-sm font-medium text-stone-700">
@@ -1168,13 +1398,29 @@ export default function SellerListingV2Form({
             className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition focus:border-stone-500"
           />
         </div>
-      </section>
+        </>
+        ),
+      })}
 
-      <section className="rounded-2xl border border-stone-200 bg-stone-50 px-5 py-4">
-        <p className="text-sm leading-6 text-stone-600">
-          By submitting this listing, you confirm that the information provided is accurate to the best of your knowledge and that you have the right to market the property.
-        </p>
-      </section>
+      {mode === "create" && (
+        <section className="rounded-2xl border border-stone-200 bg-stone-50 px-5 py-4">
+          <label className="flex items-start gap-3 text-sm leading-6 text-stone-700">
+            <input
+              type="checkbox"
+              name="termsAccepted"
+              value="yes"
+              required
+              className="mt-1 h-4 w-4 rounded border-stone-300 text-stone-900 focus:ring-stone-500"
+            />
+            <span>
+              I agree to the{" "}
+              <Link href="/terms" className="font-medium text-stone-900 underline underline-offset-2">
+                Terms of Service
+              </Link>
+            </span>
+          </label>
+        </section>
+      )}
       </div>
 
       {mode === "edit" && !isPreviewing && (
@@ -1230,6 +1476,23 @@ export default function SellerListingV2Form({
             ? "Preview your listing before submitting it."
             : "You can come back and edit the listing or add more photos later."}
         </p>
+
+        {mode === "edit" && archiveAction && (
+          <div className="mt-3 rounded-[24px] border border-stone-200 bg-stone-50 px-5 py-4">
+            <p className="text-sm font-medium text-stone-700">Delete listing</p>
+            <p className="mt-2 text-sm leading-6 text-stone-500">
+              This removes your listing from public view. It will no longer be visible to buyers. You can restore it later if needed.
+            </p>
+            <button
+              type="submit"
+              formAction={archiveAction}
+              onClick={confirmArchive}
+              className="mt-4 inline-flex items-center rounded-full border border-stone-300 bg-white px-5 py-2.5 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900"
+            >
+              Delete listing
+            </button>
+          </div>
+        )}
       </div>
     </form>
   )

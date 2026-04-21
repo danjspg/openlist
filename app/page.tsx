@@ -1,7 +1,7 @@
 import Image from "next/image"
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
-import { normalizeListingStatus } from "@/lib/listing-status"
+import { isPublicSaleStatus, normalizeListingStatus } from "@/lib/listing-status"
 import { getDisplayListingTitle } from "@/lib/listings"
 
 type Listing = {
@@ -32,17 +32,17 @@ function formatEuro(value: string) {
 }
 
 export default async function HomePage() {
-  const { data: featuredData, error: featuredError } = await supabase
+  const { data: listingsData, error: listingsError } = await supabase
     .from("listings")
     .select("*")
     .order("created_at", { ascending: false })
-    .limit(24)
+    .limit(12)
 
-  const featuredListings: Listing[] =
-    !featuredError && featuredData
-      ? (featuredData as Listing[])
+  const recentListings: Listing[] =
+    !listingsError && listingsData
+      ? (listingsData as Listing[])
           .map((listing) => normalizeListingStatus(listing))
-          .filter((listing) => listing.featured && listing.status === "For Sale")
+          .filter((listing) => isPublicSaleStatus(listing.status))
           .slice(0, 3)
       : []
 
@@ -165,7 +165,7 @@ export default async function HomePage() {
         <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16">
           <div className="max-w-2xl">
             <p className="text-sm uppercase tracking-[0.2em] text-stone-500">
-              Featured listings
+              Latest listings
             </p>
             <h2 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">
               Homes and sites across Ireland, presented with more care.
@@ -173,8 +173,8 @@ export default async function HomePage() {
           </div>
 
           <div className="mt-8 grid grid-cols-1 gap-6 sm:mt-10 sm:grid-cols-2 md:grid-cols-3 md:gap-8">
-            {featuredListings.length > 0 ? (
-              featuredListings.map((listing) => {
+            {recentListings.length > 0 ? (
+              recentListings.map((listing) => {
                 const displayImage =
                   listing.images && listing.images.length > 0
                     ? listing.images[0]
@@ -243,7 +243,7 @@ export default async function HomePage() {
               })
             ) : (
               <div className="rounded-3xl border border-stone-200 bg-white p-8 text-stone-600 md:col-span-3">
-                Featured listings will appear here soon.
+                Listings will appear here soon.
               </div>
             )}
           </div>

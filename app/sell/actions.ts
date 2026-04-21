@@ -6,6 +6,12 @@ import { redirect } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import { buildSlug } from "@/lib/listings"
 import {
+  isMissingOwnerUserIdColumnError,
+  LISTING_OWNERSHIP_MIGRATION_MESSAGE,
+} from "@/lib/listing-ownership"
+import { requireSellerUser } from "@/lib/seller-auth"
+import { requireListingOwnerOrAdmin } from "@/lib/listing-permissions"
+import {
   generateListingTitle,
   getLegacySqftValue,
 } from "@/lib/property"
@@ -117,7 +123,9 @@ function getImageUrlValues(formData: FormData, fieldName: string) {
 }
 
 function getSharedValues(formData: FormData) {
+  const sellerName = String(formData.get("sellerName") ?? "").trim()
   const sellerEmail = String(formData.get("sellerEmail") ?? "").trim()
+  const sellerPhone = String(formData.get("sellerPhone") ?? "").trim()
   const type = String(formData.get("type") ?? "House").trim()
   const subtype = String(formData.get("subtype") ?? "").trim()
   const saleMethod = String(formData.get("saleMethod") ?? "Private Sale").trim()
@@ -130,6 +138,8 @@ function getSharedValues(formData: FormData) {
   const areaValue = Number(formData.get("areaValue") ?? 0)
   const areaUnit = String(formData.get("areaUnit") ?? "").trim()
   const publicTitle = String(formData.get("publicTitle") ?? "").trim()
+  const planning = String(formData.get("planning") ?? "").trim()
+  const viewing = String(formData.get("viewing") ?? "").trim()
   const excerpt = String(formData.get("excerpt") ?? "").trim()
   const description = formatDescription(String(formData.get("description") ?? ""))
   const status = normalizeSaleStatus(formData.get("status"))
@@ -137,6 +147,8 @@ function getSharedValues(formData: FormData) {
 
   return {
     sellerEmail,
+    sellerName,
+    sellerPhone,
     type,
     subtype,
     saleMethod,
@@ -149,6 +161,8 @@ function getSharedValues(formData: FormData) {
     areaValue,
     areaUnit,
     publicTitle,
+    planning,
+    viewing,
     excerpt,
     description,
     status,
@@ -157,10 +171,16 @@ function getSharedValues(formData: FormData) {
 }
 
 export async function createListing(formData: FormData) {
+  const currentUser = await requireSellerUser()
   const values = getSharedValues(formData)
+  const termsAccepted = String(formData.get("termsAccepted") ?? "").trim()
 
-  if (!values.sellerEmail || !values.addressLine2 || !values.price || !values.description) {
+  if (!values.sellerName || !values.sellerEmail || !values.addressLine2 || !values.price || !values.description) {
     throw new Error("Missing required fields.")
+  }
+
+  if (termsAccepted !== "yes") {
+    throw new Error("You must agree to the Terms of Service.")
   }
 
   const slug = await makeUniqueSlug(
@@ -208,7 +228,10 @@ export async function createListing(formData: FormData) {
 
   const { error } = await supabase.from("listings").insert({
     slug,
+    owner_user_id: currentUser.id,
+    seller_name: values.sellerName,
     seller_email: values.sellerEmail,
+    seller_phone: values.sellerPhone || null,
     title,
     type: values.type,
     subtype: values.subtype || null,
@@ -222,6 +245,8 @@ export async function createListing(formData: FormData) {
     area_value: values.areaValue || null,
     area_unit: values.areaUnit || null,
     public_title: values.publicTitle || null,
+    planning: values.planning || null,
+    viewing: values.viewing || null,
     sqft: legacySqft || 0,
     excerpt: values.excerpt || values.description.slice(0, 110),
     description: values.description,
@@ -232,6 +257,10 @@ export async function createListing(formData: FormData) {
   })
 
   if (error) {
+    if (isMissingOwnerUserIdColumnError(error)) {
+      throw new Error(LISTING_OWNERSHIP_MIGRATION_MESSAGE)
+    }
+
     throw new Error(error.message)
   }
 
@@ -246,6 +275,8 @@ export async function updateListing(formData: FormData) {
   const slug = String(formData.get("slug") ?? "")
     .trim()
     .toLowerCase()
+
+  await requireListingOwnerOrAdmin(slug)
 
   const values = getSharedValues(formData)
 
@@ -263,27 +294,8 @@ export async function updateListing(formData: FormData) {
     throw new Error(existingError.message)
   }
 
-  console.log("slug from form:", slug)
-
-  const { data: check, error: checkError } = await supabase
-    .from("listings")
-    .select("slug")
-    .eq("slug", slug)
-
-  console.log("matching rows before update:", check)
-  console.log("matching rows error:", checkError)
-
   const existingImages = normaliseStoredImages(existing?.images, existing?.image)
   const files = getOrderedFiles(formData)
-
-  console.log("=== DEBUG UPDATE START ===")
-  console.log("existingImages count:", existingImages.length)
-  console.log("existingImages:", existingImages)
-  console.log("files received:", files.length)
-  console.log(
-    "file names:",
-    files.map((file) => `${file.name} (${file.size} bytes)`)
-  )
 
   let uploaded: string[] = []
 
@@ -291,13 +303,7 @@ export async function updateListing(formData: FormData) {
     uploaded = await Promise.all(files.map((f) => uploadImageFile(f, slug)))
   }
 
-  console.log("uploaded count:", uploaded.length)
-  console.log("uploaded urls:", uploaded)
-
   const finalImages = [...existingImages, ...uploaded]
-
-  console.log("finalImages count:", finalImages.length)
-  console.log("finalImages urls:", finalImages)
 
   const legacySqft =
     values.areaValue && values.areaUnit
@@ -311,11 +317,13 @@ export async function updateListing(formData: FormData) {
     county: values.county,
   })
 
-  const { data: updatedRows, error: updateError } = await supabase
+  const { error: updateError } = await supabase
     .from("listings")
     .update({
       title,
+      seller_name: values.sellerName,
       public_title: values.publicTitle || null,
+      seller_phone: values.sellerPhone || null,
       type: values.type,
       subtype: values.subtype || null,
       sale_method: values.saleMethod || "Private Sale",
@@ -328,6 +336,8 @@ export async function updateListing(formData: FormData) {
       area_value: values.areaValue || null,
       area_unit: values.areaUnit || null,
       sqft: legacySqft || 0,
+      planning: values.planning || null,
+      viewing: values.viewing || null,
       excerpt: values.excerpt || values.description.slice(0, 110),
       description: values.description,
       highlights: values.highlights.length > 0 ? values.highlights : null,
@@ -336,11 +346,6 @@ export async function updateListing(formData: FormData) {
       images: finalImages,
     })
     .eq("slug", slug)
-    .select("slug,image,images")
-
-  console.log("update error:", updateError)
-  console.log("updated rows:", updatedRows)
-  console.log("updated row count:", updatedRows?.length ?? 0)
 
   if (updateError) {
     throw new Error(updateError.message)
@@ -352,4 +357,34 @@ export async function updateListing(formData: FormData) {
   revalidatePath(`/listings/${slug}/edit`)
 
   redirect(`/listings/${slug}?updated=1`)
+}
+
+export async function archiveListing(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "")
+    .trim()
+    .toLowerCase()
+
+  await requireListingOwnerOrAdmin(slug)
+
+  if (!slug) {
+    throw new Error("Missing slug.")
+  }
+
+  const { error } = await supabase
+    .from("listings")
+    .update({
+      status: "Archived",
+    })
+    .eq("slug", slug)
+
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  revalidatePath("/listings")
+  revalidatePath("/my-listings")
+  revalidatePath(`/listings/${slug}`)
+  revalidatePath(`/listings/${slug}/edit`)
+
+  redirect("/my-listings?archived=1")
 }

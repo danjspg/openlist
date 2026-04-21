@@ -1,10 +1,15 @@
 import type { Metadata } from "next"
 import Image from "next/image"
 import Link from "next/link"
+import { redirect } from "next/navigation"
 import { supabase } from "@/lib/supabase"
-import SellerEmailField from "@/components/SellerEmailField"
 import CopyListingLinkButton from "@/components/CopyListingLinkButton"
 import { isLiveSaleStatus, normalizeListingStatus } from "@/lib/listing-status"
+import {
+  isMissingOwnerUserIdColumnError,
+  LISTING_OWNERSHIP_MIGRATION_MESSAGE,
+} from "@/lib/listing-ownership"
+import { requireSellerUser } from "@/lib/seller-auth"
 import { getDisplayListingTitle } from "@/lib/listings"
 
 export const metadata: Metadata = {
@@ -47,8 +52,11 @@ function formatDate(value?: string | null) {
 
 type ListingRow = {
   slug: string
+  owner_user_id?: string | null
   title: string
   public_title?: string | null
+  seller_name?: string | null
+  seller_phone?: string | null
   county: string
   price: string
   status: string
@@ -67,43 +75,47 @@ type EnquiryRow = {
 export default async function MyListingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ email?: string }>
+  searchParams: Promise<{ archived?: string }>
 }) {
-  const { email = "" } = await searchParams
-  const trimmedEmail = email.trim()
+  const { archived } = await searchParams
+  const currentUser = await requireSellerUser().catch(() => null)
+
+  if (!currentUser) {
+    redirect("/sign-in?redirectTo=%2Fmy-listings")
+  }
 
   let listings: ListingRow[] = []
   let enquiries: EnquiryRow[] = []
   let errorMessage = ""
 
-  if (trimmedEmail) {
-    const { data: listingData, error: listingsError } = await supabase
-      .from("listings")
-      .select("*")
-      .eq("seller_email", trimmedEmail)
-      .order("created_at", { ascending: false })
+  const { data: listingData, error: listingsError } = await supabase
+    .from("listings")
+    .select("*")
+    .eq("owner_user_id", currentUser.id)
+    .order("created_at", { ascending: false })
 
-    if (listingsError) {
-      errorMessage = listingsError.message
-    } else {
-      listings = ((listingData ?? []) as ListingRow[]).map((listing) =>
-        normalizeListingStatus(listing)
-      )
+  if (listingsError) {
+    errorMessage = isMissingOwnerUserIdColumnError(listingsError)
+      ? LISTING_OWNERSHIP_MIGRATION_MESSAGE
+      : listingsError.message
+  } else {
+    listings = ((listingData ?? []) as ListingRow[])
+      .map((listing) => normalizeListingStatus(listing))
+      .filter((listing) => listing.status !== "Archived")
 
-      const slugs = listings.map((listing) => listing.slug)
+    const slugs = listings.map((listing) => listing.slug)
 
-      if (slugs.length > 0) {
-        const { data: enquiryData, error: enquiriesError } = await supabase
-          .from("enquiries")
-          .select("listing_slug,created_at")
-          .in("listing_slug", slugs)
-          .order("created_at", { ascending: false })
+    if (slugs.length > 0) {
+      const { data: enquiryData, error: enquiriesError } = await supabase
+        .from("enquiries")
+        .select("listing_slug,created_at")
+        .in("listing_slug", slugs)
+        .order("created_at", { ascending: false })
 
-        if (enquiriesError) {
-          errorMessage = enquiriesError.message
-        } else {
-          enquiries = enquiryData ?? []
-        }
+      if (enquiriesError) {
+        errorMessage = enquiriesError.message
+      } else {
+        enquiries = enquiryData ?? []
       }
     }
   }
@@ -151,60 +163,29 @@ export default async function MyListingsPage({
 
           <div className="border-t border-stone-200 px-5 py-4 sm:px-6 md:px-8 md:py-5">
             <p className="max-w-3xl text-sm leading-6 text-stone-500">
-              Enter the same seller email used when your listing was created. This gives
-              you a simple dashboard view of your property pages and recent enquiry activity.
+              Signed in as <span className="font-medium text-stone-900">{currentUser.email}</span>. Your owned listings appear here automatically.
             </p>
           </div>
         </div>
 
+        {archived === "1" && (
+          <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-emerald-800">
+            Listing deleted successfully.
+          </div>
+        )}
+
         <div className="mb-8 rounded-[28px] border border-stone-200 bg-white p-4 shadow-sm sm:mb-10 sm:p-5">
-          <form className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:items-end">
-            <div>
-              <SellerEmailField
-                id="email"
-                name="email"
-                label="Seller email"
-                defaultValue={trimmedEmail}
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="h-11 rounded-full bg-stone-900 px-5 text-sm font-medium text-white transition hover:bg-stone-700"
-            >
-              View my listings
-            </button>
-
+          <div className="flex flex-wrap gap-3">
             <Link
               href="/sell"
-              className="inline-flex h-11 items-center justify-center rounded-full border border-stone-300 bg-white px-5 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:text-stone-900"
+              className="inline-flex h-11 items-center justify-center rounded-full bg-stone-900 px-5 text-sm font-medium text-white transition hover:bg-stone-700"
             >
               Start your listing
             </Link>
-          </form>
-
-          {trimmedEmail && (
-            <div className="mt-4 flex flex-wrap gap-3">
-              <Link
-                href={`/enquiries?email=${encodeURIComponent(trimmedEmail)}`}
-                className="inline-flex items-center rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:text-stone-900"
-              >
-                View enquiries
-              </Link>
-            </div>
-          )}
+          </div>
         </div>
 
-        {!trimmedEmail ? (
-          <div className="rounded-[28px] border border-stone-200 bg-white p-10 text-center shadow-sm">
-            <h2 className="text-2xl font-semibold tracking-tight text-stone-900">
-              Enter your seller email to view your listings
-            </h2>
-            <p className="mt-3 text-stone-600">
-              Use the email linked to your OpenList listings to see them in one place.
-            </p>
-          </div>
-        ) : errorMessage ? (
+        {errorMessage ? (
           <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
             Database error: {errorMessage}
           </div>
@@ -353,12 +334,14 @@ export default async function MyListingsPage({
 
                             <CopyListingLinkButton slug={listing.slug} />
 
-                            <Link
-                              href={`/enquiries?email=${encodeURIComponent(trimmedEmail)}`}
-                              className="inline-flex items-center rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:text-stone-900"
-                            >
-                              View enquiries
-                            </Link>
+                            {currentUser.email && (
+                              <Link
+                                href={`/enquiries?email=${encodeURIComponent(currentUser.email)}`}
+                                className="inline-flex items-center rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:text-stone-900"
+                              >
+                                View enquiries
+                              </Link>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -372,8 +355,7 @@ export default async function MyListingsPage({
                   No listings found
                 </h2>
                 <p className="mt-3 text-stone-600">
-                  We couldn’t find any listings for{" "}
-                  <span className="font-medium text-stone-900">{trimmedEmail}</span>.
+                  We couldn&apos;t find any owned listings on this account yet.
                 </p>
 
                 <div className="mt-6">

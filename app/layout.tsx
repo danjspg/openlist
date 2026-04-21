@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next"
 import Image from "next/image"
 import Link from "next/link"
 import Nav from "@/components/Nav"
+import { getCurrentSellerUser } from "@/lib/seller-auth"
 import "./globals.css"
 
 export const metadata: Metadata = {
@@ -12,11 +13,11 @@ export const metadata: Metadata = {
   ),
   icons: {
     icon: [
-      { url: "/favicon.ico", sizes: "16x16 32x32", type: "image/x-icon" },
+      { url: "/favicon-v2.ico?v=2", sizes: "16x16 32x32", type: "image/x-icon" },
     ],
-    shortcut: "/favicon.ico",
+    shortcut: "/favicon-v2.ico?v=2",
     apple: [
-      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+      { url: "/apple-icon-v2.png?v=2", sizes: "180x180", type: "image/png" },
     ],
   },
 }
@@ -27,11 +28,13 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const currentSellerUser = await getCurrentSellerUser()
+
   return (
     <html lang="en" className="overflow-x-hidden">
       <body className="overflow-x-hidden bg-stone-50 text-stone-900">
@@ -64,7 +67,7 @@ export default function RootLayout({
                 />
               </Link>
 
-              <Nav />
+              <Nav isSellerAuthenticated={Boolean(currentSellerUser)} />
             </div>
           </div>
         </header>
@@ -97,10 +100,7 @@ export default function RootLayout({
                     Listing details are provided by sellers and have not been independently verified.
                   </p>
                   <p>
-                    OpenList is not an estate agent and does not provide
-                    valuation, negotiation or legal services. Buyers and sellers
-                    deal directly, and all parties should satisfy themselves as
-                    to the accuracy of any information.
+                    OpenList is not an estate agent or auctioneer and does not provide valuation services, pricing advice, negotiation services, legal services, brokerage services, or transaction management. Buyers and sellers deal directly, and all parties should satisfy themselves as to the accuracy of any information.
                   </p>
                 </div>
               </div>

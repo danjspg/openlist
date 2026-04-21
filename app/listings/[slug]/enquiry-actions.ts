@@ -142,7 +142,7 @@ export async function submitEnquiry(formData: FormData) {
 
   const { data: listing, error: listingError } = await supabase
     .from("listings")
-    .select("seller_email,title,public_title")
+    .select("seller_name,seller_email,title,public_title")
     .eq("slug", listingSlug)
     .maybeSingle()
 
@@ -161,6 +161,7 @@ export async function submitEnquiry(formData: FormData) {
   }
 
   const sellerEmail = String(listing.seller_email).trim().toLowerCase()
+  const sellerName = String(listing.seller_name ?? "").trim()
   const publicListingTitle = getDisplayListingTitle(listing)
 
   const { error: insertError } = await supabase.from("enquiries").insert({
@@ -206,6 +207,7 @@ export async function submitEnquiry(formData: FormData) {
   const safePhone = phone ? escapeHtml(phone) : "Phone not provided"
   const safeMessage = formatMultiline(message)
   const safeEnquiryUrl = escapeHtml(enquiryUrl)
+  const safeSellerName = sellerName ? escapeHtml(sellerName) : "the seller"
 
   const sellerContent = `
     <div style="margin-bottom:24px;">
@@ -240,7 +242,7 @@ export async function submitEnquiry(formData: FormData) {
     </div>
 
     <div style="margin-bottom:24px; font-size:15px; line-height:1.8; color:#475569;">
-      The private seller should come back to you using the contact details below.
+      The private seller, ${safeSellerName}, should come back to you using the contact details below.
     </div>
 
     ${detailBlock(
@@ -258,7 +260,9 @@ export async function submitEnquiry(formData: FormData) {
   const sellerEmailHtml = renderEmailShell({
     eyebrow: "New enquiry",
     title: "New enquiry received",
-    intro: "You’ve received a new enquiry for your private sale listing.",
+    intro: sellerName
+      ? `You’ve received a new enquiry for ${safeSellerName}'s private sale listing.`
+      : "You’ve received a new enquiry for your private sale listing.",
     content: sellerContent,
     footer: `
       <p style="margin:0; font-size:13px; color:#64748b;">
@@ -273,7 +277,9 @@ export async function submitEnquiry(formData: FormData) {
   const buyerConfirmationHtml = renderEmailShell({
     eyebrow: "Enquiry sent",
     title: "Your enquiry has been sent",
-    intro: `Thanks ${safeName} — we’ve sent your enquiry directly to the private seller.`,
+    intro: sellerName
+      ? `Thanks ${safeName} — we’ve sent your enquiry directly to ${safeSellerName}.`
+      : `Thanks ${safeName} — we’ve sent your enquiry directly to the private seller.`,
     content: buyerContent,
     footer: `
       <p style="margin:0; font-size:13px; color:#64748b;">

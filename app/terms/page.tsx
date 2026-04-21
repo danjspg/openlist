@@ -52,6 +52,7 @@ export default function TermsPage() {
               <div className="mt-3 space-y-4">
                 <p>Sellers are solely responsible for:</p>
                 <ul className="list-disc space-y-2 pl-5">
+                  <li>Only property owners or persons with the owner&apos;s express authority may create a listing on OpenList.</li>
                   <li>the accuracy of listing information</li>
                   <li>setting and updating any asking price</li>
                   <li>handling enquiries and communications</li>
@@ -59,6 +60,9 @@ export default function TermsPage() {
                   <li>negotiating and agreeing any sale</li>
                   <li>completing any legal or financial steps required</li>
                 </ul>
+                <p>
+                  By creating a listing, you confirm that you are the property owner or have the owner&apos;s express authority to market the property.
+                </p>
                 <p>OpenList does not verify listing details.</p>
               </div>
             </section>

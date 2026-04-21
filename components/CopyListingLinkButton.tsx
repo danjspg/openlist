@@ -23,16 +23,16 @@ export default function CopyListingLinkButton({
     <button
       type="button"
       onClick={handleCopy}
-      className={`inline-flex items-center rounded-full px-5 py-2.5 text-sm font-medium shadow-sm transition ${
+      className={`inline-flex items-center rounded-full px-4 py-2 text-sm font-medium transition ${
         copied
-          ? "bg-emerald-600 text-white hover:bg-emerald-600"
-          : "border border-slate-300 bg-white text-slate-900 hover:bg-slate-50"
+          ? "bg-emerald-600 text-white shadow-[0_1px_2px_rgba(5,150,105,0.18)] hover:bg-emerald-600"
+          : "border border-slate-300 bg-white text-slate-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:bg-slate-50"
       }`}
     >
       {copied ? (
         <>
           <svg
-            className="mr-2 h-4 w-4"
+            className="mr-2 h-3.5 w-3.5"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -47,7 +47,7 @@ export default function CopyListingLinkButton({
       ) : (
         <>
           <svg
-            className="mr-2 h-4 w-4 text-slate-500"
+            className="mr-2 h-3.5 w-3.5 text-slate-500"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"

@@ -60,7 +60,7 @@ export default async function SoldPricesPage() {
           </div>
         </div>
 
-        <div className="mt-8 grid gap-4 md:grid-cols-4">
+        <div className="mt-8 grid gap-4 md:grid-cols-3">
           <div className="rounded-[24px] border border-stone-200 bg-white p-5 shadow-sm">
             <p className="text-sm text-stone-500">Sales indexed</p>
             <p className="mt-2 text-3xl font-semibold text-stone-900">
@@ -68,21 +68,15 @@ export default async function SoldPricesPage() {
             </p>
           </div>
           <div className="rounded-[24px] border border-stone-200 bg-white p-5 shadow-sm">
-            <p className="text-sm text-stone-500">Counties</p>
+            <p className="text-sm text-stone-500">Sales last 12 months</p>
             <p className="mt-2 text-3xl font-semibold text-stone-900">
-              {kpis.countyCount || "—"}
+              {new Intl.NumberFormat("en-IE").format(recentResults.count)}
             </p>
           </div>
           <div className="rounded-[24px] border border-stone-200 bg-white p-5 shadow-sm">
             <p className="text-sm text-stone-500">Latest sale</p>
             <p className="mt-2 text-2xl font-semibold text-stone-900">
               {formatPprDate(kpis.latestSaleDate)}
-            </p>
-          </div>
-          <div className="rounded-[24px] border border-stone-200 bg-white p-5 shadow-sm">
-            <p className="text-sm text-stone-500">Latest price</p>
-            <p className="mt-2 text-2xl font-semibold text-stone-900">
-              {formatPprCurrency(kpis.latestSalePrice)}
             </p>
           </div>
         </div>
@@ -174,11 +168,15 @@ export default async function SoldPricesPage() {
               </div>
             )}
 
-            <div className="mt-10">
+          </section>
+
+          <aside className="space-y-5">
+            <PprDisclaimer />
+            <div className="rounded-[24px] border border-stone-200 bg-white p-5 shadow-sm">
               <p className="text-sm font-medium uppercase tracking-[0.2em] text-stone-500">
                 Popular markets
               </p>
-              <h2 className="mt-2 text-3xl font-semibold tracking-tight text-stone-900">
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">
                 Popular areas
               </h2>
               <div className="mt-5 flex flex-wrap gap-3">
@@ -193,10 +191,6 @@ export default async function SoldPricesPage() {
                 ))}
               </div>
             </div>
-          </section>
-
-          <aside className="space-y-5">
-            <PprDisclaimer />
           </aside>
         </div>
       </section>
