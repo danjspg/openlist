@@ -50,12 +50,13 @@ export default function SellPage() {
 
         <div className="mt-10 space-y-3 text-center text-xs leading-5 text-stone-500">
           <p>
-            OpenList is a marketing platform for private property listings in Ireland.
+            OpenList is a self-service listing and marketing platform.
           </p>
           <p>
             Sellers are responsible for the accuracy of listing details.
-            OpenList does not act as an estate agent or provide valuation,
-            negotiation, or legal services.
+            OpenList does not act as an estate agent and does not provide valuation
+            services, pricing advice, negotiation services, legal services,
+            brokerage services, or transaction management.
           </p>
         </div>
       </section>

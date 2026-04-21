@@ -129,6 +129,7 @@ function getSharedValues(formData: FormData) {
   const baths = Number(formData.get("baths") ?? 0)
   const areaValue = Number(formData.get("areaValue") ?? 0)
   const areaUnit = String(formData.get("areaUnit") ?? "").trim()
+  const publicTitle = String(formData.get("publicTitle") ?? "").trim()
   const excerpt = String(formData.get("excerpt") ?? "").trim()
   const description = formatDescription(String(formData.get("description") ?? ""))
   const status = normalizeSaleStatus(formData.get("status"))
@@ -147,6 +148,7 @@ function getSharedValues(formData: FormData) {
     baths,
     areaValue,
     areaUnit,
+    publicTitle,
     excerpt,
     description,
     status,
@@ -219,6 +221,7 @@ export async function createListing(formData: FormData) {
     baths: values.baths || 0,
     area_value: values.areaValue || null,
     area_unit: values.areaUnit || null,
+    public_title: values.publicTitle || null,
     sqft: legacySqft || 0,
     excerpt: values.excerpt || values.description.slice(0, 110),
     description: values.description,
@@ -312,6 +315,7 @@ export async function updateListing(formData: FormData) {
     .from("listings")
     .update({
       title,
+      public_title: values.publicTitle || null,
       type: values.type,
       subtype: values.subtype || null,
       sale_method: values.saleMethod || "Private Sale",

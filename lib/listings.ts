@@ -3,6 +3,7 @@ export type Listing = {
   slug: string
   seller_email?: string | null
   title: string
+  public_title?: string | null
   county: string
   price: string
   beds: number
@@ -31,4 +32,13 @@ function slugify(input: string) {
 
 export function buildSlug(title: string) {
   return slugify(title)
+}
+
+export function getPublicListingTitle(listing: {
+  title?: string | null
+  public_title?: string | null
+}) {
+  const publicTitle = listing.public_title?.trim()
+  if (publicTitle) return publicTitle
+  return listing.title?.trim() || "Property"
 }

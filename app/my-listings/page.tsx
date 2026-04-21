@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase"
 import SellerEmailField from "@/components/SellerEmailField"
 import CopyListingLinkButton from "@/components/CopyListingLinkButton"
 import { isLiveSaleStatus, normalizeListingStatus } from "@/lib/listing-status"
+import { getPublicListingTitle } from "@/lib/listings"
 
 export const metadata: Metadata = {
   title: "My Listings | OpenList",
@@ -46,6 +47,7 @@ function formatDate(value?: string | null) {
 type ListingRow = {
   slug: string
   title: string
+  public_title?: string | null
   county: string
   price: string
   status: string
@@ -255,7 +257,7 @@ export default async function MyListingsPage({
                             {heroImage ? (
                               <img
                                 src={heroImage}
-                                alt={listing.title}
+                                alt={getPublicListingTitle(listing)}
                                 className="h-full w-full object-cover"
                               />
                             ) : (
@@ -292,7 +294,7 @@ export default async function MyListingsPage({
                               </div>
 
                               <h2 className="mt-3 text-2xl font-semibold leading-snug tracking-tight text-stone-900 sm:text-[2rem]">
-                                {listing.title}
+                                {getPublicListingTitle(listing)}
                               </h2>
                             </div>
 

@@ -61,6 +61,7 @@ export default async function EditListingPage({ params }: Props) {
             county: normalizedListing.county ?? "Cork",
             addressLine2: normalizedListing.address_line_2 ?? "",
             eircode: normalizedListing.eircode ?? "",
+            publicTitle: normalizedListing.public_title ?? "",
             price: normalizedListing.price ?? "",
             beds: normalizedListing.beds ?? 0,
             baths: normalizedListing.baths ?? 0,

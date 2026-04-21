@@ -55,9 +55,10 @@ export default async function PprAreaPage({ params }: Props) {
               {areaName} sold prices.
             </h1>
             <p className="mt-5 max-w-3xl text-base leading-7 text-stone-600 sm:text-lg sm:leading-8">
-              Recent public Residential Property Price Register sales for{" "}
-              {areaName}, {decodedCounty}. Use this as market context, not as a
-              formal valuation.
+              Recent public property sales in {areaName}.
+            </p>
+            <p className="mt-4 text-sm font-medium text-stone-700">
+              Based on publicly available Property Price Register data.
             </p>
           </div>
         </div>

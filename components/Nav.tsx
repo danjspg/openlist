@@ -63,7 +63,7 @@ export default function Nav() {
                 : "bg-stone-900 hover:bg-stone-700"
             }`}
           >
-            List privately
+            Start your listing
           </Link>
         </div>
       </div>
@@ -107,7 +107,7 @@ export default function Nav() {
               : "bg-stone-900 hover:bg-stone-700"
           }`}
         >
-          List privately
+          Start your listing
         </Link>
       </div>
     </>

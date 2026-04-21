@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
 import { formatLocation, getAreaDisplay } from "@/lib/property"
+import { getPublicListingTitle } from "@/lib/listings"
 import {
   PUBLIC_SALE_STATUSES,
   isPublicSaleStatus,
@@ -15,6 +16,7 @@ type Listing = {
   slug: string
   seller_email?: string | null
   title: string
+  public_title?: string | null
   county: string
   address_line_2?: string | null
   price: string
@@ -109,6 +111,7 @@ export default function ListingsPage() {
     return listings.filter((listing) => {
       const searchable = [
         listing.title,
+        listing.public_title ?? "",
         listing.county,
         listing.address_line_2 ?? "",
         listing.excerpt,
@@ -154,7 +157,7 @@ export default function ListingsPage() {
                   href="/sell"
                   className="inline-flex items-center rounded-full bg-stone-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-stone-700"
                 >
-                  List privately
+                  Start your listing
                 </Link>
 
                 <Link
@@ -332,7 +335,7 @@ export default function ListingsPage() {
                         {displayImage ? (
                           <img
                             src={displayImage}
-                            alt={listing.title}
+                            alt={getPublicListingTitle(listing)}
                             className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.02]"
                           />
                         ) : (
@@ -375,7 +378,7 @@ export default function ListingsPage() {
                       </div>
 
                       <h2 className="mt-3 line-clamp-2 text-xl font-semibold leading-snug tracking-tight text-stone-900 sm:text-2xl">
-                        {listing.title}
+                        {getPublicListingTitle(listing)}
                       </h2>
 
                       <p className="mt-3 line-clamp-2 text-sm leading-7 text-stone-600 sm:text-base">

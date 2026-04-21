@@ -2,6 +2,7 @@
 
 import { supabase } from "@/lib/supabase"
 import { getResendClient } from "@/lib/resend"
+import { getPublicListingTitle } from "@/lib/listings"
 
 function escapeHtml(value: string) {
   return value
@@ -141,7 +142,7 @@ export async function submitEnquiry(formData: FormData) {
 
   const { data: listing, error: listingError } = await supabase
     .from("listings")
-    .select("seller_email")
+    .select("seller_email,title,public_title")
     .eq("slug", listingSlug)
     .maybeSingle()
 
@@ -160,10 +161,11 @@ export async function submitEnquiry(formData: FormData) {
   }
 
   const sellerEmail = String(listing.seller_email).trim().toLowerCase()
+  const publicListingTitle = getPublicListingTitle(listing)
 
   const { error: insertError } = await supabase.from("enquiries").insert({
     listing_slug: listingSlug,
-    listing_title: listingTitle,
+    listing_title: publicListingTitle || listingTitle,
     name,
     email,
     phone: phone || null,

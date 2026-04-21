@@ -7,11 +7,13 @@ import CopyListingLinkButton from "@/components/CopyListingLinkButton"
 import {
   formatPprCurrency,
   formatPprDate,
+  getComparableSaleDisplayLabel,
   getNearbySalesForListing,
 } from "@/lib/ppr"
 import { normalizeListingStatus } from "@/lib/listing-status"
 import { getCurrentUserIsAdmin } from "@/lib/admin-auth"
 import AdminFeaturedToggle from "@/components/AdminFeaturedToggle"
+import { getPublicListingTitle } from "@/lib/listings"
 
 function formatEuro(value: string) {
   const numeric = Number(value.replace(/[^0-9.]/g, ""))
@@ -158,6 +160,7 @@ export default async function ListingPage({
 
   const normalizedListing = normalizeListingStatus(listing)
   const isAdmin = await getCurrentUserIsAdmin()
+  const displayTitle = getPublicListingTitle(normalizedListing)
 
   const isSite = normalizedListing.type === "Site"
   const formattedPrice = formatEuro(normalizedListing.price)
@@ -209,7 +212,7 @@ export default async function ListingPage({
                 </div>
 
                 <h1 className="mt-3 break-words text-2xl font-semibold tracking-tight text-stone-900 sm:mt-4 sm:text-4xl md:text-[2.7rem]">
-                  {normalizedListing.title}
+                  {displayTitle}
                 </h1>
 
                 <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-stone-600 sm:mt-4">
@@ -351,7 +354,7 @@ export default async function ListingPage({
 
         <div className="grid gap-6 sm:gap-8 lg:grid-cols-[minmax(0,1.55fr)_360px]">
           <div className="min-w-0">
-            <ListingGallery images={images} title={normalizedListing.title} />
+            <ListingGallery images={images} title={displayTitle} />
 
             <div className="min-w-0 overflow-hidden rounded-[28px] border border-stone-200 bg-white p-5 shadow-sm sm:rounded-[32px] sm:p-6 md:p-8">
               <p className="break-words text-base leading-7 text-stone-700 sm:text-lg sm:leading-8">
@@ -413,8 +416,8 @@ export default async function ListingPage({
                     >
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                          <p className="font-medium text-stone-900">
-                            {sale.locality || sale.county || "Nearby sale"}
+                          <p className="max-w-[34rem] text-pretty font-medium leading-6 text-stone-900">
+                            {getComparableSaleDisplayLabel(sale)}
                           </p>
                           <p className="mt-1 text-sm text-stone-500">
                             {formatPprDate(sale.date_of_sale)}
@@ -565,7 +568,7 @@ export default async function ListingPage({
 
               <EnquiryForm
                 listingSlug={listing.slug}
-                listingTitle={listing.title}
+                listingTitle={displayTitle}
               />
             </div>
           </div>
