@@ -26,10 +26,10 @@ export default async function SignInPage({
             OpenList
           </p>
           <h1 className="mt-4 text-4xl font-semibold tracking-tight text-stone-900 sm:text-5xl">
-            Sign in to manage your listings
+            Sign in or create your account
           </h1>
           <p className="mt-4 max-w-2xl text-base leading-7 text-stone-600 sm:text-lg sm:leading-8">
-            Use your email to sign in securely. Once signed in, you can create listings, manage your own properties, and edit anything you own.
+            Enter your email to continue.
           </p>
 
           {error === "invalid_link" && (
