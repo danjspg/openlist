@@ -12,7 +12,7 @@ import {
   getPprQuickAreas,
   searchPprSales,
 } from "@/lib/ppr"
-import { FEATURED_PPR_MARKETS, PPR_MARKETS } from "@/lib/ppr-markets"
+import { FEATURED_PPR_MARKETS, PPR_MARKETS, pprMarketLabel } from "@/lib/ppr-markets"
 
 export const dynamic = "force-dynamic"
 
@@ -188,7 +188,7 @@ export default async function SoldPricesPage() {
                     href={`/sold-prices/${market.slug}`}
                     className="rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900"
                   >
-                    {market.name}
+                    {pprMarketLabel(market)}
                   </Link>
                 ))}
               </div>

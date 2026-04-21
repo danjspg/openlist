@@ -154,6 +154,72 @@ export function compactAddress(address: string) {
     .join(", ")
 }
 
+function collapseWhitespace(value: string) {
+  return value.replace(/\s+/g, " ").trim()
+}
+
+function looksLikeUppercase(value: string) {
+  const letters = value.replace(/[^A-Za-z]/g, "")
+  return letters.length > 0 && letters === letters.toUpperCase()
+}
+
+function titleCaseToken(token: string) {
+  const lower = token.toLowerCase()
+
+  if (["and", "of", "the", "on"].includes(lower)) return lower
+  if (["rd", "st", "ave", "dr", "ct", "sq", "pk", "apt"].includes(lower)) {
+    return lower.charAt(0).toUpperCase() + lower.slice(1)
+  }
+
+  return lower
+    .split("-")
+    .map((part) => (part ? part.charAt(0).toUpperCase() + part.slice(1) : part))
+    .join("-")
+}
+
+export function formatPprDisplayText(value?: string | null) {
+  const collapsed = collapseWhitespace(String(value || ""))
+  if (!collapsed) return ""
+
+  if (!looksLikeUppercase(collapsed)) return collapsed
+
+  return collapsed
+    .split(/(\s+|, )/)
+    .map((token) => {
+      if (!token.trim()) return token
+      if (token === ",") return token
+      if (/^\s+$/.test(token) || token === ", ") return token
+      return titleCaseToken(token)
+    })
+    .join("")
+}
+
+export function getComparableSaleDisplayLabel(
+  sale: Pick<PprSale, "address_raw" | "locality" | "county" | "area_slug">
+) {
+  const address = formatPprDisplayText(compactAddress(sale.address_raw || ""))
+  const locality = formatPprDisplayText(sale.locality)
+  const county = formatPprDisplayText(sale.county)
+  const area = sale.area_slug ? formatPprDisplayText(areaNameFromSlug(sale.area_slug)) : ""
+
+  if (address) return address
+
+  if (locality && county && locality.toLowerCase() !== county.toLowerCase()) {
+    return `${locality}, ${county}`
+  }
+
+  if (locality) return locality
+
+  if (area && county && area.toLowerCase() !== county.toLowerCase()) {
+    return `${area}, ${county}`
+  }
+
+  if (area) return area
+  if (county) return county
+
+  return "Nearby sale"
+}
+
 export function formatPropertyTags(sale: Pick<
   PprSale,
   "property_description_raw" | "vat_exclusive"
@@ -463,7 +529,11 @@ export async function getMarketSoldPrices(market: PprMarket, limit = 12) {
   } else if (market.marketType === "dublin_district") {
     query = query.eq("eircode_prefix", dublinDistrictPrefix(market))
   } else {
-    query = query.eq("area_slug", market.slug)
+    query = query.eq("area_slug", market.areaSlug ?? market.slug)
+
+    if (market.county) {
+      query = query.ilike("county", market.county)
+    }
   }
 
   const { data, count, error } = await query

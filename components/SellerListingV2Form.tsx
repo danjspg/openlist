@@ -6,7 +6,6 @@ import { supabase } from "@/lib/supabase"
 import {
   IRISH_COUNTIES,
   PROPERTY_TYPES,
-  SALE_METHODS,
   STATUS_OPTIONS,
   generateListingTitle,
   getAreaDisplay,
@@ -18,6 +17,7 @@ import { generateListingCopy } from "@/app/sell/ai-actions"
 type InitialData = {
   slug?: string
   sellerEmail?: string
+  publicTitle?: string
   type?: string
   subtype?: string
   saleMethod?: string
@@ -51,6 +51,7 @@ type PreviewImage = {
 type CloneListing = {
   slug: string
   title: string
+  public_title?: string | null
   seller_email?: string | null
   type?: string | null
   subtype?: string | null
@@ -96,10 +97,10 @@ export default function SellerListingV2Form({
   const [subtype, setSubtype] = useState(
     initialData?.subtype || getSubtypeOptions(initialData?.type || "House")[0] || ""
   )
-  const [saleMethod, setSaleMethod] = useState(initialData?.saleMethod || "Private Sale")
   const [county, setCounty] = useState(initialData?.county || "Cork")
   const [addressLine2, setAddressLine2] = useState(initialData?.addressLine2 || "")
   const [eircode, setEircode] = useState(initialData?.eircode || "")
+  const [publicTitle, setPublicTitle] = useState(initialData?.publicTitle || "")
   const [price, setPrice] = useState(initialData?.price || "")
   const [beds, setBeds] = useState(String(initialData?.beds ?? 4))
   const [baths, setBaths] = useState(String(initialData?.baths ?? 3))
@@ -188,7 +189,7 @@ export default function SellerListingV2Form({
       const { data, error } = await supabase
         .from("listings")
         .select(
-          "slug,title,seller_email,type,subtype,sale_method,county,address_line_2,eircode,price,beds,baths,area_value,area_unit,excerpt,description,status,highlights,image,images,created_at"
+          "slug,title,public_title,seller_email,type,subtype,sale_method,county,address_line_2,eircode,price,beds,baths,area_value,area_unit,excerpt,description,status,highlights,image,images,created_at"
         )
         .eq("seller_email", trimmedEmail)
         .order("created_at", { ascending: false })
@@ -284,7 +285,7 @@ export default function SellerListingV2Form({
       const result = await generateListingCopy({
         type,
         subtype,
-        saleMethod,
+        saleMethod: "Private Sale",
         county,
         addressLine2,
         price,
@@ -326,10 +327,10 @@ export default function SellerListingV2Form({
 
     setType(nextType)
     setSubtype(nextSubtype)
-    setSaleMethod(listing.sale_method || "Private Sale")
     setCounty(listing.county || "Cork")
     setAddressLine2(listing.address_line_2 || "")
     setEircode(listing.eircode || "")
+    setPublicTitle(listing.public_title || "")
     setPrice(listing.price || "")
     setBeds(String(listing.beds ?? 0))
     setBaths(String(listing.baths ?? 0))
@@ -397,6 +398,7 @@ export default function SellerListingV2Form({
   }
 
   const previewDisplayImages = getPreviewImages()
+  const previewTitle = publicTitle.trim() || generatedTitle
   const previewArea = getAreaDisplay({
     type,
     areaValue: Number(areaValue) || null,
@@ -411,6 +413,7 @@ export default function SellerListingV2Form({
       )}
 
       <input type="hidden" name="generatedTitle" value={generatedTitle} />
+      <input type="hidden" name="saleMethod" value="Private Sale" />
       <input
         type="hidden"
         name="imageOrder"
@@ -491,7 +494,7 @@ export default function SellerListingV2Form({
                   </option>
                   {cloneListings.map((listing) => (
                     <option key={listing.slug} value={listing.slug}>
-                      {listing.title}
+                      {listing.public_title?.trim() || listing.title}
                     </option>
                   ))}
                 </select>
@@ -565,22 +568,6 @@ export default function SellerListingV2Form({
 
           <div>
             <label className="mb-2 block text-sm font-medium text-stone-700">
-              Sale method
-            </label>
-            <select
-              name="saleMethod"
-              value={saleMethod}
-              onChange={(e) => setSaleMethod(e.target.value)}
-              className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition focus:border-stone-500"
-            >
-              {SALE_METHODS.map((option) => (
-                <option key={option}>{option}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm font-medium text-stone-700">
               County
             </label>
             <select
@@ -622,6 +609,22 @@ export default function SellerListingV2Form({
             />
             <p className="mt-2 text-xs text-stone-500">
               Stored for backend use only. Not displayed publicly.
+            </p>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-medium text-stone-700">
+              Listing title
+            </label>
+            <input
+              name="publicTitle"
+              value={publicTitle}
+              onChange={(e) => setPublicTitle(e.target.value)}
+              placeholder="Myrtleville Site Full Planning - East"
+              className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition focus:border-stone-500"
+            />
+            <p className="mt-2 text-xs text-stone-500">
+              This is the public title shown on your listing page. If left blank, OpenList will generate one automatically.
             </p>
           </div>
 
@@ -710,7 +713,7 @@ export default function SellerListingV2Form({
 
           <div>
             <label className="mb-2 block text-sm font-medium text-stone-700">
-              Status
+              Sale status
             </label>
             <select
               name="status"
@@ -794,7 +797,10 @@ export default function SellerListingV2Form({
                 Optional AI help
               </p>
               <p className="mt-2 text-sm leading-6 text-stone-500">
-                Need a starting point? Generate a draft summary, description and suggested highlights from the details you have entered above. You can edit everything before publishing.
+                Need a starting point? Generate a draft summary and description from the details you have entered above. You can edit everything before publishing.
+              </p>
+              <p className="mt-2 text-xs leading-6 text-stone-500">
+                This tool helps format listing text only. It does not provide valuation services, pricing advice, negotiation advice, legal advice, or transaction services.
               </p>
               <p className="mt-2 text-xs font-medium uppercase tracking-[0.18em] text-stone-400">
                 Optional · Nothing is published automatically
@@ -1028,7 +1034,7 @@ export default function SellerListingV2Form({
                 </div>
 
                 <h2 className="mt-4 break-words text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl">
-                  {generatedTitle}
+                  {previewTitle}
                 </h2>
                 <p className="mt-3 text-base leading-7 text-stone-600">
                   {[addressLine2, county].filter(Boolean).join(", ")}
@@ -1051,7 +1057,7 @@ export default function SellerListingV2Form({
               <div className="overflow-hidden rounded-[28px] border border-stone-200 bg-stone-100">
                 <img
                   src={previewDisplayImages[0]}
-                  alt={generatedTitle}
+                  alt={previewTitle}
                   className="h-[280px] w-full object-cover sm:h-[380px]"
                 />
               </div>
@@ -1070,7 +1076,7 @@ export default function SellerListingV2Form({
                   >
                     <img
                       src={image}
-                      alt={`${generatedTitle} preview ${index + 2}`}
+                      alt={`${previewTitle} preview ${index + 2}`}
                       className="aspect-[4/3] w-full object-cover"
                     />
                   </div>

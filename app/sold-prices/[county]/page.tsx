@@ -3,7 +3,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import PprDisclaimer from "@/components/ppr/PprDisclaimer"
 import PprSaleCard from "@/components/ppr/PprSaleCard"
-import { PPR_MARKETS, getPprMarket } from "@/lib/ppr-markets"
+import { PPR_MARKETS, getPprMarket, pprMarketLabel } from "@/lib/ppr-markets"
 import { getMarketSoldPrices } from "@/lib/ppr"
 
 type Props = {
@@ -28,9 +28,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     }
   }
 
+  const marketLabel = pprMarketLabel(market)
+
   return {
-    title: `Sold House Prices in ${market.name} | OpenList`,
-    description: `Search recent sold house prices in ${market.name} using public Property Price Register data since 2015.`,
+    title: `${marketLabel} sold prices | OpenList`,
+    description: `Search recent sold house prices in ${marketLabel} using public Property Price Register data since 2015.`,
     alternates: {
       canonical: `/sold-prices/${market.slug}`,
     },
@@ -54,7 +56,8 @@ export default async function PprMarketPage({ params }: Props) {
   if (!market) notFound()
 
   const { sales, count, error } = await getMarketSoldPrices(market)
-  const searchHref = `/sold-prices/search?area=${encodeURIComponent(market.name)}&sort=newest&dateRange=all`
+  const marketLabel = pprMarketLabel(market)
+  const searchHref = `/sold-prices/search?area=${encodeURIComponent(marketLabel)}&sort=newest&dateRange=all`
 
   return (
     <main className="min-h-screen bg-stone-50">
@@ -65,10 +68,10 @@ export default async function PprMarketPage({ params }: Props) {
               {marketTypeLabel(market.marketType)}
             </p>
             <h1 className="mt-2 max-w-4xl text-4xl font-semibold tracking-tight text-stone-900 sm:text-5xl">
-              See what homes sold for in {market.name}
+              See what homes sold for in {marketLabel}
             </h1>
             <p className="mt-5 max-w-3xl text-base leading-7 text-stone-600 sm:text-lg sm:leading-8">
-              Search over 640,000 public property sales since 2015.
+              Recent public property sales in {marketLabel}.
             </p>
             <p className="mt-4 text-sm font-medium text-stone-700">
               Based on publicly available Property Price Register data.

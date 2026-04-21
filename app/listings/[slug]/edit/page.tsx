@@ -3,6 +3,7 @@ import { notFound } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import SellerListingV2Form from "@/components/SellerListingV2Form"
 import { updateListing } from "@/app/sell/actions"
+import { normalizeListingStatus } from "@/lib/listing-status"
 
 type Props = {
   params: Promise<{ slug: string }>
@@ -29,6 +30,8 @@ export default async function EditListingPage({ params }: Props) {
     notFound()
   }
 
+  const normalizedListing = normalizeListingStatus(listing)
+
   return (
     <main className="min-h-screen bg-white">
       <section className="mx-auto max-w-4xl px-6 py-12">
@@ -51,27 +54,28 @@ export default async function EditListingPage({ params }: Props) {
           submitAction={updateListing}
           initialData={{
             slug: listing.slug,
-            sellerEmail: listing.seller_email ?? "",
-            type: listing.type ?? "House",
-            subtype: listing.subtype ?? "",
-            saleMethod: listing.sale_method ?? "Private Sale",
-            county: listing.county ?? "Cork",
-            addressLine2: listing.address_line_2 ?? "",
-            eircode: listing.eircode ?? "",
-            price: listing.price ?? "",
-            beds: listing.beds ?? 0,
-            baths: listing.baths ?? 0,
-            areaValue: listing.area_value ?? null,
-            areaUnit: listing.area_unit ?? "",
-            excerpt: listing.excerpt ?? "",
-            description: listing.description ?? "",
-            status: listing.status ?? "For Sale",
-            highlights: listing.highlights ?? [],
+            sellerEmail: normalizedListing.seller_email ?? "",
+            type: normalizedListing.type ?? "House",
+            subtype: normalizedListing.subtype ?? "",
+            saleMethod: normalizedListing.sale_method ?? "Private Sale",
+            county: normalizedListing.county ?? "Cork",
+            addressLine2: normalizedListing.address_line_2 ?? "",
+            eircode: normalizedListing.eircode ?? "",
+            publicTitle: normalizedListing.public_title ?? "",
+            price: normalizedListing.price ?? "",
+            beds: normalizedListing.beds ?? 0,
+            baths: normalizedListing.baths ?? 0,
+            areaValue: normalizedListing.area_value ?? null,
+            areaUnit: normalizedListing.area_unit ?? "",
+            excerpt: normalizedListing.excerpt ?? "",
+            description: normalizedListing.description ?? "",
+            status: normalizedListing.status ?? "For Sale",
+            highlights: normalizedListing.highlights ?? [],
             images:
-              listing.images && listing.images.length > 0
-                ? listing.images
-                : listing.image
-                  ? [listing.image]
+              normalizedListing.images && normalizedListing.images.length > 0
+                ? normalizedListing.images
+                : normalizedListing.image
+                  ? [normalizedListing.image]
                   : [],
           }}
         />

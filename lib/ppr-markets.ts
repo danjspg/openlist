@@ -4,9 +4,12 @@ export type PprMarket = {
   name: string
   slug: string
   marketType: PprMarketType
+  county?: string
+  areaSlug?: string
+  displayName?: string
 }
 
-export const PPR_MARKETS = [
+const BASE_PPR_MARKETS = [
   { name: "Dublin", slug: "dublin", marketType: "county" },
   { name: "Cork", slug: "cork", marketType: "county" },
   { name: "Galway", slug: "galway", marketType: "county" },
@@ -61,7 +64,14 @@ export const PPR_MARKETS = [
   { name: "Swords", slug: "swords", marketType: "town_suburb" },
   { name: "Naas", slug: "naas", marketType: "town_suburb" },
   { name: "Gorey", slug: "gorey", marketType: "town_suburb" },
-  { name: "Blackrock", slug: "blackrock", marketType: "town_suburb" },
+  {
+    name: "Blackrock",
+    slug: "blackrock-dublin",
+    marketType: "town_suburb",
+    county: "Dublin",
+    areaSlug: "blackrock",
+    displayName: "Blackrock, Dublin",
+  },
   { name: "Athlone", slug: "athlone", marketType: "town_suburb" },
   { name: "Tralee", slug: "tralee", marketType: "town_suburb" },
   { name: "Ennis", slug: "ennis", marketType: "town_suburb" },
@@ -114,6 +124,244 @@ export const PPR_MARKETS = [
   { name: "Leopardstown", slug: "leopardstown", marketType: "town_suburb" },
 ] as const satisfies readonly PprMarket[]
 
+const SUPPLEMENTAL_PPR_MARKET_SLUGS = [
+  "clondalkin",
+  "rathfarnham",
+  "clonsilla",
+  "crumlin",
+  "clontarf",
+  "raheny",
+  "drumcondra",
+  "glasnevin",
+  "terenure",
+  "artane",
+  "drimnagh",
+  "ballyfermot",
+  "finglas",
+  "santry",
+  "walkinstown",
+  "dundrum",
+  "adamstown",
+  "ballsbridge",
+  "blanchardstown",
+  "templeogue",
+  "arklow",
+  "ranelagh",
+  "oranmore",
+  "rathmines",
+  "cabra",
+  "stillorgan",
+  "sandymount",
+  "edenderry",
+  "youghal",
+  "inchicore",
+  "donnybrook",
+  "churchtown",
+  "loughrea",
+  "johnstown",
+  "trim",
+  "skerries",
+  "clonee",
+  "knocklyon",
+  "harolds-cross",
+  "shannon",
+  "kells",
+  "portarlington",
+  "sutton",
+  "dooradoyle",
+  "ratoath",
+  "saggart",
+  "newcastle-west",
+  "rathgar",
+  "carrickmacross",
+  "shankill",
+  "doughiska",
+  "portmarnock",
+  "whitehall",
+  "palmerstown",
+  "listowel",
+  "athenry",
+  "castlerea",
+  "beaumont",
+  "claremorris",
+  "coolock",
+  "ardee",
+  "virginia",
+  "foxrock",
+  "phibsborough",
+  "roscrea",
+  "blessington",
+  "carrick-on-shannon",
+  "sandyford",
+  "clonakilty",
+  "killiney",
+  "boyle",
+  "finglas-west",
+  "baldoyle",
+  "stepaside",
+  "rush",
+  "tullow",
+  "lusk",
+  "sallins",
+  "east-wall",
+  "abbeyside",
+  "salthill",
+  "kilkee",
+  "ballinteer",
+  "cashel",
+  "mountmellick",
+  "birr",
+  "belturbet",
+  "cahir",
+  "bundoran",
+  "charleville",
+  "ballyhaunis",
+  "monkstown",
+  "kilcullen",
+  "hollystown",
+  "bantry",
+  "gort",
+  "glenageary",
+  "firhouse",
+  "ringsend",
+  "fermoy",
+  "kimmage",
+  "dalkey",
+  "kenmare",
+  "kilrush",
+  "rathcoole",
+  "ballinrobe",
+  "killester",
+  "castleblayney",
+  "edgeworthstown",
+  "mount-merrion",
+  "monasterevin",
+  "rathangan",
+  "newcastle",
+  "bishopstown",
+  "ballymote",
+  "stoneybatter",
+  "macroom",
+  "moate",
+  "mulhuddart",
+  "carrick-on-suir",
+  "swinford",
+  "donaghmede",
+  "athboy",
+  "ballyjamesduff",
+  "goatstown",
+  "knocknacarra",
+  "fairview",
+  "tyrrelstown",
+  "ballycullen",
+  "marino",
+  "clonskeagh",
+  "ballybofey",
+  "buncrana",
+  "kinnegad",
+  "killorglin",
+  "claregalway",
+  "ballybane",
+  "ballymahon",
+  "ballyshannon",
+  "raheen",
+  
+  "rathnew",
+  "finglas-east",
+  
+  "donnycarney",
+  "skibbereen",
+  "howth",
+  "kanturk",
+  "bailieborough",
+  "clonard",
+  "ballyconnell",
+  
+  "dunboyne",
+  "tubbercurry",
+  "mitchelstown",
+  
+  "collooney",
+  "ballymun",
+  "cabinteely",
+  
+  "strokestown",
+  "wilton",
+  "rialto",
+  "springfield",
+] as const
+
+const SUPPLEMENTAL_MARKET_OVERRIDES: Record<string, Partial<PprMarket>> = {
+  beaumont: {
+    slug: "beaumont-dublin",
+    county: "Dublin",
+    areaSlug: "beaumont",
+    displayName: "Beaumont, Dublin",
+  },
+  johnstown: {
+    slug: "johnstown-meath",
+    county: "Meath",
+    areaSlug: "johnstown",
+    displayName: "Johnstown, Meath",
+  },
+  monkstown: {
+    slug: "monkstown-dublin",
+    county: "Dublin",
+    areaSlug: "monkstown",
+    displayName: "Monkstown, Dublin",
+  },
+  newcastle: {
+    slug: "newcastle-galway",
+    county: "Galway",
+    areaSlug: "newcastle",
+    displayName: "Newcastle, Galway",
+  },
+  springfield: {
+    slug: "springfield-dublin",
+    county: "Dublin",
+    areaSlug: "springfield",
+    displayName: "Springfield, Dublin",
+  },
+  wilton: {
+    slug: "wilton-cork",
+    county: "Cork",
+    areaSlug: "wilton",
+    displayName: "Wilton, Cork",
+  },
+}
+
+function formatSupplementalMarketName(slug: string) {
+  return slug
+    .split("-")
+    .filter(Boolean)
+    .map((part, index) => {
+      const lower = part.toLowerCase()
+
+      if (lower === "rd") return "Rd"
+      if (lower === "st") return "St"
+      if (["on", "of"].includes(lower) && index > 0) return lower
+      if (lower === "the") return index === 0 ? "The" : "the"
+      if (/^\d+$/.test(part)) return part
+
+      return part.charAt(0).toUpperCase() + part.slice(1)
+    })
+    .join(" ")
+}
+
+export const PPR_MARKETS: readonly PprMarket[] = [
+  ...BASE_PPR_MARKETS,
+  ...SUPPLEMENTAL_PPR_MARKET_SLUGS.map((slug) => {
+    const override = SUPPLEMENTAL_MARKET_OVERRIDES[slug]
+
+    return {
+      name: formatSupplementalMarketName(slug),
+      slug,
+      marketType: "town_suburb" as const,
+      ...override,
+    }
+  }),
+]
+
 export const FEATURED_PPR_MARKETS = [
   "dublin",
   "cork",
@@ -127,6 +375,10 @@ export const FEATURED_PPR_MARKETS = [
 
 export function getPprMarket(slug: string) {
   return PPR_MARKETS.find((market) => market.slug === slug)
+}
+
+export function pprMarketLabel(market: PprMarket) {
+  return market.displayName || market.name
 }
 
 export function dublinDistrictPrefix(market: PprMarket) {

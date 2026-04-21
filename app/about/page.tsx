@@ -90,8 +90,7 @@ export default function AboutPage() {
             Important
           </p>
           <p className="mt-4 max-w-4xl text-base leading-7 text-slate-600">
-            OpenList provides tools and information for private property sales.
-            We do not provide legal, financial or property advice.
+            OpenList is a self-service listing and marketing platform. It does not act as an estate agent or auctioneer and does not provide valuation services, pricing advice, negotiation services, legal services, brokerage services, or transaction management.
           </p>
         </div>
       </section>

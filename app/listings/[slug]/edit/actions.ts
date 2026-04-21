@@ -3,6 +3,7 @@
 import { supabase } from "@/lib/supabase"
 import { randomUUID } from "crypto"
 import { redirect } from "next/navigation"
+import { normalizeSaleStatus } from "@/lib/listing-status"
 
 function getFileExtension(filename: string) {
   const parts = filename.split(".")
@@ -53,7 +54,7 @@ export async function updateListing(formData: FormData) {
   const sqft = Number(formData.get("sqft") ?? 0)
   const excerpt = String(formData.get("excerpt") ?? "").trim()
   const description = String(formData.get("description") ?? "").trim()
-  const status = String(formData.get("status") ?? "").trim()
+  const status = normalizeSaleStatus(formData.get("status"))
   const planning = String(formData.get("planning") ?? "").trim()
   const viewing = String(formData.get("viewing") ?? "").trim()
   const selectedMainImage = String(formData.get("mainImage") ?? "").trim()

@@ -1,14 +1,18 @@
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
+import { normalizeListingStatus } from "@/lib/listing-status"
+import { getPublicListingTitle } from "@/lib/listings"
 
 type Listing = {
   slug: string
   title: string
+  public_title?: string | null
   county: string
   price: string
   image: string
   images?: string[] | null
   status: string
+  featured?: boolean
   created_at?: string
 }
 
@@ -29,18 +33,22 @@ function formatEuro(value: string) {
 export default async function HomePage() {
   const { data: featuredData, error: featuredError } = await supabase
     .from("listings")
-    .select("slug,title,county,price,image,images,status,created_at")
-    .eq("status", "Featured")
+    .select("*")
     .order("created_at", { ascending: false })
-    .limit(3)
+    .limit(24)
 
   const featuredListings: Listing[] =
-    !featuredError && featuredData ? featuredData : []
+    !featuredError && featuredData
+      ? (featuredData as Listing[])
+          .map((listing) => normalizeListingStatus(listing))
+          .filter((listing) => listing.featured && listing.status === "For Sale")
+          .slice(0, 3)
+      : []
 
   return (
     <main className="min-h-screen bg-stone-50 text-stone-900">
       <section className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:gap-12 lg:py-24">
-        <div>
+        <div className="max-w-[580px]">
           <p className="text-sm uppercase tracking-[0.25em] text-stone-500">
             PRIVATE PROPERTY SALES IN IRELAND
           </p>
@@ -49,54 +57,43 @@ export default async function HomePage() {
             A simpler way to sell your home privately in Ireland
           </h1>
 
-          <p className="mt-5 max-w-2xl text-base leading-7 text-stone-600 sm:mt-6 sm:text-lg sm:leading-8">
+          <p className="mt-5 max-w-[34rem] text-base leading-7 text-stone-600 sm:mt-6 sm:text-lg sm:leading-8">
             Create a clear, straightforward property listing for the Irish market.
           </p>
 
-          <p className="mt-3 text-sm leading-6 text-stone-500 sm:text-base">
+          <p className="mt-3 max-w-[34rem] text-sm leading-6 text-stone-500 sm:text-base">
             Designed for people who want to create and manage their own property listing.
           </p>
 
-          <div className="mt-7 flex flex-wrap gap-3 sm:mt-8 sm:gap-4">
-            <Link
-              href="/sell"
-              className="rounded-full bg-stone-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-stone-700 sm:px-6"
-            >
-              Start your listing
-            </Link>
-            <Link
-              href="/sold-prices"
-              className="rounded-full border border-stone-300 px-5 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900 sm:px-6"
-            >
-              View sold prices
-            </Link>
-          </div>
-
-          <div className="mt-3 rounded-2xl border border-stone-200 bg-white/80 px-5 py-4 shadow-sm">
-            <p className="text-sm leading-6 text-stone-600">
+          <div className="mt-8 sm:mt-9">
+            <div className="flex flex-wrap gap-3 sm:gap-4">
+              <Link
+                href="/sell"
+                className="rounded-full bg-stone-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-stone-700 sm:px-6"
+              >
+                Start your listing
+              </Link>
+              <Link
+                href="/sold-prices"
+                className="rounded-full border border-stone-300 px-5 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900 sm:px-6"
+              >
+                View sold prices
+              </Link>
+            </div>
+            <p className="mt-4 max-w-[34rem] text-sm leading-6 text-stone-500">
               OpenList provides tools to create and manage your listing. You remain the seller at all times.
             </p>
           </div>
 
-          <div className="mt-8 grid grid-cols-1 gap-5 text-sm text-stone-500 sm:mt-10 sm:grid-cols-2 sm:gap-8">
-            <div>
-              <div className="text-2xl font-semibold text-stone-900">Stay in control</div>
-              <div className="mt-1">Manage your own listing and receive enquiries directly from buyers.</div>
+          <div className="mt-4 grid grid-cols-1 gap-4 text-sm text-stone-500 sm:mt-5 sm:grid-cols-2 sm:gap-6">
+            <div className="min-w-0">
+              <div className="text-xl font-semibold text-stone-900">Stay in control</div>
+              <div className="mt-0.5 leading-6">Manage your own listing and receive enquiries directly from buyers.</div>
             </div>
-            <div>
-              <div className="text-2xl font-semibold text-stone-900">Clear listings</div>
-              <div className="mt-1">Present your property in a simple, well-structured format.</div>
+            <div className="min-w-0">
+              <div className="text-xl font-semibold text-stone-900">Clear listings</div>
+              <div className="mt-0.5 leading-6">Present your property in a simple, well-structured format.</div>
             </div>
-          </div>
-
-          <div className="mt-8 rounded-2xl border border-stone-200 bg-white/80 px-5 py-4 shadow-sm sm:mt-10">
-            <p className="text-sm leading-6 text-stone-600">
-              OpenList is a self-service platform for private property listings in Ireland.
-            </p>
-            <p className="mt-2 text-sm leading-6 text-stone-600">
-              Listing information is provided by sellers and has not been independently verified.
-              OpenList is a self-service listing and marketing platform. It does not act as an estate agent and does not provide valuation services, pricing advice, negotiation services, legal services, brokerage services, or transaction management.
-            </p>
           </div>
         </div>
 
@@ -145,6 +142,18 @@ export default async function HomePage() {
         </div>
       </section>
 
+      <section className="mx-auto max-w-6xl px-4 pb-10 sm:px-6 sm:pb-12">
+        <div className="max-w-[40rem] rounded-2xl border border-stone-200/60 bg-stone-100/40 px-4 py-3 shadow-[0_1px_2px_rgba(28,25,23,0.03)]">
+          <p className="text-[13px] leading-5 text-stone-600">
+            OpenList is a self-service platform for private property listings in Ireland.
+          </p>
+          <p className="mt-1.5 text-[13px] leading-5 text-stone-600">
+            Listing information is provided by sellers and has not been independently verified.
+            OpenList is a self-service listing and marketing platform. It does not act as an estate agent and does not provide valuation services, pricing advice, negotiation services, legal services, brokerage services, or transaction management.
+          </p>
+        </div>
+      </section>
+
       <section className="border-y border-stone-200 bg-stone-100/70">
         <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16">
           <div className="max-w-2xl">
@@ -174,7 +183,7 @@ export default async function HomePage() {
                       <div className="relative overflow-hidden">
                         <img
                           src={displayImage}
-                          alt={listing.title}
+                          alt={getPublicListingTitle(listing)}
                           className="h-52 w-full object-cover transition duration-500 group-hover:scale-[1.02] sm:h-60"
                         />
                         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent" />
@@ -198,7 +207,7 @@ export default async function HomePage() {
                         </div>
 
                         <h3 className="mt-3 text-xl font-semibold leading-snug tracking-tight text-stone-900 sm:text-2xl">
-                          {listing.title}
+                          {getPublicListingTitle(listing)}
                         </h3>
 
                         <div className="mt-5 inline-flex items-center text-sm font-medium text-stone-600 transition group-hover:text-stone-900">
@@ -398,9 +407,11 @@ export default async function HomePage() {
 
             <div className="mt-8 border-t border-white/10 pt-6">
               <p className="text-sm leading-6 text-stone-300">
-                OpenList is a marketing platform for private property listings in Ireland.
-                Sellers remain responsible for the accuracy of listing information,
-                and interested parties should satisfy themselves as to accuracy.
+                Listing information is provided by sellers and has not been independently verified.
+                OpenList is a self-service listing and marketing platform. It does not
+                act as an estate agent and does not provide valuation services, pricing
+                advice, negotiation services, legal services, brokerage services, or
+                transaction management.
               </p>
             </div>
           </div>

@@ -49,7 +49,7 @@ export default function RootLayout({
                 <img
                   src="/logo-small.png"
                   alt="OpenList"
-                  className="h-[46px] w-auto sm:hidden"
+                  className="h-[45px] w-auto sm:hidden"
                 />
 
                 <img
@@ -113,6 +113,12 @@ export default function RootLayout({
                 </Link>
                 <Link href="/about" className="transition hover:text-stone-900">
                   About OpenList
+                </Link>
+                <Link href="/terms" className="transition hover:text-stone-900">
+                  Terms
+                </Link>
+                <Link href="/admin/access" className="text-stone-400 transition hover:text-stone-700">
+                  Admin
                 </Link>
               </div>
             </div>

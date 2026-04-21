@@ -35,3 +35,17 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 # openlist
+
+## Admin access
+
+Admin-only actions use a small signed admin session.
+
+Set these environment variables:
+
+```bash
+OPENLIST_ADMIN_EMAILS=you@example.com,other@example.com
+OPENLIST_ADMIN_ACCESS_CODE=your-shared-access-code
+OPENLIST_ADMIN_SESSION_SECRET=long-random-secret
+```
+
+Visit `/admin/access` to start an admin session for feature controls.

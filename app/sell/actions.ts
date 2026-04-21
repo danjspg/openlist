@@ -9,6 +9,7 @@ import {
   generateListingTitle,
   getLegacySqftValue,
 } from "@/lib/property"
+import { normalizeSaleStatus } from "@/lib/listing-status"
 
 async function makeUniqueSlug(baseSlug: string) {
   let slug = baseSlug
@@ -128,9 +129,10 @@ function getSharedValues(formData: FormData) {
   const baths = Number(formData.get("baths") ?? 0)
   const areaValue = Number(formData.get("areaValue") ?? 0)
   const areaUnit = String(formData.get("areaUnit") ?? "").trim()
+  const publicTitle = String(formData.get("publicTitle") ?? "").trim()
   const excerpt = String(formData.get("excerpt") ?? "").trim()
   const description = formatDescription(String(formData.get("description") ?? ""))
-  const status = String(formData.get("status") ?? "For Sale").trim()
+  const status = normalizeSaleStatus(formData.get("status"))
   const highlights = formData.getAll("highlights").map(String).filter(Boolean)
 
   return {
@@ -146,6 +148,7 @@ function getSharedValues(formData: FormData) {
     baths,
     areaValue,
     areaUnit,
+    publicTitle,
     excerpt,
     description,
     status,
@@ -218,11 +221,12 @@ export async function createListing(formData: FormData) {
     baths: values.baths || 0,
     area_value: values.areaValue || null,
     area_unit: values.areaUnit || null,
+    public_title: values.publicTitle || null,
     sqft: legacySqft || 0,
     excerpt: values.excerpt || values.description.slice(0, 110),
     description: values.description,
     highlights: values.highlights.length > 0 ? values.highlights : null,
-    status: values.status || "For Sale",
+    status: normalizeSaleStatus(values.status),
     image: images[0],
     images,
   })
@@ -311,6 +315,7 @@ export async function updateListing(formData: FormData) {
     .from("listings")
     .update({
       title,
+      public_title: values.publicTitle || null,
       type: values.type,
       subtype: values.subtype || null,
       sale_method: values.saleMethod || "Private Sale",
@@ -326,7 +331,7 @@ export async function updateListing(formData: FormData) {
       excerpt: values.excerpt || values.description.slice(0, 110),
       description: values.description,
       highlights: values.highlights.length > 0 ? values.highlights : null,
-      status: values.status || "For Sale",
+      status: normalizeSaleStatus(values.status),
       image: finalImages[0] ?? null,
       images: finalImages,
     })

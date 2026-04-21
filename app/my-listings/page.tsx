@@ -3,6 +3,8 @@ import Link from "next/link"
 import { supabase } from "@/lib/supabase"
 import SellerEmailField from "@/components/SellerEmailField"
 import CopyListingLinkButton from "@/components/CopyListingLinkButton"
+import { isLiveSaleStatus, normalizeListingStatus } from "@/lib/listing-status"
+import { getPublicListingTitle } from "@/lib/listings"
 
 export const metadata: Metadata = {
   title: "My Listings | OpenList",
@@ -45,9 +47,11 @@ function formatDate(value?: string | null) {
 type ListingRow = {
   slug: string
   title: string
+  public_title?: string | null
   county: string
   price: string
   status: string
+  featured?: boolean
   type: string
   image: string
   images?: string[] | null
@@ -74,14 +78,16 @@ export default async function MyListingsPage({
   if (trimmedEmail) {
     const { data: listingData, error: listingsError } = await supabase
       .from("listings")
-      .select("slug,title,county,price,status,type,image,images,created_at")
+      .select("*")
       .eq("seller_email", trimmedEmail)
       .order("created_at", { ascending: false })
 
     if (listingsError) {
       errorMessage = listingsError.message
     } else {
-      listings = listingData ?? []
+      listings = ((listingData ?? []) as ListingRow[]).map((listing) =>
+        normalizeListingStatus(listing)
+      )
 
       const slugs = listings.map((listing) => listing.slug)
 
@@ -124,9 +130,7 @@ export default async function MyListingsPage({
 
   const totalListings = listings.length
   const totalEnquiries = enquiries.length
-  const liveListings = listings.filter((listing) =>
-    ["For Sale", "Featured"].includes(listing.status)
-  ).length
+  const liveListings = listings.filter((listing) => isLiveSaleStatus(listing.status)).length
 
   return (
     <main className="min-h-screen bg-stone-50">
@@ -242,8 +246,6 @@ export default async function MyListingsPage({
                   const enquirySummary = enquiryMap.get(listing.slug)
                   const enquiryCount = enquirySummary?.count ?? 0
                   const latestEnquiryAt = enquirySummary?.latestEnquiryAt ?? null
-                  const isFeatured = listing.status === "Featured"
-
                   return (
                     <div
                       key={listing.slug}
@@ -255,7 +257,7 @@ export default async function MyListingsPage({
                             {heroImage ? (
                               <img
                                 src={heroImage}
-                                alt={listing.title}
+                                alt={getPublicListingTitle(listing)}
                                 className="h-full w-full object-cover"
                               />
                             ) : (
@@ -267,13 +269,7 @@ export default async function MyListingsPage({
                             <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent" />
 
                             <div className="absolute left-4 top-4">
-                              <span
-                                className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] shadow-sm backdrop-blur ${
-                                  isFeatured
-                                    ? "bg-stone-900 text-white"
-                                    : "bg-white/92 text-stone-700"
-                                }`}
-                              >
+                              <span className="inline-flex items-center rounded-full bg-white/92 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-700 shadow-sm backdrop-blur">
                                 {listing.status}
                               </span>
                             </div>
@@ -287,13 +283,18 @@ export default async function MyListingsPage({
                                 <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500 sm:text-xs">
                                   {listing.type}
                                 </span>
+                                {listing.featured && (
+                                  <span className="inline-flex items-center rounded-full bg-stone-900 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white">
+                                    Featured
+                                  </span>
+                                )}
                                 <span className="text-sm text-stone-500">
                                   {listing.county}
                                 </span>
                               </div>
 
                               <h2 className="mt-3 text-2xl font-semibold leading-snug tracking-tight text-stone-900 sm:text-[2rem]">
-                                {listing.title}
+                                {getPublicListingTitle(listing)}
                               </h2>
                             </div>
 
