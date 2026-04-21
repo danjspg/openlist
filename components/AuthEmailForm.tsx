@@ -10,6 +10,8 @@ export default function AuthEmailForm({
 }: {
   redirectTo: string
 }) {
+  const MIN_OTP_LENGTH = 6
+  const MAX_OTP_LENGTH = 10
   const router = useRouter()
   const [email, setEmail] = useState("")
   const [code, setCode] = useState("")
@@ -127,7 +129,7 @@ export default function AuthEmailForm({
           </p>
           <p className="mt-3 text-sm leading-6 text-stone-600">
             We sent a secure sign-in link to <span className="font-medium text-stone-900">{email}</span>.
-            If the link gets opened by your email app first, you can still sign in with the 6-digit code below.
+            If the link gets opened by your email app first, you can still sign in with the code from your email below.
           </p>
 
           {info && (
@@ -143,7 +145,7 @@ export default function AuthEmailForm({
                   Enter code instead
                 </p>
                 <p className="mt-2 text-sm leading-6 text-stone-600">
-                  Enter the 6-digit code from your email to continue.
+                  Enter the sign-in code from your email to continue.
                 </p>
               </div>
               <button
@@ -160,23 +162,28 @@ export default function AuthEmailForm({
 
             <form onSubmit={handleVerifyCode} className="mt-5">
               <label className="mb-2 block text-sm font-medium text-stone-700">
-                6-digit sign-in code
+                Sign-in code
               </label>
               <input
                 type="text"
                 inputMode="numeric"
                 autoComplete="one-time-code"
-                pattern="[0-9]{6}"
-                minLength={6}
-                maxLength={6}
+                pattern={`[0-9]{${MIN_OTP_LENGTH},${MAX_OTP_LENGTH}}`}
+                minLength={MIN_OTP_LENGTH}
+                maxLength={MAX_OTP_LENGTH}
                 value={code}
                 onChange={(event) =>
-                  setCode(event.target.value.replace(/\D/g, "").slice(0, 6))
+                  setCode(
+                    event.target.value.replace(/\D/g, "").slice(0, MAX_OTP_LENGTH)
+                  )
                 }
                 required
-                placeholder="123456"
+                placeholder="Enter your code"
                 className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-stone-500 sm:max-w-xs"
               />
+              <p className="mt-2 text-xs text-stone-500">
+                Supabase email codes can vary in length depending on project settings.
+              </p>
 
               {error && (
                 <p className="mt-4 text-sm text-red-600">
@@ -186,7 +193,7 @@ export default function AuthEmailForm({
 
               <button
                 type="submit"
-                disabled={isSubmitting || code.trim().length !== 6}
+                disabled={isSubmitting || code.trim().length < MIN_OTP_LENGTH}
                 className="mt-5 inline-flex items-center rounded-full bg-stone-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isSubmitting ? "Signing in..." : "Verify code"}
