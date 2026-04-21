@@ -1,7 +1,9 @@
 export type Listing = {
   id?: number
   slug: string
+  seller_name?: string | null
   seller_email?: string | null
+  seller_phone?: string | null
   title: string
   public_title?: string | null
   county: string

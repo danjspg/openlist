@@ -1,9 +1,10 @@
 import type { Metadata } from "next"
-import { notFound } from "next/navigation"
+import { notFound, redirect } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import SellerListingV2Form from "@/components/SellerListingV2Form"
-import { updateListing } from "@/app/sell/actions"
+import { archiveListing, updateListing } from "@/app/sell/actions"
 import { normalizeListingStatus } from "@/lib/listing-status"
+import { canCurrentUserEditListing } from "@/lib/listing-permissions"
 import { getDisplayListingTitle } from "@/lib/listings"
 
 type Props = {
@@ -32,6 +33,12 @@ export default async function EditListingPage({ params }: Props) {
   }
 
   const normalizedListing = normalizeListingStatus(listing)
+  const canEdit = await canCurrentUserEditListing(normalizedListing)
+
+  if (!canEdit) {
+    redirect(`/listings/${slug}`)
+  }
+
   const initialPublicTitle = getDisplayListingTitle(normalizedListing)
 
   return (
@@ -54,9 +61,12 @@ export default async function EditListingPage({ params }: Props) {
         <SellerListingV2Form
           mode="edit"
           submitAction={updateListing}
+          archiveAction={archiveListing}
           initialData={{
             slug: listing.slug,
+            sellerName: normalizedListing.seller_name ?? "",
             sellerEmail: normalizedListing.seller_email ?? "",
+            sellerPhone: normalizedListing.seller_phone ?? "",
             type: normalizedListing.type ?? "House",
             subtype: normalizedListing.subtype ?? "",
             saleMethod: normalizedListing.sale_method ?? "Private Sale",
@@ -69,6 +79,8 @@ export default async function EditListingPage({ params }: Props) {
             baths: normalizedListing.baths ?? 0,
             areaValue: normalizedListing.area_value ?? null,
             areaUnit: normalizedListing.area_unit ?? "",
+            planning: normalizedListing.planning ?? "",
+            viewing: normalizedListing.viewing ?? "",
             excerpt: normalizedListing.excerpt ?? "",
             description: normalizedListing.description ?? "",
             status: normalizedListing.status ?? "For Sale",

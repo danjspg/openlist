@@ -174,11 +174,15 @@ export default async function SoldPricesPage() {
               </div>
             )}
 
-            <div className="mt-10">
+          </section>
+
+          <aside className="space-y-5">
+            <PprDisclaimer />
+            <div className="rounded-[24px] border border-stone-200 bg-white p-5 shadow-sm">
               <p className="text-sm font-medium uppercase tracking-[0.2em] text-stone-500">
                 Popular markets
               </p>
-              <h2 className="mt-2 text-3xl font-semibold tracking-tight text-stone-900">
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">
                 Popular areas
               </h2>
               <div className="mt-5 flex flex-wrap gap-3">
@@ -193,10 +197,6 @@ export default async function SoldPricesPage() {
                 ))}
               </div>
             </div>
-          </section>
-
-          <aside className="space-y-5">
-            <PprDisclaimer />
           </aside>
         </div>
       </section>

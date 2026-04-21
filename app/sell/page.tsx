@@ -1,5 +1,7 @@
 import type { Metadata } from "next"
+import { redirect } from "next/navigation"
 import SellerListingV2Form from "@/components/SellerListingV2Form"
+import { getCurrentSellerUser } from "@/lib/seller-auth"
 import { createListing } from "./actions"
 
 export const metadata: Metadata = {
@@ -10,7 +12,13 @@ export const metadata: Metadata = {
   },
 }
 
-export default function SellPage() {
+export default async function SellPage() {
+  const currentUser = await getCurrentSellerUser()
+
+  if (!currentUser) {
+    redirect("/sign-in?redirectTo=%2Fsell")
+  }
+
   return (
     <main className="min-h-screen bg-stone-50">
       <section className="relative overflow-hidden border-b border-stone-200 bg-gradient-to-b from-white via-stone-50 to-stone-100/60">
@@ -45,6 +53,10 @@ export default function SellPage() {
           <SellerListingV2Form
             mode="create"
             submitAction={createListing}
+            initialData={{
+              sellerEmail: currentUser.email ?? "",
+              ownerUserId: currentUser.id,
+            }}
           />
         </div>
 
@@ -54,9 +66,7 @@ export default function SellPage() {
           </p>
           <p>
             Sellers are responsible for the accuracy of listing details.
-            OpenList does not act as an estate agent and does not provide valuation
-            services, pricing advice, negotiation services, legal services,
-            brokerage services, or transaction management.
+            OpenList is not an estate agent or auctioneer and does not provide valuation services, pricing advice, negotiation services, legal services, brokerage services, or transaction management.
           </p>
         </div>
       </section>

@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import SignOutButton from "@/components/SignOutButton"
 
 const navItems = [
   { href: "/listings", label: "Listings" },
@@ -9,7 +10,11 @@ const navItems = [
   { href: "/about", label: "About" },
 ]
 
-export default function Nav() {
+export default function Nav({
+  isSellerAuthenticated,
+}: {
+  isSellerAuthenticated: boolean
+}) {
   const pathname = usePathname()
 
   return (
@@ -44,16 +49,28 @@ export default function Nav() {
         </nav>
 
         <div className="flex items-center gap-3">
-          <Link
-            href="/my-listings"
-            className={`inline-flex items-center rounded-full border px-5 py-2.5 text-base font-medium transition ${
-              pathname === "/my-listings"
-                ? "border-stone-900 text-stone-900"
-                : "border-stone-300 text-stone-700 hover:border-stone-900 hover:text-stone-900"
-            }`}
-          >
-            My listings
-          </Link>
+          {isSellerAuthenticated ? (
+            <>
+              <Link
+                href="/my-listings"
+                className={`inline-flex items-center rounded-full border px-5 py-2.5 text-base font-medium transition ${
+                  pathname === "/my-listings"
+                    ? "border-stone-900 text-stone-900"
+                    : "border-stone-300 text-stone-700 hover:border-stone-900 hover:text-stone-900"
+                }`}
+              >
+                My listings
+              </Link>
+              <SignOutButton />
+            </>
+          ) : (
+            <Link
+              href="/sign-in"
+              className="inline-flex items-center rounded-full border border-stone-300 px-5 py-2.5 text-base font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900"
+            >
+              Sign in
+            </Link>
+          )}
 
           <Link
             href="/sell"
@@ -88,16 +105,25 @@ export default function Nav() {
           )
         })}
 
-        <Link
-          href="/my-listings"
-          className={`shrink-0 font-medium transition ${
-            pathname === "/my-listings"
-              ? "text-stone-900"
-              : "text-stone-500 hover:text-stone-900"
-          }`}
-        >
-          My listings
-        </Link>
+        {isSellerAuthenticated ? (
+          <Link
+            href="/my-listings"
+            className={`shrink-0 font-medium transition ${
+              pathname === "/my-listings"
+                ? "text-stone-900"
+                : "text-stone-500 hover:text-stone-900"
+            }`}
+          >
+            My listings
+          </Link>
+        ) : (
+          <Link
+            href="/sign-in"
+            className="shrink-0 font-medium text-stone-500 transition hover:text-stone-900"
+          >
+            Sign in
+          </Link>
+        )}
 
         <Link
           href="/sell"

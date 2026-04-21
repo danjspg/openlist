@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase"
 import { randomUUID } from "crypto"
 import { redirect } from "next/navigation"
 import { normalizeSaleStatus } from "@/lib/listing-status"
+import { requireListingOwnerOrAdmin } from "@/lib/listing-permissions"
 
 function getFileExtension(filename: string) {
   const parts = filename.split(".")
@@ -43,6 +44,8 @@ async function uploadImage(file: File, slug: string) {
 
 export async function updateListing(formData: FormData) {
   const slug = String(formData.get("slug") ?? "").trim()
+
+  await requireListingOwnerOrAdmin(slug)
 
   const sellerEmail = String(formData.get("sellerEmail") ?? "").trim()
   const title = String(formData.get("title") ?? "").trim()
