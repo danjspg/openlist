@@ -289,14 +289,84 @@ const SUPPLEMENTAL_PPR_MARKET_SLUGS = [
   "wilton",
   "rialto",
   "springfield",
+  "annacotty",
+  "castleconnell",
+  "corbally",
+  "dunmore-east",
+  "ennis-rd",
+  "ferrybank",
+  "galway-city",
+  "gracedieu",
+  "limerick-city",
+  "lismore",
+  "roscam",
+  "waterford-city",
 ] as const
 
-const SUPPLEMENTAL_MARKET_OVERRIDES: Record<string, Partial<PprMarket>> = {
+const PPR_MARKET_OVERRIDES: Record<string, Partial<PprMarket>> = {
+  bandon: {
+    county: "Cork",
+  },
+  ballincollig: {
+    county: "Cork",
+  },
+  bishopstown: {
+    county: "Cork",
+  },
+  carrigaline: {
+    county: "Cork",
+  },
+  cobh: {
+    county: "Cork",
+  },
+  douglas: {
+    county: "Cork",
+  },
+  glanmire: {
+    county: "Cork",
+  },
+  kinsale: {
+    county: "Cork",
+  },
+  mallow: {
+    county: "Cork",
+  },
+  midleton: {
+    county: "Cork",
+  },
+  annacotty: {
+    county: "Limerick",
+  },
   beaumont: {
     slug: "beaumont-dublin",
     county: "Dublin",
     areaSlug: "beaumont",
     displayName: "Beaumont, Dublin",
+  },
+  castleconnell: {
+    county: "Limerick",
+  },
+  corbally: {
+    county: "Limerick",
+  },
+  dooradoyle: {
+    county: "Limerick",
+  },
+  "dunmore-east": {
+    county: "Waterford",
+  },
+  "ennis-rd": {
+    county: "Limerick",
+  },
+  ferrybank: {
+    county: "Waterford",
+  },
+  "galway-city": {
+    county: "Galway",
+    areaSlug: "galway",
+  },
+  gracedieu: {
+    county: "Waterford",
   },
   johnstown: {
     slug: "johnstown-meath",
@@ -304,11 +374,21 @@ const SUPPLEMENTAL_MARKET_OVERRIDES: Record<string, Partial<PprMarket>> = {
     areaSlug: "johnstown",
     displayName: "Johnstown, Meath",
   },
+  "limerick-city": {
+    county: "Limerick",
+    areaSlug: "limerick",
+  },
+  lismore: {
+    county: "Waterford",
+  },
   monkstown: {
     slug: "monkstown-dublin",
     county: "Dublin",
     areaSlug: "monkstown",
     displayName: "Monkstown, Dublin",
+  },
+  "newcastle-west": {
+    county: "Limerick",
   },
   newcastle: {
     slug: "newcastle-galway",
@@ -316,17 +396,29 @@ const SUPPLEMENTAL_MARKET_OVERRIDES: Record<string, Partial<PprMarket>> = {
     areaSlug: "newcastle",
     displayName: "Newcastle, Galway",
   },
+  oranmore: {
+    county: "Galway",
+  },
+  raheen: {
+    county: "Limerick",
+  },
+  roscam: {
+    county: "Galway",
+  },
   springfield: {
     slug: "springfield-dublin",
     county: "Dublin",
     areaSlug: "springfield",
     displayName: "Springfield, Dublin",
   },
+  "waterford-city": {
+    county: "Waterford",
+    areaSlug: "waterford",
+  },
   wilton: {
     slug: "wilton-cork",
     county: "Cork",
     areaSlug: "wilton",
-    displayName: "Wilton, Cork",
   },
 }
 
@@ -349,9 +441,12 @@ function formatSupplementalMarketName(slug: string) {
 }
 
 export const PPR_MARKETS: readonly PprMarket[] = [
-  ...BASE_PPR_MARKETS,
+  ...BASE_PPR_MARKETS.map((market) => ({
+    ...market,
+    ...PPR_MARKET_OVERRIDES[market.slug],
+  })),
   ...SUPPLEMENTAL_PPR_MARKET_SLUGS.map((slug) => {
-    const override = SUPPLEMENTAL_MARKET_OVERRIDES[slug]
+    const override = PPR_MARKET_OVERRIDES[slug]
 
     return {
       name: formatSupplementalMarketName(slug),
@@ -381,8 +476,62 @@ export function pprMarketLabel(market: PprMarket) {
   return market.displayName || market.name
 }
 
+export function isCountyPprMarket(market: PprMarket) {
+  return market.marketType === "county"
+}
+
 export function dublinDistrictPrefix(market: PprMarket) {
   if (market.marketType !== "dublin_district") return ""
   const district = market.name.replace(/^Dublin\s+/i, "").toUpperCase()
   return district === "6W" ? "D6W" : `D${district.padStart(2, "0")}`
+}
+
+const COMPARISON_ROUTE_BY_COUNTY: Partial<Record<string, { href: string; label: string }>> = {
+  Dublin: { href: "/sold-prices/dublin-compared", label: "Dublin Market" },
+  Cork: { href: "/sold-prices/cork-compared", label: "Cork Market" },
+  Limerick: { href: "/sold-prices/limerick-compared", label: "Limerick Market" },
+  Galway: { href: "/sold-prices/galway-compared", label: "Galway Market" },
+  Waterford: { href: "/sold-prices/waterford-compared", label: "Waterford Market" },
+}
+
+const COMMUTER_COMPARISON_SLUGS = new Set([
+  "drogheda",
+  "dundalk",
+  "bray",
+  "greystones",
+  "naas",
+  "newbridge",
+  "navan",
+  "mullingar",
+  "portlaoise",
+])
+
+export function getRelevantMarketComparisonLinks(market: PprMarket) {
+  const links: Array<{ href: string; label: string }> = []
+  const seen = new Set<string>()
+
+  function addLink(link?: { href: string; label: string }) {
+    if (!link || seen.has(link.href)) return
+    seen.add(link.href)
+    links.push(link)
+  }
+
+  if (market.marketType === "county") {
+    addLink(COMPARISON_ROUTE_BY_COUNTY[market.name])
+  } else {
+    const countyName =
+      market.county || (market.marketType === "dublin_district" ? "Dublin" : undefined)
+    if (countyName) {
+      addLink(COMPARISON_ROUTE_BY_COUNTY[countyName])
+    }
+  }
+
+  if (COMMUTER_COMPARISON_SLUGS.has(market.slug)) {
+    addLink({ href: "/sold-prices/commuter-towns", label: "Dublin Commuter Towns" })
+  }
+
+  addLink({ href: "/sold-prices/rising-markets", label: "Rising Markets" })
+  addLink({ href: "/sold-prices/affordable-markets", label: "Affordable Markets" })
+
+  return links
 }

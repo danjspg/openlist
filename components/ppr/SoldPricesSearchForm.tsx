@@ -2,8 +2,10 @@
 
 import { useState } from "react"
 import {
-  formatPprDateInput,
   getDefaultPprDateRange,
+  getPprDateRangePreset,
+  PPR_DATE_RANGE_OPTIONS,
+  type PprDateRangeValue,
 } from "@/lib/ppr"
 import { IRISH_COUNTIES } from "@/lib/property"
 
@@ -22,6 +24,8 @@ type Props = {
     propertyStyle?: string
   }
   compact?: boolean
+  showTimeRange?: boolean
+  showSort?: boolean
 }
 
 const propertyStyleFilters = [
@@ -45,18 +49,12 @@ function formatPriceDisplay(value: string) {
   }).format(Number(digits))
 }
 
-function yearsAgo(years: number) {
-  const date = new Date()
-  date.setFullYear(date.getFullYear() - years)
-  return formatPprDateInput(date)
-}
-
 function durationHref(
   defaults: NonNullable<Props["defaults"]>,
-  years: number
+  range: PprDateRangeValue
 ) {
   const params = new URLSearchParams()
-  const today = formatPprDateInput(new Date())
+  const preset = getPprDateRangePreset(range)
 
   for (const [key, value] of Object.entries(defaults)) {
     if (value && key !== "page" && key !== "dateFrom" && key !== "dateTo") {
@@ -64,9 +62,13 @@ function durationHref(
     }
   }
 
-  params.set("dateFrom", yearsAgo(years))
-  params.set("dateTo", today)
-  params.set("dateRange", years === 1 ? "last-year" : "last-3-years")
+  if (preset.dateFrom) params.set("dateFrom", preset.dateFrom)
+  else params.delete("dateFrom")
+
+  if (preset.dateTo) params.set("dateTo", preset.dateTo)
+  else params.delete("dateTo")
+
+  params.set("dateRange", range)
 
   return `/sold-prices/search?${params.toString()}`
 }
@@ -89,6 +91,37 @@ function clearDatesHref(defaults: NonNullable<Props["defaults"]>) {
   params.set("dateRange", "all")
   const query = params.toString()
   return query ? `/sold-prices/search?${query}` : "/sold-prices/search"
+}
+
+function inferCurrentRange(
+  defaults: NonNullable<Props["defaults"]>,
+  defaultDates: ReturnType<typeof getDefaultPprDateRange>
+): PprDateRangeValue {
+  if (
+    defaults.dateRange === "last-year" ||
+    defaults.dateRange === "last-3-years" ||
+    defaults.dateRange === "last-5-years" ||
+    defaults.dateRange === "all"
+  ) {
+    return defaults.dateRange
+  }
+
+  if (
+    defaults.dateFrom === defaultDates.dateFrom &&
+    defaults.dateTo === defaultDates.dateTo
+  ) {
+    return "last-year"
+  }
+
+  for (const option of PPR_DATE_RANGE_OPTIONS) {
+    if (option.value === "all") continue
+    const preset = getPprDateRangePreset(option.value)
+    if (defaults.dateFrom === preset.dateFrom && defaults.dateTo === preset.dateTo) {
+      return option.value
+    }
+  }
+
+  return "all"
 }
 
 function filterHref(
@@ -153,17 +186,15 @@ export default function SoldPricesSearchForm({
   action = "/sold-prices/search",
   defaults = {},
   compact = false,
+  showTimeRange = true,
+  showSort = true,
 }: Props) {
   const defaultDates = getDefaultPprDateRange()
   const resolvedDefaults =
     defaults.dateFrom || defaults.dateTo || defaults.dateRange === "all"
       ? { sort: "newest", ...defaults }
       : { sort: "newest", ...defaults, ...defaultDates }
-  const isLastYear =
-    resolvedDefaults.dateRange === "last-year" ||
-    (resolvedDefaults.dateFrom === defaultDates.dateFrom &&
-      resolvedDefaults.dateTo === defaultDates.dateTo)
-  const isLastThreeYears = resolvedDefaults.dateRange === "last-3-years"
+  const currentRange = inferCurrentRange(resolvedDefaults, defaultDates)
   const [minPrice, setMinPrice] = useState(
     normalisePriceInput(resolvedDefaults.minPrice || "")
   )
@@ -242,32 +273,44 @@ export default function SoldPricesSearchForm({
         </div>
       </div>
 
-      <div className="mt-4 grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_180px_auto] md:items-end">
+      <div
+        className={`mt-4 grid gap-4 md:items-end ${
+          showSort
+            ? "md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_180px_auto]"
+            : "md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
+        }`}
+      >
         <DateRangeInput
+          key={`date-from-${currentRange}-${resolvedDefaults.dateFrom || ""}`}
           label="From date"
           name="dateFrom"
           value={resolvedDefaults.dateFrom}
         />
         <DateRangeInput
+          key={`date-to-${currentRange}-${resolvedDefaults.dateTo || ""}`}
           label="To date"
           name="dateTo"
           value={resolvedDefaults.dateTo}
         />
-        <div>
-          <label className="mb-2 block text-sm font-medium text-stone-700">
-            Sort
-          </label>
-          <select
-            name="sort"
-            defaultValue={resolvedDefaults.sort || "newest"}
-            className="h-11 w-full rounded-full border border-stone-300 bg-white px-4 text-sm text-stone-900 outline-none transition focus:border-stone-500"
-          >
-            <option value="newest">Newest first</option>
-            <option value="oldest">Oldest first</option>
-            <option value="price-high">Price high to low</option>
-            <option value="price-low">Price low to high</option>
-          </select>
-        </div>
+        <input type="hidden" name="dateRange" value={currentRange} />
+        {showSort && (
+          <div>
+            <label className="mb-2 block text-sm font-medium text-stone-700">
+              Sort
+            </label>
+            <select
+              name="sort"
+              defaultValue={resolvedDefaults.sort || "newest"}
+              className="h-11 w-full rounded-full border border-stone-300 bg-white px-4 text-sm text-stone-900 outline-none transition focus:border-stone-500"
+            >
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+              <option value="price-high">Price high to low</option>
+              <option value="price-low">Price low to high</option>
+            </select>
+          </div>
+        )}
+        {!showSort && <input type="hidden" name="sort" value={resolvedDefaults.sort || "newest"} />}
 
         <button
           type="submit"
@@ -277,37 +320,40 @@ export default function SoldPricesSearchForm({
         </button>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
-        <span className="mr-1 text-stone-500">Quick dates</span>
-        <a
-          href={durationHref(resolvedDefaults, 1)}
-          className={`rounded-full border px-4 py-2 font-medium transition ${
-            isLastYear
-              ? "border-stone-900 bg-stone-900 text-white"
-              : "border-stone-300 bg-white text-stone-700 hover:border-stone-900 hover:text-stone-900"
-          }`}
-        >
-          Last year
-        </a>
-        <a
-          href={durationHref(resolvedDefaults, 3)}
-          className={`rounded-full border px-4 py-2 font-medium transition ${
-            isLastThreeYears
-              ? "border-stone-900 bg-stone-900 text-white"
-              : "border-stone-300 bg-white text-stone-700 hover:border-stone-900 hover:text-stone-900"
-          }`}
-        >
-          Last 3 years
-        </a>
-        {resolvedDefaults.dateRange !== "all" && (
-          <a
-            href={clearDatesHref(resolvedDefaults)}
-            className="rounded-full px-4 py-2 font-medium text-stone-500 transition hover:text-stone-900"
-          >
-            Clear dates
-          </a>
-        )}
-      </div>
+      {showTimeRange && (
+        <div className="mt-4">
+          <p className="mb-2 text-sm font-medium text-stone-700">Time range</p>
+          <div className="flex flex-wrap gap-2 sm:flex-nowrap">
+            {PPR_DATE_RANGE_OPTIONS.map((option) => {
+              const active = currentRange === option.value
+
+              return (
+                <a
+                  key={option.value}
+                  href={
+                    option.value === "all"
+                      ? clearDatesHref(resolvedDefaults)
+                      : durationHref(resolvedDefaults, option.value)
+                  }
+                  title={
+                    option.value === "all" ? "Based on all available records" : undefined
+                  }
+                  className={`inline-flex min-w-0 items-center justify-center rounded-full border px-4 py-2 text-sm font-medium transition sm:flex-1 ${
+                    active
+                      ? "border-stone-900 bg-stone-900 text-white"
+                      : "border-stone-300 bg-white text-stone-700 hover:border-stone-900 hover:text-stone-900"
+                  }`}
+                >
+                  {option.label}
+                </a>
+              )
+            })}
+          </div>
+          {currentRange === "all" && (
+            <p className="mt-2 text-xs leading-5 text-stone-500">Based on all available records.</p>
+          )}
+        </div>
+      )}
 
       <div className="mt-5 border-t border-stone-200 pt-5">
         <p className="mb-3 text-sm font-medium text-stone-700">

@@ -1,7 +1,11 @@
+import { unstable_cache } from "next/cache"
 import Image from "next/image"
 import Link from "next/link"
-import { supabase } from "@/lib/supabase"
-import { isPublicSaleStatus, normalizeListingStatus } from "@/lib/listing-status"
+import PprHomepageStatsBar from "@/components/ppr/PprHomepageStatsBar"
+import { getHomepageSoldPriceStats } from "@/lib/ppr-analytics"
+import { buildPprDatasetDescription, getPprDatasetSummary } from "@/lib/ppr"
+import { getServerSupabase } from "@/lib/supabase"
+import { isPublicSaleStatus, normalizeListingStatus, PUBLIC_SALE_STATUSES } from "@/lib/listing-status"
 import { getDisplayListingTitle } from "@/lib/listings"
 
 type Listing = {
@@ -16,6 +20,32 @@ type Listing = {
   featured?: boolean
   created_at?: string
 }
+
+export const revalidate = 21600
+const HOMEPAGE_RECENT_LISTINGS_CACHE_VERSION = "v2"
+
+const getHomepageRecentListings = unstable_cache(
+  async (): Promise<Listing[]> => {
+    const supabase = getServerSupabase()
+    const { data, error } = await supabase
+      .from("listings")
+      .select("slug,title,public_title,county,price,image,images,status,created_at")
+      .in("status", [...PUBLIC_SALE_STATUSES, "Featured"])
+      .order("created_at", { ascending: false })
+      .limit(6)
+
+    if (error || !data) {
+      return []
+    }
+
+    return (data as Listing[])
+      .map((listing) => normalizeListingStatus(listing))
+      .filter((listing) => isPublicSaleStatus(listing.status))
+      .slice(0, 3)
+  },
+  ["homepage-recent-listings", HOMEPAGE_RECENT_LISTINGS_CACHE_VERSION],
+  { revalidate: 21600 }
+)
 
 function formatEuro(value: string) {
   const numeric = Number(value.replace(/[^0-9.]/g, ""))
@@ -32,19 +62,12 @@ function formatEuro(value: string) {
 }
 
 export default async function HomePage() {
-  const { data: listingsData, error: listingsError } = await supabase
-    .from("listings")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(12)
-
-  const recentListings: Listing[] =
-    !listingsError && listingsData
-      ? (listingsData as Listing[])
-          .map((listing) => normalizeListingStatus(listing))
-          .filter((listing) => isPublicSaleStatus(listing.status))
-          .slice(0, 3)
-      : []
+  const [recentListings, soldPriceStats, datasetSummary] = await Promise.all([
+    getHomepageRecentListings(),
+    getHomepageSoldPriceStats(),
+    getPprDatasetSummary(),
+  ])
+  const datasetDescription = buildPprDatasetDescription(datasetSummary)
 
   return (
     <main className="min-h-screen bg-stone-50 text-stone-900">
@@ -82,7 +105,9 @@ export default async function HomePage() {
               </Link>
             </div>
             <p className="mt-4 max-w-[34rem] text-sm leading-6 text-stone-500">
-              OpenList provides tools to create and manage your listing. You remain the seller at all times.
+              OpenList provides tools to create and manage your listing.
+              <br />
+              You remain the seller at all times.
             </p>
           </div>
 
@@ -98,10 +123,10 @@ export default async function HomePage() {
           </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-3 sm:gap-4 sm:grid-cols-2">
           <Link
             href="/listings"
-            className="group relative block h-[300px] overflow-hidden rounded-3xl bg-white shadow-sm sm:col-span-2 sm:h-[360px] lg:h-[420px]"
+            className="group relative block h-[220px] overflow-hidden rounded-3xl bg-white shadow-sm sm:col-span-2 sm:h-[280px] lg:h-[360px]"
           >
             <Image
               src="/home-hero-1.jpg"
@@ -123,7 +148,7 @@ export default async function HomePage() {
 
           <Link
             href="/listings"
-            className="group relative block h-48 overflow-hidden rounded-3xl bg-white shadow-sm sm:h-56"
+            className="group relative hidden h-36 overflow-hidden rounded-3xl bg-white shadow-sm sm:block sm:h-48 lg:h-52"
           >
             <Image
               src="/home-hero-2.jpg"
@@ -136,7 +161,7 @@ export default async function HomePage() {
 
           <Link
             href="/listings"
-            className="group relative block h-48 overflow-hidden rounded-3xl bg-white shadow-sm sm:h-56"
+            className="group relative hidden h-36 overflow-hidden rounded-3xl bg-white shadow-sm sm:block sm:h-48 lg:h-52"
           >
             <Image
               src="/home-hero-3.jpg"
@@ -150,14 +175,62 @@ export default async function HomePage() {
       </section>
 
       <section className="mx-auto max-w-6xl px-4 pb-10 sm:px-6 sm:pb-12">
-        <div className="max-w-[40rem] rounded-2xl border border-stone-200/60 bg-stone-100/40 px-4 py-3 shadow-[0_1px_2px_rgba(28,25,23,0.03)]">
-          <p className="text-[13px] leading-5 text-stone-600">
-            OpenList is a self-service platform for private property listings in Ireland.
+        <div className="max-w-2xl">
+          <p className="text-sm uppercase tracking-[0.2em] text-stone-500">
+            Ireland Market Snapshot
           </p>
-          <p className="mt-1.5 text-[13px] leading-5 text-stone-600">
-            Listing information is provided by sellers and has not been independently verified.
-            OpenList is a self-service listing and marketing platform. It does not act as an estate agent and does not provide valuation services, pricing advice, negotiation services, legal services, brokerage services, or transaction management.
+          <p className="mt-3 text-base leading-7 text-stone-600 sm:text-lg sm:leading-8">
+            See what homes are selling for across Ireland.
           </p>
+        </div>
+        <div className="mt-8 sm:mt-10">
+          <PprHomepageStatsBar stats={soldPriceStats} />
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16">
+        <div className="max-w-2xl">
+          <p className="text-sm uppercase tracking-[0.2em] text-stone-500">
+            How it works
+          </p>
+          <h2 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">
+            A simpler way to sell your home privately in Ireland.
+          </h2>
+        </div>
+
+        <div className="mt-8 grid gap-6 sm:mt-10 md:grid-cols-3">
+          {[
+            {
+              step: "01",
+              title: "Create your listing",
+              text: "Add your property details, photos and key information in a clear, straightforward format.",
+            },
+            {
+              step: "02",
+              title: "Go live",
+              text: "Put your listing online with a clean layout that gives buyers the information they need.",
+            },
+            {
+              step: "03",
+              title: "Deal directly",
+              text: "Handle enquiries and viewings yourself, with buyers contacting you directly through the listing.",
+            },
+          ].map((item) => (
+            <div
+              key={item.step}
+              className="rounded-3xl border border-stone-200 bg-white p-7 shadow-sm sm:p-8"
+            >
+              <p className="text-sm font-medium tracking-[0.2em] text-stone-400">
+                {item.step}
+              </p>
+              <h3 className="mt-4 text-2xl font-semibold tracking-tight">
+                {item.title}
+              </h3>
+              <p className="mt-4 text-base leading-7 text-stone-600">
+                {item.text}
+              </p>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -265,7 +338,7 @@ export default async function HomePage() {
             See what homes sold for
           </h2>
           <p className="mt-4 max-w-2xl whitespace-pre-line text-base leading-7 text-stone-600 sm:text-lg sm:leading-8">
-            Search over 640,000 public property sales since 2015.
+            {datasetDescription}
           </p>
           <p className="mt-4 max-w-3xl text-sm leading-6 text-stone-600">
             Property price information is provided for general information only and as market context only. It does not constitute a valuation, pricing advice, investment advice, legal advice, or a recommendation about how any property should be marketed or sold.
@@ -344,52 +417,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16">
-        <div className="max-w-2xl">
-          <p className="text-sm uppercase tracking-[0.2em] text-stone-500">
-            How it works
-          </p>
-          <h2 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">
-            A simpler way to sell your home privately in Ireland.
-          </h2>
-        </div>
-
-        <div className="mt-8 grid gap-6 sm:mt-10 md:grid-cols-3">
-          {[
-            {
-              step: "01",
-              title: "Create your listing",
-              text: "Add your property details, photos and key information in a clear, straightforward format.",
-            },
-            {
-              step: "02",
-              title: "Go live",
-              text: "Put your listing online with a clean layout that gives buyers the information they need.",
-            },
-            {
-              step: "03",
-              title: "Deal directly",
-              text: "Handle enquiries and viewings yourself, with buyers contacting you directly through the listing.",
-            },
-          ].map((item) => (
-            <div
-              key={item.step}
-              className="rounded-3xl border border-stone-200 bg-white p-7 shadow-sm sm:p-8"
-            >
-              <p className="text-sm font-medium tracking-[0.2em] text-stone-400">
-                {item.step}
-              </p>
-              <h3 className="mt-4 text-2xl font-semibold tracking-tight">
-                {item.title}
-              </h3>
-              <p className="mt-4 text-base leading-7 text-stone-600">
-                {item.text}
-              </p>
-            </div>
-          ))}
-        </div>
-      </section>
-
       <section className="mx-auto max-w-6xl px-4 pb-4 sm:px-6">
         <div className="rounded-[2rem] bg-stone-900 px-6 py-10 text-white sm:px-8 sm:py-12 md:px-12 md:py-16">
           <div className="max-w-2xl">
@@ -425,6 +452,18 @@ export default async function HomePage() {
               </p>
             </div>
           </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-12">
+        <div className="max-w-[40rem] rounded-2xl border border-stone-200/60 bg-stone-100/40 px-4 py-3 shadow-[0_1px_2px_rgba(28,25,23,0.03)]">
+          <p className="text-[13px] leading-5 text-stone-600">
+            OpenList is a self-service platform for private property listings in Ireland.
+          </p>
+          <p className="mt-1.5 text-[13px] leading-5 text-stone-600">
+            Listing information is provided by sellers and has not been independently verified.
+            OpenList is a self-service listing and marketing platform. It does not act as an estate agent and does not provide valuation services, pricing advice, negotiation services, legal services, brokerage services, or transaction management.
+          </p>
         </div>
       </section>
     </main>

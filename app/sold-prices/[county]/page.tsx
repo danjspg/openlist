@@ -1,19 +1,39 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import PprLocationInsights from "@/components/ppr/PprLocationInsights"
 import PprDisclaimer from "@/components/ppr/PprDisclaimer"
 import PprSaleCard from "@/components/ppr/PprSaleCard"
-import { PPR_MARKETS, getPprMarket, pprMarketLabel } from "@/lib/ppr-markets"
-import { getMarketSoldPrices } from "@/lib/ppr"
+import {
+  PPR_MARKETS,
+  getPprMarket,
+  getRelevantMarketComparisonLinks,
+  isCountyPprMarket,
+  pprMarketLabel,
+} from "@/lib/ppr-markets"
+import {
+  formatPprDate,
+  formatPprDisplayText,
+  getPprDatasetSummary,
+  type PprDateRangeValue,
+} from "@/lib/ppr"
+import {
+  euroDisplay,
+  getAnalyticsRange,
+  getMarketInsights,
+  numberDisplay,
+  signedPercent,
+} from "@/lib/ppr-analytics"
 
 type Props = {
   params: Promise<{ county: string }>
 }
 
-export const dynamicParams = false
+export const dynamicParams = true
+export const revalidate = 21600
 
 export function generateStaticParams() {
-  return PPR_MARKETS.map((market) => ({
+  return PPR_MARKETS.filter((market) => market.marketType === "county").map((market) => ({
     county: market.slug,
   }))
 }
@@ -29,10 +49,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   const marketLabel = pprMarketLabel(market)
+  const summary = await getPprDatasetSummary()
+  const sinceText = summary.startYear ? ` since ${summary.startYear}` : ""
 
   return {
     title: `${marketLabel} sold prices | OpenList`,
-    description: `Search recent sold house prices in ${marketLabel} using public Property Price Register data since 2015.`,
+    description: `Search recent sold house prices in ${marketLabel} using public Property Price Register data${sinceText}.`,
     alternates: {
       canonical: `/sold-prices/${market.slug}`,
     },
@@ -43,21 +65,22 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-function marketTypeLabel(marketType: string) {
-  if (marketType === "county") return "County market"
-  if (marketType === "dublin_district") return "Dublin district"
-  return "Town and suburb market"
-}
-
 export default async function PprMarketPage({ params }: Props) {
   const { county } = await params
   const market = getPprMarket(county)
 
   if (!market) notFound()
 
-  const { sales, count, error } = await getMarketSoldPrices(market)
+  const selectedRange: PprDateRangeValue = "last-year"
+  const analyticsRange = getAnalyticsRange(selectedRange)
+  const { insights, recentSales } = await getMarketInsights(market, selectedRange)
   const marketLabel = pprMarketLabel(market)
+  const marketTitle = `${formatPprDisplayText(marketLabel).toUpperCase()} MARKET`
+  const marketHeading = isCountyPprMarket(market)
+    ? `See what homes are selling for in Co. ${market.name}`
+    : `See what homes are selling for in ${marketLabel}`
   const searchHref = `/sold-prices/search?area=${encodeURIComponent(marketLabel)}&sort=newest&dateRange=all`
+  const comparisonLinks = getRelevantMarketComparisonLinks(market)
 
   return (
     <main className="min-h-screen bg-stone-50">
@@ -65,15 +88,12 @@ export default async function PprMarketPage({ params }: Props) {
         <div className="overflow-hidden rounded-[32px] border border-stone-200 bg-white shadow-sm">
           <div className="bg-gradient-to-br from-stone-50 via-white to-stone-100 px-5 py-7 sm:px-8 md:px-10 md:py-10">
             <p className="text-sm font-medium uppercase tracking-[0.24em] text-stone-500">
-              {marketTypeLabel(market.marketType)}
+              {marketTitle}
             </p>
-            <h1 className="mt-2 max-w-4xl text-4xl font-semibold tracking-tight text-stone-900 sm:text-5xl">
-              See what homes sold for in {marketLabel}
+            <h1 className="mt-2 max-w-4xl text-[clamp(1.9rem,5vw,3rem)] font-semibold tracking-tight text-stone-900">
+              {marketHeading}
             </h1>
             <p className="mt-5 max-w-3xl text-base leading-7 text-stone-600 sm:text-lg sm:leading-8">
-              Recent public property sales in {marketLabel}.
-            </p>
-            <p className="mt-4 text-sm font-medium text-stone-700">
               Based on publicly available Property Price Register data.
             </p>
             <Link
@@ -85,13 +105,107 @@ export default async function PprMarketPage({ params }: Props) {
           </div>
         </div>
 
+        <div className="mt-8 grid gap-4 md:grid-cols-4">
+          <div className="rounded-[24px] border border-stone-200 bg-white p-5 shadow-sm">
+            <p className="text-sm text-stone-500">Sales activity</p>
+            <p
+              className={`mt-2 text-3xl font-semibold ${
+                insights.activity?.changePct !== undefined
+                  ? insights.activity.changePct > 0
+                    ? "text-emerald-700"
+                    : insights.activity.changePct < 0
+                      ? "text-rose-700"
+                      : "text-stone-900"
+                  : "text-stone-900"
+              }`}
+            >
+              {insights.activity?.changePct !== undefined
+                ? insights.activity.changePct > 0
+                  ? `↑ ${signedPercent(insights.activity.changePct)}`
+                  : insights.activity.changePct < 0
+                    ? `↓ ${signedPercent(insights.activity.changePct)}`
+                    : "No change"
+                : "Limited data"}
+            </p>
+            <p className="mt-2 text-xs leading-5 text-stone-500">
+              {insights.activity
+                ? `${insights.activity.currentPeriodLabel} vs ${insights.activity.previousPeriodLabel}`
+                : `Across ${analyticsRange.label}`}
+            </p>
+            <p className="text-xs leading-5 text-stone-500">
+              {insights.activity
+                ? `${numberDisplay(insights.activity.currentPeriodCount)} vs ${numberDisplay(insights.activity.previousPeriodCount)} recorded sales`
+                : `Across ${analyticsRange.label}`}
+            </p>
+          </div>
+          <div className="rounded-[24px] border border-stone-200 bg-white p-5 shadow-sm">
+            <p className="text-sm text-stone-500">Median price</p>
+            <p className="mt-2 text-2xl font-semibold text-stone-900">
+              {euroDisplay(insights.momentum?.currentMedian || insights.medianAllTime)}
+            </p>
+            <p className="mt-2 text-xs leading-5 text-stone-500">
+              {analyticsRange.helperText || `Across ${analyticsRange.label}`}
+            </p>
+          </div>
+          <div className="rounded-[24px] border border-stone-200 bg-white p-5 shadow-sm">
+            <p className="text-sm text-stone-500">Price change</p>
+            <p
+              className={`mt-2 text-2xl font-semibold ${
+                insights.momentum?.yoyChangePct !== undefined
+                  ? insights.momentum.yoyChangePct > 0
+                    ? "text-emerald-700"
+                    : insights.momentum.yoyChangePct < 0
+                      ? "text-rose-700"
+                      : "text-stone-900"
+                  : "text-stone-900"
+              }`}
+            >
+              {insights.momentum?.yoyChangePct !== undefined
+                ? signedPercent(insights.momentum.yoyChangePct)
+                : "Limited data"}
+            </p>
+            <p className="mt-2 text-xs leading-5 text-stone-500">
+              {insights.momentum
+                ? "Median price vs the previous 12 months"
+                : "Not enough recent sales for a reliable price comparison"}
+            </p>
+          </div>
+          <div className="rounded-[24px] border border-stone-200 bg-white p-5 shadow-sm">
+            <p className="text-sm text-stone-500">Last sale</p>
+            <p className="mt-2 text-2xl font-semibold text-stone-900">
+              {formatPprDate(insights.lastSaleDate)}
+            </p>
+          </div>
+        </div>
+
         <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_340px]">
           <section>
+            <div className="mb-8">
+              <div className="mb-5">
+                <p className="text-sm uppercase tracking-[0.18em] text-stone-500">
+                  Market prices
+                </p>
+                <h2 className="mt-2 text-3xl font-semibold tracking-tight text-stone-900">
+                  Prices and activity in {marketLabel}
+                </h2>
+                <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">
+                  These signals are based on recorded sale prices only. Comparisons are hidden where
+                  sample sizes are too small to be useful.
+                </p>
+              </div>
+
+              <PprLocationInsights
+                areaLabel={marketLabel}
+                insights={insights}
+                rangeLabel={analyticsRange.label}
+              />
+            </div>
+
             <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <p className="text-sm uppercase tracking-[0.18em] text-stone-500">
-                  {new Intl.NumberFormat("en-IE").format(count)} record
-                  {count === 1 ? "" : "s"}
+                  {numberDisplay(insights.totalSalesCount)} record
+                  {insights.totalSalesCount === 1 ? "" : "s"}
                 </p>
                 <h2 className="mt-1 text-2xl font-semibold tracking-tight text-stone-900">
                   Recent sales
@@ -105,13 +219,9 @@ export default async function PprMarketPage({ params }: Props) {
               </Link>
             </div>
 
-            {error ? (
-              <div className="rounded-[28px] border border-red-200 bg-red-50 p-6 text-red-700">
-                Could not load sold prices: {error}
-              </div>
-            ) : sales.length > 0 ? (
+            {recentSales.length > 0 ? (
               <div className="space-y-4">
-                {sales.map((sale) => (
+                {recentSales.map((sale) => (
                   <PprSaleCard key={sale.id} sale={sale} />
                 ))}
               </div>
@@ -130,18 +240,27 @@ export default async function PprMarketPage({ params }: Props) {
                 Sold prices
               </p>
               <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">
-                Search across Ireland.
+                Compare this market.
               </h2>
               <p className="mt-3 text-sm leading-6 text-stone-600">
-                Compare recent sale prices by area, county, sale date and price
-                range using public PPR records.
+                Use the comparison pages to see how {marketLabel} sits against other tracked markets,
+                national pricing and recent recorded activity.
               </p>
-              <Link
-                href="/sold-prices"
-                className="mt-5 inline-flex rounded-full bg-stone-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-stone-700"
-              >
-                Back to sold prices
-              </Link>
+              <div className="mt-5 flex flex-wrap gap-3">
+                {comparisonLinks.map((link, index) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={
+                      index === 0
+                        ? "inline-flex rounded-full bg-stone-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-stone-700"
+                        : "inline-flex rounded-full border border-stone-300 px-5 py-2.5 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900"
+                    }
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+              </div>
             </div>
           </aside>
         </div>

@@ -39,14 +39,6 @@ export default async function RootLayout({
   return (
     <html lang="en" className="overflow-x-hidden">
       <body className="overflow-x-hidden bg-stone-50 text-stone-900">
-        <div className="border-b border-stone-800 bg-stone-900 text-white">
-          <div className="mx-auto max-w-6xl px-4 py-2 text-center text-xs font-medium tracking-[0.14em] sm:px-6 sm:text-sm">
-            <span className="opacity-80">Private beta</span>
-            <span className="mx-2 opacity-40">·</span>
-            Invite-only while we refine the experience
-          </div>
-        </div>
-
         <header className="sticky top-0 z-50 border-b border-stone-200/80 bg-white/90 backdrop-blur-md">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <div className="flex items-center justify-between gap-4 py-3 sm:py-5 md:py-6">

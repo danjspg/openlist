@@ -1,18 +1,24 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import PprDisclaimer from "@/components/ppr/PprDisclaimer"
-import PprMonthlyChart from "@/components/ppr/PprMonthlyChart"
+import PprLocationInsights from "@/components/ppr/PprLocationInsights"
 import PprSaleCard from "@/components/ppr/PprSaleCard"
-import PprSellConversion from "@/components/ppr/PprSellConversion"
+import { getPprMarket, getRelevantMarketComparisonLinks } from "@/lib/ppr-markets"
 import {
   areaNameFromSlug,
   formatPprCurrency,
   formatPprDate,
-  getAreaMonthly,
-  getAreaStats,
+  formatPprDisplayText,
   getNearbyAreaLinks,
-  getRecentAreaSales,
 } from "@/lib/ppr"
+import { type PprDateRangeValue } from "@/lib/ppr"
+import {
+  euroDisplay,
+  getAnalyticsRange,
+  getAreaInsights,
+  numberDisplay,
+  signedPercent,
+} from "@/lib/ppr-analytics"
 
 export const dynamic = "force-dynamic"
 
@@ -33,15 +39,24 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function PprAreaPage({ params }: Props) {
   const { county, areaSlug } = await params
+  const selectedRange: PprDateRangeValue = "last-year"
+  const analyticsRange = getAnalyticsRange(selectedRange)
   const decodedCounty = decodeURIComponent(county)
   const areaName = areaNameFromSlug(areaSlug)
+  const areaTitle = `${formatPprDisplayText(areaName).toUpperCase()} MARKET`
+  const areaMarket = getPprMarket(areaSlug)
+  const comparisonLinks = areaMarket
+    ? getRelevantMarketComparisonLinks(areaMarket)
+    : [
+        { href: "/sold-prices/rising-markets", label: "Rising Markets" },
+        { href: "/sold-prices/affordable-markets", label: "Affordable Markets" },
+      ]
 
-  const [stats, monthly, recentSales, nearbyAreas] = await Promise.all([
-    getAreaStats(decodedCounty, areaSlug),
-    getAreaMonthly(decodedCounty, areaSlug),
-    getRecentAreaSales(decodedCounty, areaSlug),
+  const [areaData, nearbyAreas] = await Promise.all([
+    getAreaInsights(decodedCounty, areaSlug, selectedRange),
     getNearbyAreaLinks(decodedCounty, areaSlug),
   ])
+  const { insights, recentSales } = areaData
 
   return (
     <main className="min-h-screen bg-stone-50">
@@ -49,15 +64,12 @@ export default async function PprAreaPage({ params }: Props) {
         <div className="overflow-hidden rounded-[32px] border border-stone-200 bg-white shadow-sm">
           <div className="bg-gradient-to-br from-stone-50 via-white to-stone-100 px-5 py-7 sm:px-8 md:px-10 md:py-10">
             <p className="text-sm font-medium uppercase tracking-[0.24em] text-stone-500">
-              Sold prices in {decodedCounty}
+              {areaTitle}
             </p>
             <h1 className="mt-2 text-4xl font-semibold tracking-tight text-stone-900 sm:text-5xl">
-              {areaName} sold prices.
+              See what homes are selling for in {areaName}
             </h1>
             <p className="mt-5 max-w-3xl text-base leading-7 text-stone-600 sm:text-lg sm:leading-8">
-              Recent public property sales in {areaName}.
-            </p>
-            <p className="mt-4 text-sm font-medium text-stone-700">
               Based on publicly available Property Price Register data.
             </p>
           </div>
@@ -65,35 +77,95 @@ export default async function PprAreaPage({ params }: Props) {
 
         <div className="mt-8 grid gap-4 md:grid-cols-4">
           <div className="rounded-[24px] border border-stone-200 bg-white p-5 shadow-sm">
-            <p className="text-sm text-stone-500">Sales</p>
-            <p className="mt-2 text-3xl font-semibold text-stone-900">
-              {stats?.sales_count ?? recentSales.length}
+            <p className="text-sm text-stone-500">Sales activity</p>
+            <p
+              className={`mt-2 text-3xl font-semibold ${
+                insights.activity?.changePct !== undefined
+                  ? insights.activity.changePct > 0
+                    ? "text-emerald-700"
+                    : insights.activity.changePct < 0
+                      ? "text-rose-700"
+                      : "text-stone-900"
+                  : "text-stone-900"
+              }`}
+            >
+              {insights.activity?.changePct !== undefined
+                ? insights.activity.changePct > 0
+                  ? `↑ ${signedPercent(insights.activity.changePct)}`
+                  : insights.activity.changePct < 0
+                    ? `↓ ${signedPercent(insights.activity.changePct)}`
+                    : "No change"
+                : "Limited data"}
+            </p>
+            <p className="mt-2 text-xs leading-5 text-stone-500">
+              {insights.activity
+                ? `${insights.activity.currentPeriodLabel} vs ${insights.activity.previousPeriodLabel}`
+                : `Across ${analyticsRange.label}`}
+            </p>
+            <p className="text-xs leading-5 text-stone-500">
+              {insights.activity
+                ? `${numberDisplay(insights.activity.currentPeriodCount)} vs ${numberDisplay(insights.activity.previousPeriodCount)} recorded sales`
+                : `Across ${analyticsRange.label}`}
             </p>
           </div>
           <div className="rounded-[24px] border border-stone-200 bg-white p-5 shadow-sm">
             <p className="text-sm text-stone-500">Median price</p>
             <p className="mt-2 text-2xl font-semibold text-stone-900">
-              {formatPprCurrency(stats?.median_price_eur)}
+              {euroDisplay(insights.momentum?.currentMedian || insights.medianAllTime)}
+            </p>
+            <p className="mt-2 text-xs leading-5 text-stone-500">
+              {analyticsRange.helperText || `Across ${analyticsRange.label}`}
             </p>
           </div>
           <div className="rounded-[24px] border border-stone-200 bg-white p-5 shadow-sm">
-            <p className="text-sm text-stone-500">Average price</p>
-            <p className="mt-2 text-2xl font-semibold text-stone-900">
-              {formatPprCurrency(stats?.avg_price_eur)}
+            <p className="text-sm text-stone-500">Price change</p>
+            <p
+              className={`mt-2 text-2xl font-semibold ${
+                insights.momentum?.yoyChangePct !== undefined
+                  ? insights.momentum.yoyChangePct > 0
+                    ? "text-emerald-700"
+                    : insights.momentum.yoyChangePct < 0
+                      ? "text-rose-700"
+                      : "text-stone-900"
+                  : "text-stone-900"
+              }`}
+            >
+              {insights.momentum?.yoyChangePct !== undefined
+                ? signedPercent(insights.momentum.yoyChangePct)
+                : "Limited data"}
+            </p>
+            <p className="mt-2 text-xs leading-5 text-stone-500">
+              {insights.momentum
+                ? "Median price vs the previous 12 months"
+                : "Not enough recent sales for a reliable price comparison"}
             </p>
           </div>
           <div className="rounded-[24px] border border-stone-200 bg-white p-5 shadow-sm">
             <p className="text-sm text-stone-500">Last sale</p>
             <p className="mt-2 text-2xl font-semibold text-stone-900">
-              {formatPprDate(stats?.last_sale_date)}
+              {formatPprDate(insights.lastSaleDate)}
             </p>
           </div>
         </div>
 
         <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_340px]">
           <section className="space-y-8">
-            <PprMonthlyChart monthly={monthly} />
+            <div>
+              <div className="mb-5">
+                <p className="text-sm uppercase tracking-[0.18em] text-stone-500">
+                  Market prices
+                </p>
+                <h2 className="mt-2 text-3xl font-semibold tracking-tight text-stone-900">
+                  Prices and activity in {areaName}
+                </h2>
+              </div>
 
+              <PprLocationInsights
+                areaLabel={areaName}
+                insights={insights}
+                rangeLabel={analyticsRange.label}
+              />
+            </div>
             <div>
               <div className="mb-5">
                 <p className="text-sm uppercase tracking-[0.18em] text-stone-500">
@@ -121,6 +193,33 @@ export default async function PprAreaPage({ params }: Props) {
           <aside className="space-y-5">
             <PprDisclaimer />
 
+            <div className="rounded-[28px] border border-stone-200 bg-white p-6 shadow-sm">
+              <p className="text-sm uppercase tracking-[0.18em] text-stone-500">
+                Sold prices
+              </p>
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">
+                Compare this market.
+              </h2>
+              <p className="mt-3 text-sm leading-6 text-stone-600">
+                See how {areaName} compares with similar nearby markets and broader tracked views.
+              </p>
+              <div className="mt-5 flex flex-wrap gap-3">
+                {comparisonLinks.map((link, index) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={
+                      index === 0
+                        ? "inline-flex rounded-full bg-stone-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-stone-700"
+                        : "inline-flex rounded-full border border-stone-300 px-5 py-2.5 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900"
+                    }
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+
             {nearbyAreas.length > 0 && (
               <div className="rounded-[28px] border border-stone-200 bg-white p-6 shadow-sm">
                 <p className="text-sm uppercase tracking-[0.18em] text-stone-500">
@@ -144,8 +243,6 @@ export default async function PprAreaPage({ params }: Props) {
                 </div>
               </div>
             )}
-
-            <PprSellConversion theme="dark" />
           </aside>
         </div>
       </section>

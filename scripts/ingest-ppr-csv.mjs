@@ -189,3 +189,12 @@ for (const batch of chunk(records, 500)) {
 }
 
 console.log(`Done. Processed ${records.length} PPR rows.`)
+
+console.log("Refreshing PPR area summaries...")
+const { error: refreshError } = await supabase.rpc("refresh_ppr_area_summaries")
+
+if (refreshError) {
+  throw refreshError
+}
+
+console.log("PPR area summaries refreshed.")

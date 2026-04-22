@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import PprDisclaimer from "@/components/ppr/PprDisclaimer"
 import PprSaleCard from "@/components/ppr/PprSaleCard"
+import PprSearchSortControl from "@/components/ppr/PprSearchSortControl"
 import SoldPricesSearchForm from "@/components/ppr/SoldPricesSearchForm"
 import {
   formatPprDate,
@@ -50,10 +51,12 @@ export default async function SoldPricesSearchPage({
   searchParams: Promise<SearchParams>
 }) {
   const params = withDefaultPprSearchFilters(await searchParams)
-  const [{ sales, count, page, error }, summary] = await Promise.all([
+  const [{ sales, page, error }, summary] = await Promise.all([
     searchPprSales(params),
     getPprSearchSummary(params),
   ])
+  const count = Math.max(summary.count, sales.length)
+  const latestSaleDate = summary.latestSaleDate ?? sales[0]?.date_of_sale ?? null
   const totalPages = Math.max(1, Math.ceil(count / PPR_PAGE_SIZE))
 
   return (
@@ -73,7 +76,7 @@ export default async function SoldPricesSearchPage({
             </p>
           </div>
           <div className="border-t border-stone-200 p-5 sm:p-6">
-            <SoldPricesSearchForm defaults={params} compact />
+            <SoldPricesSearchForm defaults={params} compact showSort={false} />
           </div>
         </div>
 
@@ -97,18 +100,23 @@ export default async function SoldPricesSearchPage({
               </Link>
             </div>
 
-            <div className="mb-5 flex flex-wrap gap-3">
-              <div className="rounded-full border border-stone-200 bg-white px-4 py-2 text-sm text-stone-600 shadow-sm">
-                <span className="font-medium text-stone-900">
-                  {new Intl.NumberFormat("en-IE").format(summary.count)}
-                </span>{" "}
-                results
+            <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+              <div className="flex flex-wrap gap-3">
+                <div className="rounded-full border border-stone-200 bg-white px-4 py-2 text-sm text-stone-600 shadow-sm">
+                  <span className="font-medium text-stone-900">
+                    {new Intl.NumberFormat("en-IE").format(count)}
+                  </span>{" "}
+                  results
+                </div>
+                <div className="rounded-full border border-stone-200 bg-white px-4 py-2 text-sm text-stone-600 shadow-sm">
+                  Latest matching sale{" "}
+                  <span className="font-medium text-stone-900">
+                    {formatPprDate(latestSaleDate)}
+                  </span>
+                </div>
               </div>
-              <div className="rounded-full border border-stone-200 bg-white px-4 py-2 text-sm text-stone-600 shadow-sm">
-                Latest matching sale{" "}
-                <span className="font-medium text-stone-900">
-                  {formatPprDate(summary.latestSaleDate)}
-                </span>
+              <div className="flex items-center gap-3">
+                <PprSearchSortControl params={params} />
               </div>
             </div>
 
