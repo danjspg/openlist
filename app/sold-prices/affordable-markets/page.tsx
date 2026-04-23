@@ -3,6 +3,8 @@ import PprComparisonPageShell from "@/components/ppr/PprComparisonPageShell"
 import {
   euroDisplay,
   getAffordableMarketRows,
+  getLowestMedianComparisonRow,
+  getMostActiveComparisonRow,
   getNationalOverviewSnapshot,
   numberDisplay,
 } from "@/lib/ppr-analytics"
@@ -24,8 +26,8 @@ export default async function AffordableMarketsPage() {
     getAffordableMarketRows(),
     getNationalOverviewSnapshot(),
   ])
-  const cheapest = rows[0]
-  const busiest = [...rows].sort((left, right) => right.salesVolume - left.salesVolume)[0]
+  const cheapest = getLowestMedianComparisonRow(rows)
+  const busiest = getMostActiveComparisonRow(rows)
   const priceCapCount = rows.length
 
   return (

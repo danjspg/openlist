@@ -3,6 +3,9 @@ import PprComparisonPageShell from "@/components/ppr/PprComparisonPageShell"
 import {
   euroDisplay,
   getFallingMarketRows,
+  getHighestMedianComparisonRow,
+  getLowestYoYComparisonRow,
+  getMostActiveComparisonRow,
   getNationalOverviewSnapshot,
   numberDisplay,
   signedPercent,
@@ -25,9 +28,9 @@ export default async function FallingMarketsPage() {
     getFallingMarketRows(),
     getNationalOverviewSnapshot(),
   ])
-  const weakest = rows[0]
-  const strongestVolume = [...rows].sort((left, right) => right.salesVolume - left.salesVolume)[0]
-  const highestMedian = [...rows].sort((left, right) => right.medianPrice - left.medianPrice)[0]
+  const weakest = getLowestYoYComparisonRow(rows)
+  const strongestVolume = getMostActiveComparisonRow(rows)
+  const highestMedian = getHighestMedianComparisonRow(rows)
 
   return (
     <PprComparisonPageShell

@@ -1,8 +1,11 @@
 import type { Metadata } from "next"
 import PprComparisonPageShell from "@/components/ppr/PprComparisonPageShell"
 import {
+  getClosestToNationalMedianComparisonRow,
   euroDisplay,
   getCommuterTownRows,
+  getLowestMedianComparisonRow,
+  getMostActiveComparisonRow,
   getNationalOverviewSnapshot,
   numberDisplay,
   signedPercent,
@@ -25,14 +28,9 @@ export default async function CommuterTownsPage() {
     getCommuterTownRows(),
     getNationalOverviewSnapshot(),
   ])
-  const cheapest = rows[0]
-  const mostActive = [...rows].sort((left, right) => right.salesVolume - left.salesVolume)[0]
-  const closestToNational = [...rows]
-    .filter((row) => row.vsNationalMedianPct !== undefined)
-    .sort(
-      (left, right) =>
-        Math.abs(left.vsNationalMedianPct || 0) - Math.abs(right.vsNationalMedianPct || 0)
-    )[0]
+  const cheapest = getLowestMedianComparisonRow(rows)
+  const mostActive = getMostActiveComparisonRow(rows)
+  const closestToNational = getClosestToNationalMedianComparisonRow(rows)
 
   return (
     <PprComparisonPageShell

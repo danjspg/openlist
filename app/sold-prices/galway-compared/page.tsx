@@ -3,6 +3,9 @@ import PprComparisonPageShell from "@/components/ppr/PprComparisonPageShell"
 import {
   euroDisplay,
   getGalwayComparisonRows,
+  getHighestMedianComparisonRow,
+  getHighestYoYComparisonRow,
+  getLowestMedianComparisonRow,
   getNationalOverviewSnapshot,
   signedPercent,
 } from "@/lib/ppr-analytics"
@@ -24,11 +27,9 @@ export default async function GalwayComparedPage() {
     getGalwayComparisonRows(),
     getNationalOverviewSnapshot(),
   ])
-  const cheapest = [...rows].sort((left, right) => left.medianPrice - right.medianPrice)[0]
-  const mostExpensive = [...rows].sort((left, right) => right.medianPrice - left.medianPrice)[0]
-  const strongestMover = [...rows]
-    .filter((row) => row.yoyChangePct !== undefined)
-    .sort((left, right) => (right.yoyChangePct || 0) - (left.yoyChangePct || 0))[0]
+  const cheapest = getLowestMedianComparisonRow(rows)
+  const mostExpensive = getHighestMedianComparisonRow(rows)
+  const strongestMover = getHighestYoYComparisonRow(rows)
 
   return (
     <PprComparisonPageShell

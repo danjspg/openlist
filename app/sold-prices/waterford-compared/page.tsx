@@ -2,6 +2,9 @@ import type { Metadata } from "next"
 import PprComparisonPageShell from "@/components/ppr/PprComparisonPageShell"
 import {
   euroDisplay,
+  getHighestMedianComparisonRow,
+  getLowestMedianComparisonRow,
+  getMostActiveComparisonRow,
   getNationalOverviewSnapshot,
   getWaterfordComparisonRows,
   numberDisplay,
@@ -24,9 +27,9 @@ export default async function WaterfordComparedPage() {
     getWaterfordComparisonRows(),
     getNationalOverviewSnapshot(),
   ])
-  const cheapest = [...rows].sort((left, right) => left.medianPrice - right.medianPrice)[0]
-  const mostExpensive = [...rows].sort((left, right) => right.medianPrice - left.medianPrice)[0]
-  const mostActive = [...rows].sort((left, right) => right.salesVolume - left.salesVolume)[0]
+  const cheapest = getLowestMedianComparisonRow(rows)
+  const mostExpensive = getHighestMedianComparisonRow(rows)
+  const mostActive = getMostActiveComparisonRow(rows)
 
   return (
     <PprComparisonPageShell

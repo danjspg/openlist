@@ -2,6 +2,9 @@ import type { Metadata } from "next"
 import PprComparisonPageShell from "@/components/ppr/PprComparisonPageShell"
 import {
   euroDisplay,
+  getHighestYoYComparisonRow,
+  getLowestMedianComparisonRow,
+  getMostActiveComparisonRow,
   getNationalOverviewSnapshot,
   getRisingMarketRows,
   numberDisplay,
@@ -25,9 +28,9 @@ export default async function RisingMarketsPage() {
     getRisingMarketRows(),
     getNationalOverviewSnapshot(),
   ])
-  const leader = rows[0]
-  const strongestVolume = [...rows].sort((left, right) => right.salesVolume - left.salesVolume)[0]
-  const lowestMedian = [...rows].sort((left, right) => left.medianPrice - right.medianPrice)[0]
+  const leader = getHighestYoYComparisonRow(rows)
+  const strongestVolume = getMostActiveComparisonRow(rows)
+  const lowestMedian = getLowestMedianComparisonRow(rows)
 
   return (
     <PprComparisonPageShell

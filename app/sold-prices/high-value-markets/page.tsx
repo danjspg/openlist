@@ -3,6 +3,8 @@ import PprComparisonPageShell from "@/components/ppr/PprComparisonPageShell"
 import {
   euroDisplay,
   getHighValueMarketRows,
+  getHighestMedianComparisonRow,
+  getMostActiveComparisonRow,
   getNationalOverviewSnapshot,
   numberDisplay,
 } from "@/lib/ppr-analytics"
@@ -24,8 +26,8 @@ export default async function HighValueMarketsPage() {
     getHighValueMarketRows(),
     getNationalOverviewSnapshot(),
   ])
-  const highest = rows[0]
-  const busiest = [...rows].sort((left, right) => right.salesVolume - left.salesVolume)[0]
+  const highest = getHighestMedianComparisonRow(rows)
+  const busiest = getMostActiveComparisonRow(rows)
   const marketCount = rows.length
 
   return (

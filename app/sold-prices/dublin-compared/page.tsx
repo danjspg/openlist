@@ -3,6 +3,9 @@ import PprComparisonPageShell from "@/components/ppr/PprComparisonPageShell"
 import {
   euroDisplay,
   getDublinComparisonRows,
+  getHighestMedianComparisonRow,
+  getLowestMedianComparisonRow,
+  getMostActiveComparisonRow,
   getNationalOverviewSnapshot,
   numberDisplay,
   signedPercent,
@@ -25,9 +28,9 @@ export default async function DublinComparedPage() {
     getDublinComparisonRows(),
     getNationalOverviewSnapshot(),
   ])
-  const cheapest = [...rows].sort((left, right) => left.medianPrice - right.medianPrice)[0]
-  const mostExpensive = [...rows].sort((left, right) => right.medianPrice - left.medianPrice)[0]
-  const mostActive = [...rows].sort((left, right) => right.salesVolume - left.salesVolume)[0]
+  const cheapest = getLowestMedianComparisonRow(rows)
+  const mostExpensive = getHighestMedianComparisonRow(rows)
+  const mostActive = getMostActiveComparisonRow(rows)
   const spreadPct =
     cheapest && mostExpensive && cheapest.medianPrice > 0
       ? ((mostExpensive.medianPrice - cheapest.medianPrice) / cheapest.medianPrice) * 100

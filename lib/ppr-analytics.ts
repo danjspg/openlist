@@ -61,7 +61,7 @@ export const PPR_ANALYTICS_THRESHOLDS = {
 
 const MOMENTUM_LOOKBACK_YEARS = 5
 const PPR_ANALYTICS_REVALIDATE_SECONDS = 60 * 60 * 6
-const PPR_COMPARISON_CACHE_VERSION = "v6"
+const PPR_COMPARISON_CACHE_VERSION = "v7"
 const PPR_INSIGHTS_CACHE_VERSION = "v7"
 const PPR_HOMEPAGE_STATS_CACHE_VERSION = "v4"
 const PPR_NATIONAL_SNAPSHOT_CACHE_VERSION = "v3"
@@ -133,6 +133,69 @@ export type PprComparisonRow = {
   secondHandMedian?: number
   vsNationalMedianPct?: number
   distanceFromDublinKm?: number
+}
+
+function compareNumbers(left: number, right: number, direction: "asc" | "desc") {
+  return direction === "asc" ? left - right : right - left
+}
+
+function compareStrings(left: string, right: string) {
+  return left.localeCompare(right)
+}
+
+function pickComparisonRowByMetric(
+  rows: PprComparisonRow[],
+  getMetric: (row: PprComparisonRow) => number | undefined,
+  direction: "asc" | "desc"
+) {
+  return rows
+    .filter((row) => getMetric(row) !== undefined)
+    .sort((left, right) => {
+      const leftMetric = getMetric(left)
+      const rightMetric = getMetric(right)
+      if (leftMetric === undefined || rightMetric === undefined) return 0
+      const metricOrder = compareNumbers(leftMetric, rightMetric, direction)
+      if (metricOrder !== 0) return metricOrder
+      const volumeOrder = compareNumbers(left.salesVolume, right.salesVolume, "desc")
+      if (volumeOrder !== 0) return volumeOrder
+      return compareStrings(left.label, right.label)
+    })[0]
+}
+
+export function getLowestMedianComparisonRow(rows: PprComparisonRow[]) {
+  return pickComparisonRowByMetric(rows, (row) => row.medianPrice, "asc")
+}
+
+export function getHighestMedianComparisonRow(rows: PprComparisonRow[]) {
+  return pickComparisonRowByMetric(rows, (row) => row.medianPrice, "desc")
+}
+
+export function getMostActiveComparisonRow(rows: PprComparisonRow[]) {
+  return pickComparisonRowByMetric(rows, (row) => row.salesVolume, "desc")
+}
+
+export function getHighestYoYComparisonRow(rows: PprComparisonRow[]) {
+  return pickComparisonRowByMetric(rows, (row) => row.yoyChangePct, "desc")
+}
+
+export function getLowestYoYComparisonRow(rows: PprComparisonRow[]) {
+  return pickComparisonRowByMetric(rows, (row) => row.yoyChangePct, "asc")
+}
+
+export function getClosestToNationalMedianComparisonRow(rows: PprComparisonRow[]) {
+  return rows
+    .filter((row) => row.vsNationalMedianPct !== undefined)
+    .sort((left, right) => {
+      const distanceOrder = compareNumbers(
+        Math.abs(left.vsNationalMedianPct ?? 0),
+        Math.abs(right.vsNationalMedianPct ?? 0),
+        "asc"
+      )
+      if (distanceOrder !== 0) return distanceOrder
+      const volumeOrder = compareNumbers(left.salesVolume, right.salesVolume, "desc")
+      if (volumeOrder !== 0) return volumeOrder
+      return compareStrings(left.label, right.label)
+    })[0]
 }
 
 export type PprHomepageStat = {
