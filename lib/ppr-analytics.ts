@@ -946,10 +946,19 @@ function applyMarketFilters(query: any, market: PprMarket) {
   }
 
   const scopedAreaSlug = market.areaSlug ?? market.slug
+  if (market.county) {
+    return query
+      .ilike("county", market.county)
+      .eq("area_slug", scopedAreaSlug)
+  }
+
+  if (market.areaSlug) {
+    return query.eq("area_slug", scopedAreaSlug)
+  }
+
   const areaLabel = market.areaSlug ? areaNameFromSlug(market.areaSlug) : market.name
   const expression = broadAreaFilterExpression(scopedAreaSlug, areaLabel)
-  const scopedQuery = market.county ? query.ilike("county", market.county) : query
-  return scopedQuery.or(expression)
+  return query.or(expression)
 }
 
 async function getMarketSalesRows(market: PprMarket, startDate?: string) {

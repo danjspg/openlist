@@ -24,7 +24,7 @@ export default async function CorkComparedPage() {
     getCorkComparisonRows(),
     getNationalOverviewSnapshot(),
   ])
-  const cheapest = rows[0]
+  const cheapest = [...rows].sort((left, right) => left.medianPrice - right.medianPrice)[0]
   const mostExpensive = [...rows].sort((left, right) => right.medianPrice - left.medianPrice)[0]
   const strongestMover = [...rows]
     .filter((row) => row.yoyChangePct !== undefined)
