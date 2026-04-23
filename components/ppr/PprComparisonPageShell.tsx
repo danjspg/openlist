@@ -184,8 +184,9 @@ export default async function PprComparisonPageShell({
         </div>
 
         <p className="mt-4 text-sm leading-6 text-stone-500">
-          Rankings are based on recorded sale prices only. Markets with limited samples are filtered
-          out so small datasets do not dominate the comparisons.
+          {showRank
+            ? "Ranks update to match the active sort, using recorded sale prices only. Markets with limited samples are filtered out so small datasets do not dominate the comparisons."
+            : "Comparisons are based on recorded sale prices only. Markets with limited samples are filtered out so small datasets do not dominate the comparisons."}
         </p>
         {footnote && <p className="mt-2 text-sm leading-6 text-stone-500">{footnote}</p>}
       </section>

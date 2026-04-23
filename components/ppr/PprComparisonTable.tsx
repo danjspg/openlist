@@ -273,11 +273,11 @@ export default function PprComparisonTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-stone-200">
-            {sortedRows.map((row) => (
+            {sortedRows.map((row, index) => (
               <tr key={row.slug} className="align-top">
                 {showRank && (
                   <td className="px-5 py-4 text-sm font-semibold text-stone-500">
-                    {row.rank ?? "—"}
+                    {index + 1}
                   </td>
                 )}
                 <td className="px-5 py-4">
@@ -309,14 +309,14 @@ export default function PprComparisonTable({
       </div>
 
       <div className="space-y-3 p-4 lg:hidden">
-        {sortedRows.map((row) => (
+        {sortedRows.map((row, index) => (
           <article key={row.slug} className="rounded-3xl border border-stone-200 bg-stone-50 p-4">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <div className="flex items-start gap-3">
                   {showRank && (
                     <div className="inline-flex h-8 min-w-8 items-center justify-center rounded-full border border-stone-200 bg-white px-2 text-sm font-semibold text-stone-600">
-                      {row.rank ?? "—"}
+                      {index + 1}
                     </div>
                   )}
                   <div>

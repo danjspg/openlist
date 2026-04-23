@@ -91,6 +91,7 @@ export default async function CountiesComparedPage() {
       nationalMedian={nationalSnapshot.medianPrice}
       nationalYoYChangePct={nationalSnapshot.yoyChangePct}
       defaultSort="medianPrice"
+      showRank
       extraColumn={{
         key: "activityChangePct",
         label: "Activity YoY",
