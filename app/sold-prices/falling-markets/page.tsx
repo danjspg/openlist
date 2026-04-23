@@ -42,6 +42,7 @@ export default async function FallingMarketsPage() {
           ? {
               label: "Weakest mover",
               value: weakest.label,
+              valueHref: weakest.href,
               detail: `${signedPercent(weakest.yoyChangePct)} year on year with a ${numberDisplay(weakest.salesVolume)}-sale base.`,
             }
           : null,
@@ -49,6 +50,7 @@ export default async function FallingMarketsPage() {
           ? {
               label: "Largest sample",
               value: strongestVolume.label,
+              valueHref: strongestVolume.href,
               detail: `${numberDisplay(strongestVolume.salesVolume)} recorded sales in the last 12 months.`,
             }
           : null,
@@ -56,6 +58,7 @@ export default async function FallingMarketsPage() {
           ? {
               label: "Highest median in the set",
               value: highestMedian.label,
+              valueHref: highestMedian.href,
               detail: `${euroDisplay(highestMedian.medianPrice)} median despite recent weakness.`,
             }
           : null,

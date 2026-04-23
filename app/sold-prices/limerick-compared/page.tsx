@@ -41,6 +41,7 @@ export default async function LimerickComparedPage() {
           ? {
               label: "Lowest median",
               value: cheapest.label,
+              valueHref: cheapest.href,
               detail: `${euroDisplay(cheapest.medianPrice)} median over the last 12 months.`,
             }
           : null,
@@ -48,6 +49,7 @@ export default async function LimerickComparedPage() {
           ? {
               label: "Highest median",
               value: mostExpensive.label,
+              valueHref: mostExpensive.href,
               detail: `${euroDisplay(mostExpensive.medianPrice)} median in the last 12 months.`,
             }
           : null,
@@ -55,6 +57,7 @@ export default async function LimerickComparedPage() {
           ? {
               label: "Most active market",
               value: mostActive.label,
+              valueHref: mostActive.href,
               detail: `${numberDisplay(mostActive.salesVolume)} recorded sales in the last 12 months.`,
             }
           : null,
@@ -63,6 +66,7 @@ export default async function LimerickComparedPage() {
       nationalMedian={nationalSnapshot.medianPrice}
       nationalYoYChangePct={nationalSnapshot.yoyChangePct}
       defaultSort="medianPrice"
+      showRank
       extraColumn={{
         key: "activityChangePct",
         label: "Activity YoY",

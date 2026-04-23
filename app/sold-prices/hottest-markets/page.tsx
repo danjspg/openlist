@@ -42,6 +42,7 @@ export default async function HottestMarketsPage() {
           ? {
               label: "Hottest market",
               value: hottest.label,
+              valueHref: hottest.href,
               detail: `${signedPercent(hottest.activityChangePct)} activity change year on year from ${numberDisplay(hottest.previousPeriodCount || 0)} to ${numberDisplay(hottest.currentPeriodCount || 0)} sales.`,
             }
           : null,
@@ -49,6 +50,7 @@ export default async function HottestMarketsPage() {
           ? {
               label: "Largest sample in the set",
               value: mostActive.label,
+              valueHref: mostActive.href,
               detail: `${numberDisplay(mostActive.salesVolume)} recorded sales in the last 12 months.`,
             }
           : null,
@@ -56,6 +58,7 @@ export default async function HottestMarketsPage() {
           ? {
               label: "Highest median in the set",
               value: highestMedian.label,
+              valueHref: highestMedian.href,
               detail: `${euroDisplay(highestMedian.medianPrice)} median over the last 12 months.`,
             }
           : null,

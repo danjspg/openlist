@@ -42,6 +42,7 @@ export default async function CoolestMarketsPage() {
           ? {
               label: "Coolest market",
               value: coolest.label,
+              valueHref: coolest.href,
               detail: `${signedPercent(coolest.activityChangePct)} activity change year on year from ${numberDisplay(coolest.previousPeriodCount || 0)} to ${numberDisplay(coolest.currentPeriodCount || 0)} sales.`,
             }
           : null,
@@ -49,6 +50,7 @@ export default async function CoolestMarketsPage() {
           ? {
               label: "Largest sample in the set",
               value: mostActive.label,
+              valueHref: mostActive.href,
               detail: `${numberDisplay(mostActive.salesVolume)} recorded sales in the last 12 months.`,
             }
           : null,
@@ -56,6 +58,7 @@ export default async function CoolestMarketsPage() {
           ? {
               label: "Highest median in the set",
               value: highestMedian.label,
+              valueHref: highestMedian.href,
               detail: `${euroDisplay(highestMedian.medianPrice)} median over the last 12 months.`,
             }
           : null,

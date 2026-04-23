@@ -39,7 +39,7 @@ export default async function PprComparisonPageShell({
   eyebrow: string
   title: string
   intro: string
-  highlights: Array<{ label: string; value: string; detail: string }>
+  highlights: Array<{ label: string; value: string; detail: string; valueHref?: string }>
   rows: PprComparisonRow[]
   nationalMedian?: number
   nationalYoYChangePct?: number
@@ -107,7 +107,16 @@ export default async function PprComparisonPageShell({
               >
                 <p className="text-sm text-stone-500">{highlight.label}</p>
                 <p className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">
-                  {highlight.value}
+                  {highlight.valueHref ? (
+                    <Link
+                      href={highlight.valueHref}
+                      className="rounded-sm transition hover:text-stone-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300"
+                    >
+                      {highlight.value}
+                    </Link>
+                  ) : (
+                    highlight.value
+                  )}
                 </p>
                 <p className="mt-2 text-sm leading-6 text-stone-600">{highlight.detail}</p>
               </div>

@@ -219,6 +219,7 @@ export function getClosestToNationalMedianComparisonRow(rows: PprComparisonRow[]
 export type PprHomepageStat = {
   eyebrow: string
   title: string
+  titleHref?: string
   value: string
   detail: string
   href?: string
@@ -1598,6 +1599,7 @@ const getHomepageSoldPriceStatsUncached = async () => {
     stats.push({
       eyebrow: "County highest YoY price increase",
       title: strongestCountyPriceIncrease.county,
+      titleHref: `/sold-prices/${strongestCountyPriceIncrease.county.toLowerCase()}`,
       value: signedPercent(strongestCountyPriceIncrease.yoyChangePct),
       detail: "Median sale price versus the previous 12 months",
       href: `/sold-prices/${strongestCountyPriceIncrease.county.toLowerCase()}`,
@@ -1616,6 +1618,7 @@ const getHomepageSoldPriceStatsUncached = async () => {
     stats.push({
       eyebrow: "Fastest-rising tracked market",
       title: risingMarket.label,
+      titleHref: risingMarket.href,
       value: signedPercent(risingMarket.yoyChangePct || 0),
       detail: "Year-on-year median change with a 50-sale minimum",
       href: "/sold-prices/rising-markets",
@@ -1634,6 +1637,7 @@ const getHomepageSoldPriceStatsUncached = async () => {
     stats.push({
       eyebrow: "Commuter town watch",
       title: commuterRows[0].label,
+      titleHref: commuterRows[0].href,
       value: euroDisplay(commuterRows[0].medianPrice),
       detail: "Lowest median in our commuter-town set with a 24-sale minimum",
       href: "/sold-prices/commuter-towns",
@@ -1692,6 +1696,7 @@ const getHomepageSoldPriceStatsCached = unstable_cache(
         ? {
             eyebrow: "County highest YoY price increase",
             title: nationalSnapshot.strongest_county,
+            titleHref: `/sold-prices/${nationalSnapshot.strongest_county.toLowerCase()}`,
             value: signedPercent(nationalSnapshot.strongest_county_yoy_change_pct),
             detail: "Median sale price versus the previous 12 months",
             href: `/sold-prices/${nationalSnapshot.strongest_county.toLowerCase()}`,
@@ -1707,6 +1712,7 @@ const getHomepageSoldPriceStatsCached = unstable_cache(
         ? {
             eyebrow: "Fastest-rising tracked market",
             title: risingRows[0].label,
+            titleHref: risingRows[0].href,
             value: signedPercent(risingRows[0].yoyChangePct || 0),
             detail: "Year-on-year median change with a 50-sale minimum",
             href: "/sold-prices/rising-markets",
@@ -1722,6 +1728,7 @@ const getHomepageSoldPriceStatsCached = unstable_cache(
         ? {
             eyebrow: "Commuter town watch",
             title: commuterRows[0].label,
+            titleHref: commuterRows[0].href,
             value: euroDisplay(commuterRows[0].medianPrice),
             detail: "Lowest median in our commuter-town set with a 24-sale minimum",
             href: "/sold-prices/commuter-towns",

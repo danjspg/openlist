@@ -46,6 +46,7 @@ export default async function DublinComparedPage() {
           ? {
               label: "Cheapest tracked market",
               value: cheapest.label,
+              valueHref: cheapest.href,
               detail: `${euroDisplay(cheapest.medianPrice)} median over the last 12 months.`,
             }
           : null,
@@ -53,6 +54,7 @@ export default async function DublinComparedPage() {
           ? {
               label: "Most expensive tracked market",
               value: mostExpensive.label,
+              valueHref: mostExpensive.href,
               detail: `${euroDisplay(mostExpensive.medianPrice)} median${spreadPct !== undefined && cheapest ? `, ${signedPercent(spreadPct)} above ${cheapest.label}` : ""}.`,
             }
           : null,
@@ -60,6 +62,7 @@ export default async function DublinComparedPage() {
           ? {
               label: "Most active market",
               value: mostActive.label,
+              valueHref: mostActive.href,
               detail: `${numberDisplay(mostActive.salesVolume)} recorded sales in the last 12 months.`,
             }
           : null,
@@ -68,6 +71,7 @@ export default async function DublinComparedPage() {
       nationalMedian={nationalSnapshot.medianPrice}
       nationalYoYChangePct={nationalSnapshot.yoyChangePct}
       defaultSort="medianPrice"
+      showRank
       extraColumn={{
         key: "activityChangePct",
         label: "Activity YoY",

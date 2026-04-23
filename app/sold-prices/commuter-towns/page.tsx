@@ -42,6 +42,7 @@ export default async function CommuterTownsPage() {
           ? {
               label: "Lowest median",
               value: cheapest.label,
+              valueHref: cheapest.href,
               detail: `${euroDisplay(cheapest.medianPrice)} median over the last 12 months.`,
             }
           : null,
@@ -49,6 +50,7 @@ export default async function CommuterTownsPage() {
           ? {
               label: "Most active town",
               value: mostActive.label,
+              valueHref: mostActive.href,
               detail: `${numberDisplay(mostActive.salesVolume)} recorded sales in the last 12 months.`,
             }
           : null,
@@ -56,6 +58,7 @@ export default async function CommuterTownsPage() {
           ? {
               label: "Closest to national median",
               value: closestToNational.label,
+              valueHref: closestToNational.href,
               detail: `${signedPercent(closestToNational.vsNationalMedianPct)} versus the national 12-month median.`,
             }
           : null,
@@ -64,6 +67,7 @@ export default async function CommuterTownsPage() {
       nationalMedian={nationalSnapshot.medianPrice}
       nationalYoYChangePct={nationalSnapshot.yoyChangePct}
       defaultSort="medianPrice"
+      showRank
       extraColumn={{
         key: "distanceFromDublinKm",
         label: "Distance*",

@@ -48,6 +48,7 @@ export default async function CountiesComparedPage() {
           ? {
               label: "Highest median",
               value: highestMedian.label,
+              valueHref: highestMedian.href,
               detail: `${euroDisplay(highestMedian.medianPrice)} median over the last 12 months.`,
             }
           : null,
@@ -55,6 +56,7 @@ export default async function CountiesComparedPage() {
           ? {
               label: "Lowest median",
               value: lowestMedian.label,
+              valueHref: lowestMedian.href,
               detail: `${euroDisplay(lowestMedian.medianPrice)} median over the last 12 months.`,
             }
           : null,
@@ -62,6 +64,7 @@ export default async function CountiesComparedPage() {
           ? {
               label: "Most active",
               value: mostActive.label,
+              valueHref: mostActive.href,
               detail: `${numberDisplay(mostActive.salesVolume)} recorded sales in the last 12 months.`,
             }
           : null,
@@ -69,6 +72,7 @@ export default async function CountiesComparedPage() {
           ? {
               label: "Strongest growth",
               value: strongestGrowth.label,
+              valueHref: strongestGrowth.href,
               detail: `${signedPercent(strongestGrowth.yoyChangePct)} price change year on year.`,
             }
           : null,
@@ -76,6 +80,7 @@ export default async function CountiesComparedPage() {
           ? {
               label: "Weakest growth",
               value: weakestGrowth.label,
+              valueHref: weakestGrowth.href,
               detail: `${signedPercent(weakestGrowth.yoyChangePct)} price change year on year.`,
             }
           : null,
@@ -83,6 +88,7 @@ export default async function CountiesComparedPage() {
           ? {
               label: "Closest to national median",
               value: closestToNational.label,
+              valueHref: closestToNational.href,
               detail: `${signedPercent(closestToNational.vsNationalMedianPct)} versus the national 12-month median.`,
             }
           : null,

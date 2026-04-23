@@ -193,7 +193,16 @@ export default async function SoldPricesPage({
               <div className="rounded-[22px] border border-stone-200 bg-stone-50 px-4 py-4">
                 <p className="text-sm text-stone-500">Fastest-rising market</p>
                 <p className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">
-                  {risingSpotlight?.title || "—"}
+                  {risingSpotlight?.titleHref ? (
+                    <Link
+                      href={risingSpotlight.titleHref}
+                      className="rounded-sm transition hover:text-stone-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300"
+                    >
+                      {risingSpotlight.title}
+                    </Link>
+                  ) : (
+                    risingSpotlight?.title || "—"
+                  )}
                 </p>
                 <p className="mt-2 text-sm font-medium leading-6 text-stone-600">
                   {risingSpotlight

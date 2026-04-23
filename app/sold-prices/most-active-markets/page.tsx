@@ -44,6 +44,7 @@ export default async function MostActiveMarketsPage() {
           ? {
               label: "Most active",
               value: mostActive.label,
+              valueHref: mostActive.href,
               detail: `${numberDisplay(mostActive.salesVolume)} recorded sales in the last 12 months.`,
             }
           : null,
@@ -51,6 +52,7 @@ export default async function MostActiveMarketsPage() {
           ? {
               label: "Highest median",
               value: highestMedian.label,
+              valueHref: highestMedian.href,
               detail: `${euroDisplay(highestMedian.medianPrice)} median over the last 12 months.`,
             }
           : null,
@@ -58,6 +60,7 @@ export default async function MostActiveMarketsPage() {
           ? {
               label: "Lowest median",
               value: lowestMedian.label,
+              valueHref: lowestMedian.href,
               detail: `${euroDisplay(lowestMedian.medianPrice)} median over the last 12 months.`,
             }
           : null,
@@ -65,6 +68,7 @@ export default async function MostActiveMarketsPage() {
           ? {
               label: "Closest to national median",
               value: closestToNational.label,
+              valueHref: closestToNational.href,
               detail: `${signedPercent(closestToNational.vsNationalMedianPct)} versus the national 12-month median.`,
             }
           : null,

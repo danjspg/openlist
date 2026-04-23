@@ -40,6 +40,7 @@ export default async function HighValueMarketsPage() {
           ? {
               label: "Highest 12-month median",
               value: highest.label,
+              valueHref: highest.href,
               detail: `${euroDisplay(highest.medianPrice)} median over the last 12 months.`,
             }
           : null,
@@ -47,6 +48,7 @@ export default async function HighValueMarketsPage() {
           ? {
               label: "Busiest premium market",
               value: busiest.label,
+              valueHref: busiest.href,
               detail: `${numberDisplay(busiest.salesVolume)} recorded sales in the last 12 months.`,
             }
           : null,

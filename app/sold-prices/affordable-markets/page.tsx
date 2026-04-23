@@ -40,6 +40,7 @@ export default async function AffordableMarketsPage() {
           ? {
               label: "Lowest 12-month median",
               value: cheapest.label,
+              valueHref: cheapest.href,
               detail: `${euroDisplay(cheapest.medianPrice)} median over the last 12 months.`,
             }
           : null,
@@ -47,6 +48,7 @@ export default async function AffordableMarketsPage() {
           ? {
               label: "Busiest affordable market",
               value: busiest.label,
+              valueHref: busiest.href,
               detail: `${numberDisplay(busiest.salesVolume)} recorded sales in the last 12 months.`,
             }
           : null,

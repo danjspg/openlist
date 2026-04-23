@@ -42,6 +42,7 @@ export default async function RisingMarketsPage() {
           ? {
               label: "Top mover",
               value: leader.label,
+              valueHref: leader.href,
               detail: `${signedPercent(leader.yoyChangePct)} year on year with a ${numberDisplay(leader.salesVolume)}-sale base.`,
             }
           : null,
@@ -49,6 +50,7 @@ export default async function RisingMarketsPage() {
           ? {
               label: "Largest sample",
               value: strongestVolume.label,
+              valueHref: strongestVolume.href,
               detail: `${numberDisplay(strongestVolume.salesVolume)} recorded sales in the last 12 months.`,
             }
           : null,
@@ -56,6 +58,7 @@ export default async function RisingMarketsPage() {
           ? {
               label: "Lowest median in the set",
               value: lowestMedian.label,
+              valueHref: lowestMedian.href,
               detail: `${euroDisplay(lowestMedian.medianPrice)} median despite strong recent growth.`,
             }
           : null,
