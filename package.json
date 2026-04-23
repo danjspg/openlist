@@ -9,6 +9,7 @@
     "lint": "eslint",
     "ppr:download": "node scripts/download-ppr-csvs.mjs",
     "ppr:ingest": "node scripts/ingest-ppr-csv.mjs",
+    "ppr:refresh-daily": "node --env-file=.env.local scripts/refresh-ppr-daily.mjs",
     "ppr:rebuild-summaries": "node scripts/rebuild-ppr-summaries.mjs",
     "ppr:rebuild-analytics": "node scripts/rebuild-ppr-phase1-analytics.mjs"
   },

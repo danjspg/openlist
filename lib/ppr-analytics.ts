@@ -984,6 +984,13 @@ function mapAreaInsightsRowRecord(record: PprAreaInsightsRowRecord): PprLocation
   }
 }
 
+function withRecentSaleDate(insights: PprLocationInsights, recentSales: Pick<PprSale, "date_of_sale">[]) {
+  return {
+    ...insights,
+    lastSaleDate: recentSales[0]?.date_of_sale ?? insights.lastSaleDate,
+  }
+}
+
 async function loadNationalSnapshotRow(range: PprDateRangeValue) {
   const { data, error } = await supabase
     .from("ppr_national_snapshots")
@@ -1233,9 +1240,10 @@ const getMarketInsightsCached = unstable_cache(
     if (!market) throw new Error(`Unknown PPR market: ${marketSlug}`)
     const snapshot = await loadMarketInsightsFromTable(market.slug, range)
     if (snapshot) {
+      const recentSales = await getRecentMarketSales(market, range)
       return {
-        insights: mapMarketInsightsRowRecord(snapshot),
-        recentSales: await getRecentMarketSales(market, range),
+        insights: withRecentSaleDate(mapMarketInsightsRowRecord(snapshot), recentSales),
+        recentSales,
       }
     }
     return getMarketInsightsUncached(market, range)
@@ -1296,9 +1304,10 @@ const getAreaInsightsCached = unstable_cache(
   async (county: string, areaSlug: string, range: PprDateRangeValue = "last-year") => {
     const snapshot = await loadAreaInsightsFromTable(county, areaSlug, range)
     if (snapshot) {
+      const recentSales = await getRecentAreaSales(county, areaSlug, range)
       return {
-        insights: mapAreaInsightsRowRecord(snapshot),
-        recentSales: await getRecentAreaSales(county, areaSlug, range),
+        insights: withRecentSaleDate(mapAreaInsightsRowRecord(snapshot), recentSales),
+        recentSales,
       }
     }
 

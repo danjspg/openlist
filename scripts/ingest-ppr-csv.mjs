@@ -1,18 +1,12 @@
 import { createHash } from "crypto"
 import { readFile } from "fs/promises"
+import { fileURLToPath } from "url"
 import { createClient } from "@supabase/supabase-js"
 import { rebuildPprPhase1Analytics } from "./rebuild-ppr-phase1-analytics.mjs"
 
-const [, , csvPath, sourceUrl = "https://www.propertypriceregister.ie/"] =
-  process.argv
-
-if (!csvPath) {
-  console.error("Usage: node scripts/ingest-ppr-csv.mjs <path-to-csv> [source-url]")
-  process.exit(1)
-}
-
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+const DEFAULT_SOURCE_URL = "https://www.propertypriceregister.ie/"
 
 if (!supabaseUrl || !serviceRoleKey) {
   console.error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY")
@@ -106,7 +100,7 @@ function getPriceValue(record) {
   return priceKey ? record[priceKey] : ""
 }
 
-function mapRow(headers, row) {
+function mapRow(headers, row, sourceUrl = DEFAULT_SOURCE_URL) {
   const record = Object.fromEntries(
     headers.map((header, index) => [header.trim(), row[index]?.trim() || ""])
   )
@@ -161,8 +155,8 @@ function mapRow(headers, row) {
     is_new_dwelling: isNewDwelling,
     vat_exclusive: vatExclusive,
     source_url: sourceUrl,
-    year: date ? date.getUTCFullYear() : null,
-    month: date ? date.getUTCMonth() + 1 : null,
+    year: date.getUTCFullYear(),
+    month: date.getUTCMonth() + 1,
     area_slug: areaSlug,
   }
 }
@@ -173,33 +167,140 @@ function chunk(items, size) {
   return chunks
 }
 
-const csv = await readFile(csvPath, "utf8")
-const [headers, ...rows] = parseCsv(csv)
-const records = rows.map((row) => mapRow(headers, row)).filter(Boolean)
-
-let processed = 0
-
-for (const batch of chunk(records, 500)) {
-  const { error } = await supabase
-    .from("ppr_sales")
-    .upsert(batch, { onConflict: "source_row_hash", ignoreDuplicates: true })
-
-  if (error) throw error
-  processed += batch.length
-  console.log(`Processed ${processed}/${records.length}`)
+function describeError(error) {
+  if (!error) return "Unknown error"
+  if (error instanceof Error) return error.message
+  if (typeof error === "string") return error
+  if (typeof error.message === "string" && error.message) return error.message
+  try {
+    return JSON.stringify(error)
+  } catch {
+    return String(error)
+  }
 }
 
-console.log(`Done. Processed ${records.length} PPR rows.`)
-
-console.log("Refreshing PPR area summaries...")
-const { error: refreshError } = await supabase.rpc("refresh_ppr_area_summaries")
-
-if (refreshError) {
-  throw refreshError
+function latestSaleDate(records) {
+  return records.reduce((latest, record) => {
+    if (!record.date_of_sale) return latest
+    if (!latest || record.date_of_sale > latest) return record.date_of_sale
+    return latest
+  }, null)
 }
 
-console.log("PPR area summaries refreshed.")
+function summarisePprRecords(records) {
+  return {
+    years: Array.from(new Set(records.map((record) => record.year).filter(Boolean))).sort(),
+    latestSaleDate: latestSaleDate(records),
+    rowCount: records.length,
+  }
+}
 
-console.log("Rebuilding PPR analytics tables...")
-await rebuildPprPhase1Analytics()
-console.log("PPR analytics tables rebuilt.")
+async function countSalesByYears(years) {
+  const counts = new Map()
+
+  for (const year of years) {
+    const { count, error } = await supabase
+      .from("ppr_sales")
+      .select("id", { count: "exact", head: true })
+      .eq("year", year)
+
+    if (error) throw error
+    counts.set(year, count || 0)
+  }
+
+  return counts
+}
+
+async function loadPprCsvRecords(csvPath, { sourceUrl = DEFAULT_SOURCE_URL } = {}) {
+  const csv = await readFile(csvPath, "utf8")
+  const [headers, ...rows] = parseCsv(csv)
+  return rows.map((row) => mapRow(headers, row, sourceUrl)).filter(Boolean)
+}
+
+async function ingestPprCsv({
+  csvPath,
+  sourceUrl = DEFAULT_SOURCE_URL,
+  skipRebuild = false,
+  records: providedRecords,
+} = {}) {
+  if (!csvPath && !providedRecords) {
+    throw new Error("csvPath or records is required")
+  }
+
+  const records = providedRecords || (await loadPprCsvRecords(csvPath, { sourceUrl }))
+  const summary = summarisePprRecords(records)
+  const countsBefore = await countSalesByYears(summary.years)
+
+  for (const year of summary.years) {
+    const yearRecords = records.filter((record) => record.year === year)
+    let processed = 0
+
+    for (const batch of chunk(yearRecords, 100)) {
+      const { error } = await supabase
+        .from("ppr_sales")
+        .upsert(batch, { onConflict: "source_row_hash", ignoreDuplicates: true })
+
+      if (error) {
+        throw new Error(`ppr_sales upsert failed for ${year}: ${describeError(error)}`)
+      }
+      processed += batch.length
+      console.log(`${year}: processed ${processed}/${yearRecords.length}`)
+    }
+  }
+
+  const countsAfter = await countSalesByYears(summary.years)
+  const importedByYear = summary.years.map((year) => {
+    const importedRows = Math.max(0, (countsAfter.get(year) || 0) - (countsBefore.get(year) || 0))
+    console.log(`${year}: imported ${importedRows} new rows (${countsAfter.get(year) || 0} total for year)`)
+    return { year, importedRows, totalRows: countsAfter.get(year) || 0 }
+  })
+  const insertedRows = importedByYear.reduce((sum, item) => sum + item.importedRows, 0)
+
+  console.log(
+    `Done. Processed ${summary.rowCount} PPR rows, imported ${insertedRows} new rows, latest sale ${summary.latestSaleDate || "unknown"}.`
+  )
+
+  if (!skipRebuild) {
+    console.log("Refreshing PPR area summaries...")
+    const { error: refreshError } = await supabase.rpc("refresh_ppr_area_summaries")
+
+    if (refreshError) {
+      throw refreshError
+    }
+
+    console.log("PPR area summaries refreshed.")
+
+    console.log("Rebuilding PPR analytics tables...")
+    await rebuildPprPhase1Analytics()
+    console.log("PPR analytics tables rebuilt.")
+  }
+
+  return {
+    importedByYear,
+    insertedRows,
+    latestSaleDate: summary.latestSaleDate,
+    processedRows: summary.rowCount,
+    years: summary.years,
+  }
+}
+
+const isDirectRun = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]
+
+if (isDirectRun) {
+  const cliArgs = process.argv.slice(2)
+  const skipRebuild = cliArgs.includes("--skip-rebuild")
+  const positionalArgs = cliArgs.filter((arg) => arg !== "--skip-rebuild")
+  const [csvPath, sourceUrl = DEFAULT_SOURCE_URL] = positionalArgs
+
+  if (!csvPath) {
+    console.error("Usage: node scripts/ingest-ppr-csv.mjs [--skip-rebuild] <path-to-csv> [source-url]")
+    process.exit(1)
+  }
+
+  ingestPprCsv({ csvPath, sourceUrl, skipRebuild }).catch((error) => {
+    console.error(describeError(error))
+    process.exit(1)
+  })
+}
+
+export { ingestPprCsv, loadPprCsvRecords, summarisePprRecords }

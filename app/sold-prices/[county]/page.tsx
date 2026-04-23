@@ -15,7 +15,6 @@ import {
   areaNameFromSlug,
   getCountyAreaLinks,
   formatPprCurrency,
-  formatPprDate,
   formatPprDisplayText,
   getPprDatasetSummary,
   type PprDateRangeValue,
@@ -180,9 +179,12 @@ export default async function PprMarketPage({ params }: Props) {
             </p>
           </div>
           <div className="rounded-[24px] border border-stone-200 bg-white p-5 shadow-sm">
-            <p className="text-sm text-stone-500">Last sale</p>
+            <p className="text-sm text-stone-500">Recorded sales</p>
             <p className="mt-2 text-2xl font-semibold text-stone-900">
-              {formatPprDate(insights.lastSaleDate)}
+              {numberDisplay(insights.totalSalesCount)}
+            </p>
+            <p className="mt-2 text-xs leading-5 text-stone-500">
+              Across {analyticsRange.label}
             </p>
           </div>
         </div>
