@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next"
 import { PUBLIC_SALE_STATUSES } from "@/lib/listing-status"
+import { isExcludedStandaloneAreaSlug } from "@/lib/ppr"
 import { PPR_MARKETS } from "@/lib/ppr-markets"
 import { getServerSupabase } from "@/lib/supabase"
 
@@ -59,7 +60,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       const county = String(row.county || "").trim().toLowerCase()
       const areaSlug = String(row.area_slug || "").trim()
 
-      if (!county || !areaSlug) {
+      if (!county || !areaSlug || isExcludedStandaloneAreaSlug(areaSlug)) {
         return []
       }
 

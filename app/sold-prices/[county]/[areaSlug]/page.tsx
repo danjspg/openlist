@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { notFound } from "next/navigation"
 import PprDisclaimer from "@/components/ppr/PprDisclaimer"
 import PprLocationInsights from "@/components/ppr/PprLocationInsights"
 import PprSaleCard from "@/components/ppr/PprSaleCard"
@@ -10,6 +11,7 @@ import {
   formatPprDate,
   formatPprDisplayText,
   getNearbyAreaLinks,
+  isExcludedStandaloneAreaSlug,
 } from "@/lib/ppr"
 import { type PprDateRangeValue } from "@/lib/ppr"
 import {
@@ -28,6 +30,7 @@ type Props = {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { county, areaSlug } = await params
+  if (isExcludedStandaloneAreaSlug(areaSlug)) notFound()
   const decodedCounty = decodeURIComponent(county)
   const areaName = areaNameFromSlug(areaSlug)
 
@@ -46,6 +49,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function PprAreaPage({ params }: Props) {
   const { county, areaSlug } = await params
+  if (isExcludedStandaloneAreaSlug(areaSlug)) notFound()
   const selectedRange: PprDateRangeValue = "last-year"
   const analyticsRange = getAnalyticsRange(selectedRange)
   const decodedCounty = decodeURIComponent(county)

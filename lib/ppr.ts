@@ -170,6 +170,12 @@ export function areaSlug(input: string) {
     .replace(/^-+|-+$/g, "")
 }
 
+const EXCLUDED_STANDALONE_AREA_SLUGS = new Set(["janeville"])
+
+export function isExcludedStandaloneAreaSlug(slug?: string | null) {
+  return Boolean(slug && EXCLUDED_STANDALONE_AREA_SLUGS.has(String(slug).trim().toLowerCase()))
+}
+
 export function areaNameFromSlug(slug: string) {
   return slug
     .split("-")
@@ -491,10 +497,12 @@ async function getPprQuickAreasUncached(limit = 8) {
     .not("county", "is", null)
     .not("area_slug", "is", null)
     .order("sales_count", { ascending: false })
-    .limit(limit)
+    .limit(limit * 3)
 
   if (error || !data) return []
-  return data as PprAreaStats[]
+  return (data as PprAreaStats[])
+    .filter((area) => !isExcludedStandaloneAreaSlug(area.area_slug))
+    .slice(0, limit)
 }
 
 const getPprQuickAreasCached = unstable_cache(
@@ -976,10 +984,12 @@ export async function getNearbyAreaLinks(county: string, currentSlug: string, li
     .ilike("county", county)
     .neq("area_slug", currentSlug)
     .order("sales_count", { ascending: false })
-    .limit(limit)
+    .limit(limit * 3)
 
   if (error || !data) return []
-  return data as PprAreaStats[]
+  return (data as PprAreaStats[])
+    .filter((area) => !isExcludedStandaloneAreaSlug(area.area_slug))
+    .slice(0, limit)
 }
 
 async function getCountyAreaLinksUncached(county: string, limit = 8) {
@@ -989,10 +999,12 @@ async function getCountyAreaLinksUncached(county: string, limit = 8) {
     .ilike("county", county)
     .not("area_slug", "is", null)
     .order("sales_count", { ascending: false })
-    .limit(limit)
+    .limit(limit * 3)
 
   if (error || !data) return []
-  return data as PprAreaStats[]
+  return (data as PprAreaStats[])
+    .filter((area) => !isExcludedStandaloneAreaSlug(area.area_slug))
+    .slice(0, limit)
 }
 
 const getCountyAreaLinksCached = unstable_cache(

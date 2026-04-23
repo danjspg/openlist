@@ -12,6 +12,7 @@ import {
   formatPprDate,
   getComparableSaleDisplayLabel,
   getNearbySalesForListing,
+  isExcludedStandaloneAreaSlug,
 } from "@/lib/ppr"
 import { isPublicSaleStatus, normalizeListingStatus } from "@/lib/listing-status"
 import { getCurrentUserIsAdmin } from "@/lib/admin-auth"
@@ -230,9 +231,13 @@ export default async function ListingPage({
     areaUnit: normalizedListing.area_unit,
   })
   const countySoldPricesHref = `/sold-prices/${normalizedListing.county.toLowerCase()}`
-  const areaSoldPricesHref = normalizedListing.address_line_2
-    ? `/sold-prices/${normalizedListing.county.toLowerCase()}/${areaSlug(normalizedListing.address_line_2)}`
+  const listingAreaSlug = normalizedListing.address_line_2
+    ? areaSlug(normalizedListing.address_line_2)
     : null
+  const areaSoldPricesHref =
+    listingAreaSlug && !isExcludedStandaloneAreaSlug(listingAreaSlug)
+      ? `/sold-prices/${normalizedListing.county.toLowerCase()}/${listingAreaSlug}`
+      : null
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-stone-50">
