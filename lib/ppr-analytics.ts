@@ -1,5 +1,10 @@
 import { unstable_cache } from "next/cache"
 import { cache } from "react"
+import {
+  COMPARISON_PAGE_MARKET_SLUGS,
+  COMMUTER_TOWN_DISTANCE_KM,
+  COMMUTER_TOWN_MARKET_SLUGS,
+} from "@/lib/ppr-data.mjs"
 import { supabase } from "@/lib/supabase"
 import {
   dublinDistrictPrefix,
@@ -56,92 +61,10 @@ export const PPR_ANALYTICS_THRESHOLDS = {
 
 const MOMENTUM_LOOKBACK_YEARS = 5
 const PPR_ANALYTICS_REVALIDATE_SECONDS = 60 * 60 * 6
-const PPR_COMPARISON_CACHE_VERSION = "v5"
-const PPR_INSIGHTS_CACHE_VERSION = "v5"
-const PPR_HOMEPAGE_STATS_CACHE_VERSION = "v3"
-const PPR_NATIONAL_SNAPSHOT_CACHE_VERSION = "v2"
-
-export const COMMUTER_TOWN_MARKET_SLUGS = [
-  "drogheda",
-  "dundalk",
-  "bray",
-  "greystones",
-  "naas",
-  "newbridge",
-  "navan",
-  "mullingar",
-  "portlaoise",
-] as const
-
-export const COMMUTER_TOWN_DISTANCE_KM: Record<
-  (typeof COMMUTER_TOWN_MARKET_SLUGS)[number],
-  number
-> = {
-  drogheda: 55,
-  dundalk: 84,
-  bray: 21,
-  greystones: 28,
-  naas: 39,
-  newbridge: 49,
-  navan: 51,
-  mullingar: 79,
-  portlaoise: 94,
-}
-
-export const COMPARISON_PAGE_MARKET_SLUGS = {
-  dublinCompared: PPR_MARKETS.filter(
-    (market) =>
-      market.marketType === "dublin_district" ||
-      (market.marketType === "town_suburb" && market.county === "Dublin")
-  ).map((market) => market.slug),
-  corkCompared: [
-    "bishopstown",
-    "wilton-cork",
-    "douglas",
-    "ballincollig",
-    "carrigaline",
-    "glanmire",
-    "midleton",
-    "cobh",
-    "mallow",
-    "bandon",
-    "kinsale",
-  ],
-  commuterTowns: [...COMMUTER_TOWN_MARKET_SLUGS],
-  limerickCompared: [
-    "limerick-city",
-    "castletroy",
-    "dooradoyle",
-    "raheen",
-    "annacotty",
-    "corbally",
-    "castleconnell",
-    "newcastle-west",
-  ],
-  galwayCompared: [
-    "galway-city",
-    "salthill",
-    "knocknacarra",
-    "roscam",
-    "oranmore",
-    "athenry",
-    "tuam",
-    "loughrea",
-    "ballinasloe",
-    "newcastle-galway",
-    "doughiska",
-  ],
-  waterfordCompared: [
-    "waterford-city",
-    "tramore",
-    "dungarvan",
-    "abbeyside",
-    "dunmore-east",
-    "ferrybank",
-    "gracedieu",
-    "lismore",
-  ],
-} as const
+const PPR_COMPARISON_CACHE_VERSION = "v6"
+const PPR_INSIGHTS_CACHE_VERSION = "v7"
+const PPR_HOMEPAGE_STATS_CACHE_VERSION = "v4"
+const PPR_NATIONAL_SNAPSHOT_CACHE_VERSION = "v3"
 
 export type PprMomentumStats = {
   currentLabel: string
@@ -226,6 +149,7 @@ export type PprNationalOverviewSnapshot = {
   p75?: number
   salesCount: number
   yoyChangePct?: number
+  latestSaleDate?: string | null
 }
 
 export type PprNationalActivitySnapshot = {
@@ -247,6 +171,110 @@ export type PprAnalyticsRange = {
   months: number | null
   label: string
   helperText?: string
+}
+
+type PprNationalSnapshotRow = {
+  range_key: string
+  label: string
+  sales_count: number
+  median_price_eur: number | null
+  avg_price_eur: number | null
+  p25_price_eur: number | null
+  p75_price_eur: number | null
+  current_period_label: string | null
+  previous_period_label: string | null
+  current_period_count: number | null
+  previous_period_count: number | null
+  activity_change_pct: number | null
+  yoy_change_pct: number | null
+  latest_sale_date: string | null
+  strongest_county: string | null
+  strongest_county_yoy_change_pct: number | null
+}
+
+type PprComparisonRowRecord = {
+  range_key: string
+  group_key: string
+  market_slug: string
+  label: string
+  href: string
+  county: string | null
+  sales_volume: number
+  median_price_eur: number
+  yoy_change_pct: number | null
+  new_build_median_eur: number | null
+  second_hand_median_eur: number | null
+  vs_national_median_pct: number | null
+  distance_from_dublin_km: number | null
+  sort_rank: number | null
+}
+
+type PprMarketInsightsRowRecord = {
+  range_key: string
+  market_slug: string
+  market_label: string
+  market_type: string
+  county: string | null
+  total_sales_count: number
+  median_all_time_eur: number | null
+  average_all_time_eur: number | null
+  last_sale_date: string | null
+  momentum_current_label: string | null
+  momentum_current_median_eur: number | null
+  momentum_current_count: number | null
+  momentum_previous_label: string | null
+  momentum_previous_median_eur: number | null
+  momentum_previous_count: number | null
+  momentum_yoy_change_pct: number | null
+  momentum_three_year_change_pct: number | null
+  activity_current_period_label: string | null
+  activity_current_period_count: number | null
+  activity_previous_period_label: string | null
+  activity_previous_period_count: number | null
+  activity_change_pct: number | null
+  activity_has_reliable_change: boolean
+  average_days_between_sales: number | null
+  peak_month_name: string | null
+  peak_month_evidence_years: number | null
+  distribution_p25_eur: number | null
+  distribution_p75_eur: number | null
+  build_new_median_eur: number | null
+  build_new_count: number | null
+  build_second_hand_median_eur: number | null
+  build_second_hand_count: number | null
+  build_premium_amount_eur: number | null
+  build_premium_pct: number | null
+}
+
+type PprAreaInsightsRowRecord = {
+  range_key: string
+  county: string
+  area_slug: string
+  area_label: string
+  total_sales_count: number
+  median_all_time_eur: number | null
+  average_all_time_eur: number | null
+  last_sale_date: string | null
+  current_period_label: string | null
+  previous_period_label: string | null
+  current_median_eur: number | null
+  previous_median_eur: number | null
+  momentum_yoy_change_pct: number | null
+  three_year_change_pct: number | null
+  current_period_count: number | null
+  previous_period_count: number | null
+  activity_change_pct: number | null
+  average_days_between_sales: number | null
+  peak_month_name: string | null
+  peak_month_evidence_years: number | null
+  p25_price_eur: number | null
+  p75_price_eur: number | null
+  new_build_count: number | null
+  new_build_median_eur: number | null
+  second_hand_count: number | null
+  second_hand_median_eur: number | null
+  premium_amount_eur: number | null
+  premium_pct: number | null
 }
 
 type DateWindow = {
@@ -624,6 +652,261 @@ function saleMatchesMarket(sale: AnalyticsSale, market: PprMarket) {
   return true
 }
 
+function mapComparisonRowRecord(record: PprComparisonRowRecord): PprComparisonRow {
+  return {
+    slug: record.market_slug,
+    label: record.label,
+    href: record.href,
+    county: record.county ?? undefined,
+    medianPrice: record.median_price_eur,
+    salesVolume: record.sales_volume,
+    yoyChangePct: record.yoy_change_pct ?? undefined,
+    newBuildMedian: record.new_build_median_eur ?? undefined,
+    secondHandMedian: record.second_hand_median_eur ?? undefined,
+    vsNationalMedianPct: record.vs_national_median_pct ?? undefined,
+    distanceFromDublinKm: record.distance_from_dublin_km ?? undefined,
+  }
+}
+
+function mapMarketInsightsRowRecord(record: PprMarketInsightsRowRecord): PprLocationInsights {
+  return {
+    totalSalesCount: record.total_sales_count,
+    medianAllTime: record.median_all_time_eur ?? undefined,
+    averageAllTime: record.average_all_time_eur ?? undefined,
+    lastSaleDate: record.last_sale_date,
+    momentum:
+      record.momentum_current_label &&
+      record.momentum_current_median_eur &&
+      record.momentum_current_count !== null &&
+      record.momentum_previous_label &&
+      record.momentum_previous_median_eur &&
+      record.momentum_previous_count !== null &&
+      record.momentum_yoy_change_pct !== null
+        ? {
+            currentLabel: record.momentum_current_label,
+            currentMedian: record.momentum_current_median_eur,
+            currentCount: record.momentum_current_count,
+            previousLabel: record.momentum_previous_label,
+            previousMedian: record.momentum_previous_median_eur,
+            previousCount: record.momentum_previous_count,
+            yoyChangePct: record.momentum_yoy_change_pct,
+            threeYearChangePct: record.momentum_three_year_change_pct ?? undefined,
+          }
+        : undefined,
+    activity:
+      record.activity_current_period_label &&
+      record.activity_current_period_count !== null &&
+      record.activity_previous_period_label &&
+      record.activity_previous_period_count !== null
+        ? {
+            currentPeriodLabel: record.activity_current_period_label,
+            currentPeriodCount: record.activity_current_period_count,
+            previousPeriodLabel: record.activity_previous_period_label,
+            previousPeriodCount: record.activity_previous_period_count,
+            changePct: record.activity_change_pct ?? undefined,
+            hasReliableChange: record.activity_has_reliable_change,
+            averageDaysBetweenSales: record.average_days_between_sales ?? undefined,
+            peakMonthName: record.peak_month_name ?? undefined,
+            peakMonthEvidenceYears: record.peak_month_evidence_years ?? undefined,
+          }
+        : undefined,
+    distribution:
+      record.distribution_p25_eur !== null && record.distribution_p75_eur !== null
+        ? {
+            p25: record.distribution_p25_eur,
+            p75: record.distribution_p75_eur,
+            thresholdShares: [],
+          }
+        : undefined,
+    buildSplit:
+      record.build_new_median_eur !== null &&
+      record.build_new_count !== null &&
+      record.build_second_hand_median_eur !== null &&
+      record.build_second_hand_count !== null &&
+      record.build_premium_amount_eur !== null
+        ? {
+            newBuildMedian: record.build_new_median_eur,
+            newBuildCount: record.build_new_count,
+            secondHandMedian: record.build_second_hand_median_eur,
+            secondHandCount: record.build_second_hand_count,
+            premiumAmount: record.build_premium_amount_eur,
+            premiumPct: record.build_premium_pct ?? undefined,
+          }
+        : undefined,
+  }
+}
+
+function mapAreaInsightsRowRecord(record: PprAreaInsightsRowRecord): PprLocationInsights {
+  return {
+    totalSalesCount: record.total_sales_count,
+    medianAllTime: record.median_all_time_eur ?? undefined,
+    averageAllTime: record.average_all_time_eur ?? undefined,
+    lastSaleDate: record.last_sale_date,
+    momentum:
+      record.current_period_label &&
+      record.current_median_eur &&
+      record.previous_period_label &&
+      record.previous_median_eur &&
+      record.current_period_count !== null &&
+      record.previous_period_count !== null &&
+      record.momentum_yoy_change_pct !== null
+        ? {
+            currentLabel: record.current_period_label,
+            currentMedian: record.current_median_eur,
+            currentCount: record.current_period_count,
+            previousLabel: record.previous_period_label,
+            previousMedian: record.previous_median_eur,
+            previousCount: record.previous_period_count,
+            yoyChangePct: record.momentum_yoy_change_pct,
+            threeYearChangePct: record.three_year_change_pct ?? undefined,
+          }
+        : undefined,
+    activity:
+      record.current_period_label &&
+      record.current_period_count !== null &&
+      record.previous_period_label &&
+      record.previous_period_count !== null
+        ? {
+            currentPeriodLabel: record.current_period_label,
+            currentPeriodCount: record.current_period_count,
+            previousPeriodLabel: record.previous_period_label,
+            previousPeriodCount: record.previous_period_count,
+            changePct: record.activity_change_pct ?? undefined,
+            hasReliableChange: record.activity_change_pct !== null,
+            averageDaysBetweenSales: record.average_days_between_sales ?? undefined,
+            peakMonthName: record.peak_month_name ?? undefined,
+            peakMonthEvidenceYears: record.peak_month_evidence_years ?? undefined,
+          }
+        : undefined,
+    distribution:
+      record.p25_price_eur !== null && record.p75_price_eur !== null
+        ? {
+            p25: record.p25_price_eur,
+            p75: record.p75_price_eur,
+            thresholdShares: [],
+          }
+        : undefined,
+    buildSplit:
+      record.new_build_count !== null &&
+      record.new_build_median_eur !== null &&
+      record.second_hand_count !== null &&
+      record.second_hand_median_eur !== null &&
+      record.premium_amount_eur !== null
+        ? {
+            newBuildCount: record.new_build_count,
+            newBuildMedian: record.new_build_median_eur,
+            secondHandCount: record.second_hand_count,
+            secondHandMedian: record.second_hand_median_eur,
+            premiumAmount: record.premium_amount_eur,
+            premiumPct: record.premium_pct ?? undefined,
+          }
+        : undefined,
+  }
+}
+
+async function loadNationalSnapshotRow(range: PprDateRangeValue) {
+  const { data, error } = await supabase
+    .from("ppr_national_snapshots")
+    .select("*")
+    .eq("range_key", range)
+    .maybeSingle()
+
+  if (error || !data) return null
+  return data as PprNationalSnapshotRow
+}
+
+async function loadComparisonRowsFromTable(groupKey: string, range: PprDateRangeValue = "last-year") {
+  const { data, error } = await supabase
+    .from("ppr_comparison_rows")
+    .select("*")
+    .eq("group_key", groupKey)
+    .eq("range_key", range)
+    .order("sort_rank", { ascending: true })
+    .order("label", { ascending: true })
+
+  if (error || !data || data.length === 0) return null
+  return (data as PprComparisonRowRecord[]).map(mapComparisonRowRecord)
+}
+
+async function loadMarketInsightsFromTable(marketSlug: string, range: PprDateRangeValue = "last-year") {
+  const { data, error } = await supabase
+    .from("ppr_market_insights")
+    .select("*")
+    .eq("market_slug", marketSlug)
+    .eq("range_key", range)
+    .maybeSingle()
+
+  if (error || !data) return null
+  return data as PprMarketInsightsRowRecord
+}
+
+async function loadAreaInsightsFromTable(
+  county: string,
+  areaSlug: string,
+  range: PprDateRangeValue = "last-year"
+) {
+  const { data, error } = await supabase
+    .from("ppr_area_insights")
+    .select("*")
+    .ilike("county", county)
+    .eq("area_slug", areaSlug)
+    .eq("range_key", range)
+    .maybeSingle()
+
+  if (error || !data) return null
+  return data as PprAreaInsightsRowRecord
+}
+
+async function getRecentMarketSales(
+  market: PprMarket,
+  range: PprDateRangeValue = "last-year"
+) {
+  let query = supabase
+    .from("ppr_sales")
+    .select(ANALYTICS_CARD_SALE_SELECT)
+    .order("date_of_sale", { ascending: false })
+    .limit(12)
+
+  query = applyMarketFilters(query, market)
+
+  const analyticsRange = getAnalyticsRange(range)
+  const startDate =
+    analyticsRange.months === null
+      ? undefined
+      : getPprDateRangePreset(range).dateFrom || rollingWindow(new Date(), analyticsRange.months).start
+  if (startDate) query = query.gte("date_of_sale", startDate)
+
+  const { data, error } = await query
+  if (error || !data) return []
+  return data as PprSale[]
+}
+
+async function getRecentAreaSales(
+  county: string,
+  areaSlug: string,
+  range: PprDateRangeValue = "last-year"
+) {
+  const analyticsRange = getAnalyticsRange(range)
+  const startDate =
+    analyticsRange.months === null
+      ? undefined
+      : getPprDateRangePreset(range).dateFrom || rollingWindow(new Date(), analyticsRange.months).start
+
+  let query = supabase
+    .from("ppr_sales")
+    .select(ANALYTICS_CARD_SALE_SELECT)
+    .ilike("county", county)
+    .eq("area_slug", areaSlug)
+    .order("date_of_sale", { ascending: false })
+    .limit(8)
+
+  if (startDate) query = query.gte("date_of_sale", startDate)
+
+  const { data, error } = await query
+  if (error || !data) return []
+  return data as PprSale[]
+}
+
 async function fetchSalesBatch(
   select: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -759,6 +1042,13 @@ const getMarketInsightsCached = unstable_cache(
   async (marketSlug: string, range: PprDateRangeValue = "last-year") => {
     const market = getPprMarket(marketSlug)
     if (!market) throw new Error(`Unknown PPR market: ${marketSlug}`)
+    const snapshot = await loadMarketInsightsFromTable(market.slug, range)
+    if (snapshot) {
+      return {
+        insights: mapMarketInsightsRowRecord(snapshot),
+        recentSales: await getRecentMarketSales(market, range),
+      }
+    }
     return getMarketInsightsUncached(market, range)
   },
   ["ppr-market-insights", PPR_INSIGHTS_CACHE_VERSION],
@@ -814,8 +1104,17 @@ const getAreaInsightsUncached = async (
 }
 
 const getAreaInsightsCached = unstable_cache(
-  async (county: string, areaSlug: string, range: PprDateRangeValue = "last-year") =>
-    getAreaInsightsUncached(county, areaSlug, range),
+  async (county: string, areaSlug: string, range: PprDateRangeValue = "last-year") => {
+    const snapshot = await loadAreaInsightsFromTable(county, areaSlug, range)
+    if (snapshot) {
+      return {
+        insights: mapAreaInsightsRowRecord(snapshot),
+        recentSales: await getRecentAreaSales(county, areaSlug, range),
+      }
+    }
+
+    return getAreaInsightsUncached(county, areaSlug, range)
+  },
   ["ppr-area-insights", PPR_INSIGHTS_CACHE_VERSION],
   { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
 )
@@ -959,7 +1258,9 @@ const getTrackedLocationComparisonRowsUncached = async (
 }
 
 const getTrackedLocationComparisonRowsCached = unstable_cache(
-  async (range: PprDateRangeValue = "last-year") => getTrackedLocationComparisonRowsUncached(range),
+  async (range: PprDateRangeValue = "last-year") =>
+    (await loadComparisonRowsFromTable("all-tracked", range)) ||
+    getTrackedLocationComparisonRowsUncached(range),
   ["ppr-tracked-comparison-rows", PPR_COMPARISON_CACHE_VERSION],
   { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
 )
@@ -1157,7 +1458,91 @@ const getHomepageSoldPriceStatsUncached = async () => {
 }
 
 const getHomepageSoldPriceStatsCached = unstable_cache(
-  async () => getHomepageSoldPriceStatsUncached(),
+  async () => {
+    const [nationalSnapshot, risingRows, commuterRows] = await Promise.all([
+      loadNationalSnapshotRow("last-year"),
+      loadComparisonRowsFromTable("rising-markets", "last-year"),
+      loadComparisonRowsFromTable("commuter-towns", "last-year"),
+    ])
+
+    if (!nationalSnapshot) {
+      return getHomepageSoldPriceStatsUncached()
+    }
+
+    const stats: PprHomepageStat[] = [
+      {
+        eyebrow: "National median",
+        title: "Recorded sale prices",
+        value: nationalSnapshot.median_price_eur
+          ? euroDisplay(nationalSnapshot.median_price_eur)
+          : "Limited data",
+        detail: nationalSnapshot.median_price_eur
+          ? "Last 12 months across Ireland"
+          : "Shown when enough recent sales are available across Ireland",
+        href: "/sold-prices",
+      },
+      {
+        eyebrow: "National change",
+        title: "Year on year",
+        value:
+          nationalSnapshot.yoy_change_pct !== null
+            ? signedPercent(nationalSnapshot.yoy_change_pct)
+            : "Limited data",
+        detail:
+          nationalSnapshot.yoy_change_pct !== null
+            ? "Median sale price versus the previous 12 months"
+            : "Shown when both 12-month periods have enough sales",
+        href: "/sold-prices/rising-markets",
+      },
+      nationalSnapshot.strongest_county && nationalSnapshot.strongest_county_yoy_change_pct !== null
+        ? {
+            eyebrow: "County highest YoY price increase",
+            title: nationalSnapshot.strongest_county,
+            value: signedPercent(nationalSnapshot.strongest_county_yoy_change_pct),
+            detail: "Median sale price versus the previous 12 months",
+            href: `/sold-prices/${nationalSnapshot.strongest_county.toLowerCase()}`,
+          }
+        : {
+            eyebrow: "County market watch",
+            title: "County price movement",
+            value: "Limited data",
+            detail: "Shown when a county has enough recent sales for a reliable comparison",
+            href: "/sold-prices",
+          },
+      risingRows?.[0]
+        ? {
+            eyebrow: "Fastest-rising tracked market",
+            title: risingRows[0].label,
+            value: signedPercent(risingRows[0].yoyChangePct || 0),
+            detail: "Year-on-year median change with a 50-sale minimum",
+            href: "/sold-prices/rising-markets",
+          }
+        : {
+            eyebrow: "Fastest-rising tracked market",
+            title: "Tracked market watch",
+            value: "Limited data",
+            detail: "Shown when a tracked market clears the recent-sales threshold",
+            href: "/sold-prices/rising-markets",
+          },
+      commuterRows?.[0]
+        ? {
+            eyebrow: "Commuter town watch",
+            title: commuterRows[0].label,
+            value: euroDisplay(commuterRows[0].medianPrice),
+            detail: "Lowest median in our commuter-town set with a 24-sale minimum",
+            href: "/sold-prices/commuter-towns",
+          }
+        : {
+            eyebrow: "Commuter town watch",
+            title: "Commuter-town pricing",
+            value: "Limited data",
+            detail: "Shown when a commuter town has enough recent sales for comparison",
+            href: "/sold-prices/commuter-towns",
+          },
+    ]
+
+    return stats
+  },
   ["ppr-homepage-sold-price-stats", PPR_HOMEPAGE_STATS_CACHE_VERSION],
   { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
 )
@@ -1245,7 +1630,20 @@ const getNationalOverviewSnapshotUncached = async (
 }
 
 const getNationalOverviewSnapshotCached = unstable_cache(
-  async (range: PprDateRangeValue = "last-year") => getNationalOverviewSnapshotUncached(range),
+  async (range: PprDateRangeValue = "last-year") => {
+    const row = await loadNationalSnapshotRow(range)
+    if (row) {
+      return {
+        medianPrice: row.median_price_eur ?? undefined,
+        p25: row.p25_price_eur ?? undefined,
+        p75: row.p75_price_eur ?? undefined,
+        salesCount: row.sales_count,
+        yoyChangePct: row.yoy_change_pct ?? undefined,
+        latestSaleDate: row.latest_sale_date,
+      }
+    }
+    return getNationalOverviewSnapshotUncached(range)
+  },
   ["ppr-national-overview-snapshot", PPR_NATIONAL_SNAPSHOT_CACHE_VERSION],
   { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
 )
@@ -1280,7 +1678,20 @@ const getNationalActivitySnapshotUncached = async (): Promise<PprNationalActivit
 }
 
 const getNationalActivitySnapshotCached = unstable_cache(
-  async () => getNationalActivitySnapshotUncached(),
+  async () => {
+    const row = await loadNationalSnapshotRow("last-year")
+    if (row) {
+      return {
+        currentPeriodLabel: row.current_period_label || "Last 12 months",
+        previousPeriodLabel: row.previous_period_label || "Previous 12 months",
+        currentCount: row.current_period_count || 0,
+        previousCount: row.previous_period_count || 0,
+        yoyChangePct: row.activity_change_pct ?? undefined,
+        hasReliableChange: row.activity_change_pct !== null,
+      }
+    }
+    return getNationalActivitySnapshotUncached()
+  },
   ["ppr-national-activity-snapshot", PPR_NATIONAL_SNAPSHOT_CACHE_VERSION],
   { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
 )
@@ -1309,7 +1720,16 @@ const getNationalActivityLeaderUncached = async (): Promise<PprNationalActivityL
 }
 
 const getNationalActivityLeaderCached = unstable_cache(
-  async () => getNationalActivityLeaderUncached(),
+  async () => {
+    const row = await loadNationalSnapshotRow("last-year")
+    if (row?.strongest_county) {
+      return {
+        county: row.strongest_county,
+        salesCount: row.current_period_count || 0,
+      }
+    }
+    return getNationalActivityLeaderUncached()
+  },
   ["ppr-national-activity-leader"],
   { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
 )
@@ -1342,7 +1762,9 @@ const getDublinComparisonRowsUncached = async (range: PprDateRangeValue = "last-
 }
 
 const getDublinComparisonRowsCached = unstable_cache(
-  async (range: PprDateRangeValue = "last-year") => getDublinComparisonRowsUncached(range),
+  async (range: PprDateRangeValue = "last-year") =>
+    (await loadComparisonRowsFromTable("dublin-compared", range)) ||
+    getDublinComparisonRowsUncached(range),
   ["ppr-dublin-comparison-rows", PPR_COMPARISON_CACHE_VERSION],
   { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
 )
@@ -1353,6 +1775,7 @@ export async function getDublinComparisonRows(range: PprDateRangeValue = "last-y
 
 const getCorkComparisonRowsCached = unstable_cache(
   async (range: PprDateRangeValue = "last-year") =>
+    (await loadComparisonRowsFromTable("cork-compared", range)) ||
     getCuratedCountyComparisonRows(COMPARISON_PAGE_MARKET_SLUGS.corkCompared, range),
   ["ppr-cork-comparison-rows", PPR_COMPARISON_CACHE_VERSION],
   { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
@@ -1396,6 +1819,7 @@ async function getCuratedCountyComparisonRows(
 
 const getLimerickComparisonRowsCached = unstable_cache(
   async (range: PprDateRangeValue = "last-year") =>
+    (await loadComparisonRowsFromTable("limerick-compared", range)) ||
     getCuratedCountyComparisonRows(COMPARISON_PAGE_MARKET_SLUGS.limerickCompared, range),
   ["ppr-limerick-comparison-rows", PPR_COMPARISON_CACHE_VERSION],
   { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
@@ -1407,6 +1831,7 @@ export async function getLimerickComparisonRows(range: PprDateRangeValue = "last
 
 const getGalwayComparisonRowsCached = unstable_cache(
   async (range: PprDateRangeValue = "last-year") =>
+    (await loadComparisonRowsFromTable("galway-compared", range)) ||
     getCuratedCountyComparisonRows(COMPARISON_PAGE_MARKET_SLUGS.galwayCompared, range),
   ["ppr-galway-comparison-rows", PPR_COMPARISON_CACHE_VERSION],
   { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
@@ -1418,6 +1843,7 @@ export async function getGalwayComparisonRows(range: PprDateRangeValue = "last-y
 
 const getWaterfordComparisonRowsCached = unstable_cache(
   async (range: PprDateRangeValue = "last-year") =>
+    (await loadComparisonRowsFromTable("waterford-compared", range)) ||
     getCuratedCountyComparisonRows(COMPARISON_PAGE_MARKET_SLUGS.waterfordCompared, range),
   ["ppr-waterford-comparison-rows", PPR_COMPARISON_CACHE_VERSION],
   { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
@@ -1437,20 +1863,20 @@ const getCommuterTownRowsUncached = async (range: PprDateRangeValue = "last-year
 }
 
 const getCommuterTownRowsCached = unstable_cache(
-  async (range: PprDateRangeValue = "last-year") => getCommuterTownRowsUncached(range),
+  async (range: PprDateRangeValue = "last-year") =>
+    (await loadComparisonRowsFromTable("commuter-towns", range)) ||
+    getCommuterTownRowsUncached(range),
   ["ppr-commuter-town-rows", PPR_COMPARISON_CACHE_VERSION],
   { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
 )
 
 export async function getCommuterTownRows(range: PprDateRangeValue = "last-year") {
   const rows = await getCommuterTownRowsCached(range)
+  const commuterDistanceKm = COMMUTER_TOWN_DISTANCE_KM as Record<string, number>
 
   return rows.map((row) => ({
     ...row,
-    distanceFromDublinKm:
-      COMMUTER_TOWN_DISTANCE_KM[
-        row.slug as (typeof COMMUTER_TOWN_MARKET_SLUGS)[number]
-      ],
+    distanceFromDublinKm: commuterDistanceKm[row.slug],
   }))
 }
 
@@ -1469,7 +1895,9 @@ const getAffordableMarketRowsUncached = async (range: PprDateRangeValue = "last-
 }
 
 const getAffordableMarketRowsCached = unstable_cache(
-  async (range: PprDateRangeValue = "last-year") => getAffordableMarketRowsUncached(range),
+  async (range: PprDateRangeValue = "last-year") =>
+    (await loadComparisonRowsFromTable("affordable-markets", range)) ||
+    getAffordableMarketRowsUncached(range),
   ["ppr-affordable-market-rows", PPR_COMPARISON_CACHE_VERSION],
   { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
 )
@@ -1493,7 +1921,9 @@ const getHighValueMarketRowsUncached = async (range: PprDateRangeValue = "last-y
 }
 
 const getHighValueMarketRowsCached = unstable_cache(
-  async (range: PprDateRangeValue = "last-year") => getHighValueMarketRowsUncached(range),
+  async (range: PprDateRangeValue = "last-year") =>
+    (await loadComparisonRowsFromTable("high-value-markets", range)) ||
+    getHighValueMarketRowsUncached(range),
   ["ppr-high-value-market-rows", PPR_COMPARISON_CACHE_VERSION],
   { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
 )
@@ -1515,7 +1945,9 @@ const getRisingMarketRowsUncached = async (range: PprDateRangeValue = "last-year
 }
 
 const getRisingMarketRowsCached = unstable_cache(
-  async (range: PprDateRangeValue = "last-year") => getRisingMarketRowsUncached(range),
+  async (range: PprDateRangeValue = "last-year") =>
+    (await loadComparisonRowsFromTable("rising-markets", range)) ||
+    getRisingMarketRowsUncached(range),
   ["ppr-rising-market-rows", PPR_COMPARISON_CACHE_VERSION],
   { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
 )
@@ -1538,7 +1970,9 @@ const getFallingMarketRowsUncached = async (range: PprDateRangeValue = "last-yea
 }
 
 const getFallingMarketRowsCached = unstable_cache(
-  async (range: PprDateRangeValue = "last-year") => getFallingMarketRowsUncached(range),
+  async (range: PprDateRangeValue = "last-year") =>
+    (await loadComparisonRowsFromTable("falling-markets", range)) ||
+    getFallingMarketRowsUncached(range),
   ["ppr-falling-market-rows", PPR_COMPARISON_CACHE_VERSION],
   { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
 )

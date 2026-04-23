@@ -9,7 +9,8 @@
     "lint": "eslint",
     "ppr:download": "node scripts/download-ppr-csvs.mjs",
     "ppr:ingest": "node scripts/ingest-ppr-csv.mjs",
-    "ppr:rebuild-summaries": "node scripts/rebuild-ppr-summaries.mjs"
+    "ppr:rebuild-summaries": "node scripts/rebuild-ppr-summaries.mjs",
+    "ppr:rebuild-analytics": "node scripts/rebuild-ppr-phase1-analytics.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.103.0",

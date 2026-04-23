@@ -79,7 +79,6 @@ export default async function PprMarketPage({ params }: Props) {
   const marketHeading = isCountyPprMarket(market)
     ? `See what homes are selling for in Co. ${market.name}`
     : `See what homes are selling for in ${marketLabel}`
-  const searchHref = `/sold-prices/search?area=${encodeURIComponent(marketLabel)}&sort=newest&dateRange=all`
   const comparisonLinks = getRelevantMarketComparisonLinks(market)
 
   return (
@@ -211,12 +210,9 @@ export default async function PprMarketPage({ params }: Props) {
                   Recent sales
                 </h2>
               </div>
-              <Link
-                href={searchHref}
-                className="text-sm font-medium text-stone-600 transition hover:text-stone-900"
-              >
-                Refine this search
-              </Link>
+              <p className="text-sm text-stone-500">
+                Detailed sold-prices search is being updated.
+              </p>
             </div>
 
             {recentSales.length > 0 ? (

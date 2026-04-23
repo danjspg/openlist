@@ -414,10 +414,10 @@ export default async function ListingPage({
                   </div>
 
                   <Link
-                    href={`/sold-prices/search?county=${encodeURIComponent(normalizedListing.county)}&area=${encodeURIComponent(normalizedListing.address_line_2 || "")}`}
+                    href="/sold-prices"
                     className="inline-flex shrink-0 rounded-full border border-stone-300 px-4 py-2.5 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900"
                   >
-                    Search sold prices
+                    Browse sold prices
                   </Link>
                 </div>
 

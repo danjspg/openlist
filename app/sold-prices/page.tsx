@@ -1,20 +1,13 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import PprDisclaimer from "@/components/ppr/PprDisclaimer"
-import PprSaleCard from "@/components/ppr/PprSaleCard"
-import SoldPricesSearchForm from "@/components/ppr/SoldPricesSearchForm"
 import {
-  getPprDateRangePreset,
   areaNameFromSlug,
   buildPprDatasetDescription,
   formatPprCurrency,
   formatPprDate,
-  getDefaultPprDateRange,
   getPprDatasetSummary,
-  getPprKpis,
   getPprQuickAreas,
-  getPprSearchSummary,
-  searchPprSales,
   type PprDateRangeValue,
 } from "@/lib/ppr"
 import { FEATURED_PPR_MARKETS, PPR_MARKETS, pprMarketLabel } from "@/lib/ppr-markets"
@@ -45,24 +38,14 @@ export default async function SoldPricesPage({
   const resolvedSearchParams: { dateRange?: string } =
     await (searchParams || Promise.resolve({}))
   const selectedRange = (resolvedSearchParams.dateRange || "last-year") as PprDateRangeValue
-  const selectedPreset = getPprDateRangePreset(selectedRange)
   const analyticsRange = getAnalyticsRange(selectedRange)
-  const defaultSearch =
-    selectedRange === "last-year" ? getDefaultPprDateRange() : selectedPreset
-  const [kpis, quickAreas, recentResults, recentResultsSummary, monthlyActivity, homepageStats] = await Promise.all([
-    getPprKpis(),
+  const [quickAreas, monthlyActivity, homepageStats, nationalSnapshot, allTimeSnapshot] = await Promise.all([
     getPprQuickAreas(),
-    searchPprSales(defaultSearch),
-    getPprSearchSummary(defaultSearch),
     getNationalActivitySnapshot(),
     getHomepageSoldPriceStats(),
+    getNationalOverviewSnapshot(selectedRange),
+    getNationalOverviewSnapshot("all"),
   ])
-  const [nationalSnapshotSettled] = await Promise.allSettled([getNationalOverviewSnapshot(selectedRange)])
-  const nationalSnapshot =
-    nationalSnapshotSettled.status === "fulfilled"
-      ? nationalSnapshotSettled.value
-      : { salesCount: 0 }
-  const recentResultsCount = Math.max(recentResultsSummary.count, recentResults.sales.length)
   const featuredMarkets = Array.from(
     new Set([
       ...FEATURED_PPR_MARKETS,
@@ -115,7 +98,7 @@ export default async function SoldPricesPage({
               See what homes sold for across Ireland
             </h1>
             <p className="mt-5 max-w-3xl whitespace-pre-line text-base leading-7 text-stone-600 sm:text-lg sm:leading-8">
-              Search over {new Intl.NumberFormat("en-IE").format(kpis.salesCount)} property
+              Search over {new Intl.NumberFormat("en-IE").format(allTimeSnapshot.salesCount)} property
               sales to see what homes are really selling for.
             </p>
             <p className="mt-4 text-sm font-medium text-stone-700">
@@ -209,10 +192,9 @@ export default async function SoldPricesPage({
             </div>
             <div className="mt-4 space-y-1 text-sm leading-6 text-stone-600">
               <p>
-                Based on {new Intl.NumberFormat("en-IE").format(kpis.salesCount)} recorded sales
-                {kpis.startYear ? ` since ${kpis.startYear}` : ""}.
+                Based on {new Intl.NumberFormat("en-IE").format(allTimeSnapshot.salesCount)} recorded sales.
               </p>
-              <p>Latest sale: {formatPprDate(kpis.latestSaleDate)}.</p>
+              <p>Latest sale: {formatPprDate(allTimeSnapshot.latestSaleDate)}.</p>
             </div>
           </div>
 
@@ -235,11 +217,30 @@ export default async function SoldPricesPage({
         </div>
 
         <div className="mt-6 rounded-[32px] border border-stone-200 bg-white p-5 shadow-sm sm:p-6 md:p-8">
-          <SoldPricesSearchForm defaults={defaultSearch} />
-          <p className="mt-4 text-sm text-stone-600">
-            See prices near your own home by searching your town, suburb or
-            address.
+          <p className="text-sm font-medium uppercase tracking-[0.2em] text-stone-500">
+            Detailed Search
           </p>
+          <h2 className="mt-2 text-3xl font-semibold tracking-tight text-stone-900">
+            Detailed sold-prices search is being updated.
+          </h2>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">
+            Browse counties, tracked markets and comparison pages for now. Full filtered search will
+            return shortly.
+          </p>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Link
+              href="/sold-prices/dublin-compared"
+              className="inline-flex rounded-full bg-stone-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-stone-700"
+            >
+              Browse comparisons
+            </Link>
+            <Link
+              href="/sold-prices/dublin"
+              className="inline-flex rounded-full border border-stone-300 px-5 py-2.5 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900"
+            >
+              Browse counties
+            </Link>
+          </div>
         </div>
 
         <div className="mt-10 grid gap-8 lg:grid-cols-[1fr_360px]">
@@ -248,53 +249,50 @@ export default async function SoldPricesPage({
               <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <p className="text-sm font-medium uppercase tracking-[0.2em] text-stone-500">
-                    Recent sales
+                    Browse sold prices
                   </p>
                   <p className="mt-2 text-sm leading-6 text-stone-500">
                     Sold prices shown are for general information only and are
                     not a valuation.
                   </p>
                   <h2 className="mt-2 text-3xl font-semibold tracking-tight text-stone-900">
-                    Latest sold prices.
+                    Start with a place you know.
                   </h2>
                   <p className="mt-2 text-sm text-stone-500">
-                    {new Intl.NumberFormat("en-IE").format(recentResultsCount)}{" "}
-                    result{recentResultsCount === 1 ? "" : "s"} across {analyticsRange.label}
+                    Browse one of the tracked markets, counties or comparison pages below while the
+                    detailed search experience is being updated.
                   </p>
                 </div>
-                <Link
-                  href={`/sold-prices/search?${new URLSearchParams(
-                    defaultSearch.dateRange === "all"
-                      ? { dateRange: "all", sort: "newest" }
-                      : {
-                          dateFrom: defaultSearch.dateFrom || "",
-                          dateTo: defaultSearch.dateTo || "",
-                          dateRange: defaultSearch.dateRange || "last-year",
-                          sort: "newest",
-                        }
-                  ).toString()}`}
-                  className="text-sm font-medium text-stone-600 transition hover:text-stone-900"
-                >
-                  View all results
-                </Link>
               </div>
 
-              {recentResults.error ? (
-                <div className="rounded-[28px] border border-red-200 bg-red-50 p-6 text-red-700">
-                  Could not load recent sold prices: {recentResults.error}
+              <div className="rounded-[28px] border border-stone-200 bg-white p-6 shadow-sm sm:p-8">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Link
+                    href="/sold-prices/dublin-compared"
+                    className="rounded-[24px] border border-stone-200 bg-stone-50 px-5 py-5 transition hover:border-stone-300 hover:bg-white"
+                  >
+                    <p className="text-sm text-stone-500">Compare tracked markets</p>
+                    <p className="mt-2 text-xl font-semibold tracking-tight text-stone-900">
+                      See how areas stack up
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-stone-600">
+                      Jump straight into Dublin, commuter towns, affordable markets and more.
+                    </p>
+                  </Link>
+                  <Link
+                    href="/sold-prices/dublin"
+                    className="rounded-[24px] border border-stone-200 bg-stone-50 px-5 py-5 transition hover:border-stone-300 hover:bg-white"
+                  >
+                    <p className="text-sm text-stone-500">Browse counties</p>
+                    <p className="mt-2 text-xl font-semibold tracking-tight text-stone-900">
+                      Start with county market pages
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-stone-600">
+                      Open county views and drill into popular areas and tracked markets.
+                    </p>
+                  </Link>
                 </div>
-              ) : recentResults.sales.length > 0 ? (
-                <div className="space-y-4">
-                  {recentResults.sales.map((sale) => (
-                    <PprSaleCard key={sale.id} sale={sale} />
-                  ))}
-                </div>
-              ) : (
-                <div className="rounded-[28px] border border-stone-200 bg-white p-8 text-stone-600 shadow-sm">
-                  Recent sold prices will appear here once matching PPR records
-                  are available.
-                </div>
-              )}
+              </div>
             </div>
 
             <div className="flex items-end justify-between gap-4">
@@ -343,7 +341,7 @@ export default async function SoldPricesPage({
             <PprDisclaimer />
             <div className="rounded-[24px] border border-stone-200 bg-white p-5 shadow-sm">
               <p className="text-sm font-medium uppercase tracking-[0.2em] text-stone-500">
-                Popular markets
+                Tracked markets
               </p>
               <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">
                 Tracked markets

@@ -1,64 +1,16 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import PprDisclaimer from "@/components/ppr/PprDisclaimer"
-import PprSaleCard from "@/components/ppr/PprSaleCard"
-import PprSearchSortControl from "@/components/ppr/PprSearchSortControl"
-import SoldPricesSearchForm from "@/components/ppr/SoldPricesSearchForm"
-import {
-  formatPprDate,
-  getPprSearchSummary,
-  PPR_PAGE_SIZE,
-  searchPprSales,
-  withDefaultPprSearchFilters,
-} from "@/lib/ppr"
 
 export const dynamic = "force-dynamic"
 
 export const metadata: Metadata = {
-  title: "Search Sold Prices | OpenList",
+  title: "Sold Prices Search Updating | OpenList",
   description:
-    "Search Irish residential sale prices from public Property Price Register data.",
+    "Detailed sold-prices search is being updated. Browse counties, tracked markets and comparison pages in the meantime.",
 }
 
-type SearchParams = {
-  county?: string
-  area?: string
-  minPrice?: string
-  maxPrice?: string
-  dateFrom?: string
-  dateTo?: string
-  dateRange?: string
-  sort?: string
-  newBuild?: string
-  propertyStyle?: string
-  page?: string
-}
-
-function buildPageHref(params: SearchParams, page: number) {
-  const next = new URLSearchParams()
-
-  for (const [key, value] of Object.entries(params)) {
-    if (value && key !== "page") next.set(key, value)
-  }
-
-  if (page > 1) next.set("page", String(page))
-  return `/sold-prices/search?${next.toString()}`
-}
-
-export default async function SoldPricesSearchPage({
-  searchParams,
-}: {
-  searchParams: Promise<SearchParams>
-}) {
-  const params = withDefaultPprSearchFilters(await searchParams)
-  const [{ sales, page, error }, summary] = await Promise.all([
-    searchPprSales(params),
-    getPprSearchSummary(params),
-  ])
-  const count = Math.max(summary.count, sales.length)
-  const latestSaleDate = summary.latestSaleDate ?? sales[0]?.date_of_sale ?? null
-  const totalPages = Math.max(1, Math.ceil(count / PPR_PAGE_SIZE))
-
+export default async function SoldPricesSearchPage() {
   return (
     <main className="min-h-screen bg-stone-50">
       <section className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
@@ -68,102 +20,66 @@ export default async function SoldPricesSearchPage({
               Sold prices
             </p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl">
-              See what homes sold for across Ireland
+              Detailed sold-prices search is being updated
             </h1>
-            <p className="mt-3 text-sm font-medium text-stone-700">
-              See prices near your own home by searching your town, suburb or
-              address.
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-700">
+              Filtered search will return shortly. For now, browse counties, tracked markets and
+              comparison pages to explore the latest sold-prices data.
             </p>
           </div>
           <div className="border-t border-stone-200 p-5 sm:p-6">
-            <SoldPricesSearchForm defaults={params} compact showSort={false} />
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Link
+                href="/sold-prices"
+                className="rounded-[24px] border border-stone-200 bg-stone-50 px-5 py-5 transition hover:border-stone-300 hover:bg-white"
+              >
+                <p className="text-sm text-stone-500">Sold prices hub</p>
+                <p className="mt-2 text-xl font-semibold tracking-tight text-stone-900">
+                  Back to sold prices
+                </p>
+                <p className="mt-2 text-sm leading-6 text-stone-600">
+                  Use the landing page to browse quick areas and tracked markets.
+                </p>
+              </Link>
+              <Link
+                href="/sold-prices/dublin-compared"
+                className="rounded-[24px] border border-stone-200 bg-stone-50 px-5 py-5 transition hover:border-stone-300 hover:bg-white"
+              >
+                <p className="text-sm text-stone-500">Compare tracked markets</p>
+                <p className="mt-2 text-xl font-semibold tracking-tight text-stone-900">
+                  See how areas stack up
+                </p>
+                <p className="mt-2 text-sm leading-6 text-stone-600">
+                  Jump into Dublin, commuter towns, affordable markets and more.
+                </p>
+              </Link>
+              <Link
+                href="/sold-prices/dublin"
+                className="rounded-[24px] border border-stone-200 bg-stone-50 px-5 py-5 transition hover:border-stone-300 hover:bg-white"
+              >
+                <p className="text-sm text-stone-500">Browse counties</p>
+                <p className="mt-2 text-xl font-semibold tracking-tight text-stone-900">
+                  Start with county pages
+                </p>
+                <p className="mt-2 text-sm leading-6 text-stone-600">
+                  Explore county-level market pages and drill into popular areas.
+                </p>
+              </Link>
+            </div>
           </div>
         </div>
 
         <div className="grid gap-8 lg:grid-cols-[1fr_340px]">
           <section>
-            <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <p className="text-sm uppercase tracking-[0.18em] text-stone-500">
-                  {new Intl.NumberFormat("en-IE").format(count)} result
-                  {count === 1 ? "" : "s"}
-                </p>
-                <h2 className="mt-1 text-2xl font-semibold tracking-tight text-stone-900">
-                  Recent sales
-                </h2>
-              </div>
-              <Link
-                href="/sold-prices"
-                className="text-sm font-medium text-stone-600 transition hover:text-stone-900"
-              >
-                Back to sold prices
-              </Link>
+            <div className="rounded-[28px] border border-stone-200 bg-white p-8 shadow-sm">
+              <h2 className="text-2xl font-semibold tracking-tight text-stone-900">
+                Browse while search is offline
+              </h2>
+              <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">
+                The sold-prices comparisons and county pages remain live and up to date. Use those
+                routes for now while the heavier filtered search flow is being improved.
+              </p>
             </div>
-
-            <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-              <div className="flex flex-wrap gap-3">
-                <div className="rounded-full border border-stone-200 bg-white px-4 py-2 text-sm text-stone-600 shadow-sm">
-                  <span className="font-medium text-stone-900">
-                    {new Intl.NumberFormat("en-IE").format(count)}
-                  </span>{" "}
-                  results
-                </div>
-                <div className="rounded-full border border-stone-200 bg-white px-4 py-2 text-sm text-stone-600 shadow-sm">
-                  Latest matching sale{" "}
-                  <span className="font-medium text-stone-900">
-                    {formatPprDate(latestSaleDate)}
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <PprSearchSortControl params={params} />
-              </div>
-            </div>
-
-            {error ? (
-              <div className="rounded-[28px] border border-red-200 bg-red-50 p-6 text-red-700">
-                Could not load sold prices: {error}
-              </div>
-            ) : sales.length > 0 ? (
-              <div className="space-y-4">
-                {sales.map((sale) => (
-                  <PprSaleCard key={sale.id} sale={sale} />
-                ))}
-              </div>
-            ) : (
-              <div className="rounded-[28px] border border-stone-200 bg-white p-8 text-center shadow-sm">
-                <h2 className="text-2xl font-semibold tracking-tight text-stone-900">
-                  No sales found
-                </h2>
-                <p className="mt-3 text-stone-600">
-                  Try widening the area, price range or date filters.
-                </p>
-              </div>
-            )}
-
-            {totalPages > 1 && (
-              <div className="mt-8 flex flex-wrap items-center gap-3">
-                {page > 1 && (
-                  <Link
-                    href={buildPageHref(params, page - 1)}
-                    className="rounded-full border border-stone-300 bg-white px-5 py-2.5 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900"
-                  >
-                    Previous
-                  </Link>
-                )}
-                <span className="text-sm text-stone-500">
-                  Page {page} of {totalPages}
-                </span>
-                {page < totalPages && (
-                  <Link
-                    href={buildPageHref(params, page + 1)}
-                    className="rounded-full border border-stone-300 bg-white px-5 py-2.5 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900"
-                  >
-                    Next
-                  </Link>
-                )}
-              </div>
-            )}
           </section>
 
           <aside className="space-y-5">

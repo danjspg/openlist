@@ -1,6 +1,7 @@
 import { createHash } from "crypto"
 import { readFile } from "fs/promises"
 import { createClient } from "@supabase/supabase-js"
+import { rebuildPprPhase1Analytics } from "./rebuild-ppr-phase1-analytics.mjs"
 
 const [, , csvPath, sourceUrl = "https://www.propertypriceregister.ie/"] =
   process.argv
@@ -198,3 +199,7 @@ if (refreshError) {
 }
 
 console.log("PPR area summaries refreshed.")
+
+console.log("Rebuilding PPR analytics tables...")
+await rebuildPprPhase1Analytics()
+console.log("PPR analytics tables rebuilt.")

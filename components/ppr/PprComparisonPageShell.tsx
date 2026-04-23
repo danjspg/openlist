@@ -1,4 +1,3 @@
-import Link from "next/link"
 import PprComparisonTable from "@/components/ppr/PprComparisonTable"
 import { euroDisplay, signedPercent, type PprComparisonRow } from "@/lib/ppr-analytics"
 
@@ -48,13 +47,9 @@ export default function PprComparisonPageShell({
             <p className="mt-5 max-w-3xl text-base leading-7 text-stone-600 sm:text-lg sm:leading-8">
               {intro}
             </p>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Link
-                href="/sold-prices/search"
-                className="inline-flex rounded-full bg-stone-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-stone-700"
-              >
-                Search sold prices
-              </Link>
+            <div className="mt-6 rounded-[22px] border border-stone-200 bg-white/80 px-4 py-4 text-sm leading-6 text-stone-600">
+              Detailed sold-prices search is being updated. Use the tracked market pages and
+              comparison views below in the meantime.
             </div>
             <div className="mt-6 inline-flex rounded-full border border-stone-200 bg-white/80 px-4 py-2 text-sm font-medium text-stone-600">
               Snapshot: Last 12 months
