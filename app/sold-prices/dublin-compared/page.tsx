@@ -18,9 +18,9 @@ function definedHighlight<T>(value: T | null): value is T {
 export const revalidate = 21600
 
 export const metadata: Metadata = {
-  title: "Dublin Sold Prices Compared | OpenList",
+  title: "Dublin House Prices by Area | Sold Prices Compared",
   description:
-    "Compare recorded sale prices across Dublin districts and suburbs, including median prices, yearly change and recent sales volume.",
+    "Compare Dublin house prices by area, including median sale prices, price change, activity and recent sales volume.",
 }
 
 export default async function DublinComparedPage() {
@@ -39,8 +39,8 @@ export default async function DublinComparedPage() {
   return (
     <PprComparisonPageShell
       eyebrow="Dublin comparison"
-      title="Dublin sold prices compared"
-      intro="This view compares Dublin districts and tracked suburbs using recorded sales from the last 12 months. It is designed to help sellers compare pricing, momentum and activity across Dublin markets using the most recent 12-month window."
+      title="Dublin house prices by area"
+      intro="This view compares Dublin districts and tracked suburbs using recorded sales from the last 12 months. It is designed to help you compare house prices, momentum and activity across Dublin markets using the most recent 12-month window."
       highlights={[
         cheapest
           ? {
@@ -68,6 +68,12 @@ export default async function DublinComparedPage() {
       nationalMedian={nationalSnapshot.medianPrice}
       nationalYoYChangePct={nationalSnapshot.yoyChangePct}
       defaultSort="medianPrice"
+      extraColumn={{
+        key: "activityChangePct",
+        label: "Activity YoY",
+        mobileLabel: "Activity YoY",
+        format: "pct",
+      }}
     />
   )
 }

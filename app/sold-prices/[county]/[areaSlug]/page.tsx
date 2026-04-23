@@ -32,8 +32,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const areaName = areaNameFromSlug(areaSlug)
 
   return {
-    title: `${areaName} Sold Prices, ${decodedCounty} | OpenList`,
-    description: `Browse recent public Property Price Register sale prices for ${areaName}, ${decodedCounty}.`,
+    title: `${areaName} Property Prices | Recent Sales & Trends`,
+    description: `See what homes are selling for in ${areaName}, ${decodedCounty}. View recent property sale prices, market trends and activity from recorded transactions.`,
+    alternates: {
+      canonical: `/sold-prices/${decodedCounty.toLowerCase()}/${areaSlug}`,
+    },
+    robots: {
+      index: true,
+      follow: true,
+    },
   }
 }
 
@@ -67,11 +74,29 @@ export default async function PprAreaPage({ params }: Props) {
               {areaTitle}
             </p>
             <h1 className="mt-2 text-4xl font-semibold tracking-tight text-stone-900 sm:text-5xl">
-              See what homes are selling for in {areaName}
+              Property prices in {areaName}, {decodedCounty}
             </h1>
             <p className="mt-5 max-w-3xl text-base leading-7 text-stone-600 sm:text-lg sm:leading-8">
-              Based on publicly available Property Price Register data.
+              See recent sold property prices, pricing trends and sales activity for {areaName}.
             </p>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">
+              This page summarises recorded Property Price Register transactions in {areaName},
+              helping you compare recent sale prices and wider local market trends.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <Link
+                href={`/sold-prices/${decodedCounty.toLowerCase()}`}
+                className="inline-flex text-sm font-medium text-stone-600 transition hover:text-stone-900"
+              >
+                See {decodedCounty} house prices
+              </Link>
+              <Link
+                href="/sold-prices"
+                className="inline-flex text-sm font-medium text-stone-600 transition hover:text-stone-900"
+              >
+                Back to Ireland house prices
+              </Link>
+            </div>
           </div>
         </div>
 
@@ -158,6 +183,10 @@ export default async function PprAreaPage({ params }: Props) {
                 <h2 className="mt-2 text-3xl font-semibold tracking-tight text-stone-900">
                   Prices and activity in {areaName}
                 </h2>
+                <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">
+                  Use these signals to compare local property prices, price change and recent market
+                  activity in {areaName} against nearby parts of {decodedCounty}.
+                </p>
               </div>
 
               <PprLocationInsights
@@ -229,7 +258,7 @@ export default async function PprAreaPage({ params }: Props) {
                   {nearbyAreas.map((area) => (
                     <Link
                       key={`${area.county}-${area.area_slug}`}
-                      href={`/sold-prices/${encodeURIComponent(area.county || decodedCounty)}/${area.area_slug}`}
+                      href={`/sold-prices/${encodeURIComponent(String(area.county || decodedCounty).toLowerCase())}/${area.area_slug}`}
                       className="block rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 transition hover:border-stone-300 hover:bg-white"
                     >
                       <p className="font-medium text-stone-900">

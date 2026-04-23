@@ -8,6 +8,10 @@ export const metadata: Metadata = {
   title: "Sold Prices Search Updating | OpenList",
   description:
     "Detailed sold-prices search is being updated. Browse counties, tracked markets and comparison pages in the meantime.",
+  robots: {
+    index: false,
+    follow: true,
+  },
 }
 
 export default async function SoldPricesSearchPage() {

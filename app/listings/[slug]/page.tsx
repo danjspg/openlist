@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { supabase } from "@/lib/supabase"
@@ -6,6 +7,7 @@ import EnquiryForm from "./EnquiryForm"
 import ListingGallery from "./ListingGallery"
 import CopyListingLinkButton from "@/components/CopyListingLinkButton"
 import {
+  areaSlug,
   formatPprCurrency,
   formatPprDate,
   getComparableSaleDisplayLabel,
@@ -16,6 +18,53 @@ import { getCurrentUserIsAdmin } from "@/lib/admin-auth"
 import AdminFeaturedToggle from "@/components/AdminFeaturedToggle"
 import { getDisplayListingTitle } from "@/lib/listings"
 import { canCurrentUserEditListing } from "@/lib/listing-permissions"
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}): Promise<Metadata> {
+  const { slug } = await params
+  const { data: listing } = await supabase
+    .from("listings")
+    .select("slug,title,public_title,county,address_line_2,type,status")
+    .eq("slug", slug)
+    .maybeSingle()
+
+  if (!listing) {
+    return {
+      title: "Property Listing | OpenList",
+      description: "Browse private property listings across Ireland on OpenList.",
+    }
+  }
+
+  const normalizedListing = normalizeListingStatus(listing)
+  if (!isPublicSaleStatus(normalizedListing.status)) {
+    return {
+      robots: {
+        index: false,
+        follow: false,
+      },
+    }
+  }
+
+  const displayTitle = getDisplayListingTitle(normalizedListing)
+  const locationLabel = normalizedListing.address_line_2
+    ? `${normalizedListing.address_line_2}, ${normalizedListing.county}`
+    : normalizedListing.county
+
+  return {
+    title: `${displayTitle} | Property for Sale in ${normalizedListing.county}`,
+    description: `View photos, guide price and key details for this private property listing in ${locationLabel}, Ireland.`,
+    alternates: {
+      canonical: `/listings/${slug}`,
+    },
+    robots: {
+      index: true,
+      follow: true,
+    },
+  }
+}
 
 function formatEuro(value: string) {
   const numeric = Number(value.replace(/[^0-9.]/g, ""))
@@ -180,6 +229,10 @@ export default async function ListingPage({
     areaValue: normalizedListing.area_value,
     areaUnit: normalizedListing.area_unit,
   })
+  const countySoldPricesHref = `/sold-prices/${normalizedListing.county.toLowerCase()}`
+  const areaSoldPricesHref = normalizedListing.address_line_2
+    ? `/sold-prices/${normalizedListing.county.toLowerCase()}/${areaSlug(normalizedListing.address_line_2)}`
+    : null
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-stone-50">
@@ -419,6 +472,23 @@ export default async function ListingPage({
                   >
                     Browse sold prices
                   </Link>
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <Link
+                    href={countySoldPricesHref}
+                    className="inline-flex rounded-full border border-stone-200 bg-stone-50 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-300 hover:bg-white hover:text-stone-900"
+                  >
+                    {normalizedListing.county} house prices
+                  </Link>
+                  {areaSoldPricesHref && (
+                    <Link
+                      href={areaSoldPricesHref}
+                      className="inline-flex rounded-full border border-stone-200 bg-stone-50 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-300 hover:bg-white hover:text-stone-900"
+                    >
+                      {normalizedListing.address_line_2} property prices
+                    </Link>
+                  )}
                 </div>
 
                 <div className="mt-5 grid gap-3">

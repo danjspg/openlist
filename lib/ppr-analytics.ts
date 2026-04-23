@@ -53,6 +53,7 @@ export const PPR_ANALYTICS_THRESHOLDS = {
   minRisingMarketSales: 50,
   minHomepageRisingSales: 50,
   minAffordableMarketSales: 24,
+  minRelativeActivityMarketSales: 12,
   commuterAffordableMedianCap: 450_000,
   affordableMarketMedianCap: 300_000,
   highValueMarketMedianFloor: 500_000,
@@ -61,10 +62,11 @@ export const PPR_ANALYTICS_THRESHOLDS = {
 
 const MOMENTUM_LOOKBACK_YEARS = 5
 const PPR_ANALYTICS_REVALIDATE_SECONDS = 60 * 60 * 6
-const PPR_COMPARISON_CACHE_VERSION = "v7"
+const PPR_COMPARISON_CACHE_VERSION = "v10"
 const PPR_INSIGHTS_CACHE_VERSION = "v7"
 const PPR_HOMEPAGE_STATS_CACHE_VERSION = "v4"
 const PPR_NATIONAL_SNAPSHOT_CACHE_VERSION = "v3"
+const PPR_NON_LOCATION_COMPARISON_PAGE_LIMIT = 30
 
 export type PprMomentumStats = {
   currentLabel: string
@@ -122,12 +124,16 @@ export type PprLocationInsights = {
 }
 
 export type PprComparisonRow = {
+  rank?: number
   slug: string
   label: string
   href: string
   county?: string
   medianPrice: number
   salesVolume: number
+  currentPeriodCount?: number
+  previousPeriodCount?: number
+  activityChangePct?: number
   yoyChangePct?: number
   newBuildMedian?: number
   secondHandMedian?: number
@@ -172,6 +178,18 @@ export function getHighestMedianComparisonRow(rows: PprComparisonRow[]) {
 
 export function getMostActiveComparisonRow(rows: PprComparisonRow[]) {
   return pickComparisonRowByMetric(rows, (row) => row.salesVolume, "desc")
+}
+
+export function getLeastActiveComparisonRow(rows: PprComparisonRow[]) {
+  return pickComparisonRowByMetric(rows, (row) => row.salesVolume, "asc")
+}
+
+export function getHighestActivityChangeComparisonRow(rows: PprComparisonRow[]) {
+  return pickComparisonRowByMetric(rows, (row) => row.activityChangePct, "desc")
+}
+
+export function getLowestActivityChangeComparisonRow(rows: PprComparisonRow[]) {
+  return pickComparisonRowByMetric(rows, (row) => row.activityChangePct, "asc")
 }
 
 export function getHighestYoYComparisonRow(rows: PprComparisonRow[]) {
@@ -263,6 +281,9 @@ type PprComparisonRowRecord = {
   href: string
   county: string | null
   sales_volume: number
+  current_period_count: number | null
+  previous_period_count: number | null
+  activity_change_pct: number | null
   median_price_eur: number
   yoy_change_pct: number | null
   new_build_median_eur: number | null
@@ -715,20 +736,115 @@ function saleMatchesMarket(sale: AnalyticsSale, market: PprMarket) {
   return true
 }
 
+function inferComparisonRowCounty(sales: AnalyticsSale[], fallbackCounty?: string) {
+  if (fallbackCounty) return fallbackCounty
+
+  const counts = new Map<string, number>()
+  for (const sale of sales) {
+    const county = sale.county?.trim()
+    if (!county) continue
+    counts.set(county, (counts.get(county) ?? 0) + 1)
+  }
+
+  const leaders = [...counts.entries()].sort((left, right) => right[1] - left[1])
+  if (leaders.length === 0) return undefined
+  if (leaders.length === 1) return leaders[0][0]
+  if (leaders[0][1] === leaders[1][1]) return undefined
+  return leaders[0][0]
+}
+
 function mapComparisonRowRecord(record: PprComparisonRowRecord): PprComparisonRow {
   return {
+    rank: record.sort_rank ?? undefined,
     slug: record.market_slug,
     label: record.label,
     href: record.href,
-    county: record.county ?? undefined,
+    county: record.county ?? getPprMarket(record.market_slug)?.county ?? undefined,
     medianPrice: record.median_price_eur,
     salesVolume: record.sales_volume,
+    currentPeriodCount: record.current_period_count ?? undefined,
+    previousPeriodCount: record.previous_period_count ?? undefined,
+    activityChangePct: record.activity_change_pct ?? undefined,
     yoyChangePct: record.yoy_change_pct ?? undefined,
     newBuildMedian: record.new_build_median_eur ?? undefined,
     secondHandMedian: record.second_hand_median_eur ?? undefined,
     vsNationalMedianPct: record.vs_national_median_pct ?? undefined,
     distanceFromDublinKm: record.distance_from_dublin_km ?? undefined,
   }
+}
+
+function sortComparisonRowsBySalesVolume(
+  rows: PprComparisonRow[],
+  direction: "asc" | "desc"
+) {
+  return [...rows]
+    .filter((row) => Number.isFinite(row.salesVolume) && row.salesVolume > 0)
+    .sort((left, right) => {
+      const volumeOrder = compareNumbers(left.salesVolume, right.salesVolume, direction)
+      if (volumeOrder !== 0) return volumeOrder
+      const medianOrder = compareNumbers(left.medianPrice, right.medianPrice, "desc")
+      if (medianOrder !== 0) return medianOrder
+      return compareStrings(left.label, right.label)
+    })
+}
+
+function sortHottestComparisonRows(rows: PprComparisonRow[]) {
+  return [...rows]
+    .filter(
+      (row) =>
+        (row.currentPeriodCount ?? 0) >= PPR_ANALYTICS_THRESHOLDS.minRelativeActivityMarketSales &&
+        (row.previousPeriodCount ?? 0) >= PPR_ANALYTICS_THRESHOLDS.minRelativeActivityMarketSales &&
+        row.activityChangePct !== undefined &&
+        row.activityChangePct > 0 &&
+        row.yoyChangePct !== undefined &&
+        row.yoyChangePct > 0
+    )
+    .sort((left, right) => {
+      const activityOrder = compareNumbers(
+        left.activityChangePct ?? 0,
+        right.activityChangePct ?? 0,
+        "desc"
+      )
+      if (activityOrder !== 0) return activityOrder
+      const priceOrder = compareNumbers(left.yoyChangePct ?? 0, right.yoyChangePct ?? 0, "desc")
+      if (priceOrder !== 0) return priceOrder
+      const volumeOrder = compareNumbers(left.salesVolume, right.salesVolume, "desc")
+      if (volumeOrder !== 0) return volumeOrder
+      return compareStrings(left.label, right.label)
+    })
+}
+
+function sortCoolestComparisonRows(rows: PprComparisonRow[]) {
+  return [...rows]
+    .filter(
+      (row) =>
+        (row.currentPeriodCount ?? 0) >= PPR_ANALYTICS_THRESHOLDS.minRelativeActivityMarketSales &&
+        (row.previousPeriodCount ?? 0) >= PPR_ANALYTICS_THRESHOLDS.minRelativeActivityMarketSales &&
+        row.activityChangePct !== undefined &&
+        row.activityChangePct < 0 &&
+        row.yoyChangePct !== undefined &&
+        row.yoyChangePct <= 0
+    )
+    .sort((left, right) => {
+      const activityOrder = compareNumbers(
+        left.activityChangePct ?? 0,
+        right.activityChangePct ?? 0,
+        "asc"
+      )
+      if (activityOrder !== 0) return activityOrder
+      const priceOrder = compareNumbers(left.yoyChangePct ?? 0, right.yoyChangePct ?? 0, "asc")
+      if (priceOrder !== 0) return priceOrder
+      const volumeOrder = compareNumbers(left.salesVolume, right.salesVolume, "asc")
+      if (volumeOrder !== 0) return volumeOrder
+      return compareStrings(left.label, right.label)
+    })
+}
+
+function withComparisonDisplayRanks(rows: PprComparisonRow[]) {
+  return rows.map((row, index) => ({
+    ...row,
+    rank: row.rank ?? index + 1,
+  }))
 }
 
 function mapMarketInsightsRowRecord(record: PprMarketInsightsRowRecord): PprLocationInsights {
@@ -1283,6 +1399,9 @@ function buildComparisonRow(
           withinWindow(sale, rollingWindow(now, rangeMonths, rangeMonths))
         )
       : []
+  const hasReliableActivity =
+    current.length >= PPR_ANALYTICS_THRESHOLDS.minActivityComparisonSales &&
+    previous.length >= PPR_ANALYTICS_THRESHOLDS.minActivityComparisonSales
   const previousMedian =
     previous.length >= PPR_ANALYTICS_THRESHOLDS.minPriceComparisonSales
       ? median(pricesForSales(previous))
@@ -1294,9 +1413,12 @@ function buildComparisonRow(
     slug: market.slug,
     label: pprMarketLabel(market),
     href: `/sold-prices/${market.slug}`,
-    county: market.county,
+    county: inferComparisonRowCounty(current, market.county),
     medianPrice: currentMedian,
     salesVolume: current.length,
+    currentPeriodCount: current.length,
+    previousPeriodCount: previous.length,
+    activityChangePct: hasReliableActivity ? percentChange(current.length, previous.length) : undefined,
     yoyChangePct: percentChange(currentMedian, previousMedian),
     newBuildMedian: split?.newBuildMedian,
     secondHandMedian: split?.secondHandMedian,
@@ -1925,13 +2047,47 @@ export async function getWaterfordComparisonRows(range: PprDateRangeValue = "las
   return getWaterfordComparisonRowsCached(range)
 }
 
+const getCountiesComparedRowsUncached = async (range: PprDateRangeValue = "last-year") => {
+  const historyStartDate = comparisonHistoryStartDate(range)
+  const countyMarkets = PPR_MARKETS.filter((market) => market.marketType === "county")
+  const nationalMedian = median(pricesForSales(await getNationalWindowSales(range)))
+  const countySales = new Map<string, AnalyticsSale[]>()
+
+  await Promise.all(
+    countyMarkets.map(async (market) => {
+      countySales.set(market.name, await getCountySalesRows(market.name, historyStartDate))
+    })
+  )
+
+  return countyMarkets
+    .map((market) =>
+      buildComparisonRow(market, countySales.get(market.name) || [], nationalMedian, range)
+    )
+    .filter((row): row is PprComparisonRow => Boolean(row))
+}
+
+const getCountiesComparedRowsCached = unstable_cache(
+  async (range: PprDateRangeValue = "last-year") =>
+    (await loadComparisonRowsFromTable("counties-compared", range)) ||
+    getCountiesComparedRowsUncached(range),
+  ["ppr-counties-compared-rows", PPR_COMPARISON_CACHE_VERSION],
+  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
+)
+
+export async function getCountiesComparedRows(range: PprDateRangeValue = "last-year") {
+  return getCountiesComparedRowsCached(range)
+}
+
 const getCommuterTownRowsUncached = async (range: PprDateRangeValue = "last-year") => {
   const rows = await getTrackedLocationComparisonRows(range)
-  return rows
+  return withComparisonDisplayRanks(
+    rows
     .filter((row) =>
       COMMUTER_TOWN_MARKET_SLUGS.includes(row.slug as (typeof COMMUTER_TOWN_MARKET_SLUGS)[number])
     )
     .sort((left, right) => left.medianPrice - right.medianPrice)
+    .slice(0, PPR_NON_LOCATION_COMPARISON_PAGE_LIMIT)
+  )
 }
 
 const getCommuterTownRowsCached = unstable_cache(
@@ -1946,15 +2102,17 @@ export async function getCommuterTownRows(range: PprDateRangeValue = "last-year"
   const rows = await getCommuterTownRowsCached(range)
   const commuterDistanceKm = COMMUTER_TOWN_DISTANCE_KM as Record<string, number>
 
-  return rows.map((row) => ({
+  return rows.map((row, index) => ({
     ...row,
+    rank: row.rank ?? index + 1,
     distanceFromDublinKm: commuterDistanceKm[row.slug],
   }))
 }
 
 const getAffordableMarketRowsUncached = async (range: PprDateRangeValue = "last-year") => {
   const rows = await getTrackedLocationComparisonRows(range)
-  return rows
+  return withComparisonDisplayRanks(
+    rows
     .filter(
       (row) =>
         row.salesVolume >= PPR_ANALYTICS_THRESHOLDS.minAffordableMarketSales &&
@@ -1964,6 +2122,8 @@ const getAffordableMarketRowsUncached = async (range: PprDateRangeValue = "last-
       if (left.medianPrice !== right.medianPrice) return left.medianPrice - right.medianPrice
       return right.salesVolume - left.salesVolume
     })
+    .slice(0, PPR_NON_LOCATION_COMPARISON_PAGE_LIMIT)
+  )
 }
 
 const getAffordableMarketRowsCached = unstable_cache(
@@ -1975,12 +2135,13 @@ const getAffordableMarketRowsCached = unstable_cache(
 )
 
 export async function getAffordableMarketRows(range: PprDateRangeValue = "last-year") {
-  return getAffordableMarketRowsCached(range)
+  return withComparisonDisplayRanks(await getAffordableMarketRowsCached(range))
 }
 
 const getHighValueMarketRowsUncached = async (range: PprDateRangeValue = "last-year") => {
   const rows = await getTrackedLocationComparisonRows(range)
-  return rows
+  return withComparisonDisplayRanks(
+    rows
     .filter(
       (row) =>
         row.salesVolume >= PPR_ANALYTICS_THRESHOLDS.minAffordableMarketSales &&
@@ -1990,6 +2151,8 @@ const getHighValueMarketRowsUncached = async (range: PprDateRangeValue = "last-y
       if (left.medianPrice !== right.medianPrice) return right.medianPrice - left.medianPrice
       return right.salesVolume - left.salesVolume
     })
+    .slice(0, PPR_NON_LOCATION_COMPARISON_PAGE_LIMIT)
+  )
 }
 
 const getHighValueMarketRowsCached = unstable_cache(
@@ -2001,19 +2164,97 @@ const getHighValueMarketRowsCached = unstable_cache(
 )
 
 export async function getHighValueMarketRows(range: PprDateRangeValue = "last-year") {
-  return getHighValueMarketRowsCached(range)
+  return withComparisonDisplayRanks(await getHighValueMarketRowsCached(range))
+}
+
+const getMostActiveMarketRowsUncached = async (range: PprDateRangeValue = "last-year") => {
+  const rows = await getTrackedLocationComparisonRows(range)
+  return withComparisonDisplayRanks(
+    sortComparisonRowsBySalesVolume(rows, "desc").slice(0, PPR_NON_LOCATION_COMPARISON_PAGE_LIMIT)
+  )
+}
+
+const getMostActiveMarketRowsCached = unstable_cache(
+  async (range: PprDateRangeValue = "last-year") =>
+    (await loadComparisonRowsFromTable("most-active-markets", range)) ||
+    getMostActiveMarketRowsUncached(range),
+  ["ppr-most-active-market-rows", PPR_COMPARISON_CACHE_VERSION],
+  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
+)
+
+export async function getMostActiveMarketRows(range: PprDateRangeValue = "last-year") {
+  return withComparisonDisplayRanks(await getMostActiveMarketRowsCached(range))
+}
+
+const getLeastActiveMarketRowsUncached = async (range: PprDateRangeValue = "last-year") => {
+  const rows = await getTrackedLocationComparisonRows(range)
+  return withComparisonDisplayRanks(
+    sortComparisonRowsBySalesVolume(rows, "asc").slice(0, PPR_NON_LOCATION_COMPARISON_PAGE_LIMIT)
+  )
+}
+
+const getLeastActiveMarketRowsCached = unstable_cache(
+  async (range: PprDateRangeValue = "last-year") =>
+    (await loadComparisonRowsFromTable("least-active-markets", range)) ||
+    getLeastActiveMarketRowsUncached(range),
+  ["ppr-least-active-market-rows", PPR_COMPARISON_CACHE_VERSION],
+  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
+)
+
+export async function getLeastActiveMarketRows(range: PprDateRangeValue = "last-year") {
+  return withComparisonDisplayRanks(await getLeastActiveMarketRowsCached(range))
+}
+
+const getHottestMarketRowsUncached = async (range: PprDateRangeValue = "last-year") => {
+  const rows = await getTrackedLocationComparisonRowsUncached(range)
+  return withComparisonDisplayRanks(
+    sortHottestComparisonRows(rows).slice(0, PPR_NON_LOCATION_COMPARISON_PAGE_LIMIT)
+  )
+}
+
+const getHottestMarketRowsCached = unstable_cache(
+  async (range: PprDateRangeValue = "last-year") =>
+    (await loadComparisonRowsFromTable("hottest-markets", range)) ||
+    getHottestMarketRowsUncached(range),
+  ["ppr-hottest-market-rows", PPR_COMPARISON_CACHE_VERSION],
+  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
+)
+
+export async function getHottestMarketRows(range: PprDateRangeValue = "last-year") {
+  return withComparisonDisplayRanks(await getHottestMarketRowsCached(range))
+}
+
+const getCoolestMarketRowsUncached = async (range: PprDateRangeValue = "last-year") => {
+  const rows = await getTrackedLocationComparisonRowsUncached(range)
+  return withComparisonDisplayRanks(
+    sortCoolestComparisonRows(rows).slice(0, PPR_NON_LOCATION_COMPARISON_PAGE_LIMIT)
+  )
+}
+
+const getCoolestMarketRowsCached = unstable_cache(
+  async (range: PprDateRangeValue = "last-year") =>
+    (await loadComparisonRowsFromTable("coolest-markets", range)) ||
+    getCoolestMarketRowsUncached(range),
+  ["ppr-coolest-market-rows", PPR_COMPARISON_CACHE_VERSION],
+  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
+)
+
+export async function getCoolestMarketRows(range: PprDateRangeValue = "last-year") {
+  return withComparisonDisplayRanks(await getCoolestMarketRowsCached(range))
 }
 
 const getRisingMarketRowsUncached = async (range: PprDateRangeValue = "last-year") => {
   const rows = await getTrackedLocationComparisonRows(range)
-  return rows
+  return withComparisonDisplayRanks(
+    rows
     .filter(
       (row) =>
         row.salesVolume >= PPR_ANALYTICS_THRESHOLDS.minRisingMarketSales &&
         row.yoyChangePct !== undefined
     )
     .sort((left, right) => (right.yoyChangePct || 0) - (left.yoyChangePct || 0))
-    .slice(0, 20)
+    .slice(0, PPR_NON_LOCATION_COMPARISON_PAGE_LIMIT)
+  )
 }
 
 const getRisingMarketRowsCached = unstable_cache(
@@ -2025,20 +2266,22 @@ const getRisingMarketRowsCached = unstable_cache(
 )
 
 export async function getRisingMarketRows(range: PprDateRangeValue = "last-year") {
-  return getRisingMarketRowsCached(range)
+  return withComparisonDisplayRanks(await getRisingMarketRowsCached(range))
 }
 
 const getFallingMarketRowsUncached = async (range: PprDateRangeValue = "last-year") => {
   const rows = await getTrackedLocationComparisonRows(range)
-  return rows
+  return withComparisonDisplayRanks(
+    rows
     .filter(
       (row) =>
         row.salesVolume >= PPR_ANALYTICS_THRESHOLDS.minRisingMarketSales &&
         row.yoyChangePct !== undefined &&
         row.yoyChangePct < 0
-    )
-    .sort((left, right) => (left.yoyChangePct || 0) - (right.yoyChangePct || 0))
-    .slice(0, 20)
+      )
+      .sort((left, right) => (left.yoyChangePct || 0) - (right.yoyChangePct || 0))
+      .slice(0, PPR_NON_LOCATION_COMPARISON_PAGE_LIMIT)
+  )
 }
 
 const getFallingMarketRowsCached = unstable_cache(
@@ -2050,7 +2293,7 @@ const getFallingMarketRowsCached = unstable_cache(
 )
 
 export async function getFallingMarketRows(range: PprDateRangeValue = "last-year") {
-  return getFallingMarketRowsCached(range)
+  return withComparisonDisplayRanks(await getFallingMarketRowsCached(range))
 }
 
 export function numberDisplay(value: number) {

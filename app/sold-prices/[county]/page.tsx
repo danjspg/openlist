@@ -12,6 +12,9 @@ import {
   pprMarketLabel,
 } from "@/lib/ppr-markets"
 import {
+  areaNameFromSlug,
+  getCountyAreaLinks,
+  formatPprCurrency,
   formatPprDate,
   formatPprDisplayText,
   getPprDatasetSummary,
@@ -53,8 +56,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const sinceText = summary.startYear ? ` since ${summary.startYear}` : ""
 
   return {
-    title: `${marketLabel} sold prices | OpenList`,
-    description: `Search recent sold house prices in ${marketLabel} using public Property Price Register data${sinceText}.`,
+    title: `${marketLabel} House Prices | Sold Prices & Trends`,
+    description: `See recent house prices in ${marketLabel}. View recorded sale prices, market activity and local trends using Property Price Register data${sinceText}.`,
     alternates: {
       canonical: `/sold-prices/${market.slug}`,
     },
@@ -73,12 +76,15 @@ export default async function PprMarketPage({ params }: Props) {
 
   const selectedRange: PprDateRangeValue = "last-year"
   const analyticsRange = getAnalyticsRange(selectedRange)
-  const { insights, recentSales } = await getMarketInsights(market, selectedRange)
+  const [{ insights, recentSales }, countyAreas] = await Promise.all([
+    getMarketInsights(market, selectedRange),
+    getCountyAreaLinks(market.name),
+  ])
   const marketLabel = pprMarketLabel(market)
   const marketTitle = `${formatPprDisplayText(marketLabel).toUpperCase()} MARKET`
   const marketHeading = isCountyPprMarket(market)
-    ? `See what homes are selling for in Co. ${market.name}`
-    : `See what homes are selling for in ${marketLabel}`
+    ? `House prices in Co. ${market.name}`
+    : `House prices in ${marketLabel}`
   const comparisonLinks = getRelevantMarketComparisonLinks(market)
 
   return (
@@ -93,13 +99,17 @@ export default async function PprMarketPage({ params }: Props) {
               {marketHeading}
             </h1>
             <p className="mt-5 max-w-3xl text-base leading-7 text-stone-600 sm:text-lg sm:leading-8">
-              Based on publicly available Property Price Register data.
+              See recent sold house prices, market activity and recorded sales trends for {marketLabel}.
+            </p>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">
+              This page uses publicly available Property Price Register data to show recent sale
+              prices, pricing trends and local market movement across {marketLabel}.
             </p>
             <Link
               href="/sold-prices"
               className="mt-5 inline-flex text-sm font-medium text-stone-600 transition hover:text-stone-900"
             >
-              Back to Sold Prices
+              Back to Ireland house prices
             </Link>
           </div>
         </div>
@@ -258,6 +268,33 @@ export default async function PprMarketPage({ params }: Props) {
                 ))}
               </div>
             </div>
+
+            {countyAreas.length > 0 && (
+              <div className="rounded-[28px] border border-stone-200 bg-white p-6 shadow-sm">
+                <p className="text-sm uppercase tracking-[0.18em] text-stone-500">
+                  Other parts of {marketLabel}
+                </p>
+                <p className="mt-3 text-sm leading-6 text-stone-600">
+                  Browse local property prices in the busiest areas within {marketLabel}.
+                </p>
+                <div className="mt-4 space-y-3">
+                  {countyAreas.map((area) => (
+                    <Link
+                      key={`${area.county}-${area.area_slug}`}
+                      href={`/sold-prices/${market.slug}/${area.area_slug}`}
+                      className="block rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 transition hover:border-stone-300 hover:bg-white"
+                    >
+                      <p className="font-medium text-stone-900">
+                        {areaNameFromSlug(area.area_slug || "")}
+                      </p>
+                      <p className="mt-1 text-sm text-stone-500">
+                        {numberDisplay(area.sales_count ?? 0)} sales · {formatPprCurrency(area.median_price_eur)}
+                      </p>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
           </aside>
         </div>
       </section>

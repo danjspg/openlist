@@ -52,7 +52,7 @@ export default function PprSaleCard({ sale }: { sale: PprSale }) {
 
       {county && area && (
         <Link
-          href={`/sold-prices/${encodeURIComponent(county)}/${area}`}
+          href={`/sold-prices/${encodeURIComponent(county.toLowerCase())}/${area}`}
           className="mt-5 inline-flex text-sm font-medium text-stone-700 transition hover:text-stone-950"
         >
           View area prices

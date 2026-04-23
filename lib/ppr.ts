@@ -972,6 +972,29 @@ export async function getNearbyAreaLinks(county: string, currentSlug: string, li
   return data as PprAreaStats[]
 }
 
+async function getCountyAreaLinksUncached(county: string, limit = 8) {
+  const { data, error } = await supabase
+    .from("ppr_area_stats")
+    .select("county,area_slug,sales_count,median_price_eur,last_sale_date")
+    .ilike("county", county)
+    .not("area_slug", "is", null)
+    .order("sales_count", { ascending: false })
+    .limit(limit)
+
+  if (error || !data) return []
+  return data as PprAreaStats[]
+}
+
+const getCountyAreaLinksCached = unstable_cache(
+  async (county: string, limit = 8) => getCountyAreaLinksUncached(county, limit),
+  ["ppr-county-area-links"],
+  { revalidate: PPR_CACHE_REVALIDATE_SECONDS }
+)
+
+export async function getCountyAreaLinks(county: string, limit = 8) {
+  return getCountyAreaLinksCached(county, limit)
+}
+
 export async function getNearbySalesForListing({
   county,
   area,

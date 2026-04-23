@@ -16,9 +16,9 @@ function definedHighlight<T>(value: T | null): value is T {
 export const revalidate = 21600
 
 export const metadata: Metadata = {
-  title: "Premium Property Markets Ireland | OpenList",
+  title: "Premium Property Prices Ireland | OpenList",
   description:
-    "Compare tracked Irish property markets with higher recorded median sale prices and meaningful recent transaction volume.",
+    "Compare tracked Irish property markets with higher median sale prices, meaningful recent turnover and premium house-price trends.",
 }
 
 export default async function HighValueMarketsPage() {
@@ -33,8 +33,8 @@ export default async function HighValueMarketsPage() {
   return (
     <PprComparisonPageShell
       eyebrow="Premium markets"
-      title="Premium markets with real turnover"
-      intro="This view compares selected markets using recorded sales from the last 12 months. It focuses on areas with a median price above €500k and enough activity to ensure meaningful comparisons."
+      title="Premium property prices in tracked markets"
+      intro="This view compares selected markets using recorded sales from the last 12 months. It focuses on areas with a median price above €500k and enough activity to ensure meaningful house-price comparisons."
       highlights={[
         highest
           ? {
@@ -60,6 +60,8 @@ export default async function HighValueMarketsPage() {
       nationalMedian={nationalSnapshot.medianPrice}
       nationalYoYChangePct={nationalSnapshot.yoyChangePct}
       defaultSort="medianPrice"
+      showRank
+      showCounty
     />
   )
 }

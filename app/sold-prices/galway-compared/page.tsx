@@ -17,9 +17,9 @@ function definedHighlight<T>(value: T | null): value is T {
 export const revalidate = 21600
 
 export const metadata: Metadata = {
-  title: "Galway Sold Prices Compared | OpenList",
+  title: "Galway House Prices by Area | Sold Prices Compared",
   description:
-    "Compare recorded sale prices across Galway city and surrounding markets, including median prices, yearly change and recent sales volume.",
+    "Compare Galway house prices by area, including median sale prices, price change and recent sales volume.",
 }
 
 export default async function GalwayComparedPage() {
@@ -34,8 +34,8 @@ export default async function GalwayComparedPage() {
   return (
     <PprComparisonPageShell
       eyebrow="Galway comparison"
-      title="Galway sold prices compared"
-      intro="This view compares curated Galway markets using recorded sales from the last 12 months. It is designed to help sellers compare pricing, momentum and activity across Galway city and nearby markets using the most recent 12-month window."
+      title="Galway house prices by area"
+      intro="This view compares curated Galway markets using recorded sales from the last 12 months. It is designed to help you compare house prices, momentum and activity across Galway city and nearby markets using the most recent 12-month window."
       highlights={[
         cheapest
           ? {
@@ -63,6 +63,12 @@ export default async function GalwayComparedPage() {
       nationalMedian={nationalSnapshot.medianPrice}
       nationalYoYChangePct={nationalSnapshot.yoyChangePct}
       defaultSort="medianPrice"
+      extraColumn={{
+        key: "activityChangePct",
+        label: "Activity YoY",
+        mobileLabel: "Activity YoY",
+        format: "pct",
+      }}
     />
   )
 }

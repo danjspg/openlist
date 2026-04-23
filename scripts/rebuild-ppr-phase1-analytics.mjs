@@ -32,6 +32,7 @@ const PPR_ANALYTICS_THRESHOLDS = {
   minRisingMarketSales: 50,
   minHomepageRisingSales: 50,
   minAffordableMarketSales: 24,
+  minRelativeActivityMarketSales: 12,
   commuterAffordableMedianCap: 450_000,
   affordableMarketMedianCap: 300_000,
   highValueMarketMedianFloor: 500_000,
@@ -39,6 +40,7 @@ const PPR_ANALYTICS_THRESHOLDS = {
 
 const MOMENTUM_LOOKBACK_YEARS = 5
 const LAST_YEAR_RANGE = { value: "last-year", months: 12, label: "last 12 months" }
+const NON_LOCATION_COMPARISON_PAGE_LIMIT = 30
 
 function formatSupplementalMarketName(slug) {
   return slug
@@ -401,18 +403,25 @@ function buildComparisonRow(market, sales, nationalMedian, now) {
   const previous = sales.filter((sale) =>
     withinWindow(sale, rollingWindow(now, LAST_YEAR_RANGE.months, LAST_YEAR_RANGE.months))
   )
+  const hasReliableActivity =
+    current.length >= PPR_ANALYTICS_THRESHOLDS.minActivityComparisonSales &&
+    previous.length >= PPR_ANALYTICS_THRESHOLDS.minActivityComparisonSales
   const previousMedian =
     previous.length >= PPR_ANALYTICS_THRESHOLDS.minPriceComparisonSales
       ? median(pricesForSales(previous))
       : undefined
   const split = computeBuildSplitStats(current)
+  const county = inferComparisonRowCounty(current, market.county)
 
   return {
     market_slug: market.slug,
     label: pprMarketLabel(market),
     href: `/sold-prices/${market.slug}`,
-    county: market.county || null,
+    county: county || null,
     sales_volume: current.length,
+    current_period_count: current.length,
+    previous_period_count: previous.length,
+    activity_change_pct: hasReliableActivity ? percentChange(current.length, previous.length) : null,
     median_price_eur: currentMedian,
     yoy_change_pct: percentChange(currentMedian, previousMedian),
     new_build_median_eur: split?.newBuildMedian ?? null,
@@ -420,6 +429,23 @@ function buildComparisonRow(market, sales, nationalMedian, now) {
     vs_national_median_pct: percentChange(currentMedian, nationalMedian),
     distance_from_dublin_km: COMMUTER_TOWN_DISTANCE_KM[market.slug] ?? null,
   }
+}
+
+function inferComparisonRowCounty(sales, fallbackCounty) {
+  if (fallbackCounty) return fallbackCounty
+
+  const counts = new Map()
+  for (const sale of sales) {
+    const county = typeof sale.county === "string" ? sale.county.trim() : ""
+    if (!county) continue
+    counts.set(county, (counts.get(county) ?? 0) + 1)
+  }
+
+  const leaders = [...counts.entries()].sort((left, right) => right[1] - left[1])
+  if (leaders.length === 0) return undefined
+  if (leaders.length === 1) return leaders[0][0]
+  if (leaders[0][1] === leaders[1][1]) return undefined
+  return leaders[0][0]
 }
 
 function describeError(error) {
@@ -486,6 +512,45 @@ function assignGroupRows(groupKey, rows, sortFn) {
     group_key: groupKey,
     sort_rank: index + 1,
   }))
+}
+
+function compareRowsBySalesVolume(left, right, direction = "desc") {
+  const volumeOrder =
+    direction === "desc"
+      ? right.sales_volume - left.sales_volume
+      : left.sales_volume - right.sales_volume
+  if (volumeOrder !== 0) return volumeOrder
+
+  const medianOrder = right.median_price_eur - left.median_price_eur
+  if (medianOrder !== 0) return medianOrder
+
+  return left.label.localeCompare(right.label)
+}
+
+function compareRowsByHottest(left, right) {
+  const activityOrder = (right.activity_change_pct || 0) - (left.activity_change_pct || 0)
+  if (activityOrder !== 0) return activityOrder
+
+  const priceOrder = (right.yoy_change_pct || 0) - (left.yoy_change_pct || 0)
+  if (priceOrder !== 0) return priceOrder
+
+  const volumeOrder = right.sales_volume - left.sales_volume
+  if (volumeOrder !== 0) return volumeOrder
+
+  return left.label.localeCompare(right.label)
+}
+
+function compareRowsByCoolest(left, right) {
+  const activityOrder = (left.activity_change_pct || 0) - (right.activity_change_pct || 0)
+  if (activityOrder !== 0) return activityOrder
+
+  const priceOrder = (left.yoy_change_pct || 0) - (right.yoy_change_pct || 0)
+  if (priceOrder !== 0) return priceOrder
+
+  const volumeOrder = left.sales_volume - right.sales_volume
+  if (volumeOrder !== 0) return volumeOrder
+
+  return left.label.localeCompare(right.label)
 }
 
 async function rebuildPprPhase1Analytics() {
@@ -598,9 +663,20 @@ async function rebuildPprPhase1Analytics() {
   )
   console.log(`Loaded ${comparisonSales.length} sales for comparison rows`)
 
+  const countyMarkets = PPR_MARKETS.filter((market) => market.marketType === "county")
   const trackedMarkets = PPR_MARKETS.filter((market) => market.marketType !== "county")
   const comparisonBuckets = buildMarketBucketsFromSales(comparisonSales, trackedMarkets)
   const nationalMedian = nationalSnapshots.find((row) => row.range_key === "last-year")?.median_price_eur
+  const countyComparedRows = countyMarkets
+    .map((market) =>
+      buildComparisonRow(
+        market,
+        comparisonSales.filter((sale) => saleMatchesMarket(sale, market)),
+        nationalMedian,
+        now
+      )
+    )
+    .filter(Boolean)
   const allTrackedRows = trackedMarkets
     .map((market) =>
       buildComparisonRow(market, comparisonBuckets.get(marketScopeKey(market)) || [], nationalMedian, now)
@@ -619,6 +695,7 @@ async function rebuildPprPhase1Analytics() {
 
   const comparisonRows = [
     ...assignGroupRows("all-tracked", allTrackedRows, (left, right) => left.label.localeCompare(right.label)),
+    ...assignGroupRows("counties-compared", countyComparedRows, (left, right) => right.median_price_eur - left.median_price_eur),
     ...assignGroupRows("dublin-compared", dublinComparedRows, (left, right) => right.median_price_eur - left.median_price_eur),
     ...assignGroupRows("cork-compared", pickBySlugs(COMPARISON_PAGE_MARKET_SLUGS.corkCompared), (left, right) => right.median_price_eur - left.median_price_eur),
     ...assignGroupRows("limerick-compared", pickBySlugs(COMPARISON_PAGE_MARKET_SLUGS.limerickCompared), (left, right) => right.median_price_eur - left.median_price_eur),
@@ -626,7 +703,7 @@ async function rebuildPprPhase1Analytics() {
     ...assignGroupRows("waterford-compared", pickBySlugs(COMPARISON_PAGE_MARKET_SLUGS.waterfordCompared), (left, right) => right.median_price_eur - left.median_price_eur),
     ...assignGroupRows(
       "commuter-towns",
-      pickBySlugs(COMMUTER_TOWN_MARKET_SLUGS),
+      pickBySlugs(COMMUTER_TOWN_MARKET_SLUGS).slice(0, NON_LOCATION_COMPARISON_PAGE_LIMIT),
       (left, right) => left.median_price_eur - right.median_price_eur
     ),
     ...assignGroupRows(
@@ -635,7 +712,7 @@ async function rebuildPprPhase1Analytics() {
         (row) =>
           row.sales_volume >= PPR_ANALYTICS_THRESHOLDS.minAffordableMarketSales &&
           row.median_price_eur <= PPR_ANALYTICS_THRESHOLDS.affordableMarketMedianCap
-      ),
+      ).slice(0, NON_LOCATION_COMPARISON_PAGE_LIMIT),
       (left, right) =>
         left.median_price_eur - right.median_price_eur || right.sales_volume - left.sales_volume
     ),
@@ -645,9 +722,59 @@ async function rebuildPprPhase1Analytics() {
         (row) =>
           row.sales_volume >= PPR_ANALYTICS_THRESHOLDS.minAffordableMarketSales &&
           row.median_price_eur >= PPR_ANALYTICS_THRESHOLDS.highValueMarketMedianFloor
-      ),
+      ).slice(0, NON_LOCATION_COMPARISON_PAGE_LIMIT),
       (left, right) =>
         right.median_price_eur - left.median_price_eur || right.sales_volume - left.sales_volume
+    ),
+    ...assignGroupRows(
+      "most-active-markets",
+      allTrackedRows
+        .filter((row) => Number.isFinite(row.sales_volume) && row.sales_volume > 0)
+        .sort((left, right) => compareRowsBySalesVolume(left, right, "desc"))
+        .slice(0, NON_LOCATION_COMPARISON_PAGE_LIMIT),
+      (left, right) => compareRowsBySalesVolume(left, right, "desc")
+    ),
+    ...assignGroupRows(
+      "least-active-markets",
+      allTrackedRows
+        .filter((row) => Number.isFinite(row.sales_volume) && row.sales_volume > 0)
+        .sort((left, right) => compareRowsBySalesVolume(left, right, "asc"))
+        .slice(0, NON_LOCATION_COMPARISON_PAGE_LIMIT),
+      (left, right) => compareRowsBySalesVolume(left, right, "asc")
+    ),
+    ...assignGroupRows(
+      "hottest-markets",
+      allTrackedRows.filter(
+        (row) =>
+          (row.current_period_count || 0) >= PPR_ANALYTICS_THRESHOLDS.minRelativeActivityMarketSales &&
+          (row.previous_period_count || 0) >= PPR_ANALYTICS_THRESHOLDS.minRelativeActivityMarketSales &&
+          row.activity_change_pct !== undefined &&
+          row.activity_change_pct !== null &&
+          row.activity_change_pct > 0 &&
+          row.yoy_change_pct !== undefined &&
+          row.yoy_change_pct !== null &&
+          row.yoy_change_pct > 0
+      )
+        .sort(compareRowsByHottest)
+        .slice(0, NON_LOCATION_COMPARISON_PAGE_LIMIT),
+      compareRowsByHottest
+    ),
+    ...assignGroupRows(
+      "coolest-markets",
+      allTrackedRows.filter(
+        (row) =>
+          (row.current_period_count || 0) >= PPR_ANALYTICS_THRESHOLDS.minRelativeActivityMarketSales &&
+          (row.previous_period_count || 0) >= PPR_ANALYTICS_THRESHOLDS.minRelativeActivityMarketSales &&
+          row.activity_change_pct !== undefined &&
+          row.activity_change_pct !== null &&
+          row.activity_change_pct < 0 &&
+          row.yoy_change_pct !== undefined &&
+          row.yoy_change_pct !== null &&
+          row.yoy_change_pct <= 0
+      )
+        .sort(compareRowsByCoolest)
+        .slice(0, NON_LOCATION_COMPARISON_PAGE_LIMIT),
+      compareRowsByCoolest
     ),
     ...assignGroupRows(
       "rising-markets",
@@ -659,7 +786,7 @@ async function rebuildPprPhase1Analytics() {
             row.yoy_change_pct !== null
         )
         .sort((left, right) => (right.yoy_change_pct || 0) - (left.yoy_change_pct || 0))
-        .slice(0, 20),
+        .slice(0, NON_LOCATION_COMPARISON_PAGE_LIMIT),
       (left, right) => (right.yoy_change_pct || 0) - (left.yoy_change_pct || 0)
     ),
     ...assignGroupRows(
@@ -673,7 +800,7 @@ async function rebuildPprPhase1Analytics() {
             row.yoy_change_pct < 0
         )
         .sort((left, right) => (left.yoy_change_pct || 0) - (right.yoy_change_pct || 0))
-        .slice(0, 20),
+        .slice(0, NON_LOCATION_COMPARISON_PAGE_LIMIT),
       (left, right) => (left.yoy_change_pct || 0) - (right.yoy_change_pct || 0)
     ),
   ].map((row) => ({

@@ -17,9 +17,9 @@ function definedHighlight<T>(value: T | null): value is T {
 export const revalidate = 21600
 
 export const metadata: Metadata = {
-  title: "Cork Sold Prices Compared | OpenList",
+  title: "Cork House Prices by Area | Sold Prices Compared",
   description:
-    "Compare recorded sale prices across Cork city and commuter markets, with medians, year-on-year changes and sales volumes.",
+    "Compare Cork house prices by area, with median sale prices, price change, activity and recent sales volume.",
 }
 
 export default async function CorkComparedPage() {
@@ -34,8 +34,8 @@ export default async function CorkComparedPage() {
   return (
     <PprComparisonPageShell
       eyebrow="Cork comparison"
-      title="Cork sold prices compared"
-      intro="This view compares tracked Cork markets using recorded sales from the last 12 months. It is designed to help sellers compare pricing, momentum and activity across Cork markets using the most recent 12-month window."
+      title="Cork house prices by area"
+      intro="This view compares tracked Cork markets using recorded sales from the last 12 months. It is designed to help you compare house prices, momentum and activity across Cork markets using the most recent 12-month window."
       highlights={[
         cheapest
           ? {
@@ -63,6 +63,12 @@ export default async function CorkComparedPage() {
       nationalMedian={nationalSnapshot.medianPrice}
       nationalYoYChangePct={nationalSnapshot.yoyChangePct}
       defaultSort="medianPrice"
+      extraColumn={{
+        key: "activityChangePct",
+        label: "Activity YoY",
+        mobileLabel: "Activity YoY",
+        format: "pct",
+      }}
     />
   )
 }

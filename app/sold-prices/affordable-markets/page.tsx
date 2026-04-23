@@ -16,9 +16,9 @@ function definedHighlight<T>(value: T | null): value is T {
 export const revalidate = 21600
 
 export const metadata: Metadata = {
-  title: "Affordable Property Markets Ireland | OpenList",
+  title: "Affordable Property Prices Ireland | OpenList",
   description:
-    "Find tracked Irish property markets with lower recorded median sale prices and meaningful recent transaction volume.",
+    "Find tracked Irish property markets with lower median sale prices, meaningful recent turnover and comparable house-price data.",
 }
 
 export default async function AffordableMarketsPage() {
@@ -33,8 +33,8 @@ export default async function AffordableMarketsPage() {
   return (
     <PprComparisonPageShell
       eyebrow="Affordable markets"
-      title="Affordable markets with real turnover"
-      intro="This view compares selected markets using recorded sales from the last 12 months. It focuses on areas with a median price below €300k and enough activity to ensure meaningful comparisons."
+      title="Affordable property prices in tracked markets"
+      intro="This view compares selected markets using recorded sales from the last 12 months. It focuses on areas with a median price below €300k and enough activity to ensure meaningful house-price comparisons."
       highlights={[
         cheapest
           ? {
@@ -60,6 +60,9 @@ export default async function AffordableMarketsPage() {
       nationalMedian={nationalSnapshot.medianPrice}
       nationalYoYChangePct={nationalSnapshot.yoyChangePct}
       defaultSort="medianPrice"
+      defaultDirection="asc"
+      showRank
+      showCounty
     />
   )
 }

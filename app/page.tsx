@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import { unstable_cache } from "next/cache"
 import Image from "next/image"
 import Link from "next/link"
@@ -19,6 +20,15 @@ type Listing = {
   status: string
   featured?: boolean
   created_at?: string
+}
+
+export const metadata: Metadata = {
+  title: "OpenList | Private Property Listings and Sold Prices Ireland",
+  description:
+    "Browse private property listings, recent sold prices and house-price trends across Ireland. Explore county markets, local sales and tracked market reports.",
+  alternates: {
+    canonical: "/",
+  },
 }
 
 export const revalidate = 21600
@@ -78,15 +88,15 @@ export default async function HomePage() {
           </p>
 
           <h1 className="mt-4 max-w-3xl text-4xl font-semibold tracking-tight text-stone-900 sm:mt-5 sm:text-5xl md:text-6xl">
-            A simpler way to sell your home privately in Ireland
+            A simpler way to sell property privately in Ireland
           </h1>
 
           <p className="mt-5 max-w-[34rem] text-base leading-7 text-stone-600 sm:mt-6 sm:text-lg sm:leading-8">
-            Create a clear, straightforward property listing for the Irish market.
+            Create a clear, straightforward listing for the Irish market.
           </p>
 
           <p className="mt-3 max-w-[34rem] text-sm leading-6 text-stone-500 sm:text-base">
-            Designed for people who want to create and manage their own property listing.
+            You manage your own listing and deal directly with buyers.
           </p>
 
           <div className="mt-8 sm:mt-9">

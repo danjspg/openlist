@@ -2,11 +2,12 @@ import type { Metadata } from "next"
 import PprComparisonPageShell from "@/components/ppr/PprComparisonPageShell"
 import {
   getClosestToNationalMedianComparisonRow,
-  euroDisplay,
-  getCommuterTownRows,
+  getHighestMedianComparisonRow,
   getLowestMedianComparisonRow,
   getMostActiveComparisonRow,
+  getMostActiveMarketRows,
   getNationalOverviewSnapshot,
+  euroDisplay,
   numberDisplay,
   signedPercent,
 } from "@/lib/ppr-analytics"
@@ -18,38 +19,46 @@ function definedHighlight<T>(value: T | null): value is T {
 export const revalidate = 21600
 
 export const metadata: Metadata = {
-  title: "Dublin Commuter Town House Prices | OpenList",
+  title: "Most Active Property Markets Ireland | Sales Volume",
   description:
-    "Compare Dublin commuter town house prices, including median sale prices, recent sales volume and market trends.",
+    "Compare tracked Irish property markets with the highest recorded sales volume over the last 12 months, alongside median prices and price trends.",
 }
 
-export default async function CommuterTownsPage() {
+export default async function MostActiveMarketsPage() {
   const [rows, nationalSnapshot] = await Promise.all([
-    getCommuterTownRows(),
+    getMostActiveMarketRows(),
     getNationalOverviewSnapshot(),
   ])
-  const cheapest = getLowestMedianComparisonRow(rows)
   const mostActive = getMostActiveComparisonRow(rows)
+  const highestMedian = getHighestMedianComparisonRow(rows)
+  const lowestMedian = getLowestMedianComparisonRow(rows)
   const closestToNational = getClosestToNationalMedianComparisonRow(rows)
 
   return (
     <PprComparisonPageShell
-      eyebrow="Commuter towns"
-      title="Dublin commuter town house prices"
-      intro="This view compares selected commuter towns using recorded sales from the last 12 months. It helps you compare house prices and activity across the Dublin commuter belt."
+      eyebrow="Most active markets"
+      title="Most active property markets"
+      intro="This view compares selected markets using recorded sales from the last 12 months. It highlights areas with the highest sales activity, focusing on places with enough volume to support meaningful property-price comparisons."
       highlights={[
-        cheapest
-          ? {
-              label: "Lowest median",
-              value: cheapest.label,
-              detail: `${euroDisplay(cheapest.medianPrice)} median over the last 12 months.`,
-            }
-          : null,
         mostActive
           ? {
-              label: "Most active town",
+              label: "Most active",
               value: mostActive.label,
               detail: `${numberDisplay(mostActive.salesVolume)} recorded sales in the last 12 months.`,
+            }
+          : null,
+        highestMedian
+          ? {
+              label: "Highest median",
+              value: highestMedian.label,
+              detail: `${euroDisplay(highestMedian.medianPrice)} median over the last 12 months.`,
+            }
+          : null,
+        lowestMedian
+          ? {
+              label: "Lowest median",
+              value: lowestMedian.label,
+              detail: `${euroDisplay(lowestMedian.medianPrice)} median over the last 12 months.`,
             }
           : null,
         closestToNational
@@ -63,14 +72,8 @@ export default async function CommuterTownsPage() {
       rows={rows}
       nationalMedian={nationalSnapshot.medianPrice}
       nationalYoYChangePct={nationalSnapshot.yoyChangePct}
-      defaultSort="medianPrice"
-      extraColumn={{
-        key: "distanceFromDublinKm",
-        label: "Distance*",
-        mobileLabel: "Distance*",
-        format: "km",
-      }}
-      footnote="* Approximate distance to Dublin city centre, using O'Connell Bridge as the reference point."
+      defaultSort="salesVolume"
+      showRank
       showCounty
     />
   )

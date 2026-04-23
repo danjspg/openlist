@@ -5,7 +5,6 @@ import {
   areaNameFromSlug,
   buildPprDatasetDescription,
   formatPprCurrency,
-  formatPprDate,
   getPprDatasetSummary,
   getPprQuickAreas,
   type PprDateRangeValue,
@@ -25,8 +24,15 @@ export async function generateMetadata(): Promise<Metadata> {
   const summary = await getPprDatasetSummary()
 
   return {
-    title: "Sold Prices Ireland | OpenList",
-    description: buildPprDatasetDescription(summary),
+    title: "Ireland House Prices | Sold Prices & Market Trends",
+    description: `See what homes are selling for across Ireland. ${buildPprDatasetDescription(summary)} View recent sale prices, market trends and county comparisons.`,
+    alternates: {
+      canonical: "/sold-prices",
+    },
+    robots: {
+      index: true,
+      follow: true,
+    },
   }
 }
 
@@ -65,6 +71,7 @@ export default async function SoldPricesPage({
     .map((slug) => PPR_MARKETS.find((market) => market.slug === slug))
     .filter((market): market is (typeof PPR_MARKETS)[number] => Boolean(market))
   const exploreMarketLinks = [
+    { href: "/sold-prices/counties-compared", label: "Counties Compared" },
     { href: "/sold-prices/dublin-compared", label: "Dublin Market" },
     { href: "/sold-prices/commuter-towns", label: "Dublin Commuter Towns" },
     { href: "/sold-prices/cork-compared", label: "Cork Market" },
@@ -73,6 +80,10 @@ export default async function SoldPricesPage({
     { href: "/sold-prices/waterford-compared", label: "Waterford Market" },
     { href: "/sold-prices/affordable-markets", label: "Affordable Markets" },
     { href: "/sold-prices/high-value-markets", label: "Premium Markets" },
+    { href: "/sold-prices/most-active-markets", label: "Most Active Markets" },
+    { href: "/sold-prices/least-active-markets", label: "Least Active Markets" },
+    { href: "/sold-prices/hottest-markets", label: "Hottest Markets" },
+    { href: "/sold-prices/coolest-markets", label: "Coolest Markets" },
     { href: "/sold-prices/rising-markets", label: "Rising Markets" },
     { href: "/sold-prices/falling-markets", label: "Falling Markets" },
   ]
@@ -95,14 +106,15 @@ export default async function SoldPricesPage({
               PUBLIC SOLD PRICES
             </p>
             <h1 className="mt-3 max-w-4xl text-4xl font-semibold tracking-tight text-stone-900 sm:text-5xl">
-              See what homes sold for across Ireland
+              House prices and sold prices across Ireland
             </h1>
             <p className="mt-5 max-w-3xl whitespace-pre-line text-base leading-7 text-stone-600 sm:text-lg sm:leading-8">
-              Search over {new Intl.NumberFormat("en-IE").format(allTimeSnapshot.salesCount)} property
-              sales to see what homes are really selling for.
+              Search over {new Intl.NumberFormat("en-IE").format(allTimeSnapshot.salesCount)} recorded
+              property sales to see what homes are selling for across Ireland.
             </p>
-            <p className="mt-4 text-sm font-medium text-stone-700">
-              Explore real sale prices across Ireland and understand your local market.
+            <p className="mt-4 max-w-3xl text-sm leading-6 text-stone-700">
+              Use the sold-prices hub to browse county house prices, local property prices and
+              comparison pages built from recorded Property Price Register transactions.
             </p>
             <p className="mt-3 text-sm text-stone-600">
               Based on publicly available Property Price Register data.
@@ -194,7 +206,6 @@ export default async function SoldPricesPage({
               <p>
                 Based on {new Intl.NumberFormat("en-IE").format(allTimeSnapshot.salesCount)} recorded sales.
               </p>
-              <p>Latest sale: {formatPprDate(allTimeSnapshot.latestSaleDate)}.</p>
             </div>
           </div>
 
@@ -229,16 +240,16 @@ export default async function SoldPricesPage({
           </p>
           <div className="mt-5 flex flex-wrap gap-3">
             <Link
-              href="/sold-prices/dublin-compared"
+              href="/sold-prices/counties-compared"
               className="inline-flex rounded-full bg-stone-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-stone-700"
             >
-              Browse comparisons
+              Compare counties
             </Link>
             <Link
-              href="/sold-prices/dublin"
+              href="/sold-prices/tracked-markets"
               className="inline-flex rounded-full border border-stone-300 px-5 py-2.5 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900"
             >
-              Browse counties
+              Browse market reports
             </Link>
           </div>
         </div>
@@ -268,27 +279,27 @@ export default async function SoldPricesPage({
               <div className="rounded-[28px] border border-stone-200 bg-white p-6 shadow-sm sm:p-8">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Link
-                    href="/sold-prices/dublin-compared"
+                    href="/sold-prices/tracked-markets"
                     className="rounded-[24px] border border-stone-200 bg-stone-50 px-5 py-5 transition hover:border-stone-300 hover:bg-white"
                   >
-                    <p className="text-sm text-stone-500">Compare tracked markets</p>
+                    <p className="text-sm text-stone-500">Browse market reports</p>
                     <p className="mt-2 text-xl font-semibold tracking-tight text-stone-900">
-                      See how areas stack up
+                      Explore tracked markets
                     </p>
                     <p className="mt-2 text-sm leading-6 text-stone-600">
-                      Jump straight into Dublin, commuter towns, affordable markets and more.
+                      Jump into Most Active, Affordable, Rising, Hottest and other report pages.
                     </p>
                   </Link>
                   <Link
-                    href="/sold-prices/dublin"
+                    href="/sold-prices/counties-compared"
                     className="rounded-[24px] border border-stone-200 bg-stone-50 px-5 py-5 transition hover:border-stone-300 hover:bg-white"
                   >
-                    <p className="text-sm text-stone-500">Browse counties</p>
+                    <p className="text-sm text-stone-500">Compare counties</p>
                     <p className="mt-2 text-xl font-semibold tracking-tight text-stone-900">
                       Start with county market pages
                     </p>
                     <p className="mt-2 text-sm leading-6 text-stone-600">
-                      Open county views and drill into popular areas and tracked markets.
+                      Use the county comparison page to pick a county, then drill into its market page.
                     </p>
                   </Link>
                 </div>
@@ -311,7 +322,7 @@ export default async function SoldPricesPage({
                 {quickAreas.map((area) => (
                   <Link
                     key={`${area.county}-${area.area_slug}`}
-                    href={`/sold-prices/${encodeURIComponent(area.county || "")}/${area.area_slug}`}
+                    href={`/sold-prices/${encodeURIComponent(String(area.county || "").toLowerCase())}/${area.area_slug}`}
                     className="rounded-[24px] border border-stone-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                   >
                     <p className="text-sm uppercase tracking-[0.18em] text-stone-500">

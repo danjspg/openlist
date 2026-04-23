@@ -7,8 +7,9 @@ import { getCurrentSellerUser } from "@/lib/seller-auth"
 import "./globals.css"
 
 export const metadata: Metadata = {
-  title: "OpenList",
-  description: "A private home sale platform for Ireland.",
+  title: "OpenList | Property Listings and Sold Prices Ireland",
+  description:
+    "Browse private property listings and sold-price trends across Ireland, with recorded sale prices, market reports and direct-to-seller homes.",
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL || "https://www.openlist.ie"
   ),

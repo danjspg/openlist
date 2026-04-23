@@ -14,6 +14,7 @@ type SortKey =
   | "medianPrice"
   | "yoyChangePct"
   | "salesVolume"
+  | "activityChangePct"
   | "newBuildMedian"
   | "secondHandMedian"
   | "distanceFromDublinKm"
@@ -21,8 +22,9 @@ type SortKey =
 const SORT_LABELS: Record<Exclude<SortKey, "distanceFromDublinKm">, string> = {
   label: "Location",
   medianPrice: "Median price",
-  yoyChangePct: "Year-on-year change",
+  yoyChangePct: "Price YoY",
   salesVolume: "Sales volume",
+  activityChangePct: "Activity YoY",
   newBuildMedian: "New build median",
   secondHandMedian: "Second-hand median",
 }
@@ -46,16 +48,20 @@ export default function PprComparisonTable({
   defaultSort = "medianPrice",
   defaultDirection = "desc",
   extraColumn,
+  showRank = false,
+  showCounty = false,
 }: {
   rows: PprComparisonRow[]
   defaultSort?: SortKey
   defaultDirection?: "asc" | "desc"
   extraColumn?: {
-    key: "distanceFromDublinKm"
+    key: "distanceFromDublinKm" | "activityChangePct"
     label: string
     mobileLabel: string
-    format: "km"
+    format: "km" | "pct"
   }
+  showRank?: boolean
+  showCounty?: boolean
 }) {
   const [sortKey, setSortKey] = useState<SortKey>(defaultSort)
   const [direction, setDirection] = useState<"asc" | "desc">(defaultDirection)
@@ -71,6 +77,8 @@ export default function PprComparisonTable({
           return compareNullableNumber(left.yoyChangePct, right.yoyChangePct)
         case "salesVolume":
           return left.salesVolume - right.salesVolume
+        case "activityChangePct":
+          return compareNullableNumber(left.activityChangePct, right.activityChangePct)
         case "newBuildMedian":
           return compareNullableNumber(left.newBuildMedian, right.newBuildMedian)
         case "secondHandMedian":
@@ -109,6 +117,10 @@ export default function PprComparisonTable({
       return `${numberDisplay(value)} km`
     }
 
+    if (extraColumn.format === "pct") {
+      return signedPercent(value)
+    }
+
     return String(value)
   }
 
@@ -116,13 +128,16 @@ export default function PprComparisonTable({
     { value: "medianPrice", label: SORT_LABELS.medianPrice },
     { value: "yoyChangePct", label: SORT_LABELS.yoyChangePct },
     { value: "salesVolume", label: SORT_LABELS.salesVolume },
+    { value: "activityChangePct", label: SORT_LABELS.activityChangePct },
     { value: "newBuildMedian", label: SORT_LABELS.newBuildMedian },
     { value: "secondHandMedian", label: SORT_LABELS.secondHandMedian },
     { value: "label", label: SORT_LABELS.label },
   ]
 
   if (extraColumn) {
-    sortOptions.splice(3, 0, { value: extraColumn.key, label: extraColumn.label })
+    if (!sortOptions.some((option) => option.value === extraColumn.key)) {
+      sortOptions.splice(3, 0, { value: extraColumn.key, label: extraColumn.label })
+    }
   }
 
   if (rows.length === 0) {
@@ -181,12 +196,18 @@ export default function PprComparisonTable({
         <table className="min-w-full divide-y divide-stone-200">
           <thead className="bg-stone-50">
             <tr>
+              {showRank && <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">Rank</th>}
               <th className="px-5 py-4">
                 <button type="button" onClick={() => setSort("label")} className={headerButtonClass}>
                   <span>Location</span>
                   {sortIndicator("label")}
                 </button>
               </th>
+              {showCounty && (
+                <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
+                  County
+                </th>
+              )}
               <th className="px-5 py-4">
                 <button
                   type="button"
@@ -203,7 +224,7 @@ export default function PprComparisonTable({
                   onClick={() => setSort("yoyChangePct")}
                   className={headerButtonClass}
                 >
-                  <span>YoY</span>
+                  <span>Price YoY</span>
                   {sortIndicator("yoyChangePct")}
                 </button>
               </th>
@@ -254,11 +275,19 @@ export default function PprComparisonTable({
           <tbody className="divide-y divide-stone-200">
             {sortedRows.map((row) => (
               <tr key={row.slug} className="align-top">
+                {showRank && (
+                  <td className="px-5 py-4 text-sm font-semibold text-stone-500">
+                    {row.rank ?? "—"}
+                  </td>
+                )}
                 <td className="px-5 py-4">
                   <Link href={row.href} className="font-semibold text-stone-900 hover:text-stone-700">
                     {row.label}
                   </Link>
                 </td>
+                {showCounty && (
+                  <td className="px-5 py-4 text-stone-700">{row.county ?? "—"}</td>
+                )}
                 <td className="px-5 py-4 font-medium text-stone-900">
                   {euroDisplay(row.medianPrice)}
                 </td>
@@ -284,9 +313,21 @@ export default function PprComparisonTable({
           <article key={row.slug} className="rounded-3xl border border-stone-200 bg-stone-50 p-4">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <Link href={row.href} className="text-lg font-semibold text-stone-900">
-                  {row.label}
-                </Link>
+                <div className="flex items-start gap-3">
+                  {showRank && (
+                    <div className="inline-flex h-8 min-w-8 items-center justify-center rounded-full border border-stone-200 bg-white px-2 text-sm font-semibold text-stone-600">
+                      {row.rank ?? "—"}
+                    </div>
+                  )}
+                  <div>
+                    <Link href={row.href} className="text-lg font-semibold text-stone-900">
+                      {row.label}
+                    </Link>
+                    {showCounty && (
+                      <p className="mt-1 text-sm text-stone-500">{row.county ?? "—"}</p>
+                    )}
+                  </div>
+                </div>
                 <p className="mt-1 text-sm text-stone-500">
                   {numberDisplay(row.salesVolume)} sales in the last 12 months
                 </p>

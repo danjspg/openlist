@@ -18,9 +18,9 @@ function definedHighlight<T>(value: T | null): value is T {
 export const revalidate = 21600
 
 export const metadata: Metadata = {
-  title: "Falling Property Markets Ireland | OpenList",
+  title: "Falling Property Prices Ireland | OpenList",
   description:
-    "See the tracked Irish property markets with the weakest year-on-year median sale price performance, filtered to avoid thin-sample noise.",
+    "See the tracked Irish property markets with the weakest year-on-year house-price performance, filtered to avoid thin-sample noise.",
 }
 
 export default async function FallingMarketsPage() {
@@ -35,8 +35,8 @@ export default async function FallingMarketsPage() {
   return (
     <PprComparisonPageShell
       eyebrow="Falling markets"
-      title="Falling markets by recorded sale prices"
-      intro="This view compares selected markets using recorded sales from the last 12 months. It highlights areas with the lowest year-on-year price growth, focusing on places with enough activity to ensure meaningful comparisons."
+      title="Falling property prices in tracked markets"
+      intro="This view compares selected markets using recorded sales from the last 12 months. It highlights areas with the lowest year-on-year house-price growth, focusing on places with enough activity to ensure meaningful comparisons."
       highlights={[
         weakest
           ? {
@@ -65,6 +65,8 @@ export default async function FallingMarketsPage() {
       nationalYoYChangePct={nationalSnapshot.yoyChangePct}
       defaultSort="yoyChangePct"
       defaultDirection="asc"
+      showRank
+      showCounty
     />
   )
 }

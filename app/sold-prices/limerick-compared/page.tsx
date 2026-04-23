@@ -17,9 +17,9 @@ function definedHighlight<T>(value: T | null): value is T {
 export const revalidate = 21600
 
 export const metadata: Metadata = {
-  title: "Limerick Sold Prices Compared | OpenList",
+  title: "Limerick House Prices by Area | Sold Prices Compared",
   description:
-    "Compare recorded sale prices across Limerick city and surrounding markets, including median prices, yearly change and recent sales volume.",
+    "Compare Limerick house prices by area, including median sale prices, price change and recent sales volume.",
 }
 
 export default async function LimerickComparedPage() {
@@ -34,8 +34,8 @@ export default async function LimerickComparedPage() {
   return (
     <PprComparisonPageShell
       eyebrow="Limerick comparison"
-      title="Limerick sold prices compared"
-      intro="This view compares curated Limerick markets using recorded sales from the last 12 months. It is designed to help sellers compare pricing, momentum and activity across Limerick city and nearby markets using the most recent 12-month window."
+      title="Limerick house prices by area"
+      intro="This view compares curated Limerick markets using recorded sales from the last 12 months. It is designed to help you compare house prices, momentum and activity across Limerick city and nearby markets using the most recent 12-month window."
       highlights={[
         cheapest
           ? {
@@ -63,6 +63,12 @@ export default async function LimerickComparedPage() {
       nationalMedian={nationalSnapshot.medianPrice}
       nationalYoYChangePct={nationalSnapshot.yoyChangePct}
       defaultSort="medianPrice"
+      extraColumn={{
+        key: "activityChangePct",
+        label: "Activity YoY",
+        mobileLabel: "Activity YoY",
+        format: "pct",
+      }}
     />
   )
 }
