@@ -13,7 +13,7 @@ export default function PprDisclaimer({
       </p>
       <div className="mt-3 h-px w-full bg-stone-200" />
       <p
-        className={`${compact ? "mt-3" : "mt-4"} max-w-[34ch] text-sm leading-7 text-stone-600`}
+        className={`${compact ? "mt-3" : "mt-4"} max-w-3xl text-sm leading-relaxed text-stone-600`}
       >
         Sold prices are based on public Irish Residential Property Price Register
         data. They are provided for general information only and as market
