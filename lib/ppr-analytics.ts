@@ -64,7 +64,7 @@ const MOMENTUM_LOOKBACK_YEARS = 5
 const PPR_ANALYTICS_REVALIDATE_SECONDS = 60 * 60 * 6
 const PPR_COMPARISON_CACHE_VERSION = "v10"
 const PPR_INSIGHTS_CACHE_VERSION = "v7"
-const PPR_HOMEPAGE_STATS_CACHE_VERSION = "v4"
+const PPR_HOMEPAGE_STATS_CACHE_VERSION = "v5"
 const PPR_NATIONAL_SNAPSHOT_CACHE_VERSION = "v3"
 const PPR_NON_LOCATION_COMPARISON_PAGE_LIMIT = 30
 
@@ -1554,6 +1554,16 @@ const getHomepageSoldPriceStatsUncached = async () => {
         row.medianPrice <= PPR_ANALYTICS_THRESHOLDS.commuterAffordableMedianCap
     )
     .sort((left, right) => left.medianPrice - right.medianPrice)
+  const affordableRows = trackedRows
+    .filter(
+      (row) =>
+        row.salesVolume >= PPR_ANALYTICS_THRESHOLDS.minAffordableMarketSales &&
+        row.medianPrice <= PPR_ANALYTICS_THRESHOLDS.affordableMarketMedianCap
+    )
+    .sort((left, right) => {
+      if (left.medianPrice !== right.medianPrice) return left.medianPrice - right.medianPrice
+      return right.salesVolume - left.salesVolume
+    })
 
   const stats: PprHomepageStat[] = []
 
@@ -1661,15 +1671,35 @@ const getHomepageSoldPriceStatsUncached = async () => {
     })
   }
 
-  return stats.slice(0, 5)
+  if (affordableRows[0]) {
+    stats.push({
+      eyebrow: "Most affordable market",
+      title: affordableRows[0].label,
+      titleHref: affordableRows[0].href,
+      value: euroDisplay(affordableRows[0].medianPrice),
+      detail: "Median price over the last 12 months",
+      href: "/sold-prices/affordable-markets",
+    })
+  } else {
+    stats.push({
+      eyebrow: "Most affordable market",
+      title: "Affordable market watch",
+      value: "Limited data",
+      detail: "Shown when a market has enough recent sales for comparison",
+      href: "/sold-prices/affordable-markets",
+    })
+  }
+
+  return stats.slice(0, 6)
 }
 
 const getHomepageSoldPriceStatsCached = unstable_cache(
   async () => {
-    const [nationalSnapshot, risingRows, commuterRows] = await Promise.all([
+    const [nationalSnapshot, risingRows, commuterRows, affordableRows] = await Promise.all([
       loadNationalSnapshotRow("last-year"),
       loadComparisonRowsFromTable("rising-markets", "last-year"),
       loadComparisonRowsFromTable("commuter-towns", "last-year"),
+      loadComparisonRowsFromTable("affordable-markets", "last-year"),
     ])
 
     if (!nationalSnapshot) {
@@ -1748,6 +1778,22 @@ const getHomepageSoldPriceStatsCached = unstable_cache(
             value: "Limited data",
             detail: "Shown when a commuter town has enough recent sales for comparison",
             href: "/sold-prices/commuter-towns",
+          },
+      affordableRows?.[0]
+        ? {
+            eyebrow: "Most affordable market",
+            title: affordableRows[0].label,
+            titleHref: affordableRows[0].href,
+            value: euroDisplay(affordableRows[0].medianPrice),
+            detail: "Median price over the last 12 months",
+            href: "/sold-prices/affordable-markets",
+          }
+        : {
+            eyebrow: "Most affordable market",
+            title: "Affordable market watch",
+            value: "Limited data",
+            detail: "Shown when a market has enough recent sales for comparison",
+            href: "/sold-prices/affordable-markets",
           },
     ]
 

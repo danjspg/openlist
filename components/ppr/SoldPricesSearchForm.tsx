@@ -1,19 +1,25 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState, type FormEvent } from "react"
 import {
   getDefaultPprDateRange,
   getPprDateRangePreset,
-  PPR_DATE_RANGE_OPTIONS,
   type PprDateRangeValue,
+  type PprSearchAreaOption,
 } from "@/lib/ppr"
-import { IRISH_COUNTIES } from "@/lib/property"
+
+const SEARCH_DATE_RANGE_OPTIONS = [
+  { value: "last-year", label: "Last 12 months" },
+  { value: "last-2-years", label: "Last 2 years" },
+  { value: "last-5-years", label: "Last 5 years" },
+] as const
 
 type Props = {
   action?: string
   defaults?: {
     county?: string
-    area?: string
+    areaSlug?: string
+    areaLabel?: string
     minPrice?: string
     maxPrice?: string
     dateFrom?: string
@@ -21,18 +27,13 @@ type Props = {
     dateRange?: string
     sort?: string
     newBuild?: string
-    propertyStyle?: string
+    page?: string
   }
   compact?: boolean
   showTimeRange?: boolean
   showSort?: boolean
+  validationMessage?: string
 }
-
-const propertyStyleFilters = [
-  { value: "detached", label: "Detached" },
-  { value: "semi-detached", label: "Semi-detached" },
-  { value: "apartment", label: "Apartment" },
-]
 
 function normalisePriceInput(value: string) {
   return value.replace(/[^0-9]/g, "")
@@ -47,6 +48,10 @@ function formatPriceDisplay(value: string) {
     currency: "EUR",
     maximumFractionDigits: 0,
   }).format(Number(digits))
+}
+
+function normaliseSearchLabel(value: string) {
+  return value.trim().toLowerCase()
 }
 
 function durationHref(
@@ -73,35 +78,14 @@ function durationHref(
   return `/sold-prices/search?${params.toString()}`
 }
 
-function clearDatesHref(defaults: NonNullable<Props["defaults"]>) {
-  const params = new URLSearchParams()
-
-  for (const [key, value] of Object.entries(defaults)) {
-    if (
-      value &&
-      key !== "page" &&
-      key !== "dateFrom" &&
-      key !== "dateTo" &&
-      key !== "dateRange"
-    ) {
-      params.set(key, value)
-    }
-  }
-
-  params.set("dateRange", "all")
-  const query = params.toString()
-  return query ? `/sold-prices/search?${query}` : "/sold-prices/search"
-}
-
 function inferCurrentRange(
   defaults: NonNullable<Props["defaults"]>,
   defaultDates: ReturnType<typeof getDefaultPprDateRange>
 ): PprDateRangeValue {
   if (
     defaults.dateRange === "last-year" ||
-    defaults.dateRange === "last-3-years" ||
-    defaults.dateRange === "last-5-years" ||
-    defaults.dateRange === "all"
+    defaults.dateRange === "last-2-years" ||
+    defaults.dateRange === "last-5-years"
   ) {
     return defaults.dateRange
   }
@@ -110,36 +94,17 @@ function inferCurrentRange(
     defaults.dateFrom === defaultDates.dateFrom &&
     defaults.dateTo === defaultDates.dateTo
   ) {
-    return "last-year"
+    return "last-2-years"
   }
 
-  for (const option of PPR_DATE_RANGE_OPTIONS) {
-    if (option.value === "all") continue
+  for (const option of SEARCH_DATE_RANGE_OPTIONS) {
     const preset = getPprDateRangePreset(option.value)
     if (defaults.dateFrom === preset.dateFrom && defaults.dateTo === preset.dateTo) {
       return option.value
     }
   }
 
-  return "all"
-}
-
-function filterHref(
-  defaults: NonNullable<Props["defaults"]>,
-  nextFilters: Record<string, string>
-) {
-  const params = new URLSearchParams()
-
-  for (const [key, value] of Object.entries(defaults)) {
-    if (value && key !== "page") params.set(key, value)
-  }
-
-  for (const [key, value] of Object.entries(nextFilters)) {
-    if (value) params.set(key, value)
-    else params.delete(key)
-  }
-
-  return `/sold-prices/search?${params.toString()}`
+  return "last-2-years"
 }
 
 function DateRangeInput({
@@ -188,10 +153,11 @@ export default function SoldPricesSearchForm({
   compact = false,
   showTimeRange = true,
   showSort = true,
+  validationMessage,
 }: Props) {
   const defaultDates = getDefaultPprDateRange()
   const resolvedDefaults =
-    defaults.dateFrom || defaults.dateTo || defaults.dateRange === "all"
+    defaults.dateFrom || defaults.dateTo
       ? { sort: "newest", ...defaults }
       : { sort: "newest", ...defaults, ...defaultDates }
   const currentRange = inferCurrentRange(resolvedDefaults, defaultDates)
@@ -201,43 +167,158 @@ export default function SoldPricesSearchForm({
   const [maxPrice, setMaxPrice] = useState(
     normalisePriceInput(resolvedDefaults.maxPrice || "")
   )
+  const [county, setCounty] = useState(resolvedDefaults.county || "")
+  const [areaQuery, setAreaQuery] = useState(resolvedDefaults.areaLabel || "")
+  const [areaSlug, setAreaSlug] = useState(resolvedDefaults.areaSlug || "")
+  const [areaLabel, setAreaLabel] = useState(resolvedDefaults.areaLabel || "")
+  const [suggestions, setSuggestions] = useState<PprSearchAreaOption[]>([])
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false)
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false)
+  const [clientValidationMessage, setClientValidationMessage] = useState("")
+
+  useEffect(() => {
+    const query = areaQuery.trim()
+
+    if (!query || query === areaLabel || query.length < 2) {
+      setSuggestions([])
+      setSuggestionsOpen(false)
+      setIsLoadingSuggestions(false)
+      return
+    }
+
+    const controller = new AbortController()
+    setIsLoadingSuggestions(true)
+
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        const response = await fetch(
+          `/api/ppr/area-suggestions?q=${encodeURIComponent(query)}`,
+          { signal: controller.signal }
+        )
+
+        if (!response.ok) {
+          setSuggestions([])
+          setSuggestionsOpen(false)
+          return
+        }
+
+        const payload = (await response.json()) as { suggestions?: PprSearchAreaOption[] }
+        const nextSuggestions = payload.suggestions || []
+        setSuggestions(nextSuggestions)
+        setSuggestionsOpen(nextSuggestions.length > 0)
+      } catch (error) {
+        if ((error as Error).name !== "AbortError") {
+          setSuggestions([])
+          setSuggestionsOpen(false)
+        }
+      } finally {
+        setIsLoadingSuggestions(false)
+      }
+    }, 200)
+
+    return () => {
+      controller.abort()
+      window.clearTimeout(timeoutId)
+    }
+  }, [areaLabel, areaQuery])
+
+  function handleAreaInput(nextValue: string) {
+    setAreaQuery(nextValue)
+    setCounty("")
+    setAreaSlug("")
+    setAreaLabel("")
+    setSuggestionsOpen(nextValue.trim().length >= 2)
+    setClientValidationMessage("")
+  }
+
+  function handleAreaSelect(option: PprSearchAreaOption) {
+    setCounty(option.county)
+    setAreaQuery(option.areaLabel)
+    setAreaSlug(option.areaSlug)
+    setAreaLabel(option.areaLabel)
+    setSuggestions([])
+    setSuggestionsOpen(false)
+    setClientValidationMessage("")
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    const hasStructuredSelection =
+      Boolean(county && areaSlug && areaLabel) &&
+      normaliseSearchLabel(areaQuery) === normaliseSearchLabel(areaLabel)
+
+    if (!hasStructuredSelection) {
+      event.preventDefault()
+      setClientValidationMessage("Please choose an area from the list.")
+      return
+    }
+
+    setClientValidationMessage("")
+  }
 
   return (
     <form
       action={action}
+      onSubmit={handleSubmit}
       className={`rounded-[28px] border border-stone-200 bg-white shadow-sm ${
         compact ? "p-4" : "p-5 sm:p-6"
       }`}
     >
-      <div className="grid gap-4 lg:grid-cols-[1fr_1fr_150px_150px]">
-        <div>
-          <label className="mb-2 block text-sm font-medium text-stone-700">
-            County
-          </label>
-          <select
-            name="county"
-            defaultValue={resolvedDefaults.county || ""}
-            className="h-11 w-full rounded-full border border-stone-300 bg-white px-4 text-sm text-stone-900 outline-none transition focus:border-stone-500"
-          >
-            <option value="">Any county</option>
-            {IRISH_COUNTIES.map((county) => (
-              <option key={county} value={county}>
-                {county}
-              </option>
-            ))}
-          </select>
-        </div>
+      <div className="mb-5">
+        <p className="text-sm font-medium uppercase tracking-[0.2em] text-stone-500">
+          Find sales by area
+        </p>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">
+          Choose an area to search recorded sale prices.
+        </p>
+        <p className="mt-2 text-xs leading-5 text-stone-500">
+          Showing up to 100 recorded sales from the selected date range.
+        </p>
+      </div>
 
-        <div>
+      <input type="hidden" name="county" value={county} />
+      <input type="hidden" name="areaSlug" value={areaSlug} />
+
+      <div className="grid gap-4 lg:grid-cols-[1.8fr_150px_150px]">
+        <div className="relative">
           <label className="mb-2 block text-sm font-medium text-stone-700">
-            Area or address
+            Area
           </label>
           <input
-            name="area"
-            defaultValue={resolvedDefaults.area || ""}
-            placeholder="Search town, area or address"
+            name="areaLabel"
+            value={areaQuery}
+            onChange={(event) => handleAreaInput(event.target.value)}
+            placeholder="Type an area name"
+            autoComplete="off"
             className="h-11 w-full rounded-full border border-stone-300 bg-white px-4 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-stone-500"
           />
+          {suggestionsOpen && (suggestions.length > 0 || isLoadingSuggestions) && (
+            <div className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-10 max-h-72 overflow-y-auto rounded-[24px] border border-stone-200 bg-white p-2 shadow-xl">
+              {isLoadingSuggestions ? (
+                <div className="px-3 py-3 text-sm text-stone-500">Loading areas…</div>
+              ) : (
+                suggestions.map((option) => (
+                  <button
+                    key={`${option.county}-${option.areaSlug}`}
+                    type="button"
+                    onClick={() => handleAreaSelect(option)}
+                    className="flex w-full items-center justify-between rounded-2xl px-3 py-3 text-left transition hover:bg-stone-50"
+                  >
+                    <span>
+                      <span className="block text-sm font-medium text-stone-900">
+                        {option.areaLabel}, {option.county}
+                      </span>
+                      <span className="block text-xs text-stone-500">
+                        {new Intl.NumberFormat("en-IE").format(option.salesCount)} sales
+                      </span>
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+          <p className="mt-2 text-xs leading-5 text-stone-500">
+            Start typing an area, then choose it from the suggestions. County is filled automatically.
+          </p>
         </div>
 
         <div>
@@ -251,7 +332,7 @@ export default function SoldPricesSearchForm({
             inputMode="numeric"
             value={formatPriceDisplay(minPrice)}
             onChange={(event) => setMinPrice(normalisePriceInput(event.target.value))}
-            placeholder="€250,000"
+            placeholder="EUR250,000"
             className="h-11 w-full rounded-full border border-stone-300 bg-white px-4 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-stone-500"
           />
         </div>
@@ -267,11 +348,17 @@ export default function SoldPricesSearchForm({
             inputMode="numeric"
             value={formatPriceDisplay(maxPrice)}
             onChange={(event) => setMaxPrice(normalisePriceInput(event.target.value))}
-            placeholder="€750,000"
+            placeholder="EUR750,000"
             className="h-11 w-full rounded-full border border-stone-300 bg-white px-4 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-stone-500"
           />
         </div>
       </div>
+
+      {(clientValidationMessage || validationMessage) && (
+        <p className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          {clientValidationMessage || validationMessage}
+        </p>
+      )}
 
       <div
         className={`mt-4 grid gap-4 md:items-end ${
@@ -316,28 +403,32 @@ export default function SoldPricesSearchForm({
           type="submit"
           className="h-11 rounded-full bg-stone-900 px-6 text-sm font-medium text-white transition hover:bg-stone-700"
         >
-          View sold prices
+          Search area sales
         </button>
       </div>
+
+      <label className="mt-4 inline-flex h-10 cursor-pointer items-center gap-2 rounded-full border border-stone-300 bg-white px-4 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900">
+        <input
+          type="checkbox"
+          name="newBuild"
+          value="true"
+          defaultChecked={resolvedDefaults.newBuild === "true"}
+          className="h-4 w-4 rounded border-stone-300 text-stone-900 focus:ring-stone-500"
+        />
+        New build only
+      </label>
 
       {showTimeRange && (
         <div className="mt-4">
           <p className="mb-2 text-sm font-medium text-stone-700">Time range</p>
           <div className="flex flex-wrap gap-2 sm:flex-nowrap">
-            {PPR_DATE_RANGE_OPTIONS.map((option) => {
+            {SEARCH_DATE_RANGE_OPTIONS.map((option) => {
               const active = currentRange === option.value
 
               return (
                 <a
                   key={option.value}
-                  href={
-                    option.value === "all"
-                      ? clearDatesHref(resolvedDefaults)
-                      : durationHref(resolvedDefaults, option.value)
-                  }
-                  title={
-                    option.value === "all" ? "Based on all available records" : undefined
-                  }
+                  href={durationHref(resolvedDefaults, option.value)}
                   className={`inline-flex min-w-0 items-center justify-center rounded-full border px-4 py-2 text-sm font-medium transition sm:flex-1 ${
                     active
                       ? "border-stone-900 bg-stone-900 text-white"
@@ -349,54 +440,8 @@ export default function SoldPricesSearchForm({
               )
             })}
           </div>
-          {currentRange === "all" && (
-            <p className="mt-2 text-xs leading-5 text-stone-500">Based on all available records.</p>
-          )}
         </div>
       )}
-
-      <div className="mt-5 border-t border-stone-200 pt-5">
-        <p className="mb-3 text-sm font-medium text-stone-700">
-          Property filters
-        </p>
-        <div className="flex flex-wrap items-center gap-2">
-          {propertyStyleFilters.map((filter) => {
-            const isSelected = resolvedDefaults.propertyStyle === filter.value
-
-            return (
-              <a
-                key={filter.value}
-                href={filterHref(resolvedDefaults, {
-                  propertyStyle: isSelected ? "" : filter.value,
-                })}
-                title="Property type is only available where it can be identified from public PPR text."
-                className={`h-10 rounded-full border px-4 py-2 text-sm font-medium transition ${
-                  isSelected
-                    ? "border-stone-900 bg-stone-900 text-white"
-                    : "border-stone-300 bg-white text-stone-700 hover:border-stone-900 hover:text-stone-900"
-                }`}
-              >
-                {filter.label}
-              </a>
-            )
-          })}
-
-          <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-full border border-stone-300 bg-white px-4 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900">
-            <input
-              type="checkbox"
-              name="newBuild"
-              value="true"
-              defaultChecked={resolvedDefaults.newBuild === "true"}
-              className="h-4 w-4 rounded border-stone-300 text-stone-900 focus:ring-stone-500"
-            />
-            New build only
-          </label>
-        </div>
-        <p className="mt-3 text-xs leading-5 text-stone-500">
-          Property type is matched only where it can be identified from public
-          register text. Bedrooms and bathrooms are not included in PPR records.
-        </p>
-      </div>
     </form>
   )
 }

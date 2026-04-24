@@ -70,22 +70,37 @@ export default async function SoldPricesPage({
   )
     .map((slug) => PPR_MARKETS.find((market) => market.slug === slug))
     .filter((market): market is (typeof PPR_MARKETS)[number] => Boolean(market))
-  const exploreMarketLinks = [
-    { href: "/sold-prices/counties-compared", label: "Counties Compared" },
-    { href: "/sold-prices/dublin-compared", label: "Dublin Market" },
-    { href: "/sold-prices/commuter-towns", label: "Dublin Commuter Towns" },
-    { href: "/sold-prices/cork-compared", label: "Cork Market" },
-    { href: "/sold-prices/limerick-compared", label: "Limerick Market" },
-    { href: "/sold-prices/galway-compared", label: "Galway Market" },
-    { href: "/sold-prices/waterford-compared", label: "Waterford Market" },
-    { href: "/sold-prices/affordable-markets", label: "Affordable Markets" },
-    { href: "/sold-prices/high-value-markets", label: "Premium Markets" },
-    { href: "/sold-prices/most-active-markets", label: "Most Active Markets" },
-    { href: "/sold-prices/least-active-markets", label: "Least Active Markets" },
-    { href: "/sold-prices/hottest-markets", label: "Hottest Markets" },
-    { href: "/sold-prices/coolest-markets", label: "Coolest Markets" },
-    { href: "/sold-prices/rising-markets", label: "Rising Markets" },
-    { href: "/sold-prices/falling-markets", label: "Falling Markets" },
+  const marketReportGroups = [
+    {
+      title: "Core markets",
+      links: [
+        { href: "/sold-prices/counties-compared", label: "Counties Compared" },
+        { href: "/sold-prices/dublin-compared", label: "Dublin Market" },
+        { href: "/sold-prices/cork-compared", label: "Cork Market" },
+        { href: "/sold-prices/limerick-compared", label: "Limerick Market" },
+        { href: "/sold-prices/galway-compared", label: "Galway Market" },
+        { href: "/sold-prices/waterford-compared", label: "Waterford Market" },
+        { href: "/sold-prices/commuter-towns", label: "Dublin Commuter Towns" },
+      ],
+    },
+    {
+      title: "Price + activity",
+      links: [
+        { href: "/sold-prices/affordable-markets", label: "Affordable Markets" },
+        { href: "/sold-prices/high-value-markets", label: "Premium Markets" },
+        { href: "/sold-prices/most-active-markets", label: "Most Active Markets" },
+        { href: "/sold-prices/least-active-markets", label: "Least Active Markets" },
+      ],
+    },
+    {
+      title: "Trends",
+      links: [
+        { href: "/sold-prices/rising-markets", label: "Rising Markets" },
+        { href: "/sold-prices/falling-markets", label: "Falling Markets" },
+        { href: "/sold-prices/hottest-markets", label: "Hottest Markets" },
+        { href: "/sold-prices/coolest-markets", label: "Coolest Markets" },
+      ],
+    },
   ]
   const spreadLine =
     nationalSnapshot.p25 !== undefined && nationalSnapshot.p75 !== undefined
@@ -95,6 +110,9 @@ export default async function SoldPricesPage({
       : null
   const risingSpotlight = homepageStats.find(
     (stat) => stat.eyebrow === "Fastest-rising tracked market"
+  )
+  const affordableSpotlight = homepageStats.find(
+    (stat) => stat.eyebrow === "Most affordable market"
   )
 
   return (
@@ -122,13 +140,13 @@ export default async function SoldPricesPage({
           </div>
         </div>
 
-        <div className="mt-6 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+        <div className="mt-6">
           <div className="rounded-[28px] border border-stone-200 bg-white p-5 shadow-sm sm:p-6">
             <p className="text-sm font-medium uppercase tracking-[0.2em] text-stone-500">
               Market snapshot
             </p>
             <p className="mt-2 text-sm text-stone-600">Showing data for: {analyticsRange.label}</p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               <div className="rounded-[24px] border border-stone-200 bg-white px-5 py-5">
                 <p className="text-sm text-stone-500">Median sale price</p>
                 <p className="mt-3 text-3xl font-semibold tracking-tight text-stone-900">
@@ -163,8 +181,6 @@ export default async function SoldPricesPage({
                     : "Shown when both 12-month periods have enough sales"}
                 </p>
               </div>
-            </div>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <div className="rounded-[22px] border border-stone-200 bg-stone-50 px-4 py-4">
                 <p className="text-sm text-stone-500">Sales activity</p>
                 <p
@@ -191,6 +207,21 @@ export default async function SoldPricesPage({
                 </p>
               </div>
               <div className="rounded-[22px] border border-stone-200 bg-stone-50 px-4 py-4">
+                <p className="text-sm text-stone-500">Typical price range</p>
+                <p className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">
+                  {nationalSnapshot.p25 !== undefined && nationalSnapshot.p75 !== undefined
+                    ? `${formatPprCurrency(nationalSnapshot.p25)} - ${formatPprCurrency(
+                        nationalSnapshot.p75
+                      )}`
+                    : "Limited data"}
+                </p>
+                <p className="mt-2 text-sm leading-6 text-stone-600">
+                  {nationalSnapshot.p25 !== undefined && nationalSnapshot.p75 !== undefined
+                    ? "Middle 50% of sales"
+                    : "Shown when enough recent sales are available."}
+                </p>
+              </div>
+              <div className="rounded-[22px] border border-stone-200 bg-stone-50 px-4 py-4">
                 <p className="text-sm text-stone-500">Fastest-rising market</p>
                 <p className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">
                   {risingSpotlight?.titleHref ? (
@@ -210,6 +241,26 @@ export default async function SoldPricesPage({
                     : "Shown when enough recent sales data is available."}
                 </p>
               </div>
+              <div className="rounded-[22px] border border-stone-200 bg-stone-50 px-4 py-4">
+                <p className="text-sm text-stone-500">Most affordable market</p>
+                <p className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">
+                  {affordableSpotlight?.titleHref ? (
+                    <Link
+                      href={affordableSpotlight.titleHref}
+                      className="rounded-sm transition hover:text-stone-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300"
+                    >
+                      {affordableSpotlight.title}
+                    </Link>
+                  ) : (
+                    affordableSpotlight?.title || "—"
+                  )}
+                </p>
+                <p className="mt-2 text-sm font-medium leading-6 text-stone-600">
+                  {affordableSpotlight?.value !== "Limited data"
+                    ? `${affordableSpotlight?.value} median price over the last 12 months.`
+                    : affordableSpotlight?.detail || "Shown when enough recent sales data is available."}
+                </p>
+              </div>
             </div>
             <div className="mt-4 space-y-1 text-sm leading-6 text-stone-600">
               <p>
@@ -217,53 +268,75 @@ export default async function SoldPricesPage({
               </p>
             </div>
           </div>
+        </div>
 
-          <div className="rounded-[28px] border border-stone-200 bg-stone-50/70 p-5 sm:p-6">
-            <p className="text-sm font-medium uppercase tracking-[0.2em] text-stone-500">
-              Explore Markets
-            </p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              {exploreMarketLinks.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="flex min-h-11 items-center rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-300 hover:text-stone-900"
-                >
-                  {item.label}
-                </Link>
-              ))}
+        <div className="mt-4 rounded-[28px] border border-stone-200 bg-white px-5 py-4 shadow-sm sm:px-6 sm:py-4">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between md:gap-6">
+            <div className="min-w-0 max-w-2xl">
+              <p className="text-sm font-medium uppercase tracking-[0.2em] text-stone-500">
+                FIND SALES BY AREA
+              </p>
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">
+                Search by area
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-stone-600">
+                Search recent recorded sales for a specific county and area.
+              </p>
+            </div>
+            <div className="flex shrink-0 flex-col items-start gap-2 md:items-end">
+              <Link
+                href="/sold-prices/search"
+                className="inline-flex rounded-full bg-stone-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-stone-700"
+              >
+                Search by area
+              </Link>
+              <p className="text-sm leading-6 text-stone-500">
+                Results are limited to keep search fast and useful.
+              </p>
             </div>
           </div>
         </div>
 
-        <div className="mt-6 rounded-[32px] border border-stone-200 bg-white p-5 shadow-sm sm:p-6 md:p-8">
-          <p className="text-sm font-medium uppercase tracking-[0.2em] text-stone-500">
-            Detailed Search
-          </p>
-          <h2 className="mt-2 text-3xl font-semibold tracking-tight text-stone-900">
-            Detailed sold-prices search is being updated.
-          </h2>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">
-            Browse counties, tracked markets and comparison pages for now. Full filtered search will
-            return shortly.
-          </p>
-          <div className="mt-5 flex flex-wrap gap-3">
-            <Link
-              href="/sold-prices/counties-compared"
-              className="inline-flex rounded-full bg-stone-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-stone-700"
-            >
-              Compare counties
-            </Link>
-            <Link
-              href="/sold-prices/tracked-markets"
-              className="inline-flex rounded-full border border-stone-300 px-5 py-2.5 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900"
-            >
-              Browse market reports
-            </Link>
+        <div className="mt-5 rounded-[28px] border border-stone-200 bg-stone-50/70 p-5 shadow-sm sm:p-6">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-sm font-medium uppercase tracking-[0.2em] text-stone-500">
+                Explore Markets
+              </p>
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">
+                Explore market reports
+              </h2>
+            </div>
+            <p className="max-w-2xl text-sm leading-6 text-stone-600">
+              Browse market reports by price, activity and trends.
+            </p>
+          </div>
+          <div className="mt-5 grid gap-4 lg:grid-cols-3">
+            {marketReportGroups.map((group) => (
+              <div
+                key={group.title}
+                className="rounded-[24px] border border-stone-200 bg-white px-4 py-4"
+              >
+                <p className="text-sm font-medium uppercase tracking-[0.18em] text-stone-500">
+                  {group.title}
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {group.links.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className="inline-flex min-h-11 items-center rounded-full border border-stone-200 bg-stone-50 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-300 hover:bg-white hover:text-stone-900"
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
-        <div className="mt-10 grid gap-8 lg:grid-cols-[1fr_360px]">
+        <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_360px]">
           <section>
             <div className="mb-8">
               <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -279,33 +352,20 @@ export default async function SoldPricesPage({
                     Start with a place you know.
                   </h2>
                   <p className="mt-2 text-sm text-stone-500">
-                    Browse one of the tracked markets, counties or comparison pages below while the
-                    detailed search experience is being updated.
+                    Start with counties or jump into a scoped area search.
                   </p>
                 </div>
               </div>
 
               <div className="rounded-[28px] border border-stone-200 bg-white p-6 shadow-sm sm:p-8">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Link
-                    href="/sold-prices/tracked-markets"
-                    className="rounded-[24px] border border-stone-200 bg-stone-50 px-5 py-5 transition hover:border-stone-300 hover:bg-white"
-                  >
-                    <p className="text-sm text-stone-500">Browse market reports</p>
-                    <p className="mt-2 text-xl font-semibold tracking-tight text-stone-900">
-                      Explore tracked markets
-                    </p>
-                    <p className="mt-2 text-sm leading-6 text-stone-600">
-                      Jump into Most Active, Affordable, Rising, Hottest and other report pages.
-                    </p>
-                  </Link>
+                <div className="grid gap-4 sm:grid-cols-1">
                   <Link
                     href="/sold-prices/counties-compared"
                     className="rounded-[24px] border border-stone-200 bg-stone-50 px-5 py-5 transition hover:border-stone-300 hover:bg-white"
                   >
                     <p className="text-sm text-stone-500">Compare counties</p>
                     <p className="mt-2 text-xl font-semibold tracking-tight text-stone-900">
-                      Start with county market pages
+                      Compare counties
                     </p>
                     <p className="mt-2 text-sm leading-6 text-stone-600">
                       Use the county comparison page to pick a county, then drill into its market page.

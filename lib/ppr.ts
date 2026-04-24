@@ -51,7 +51,8 @@ export type PprAreaMonthly = {
 
 export type PprSearchFilters = {
   county?: string
-  area?: string
+  areaSlug?: string
+  areaLabel?: string
   minPrice?: string
   maxPrice?: string
   dateFrom?: string
@@ -68,6 +69,16 @@ export type PprSearchSummary = {
   latestSaleDate: string | null
 }
 
+export type PprSearchAreaOption = {
+  county: string
+  areaSlug: string
+  areaLabel: string
+  salesCount: number
+  lastSaleDate: string | null
+}
+
+const PPR_SEARCH_SUGGESTION_LIMIT = 25
+
 export type PprDatasetSummary = {
   salesCount: number
   earliestSaleDate: string | null
@@ -75,9 +86,10 @@ export type PprDatasetSummary = {
   startYear: number | null
 }
 
-export const PPR_PAGE_SIZE = 12
+export const PPR_SEARCH_RESULT_LIMIT = 100
 const PPR_CACHE_REVALIDATE_SECONDS = 60 * 60 * 6
 const PPR_DATASET_CACHE_VERSION = "v3"
+const PPR_SEARCH_AREAS_CACHE_VERSION = "v2"
 export const PPR_DATE_RANGE_OPTIONS = [
   { value: "last-year", label: "1 Year", years: 1 },
   { value: "last-3-years", label: "3 Years", years: 3 },
@@ -85,7 +97,9 @@ export const PPR_DATE_RANGE_OPTIONS = [
   { value: "all", label: "All Time", years: null },
 ] as const
 
-export type PprDateRangeValue = (typeof PPR_DATE_RANGE_OPTIONS)[number]["value"]
+export type PprDateRangeValue =
+  | (typeof PPR_DATE_RANGE_OPTIONS)[number]["value"]
+  | "last-2-years"
 
 export function formatPprDateInput(date: Date) {
   return date.toISOString().slice(0, 10)
@@ -100,7 +114,6 @@ function yearFromDateString(value?: string | null) {
 
 export function getPprDateRangePreset(range: PprDateRangeValue = "last-year") {
   const to = new Date()
-
   if (range === "all") {
     return {
       dateFrom: "",
@@ -109,7 +122,8 @@ export function getPprDateRangePreset(range: PprDateRangeValue = "last-year") {
     }
   }
 
-  const years = range === "last-3-years" ? 3 : range === "last-5-years" ? 5 : 1
+  const years =
+    range === "last-2-years" ? 2 : range === "last-3-years" ? 3 : range === "last-5-years" ? 5 : 1
   const from = new Date(to)
   from.setFullYear(from.getFullYear() - years)
 
@@ -123,12 +137,12 @@ export function getPprDateRangePreset(range: PprDateRangeValue = "last-year") {
 export function getDefaultPprDateRange() {
   const to = new Date()
   const from = new Date(to)
-  from.setFullYear(from.getFullYear() - 1)
+  from.setFullYear(from.getFullYear() - 2)
 
   return {
     dateFrom: formatPprDateInput(from),
     dateTo: formatPprDateInput(to),
-    dateRange: "last-year",
+    dateRange: "last-2-years",
   }
 }
 
@@ -136,9 +150,8 @@ export function withDefaultPprSearchFilters(filters: PprSearchFilters = {}) {
   if (
     filters.dateFrom ||
     filters.dateTo ||
-    filters.dateRange === "all" ||
     filters.dateRange === "last-5-years" ||
-    filters.dateRange === "last-3-years" ||
+    filters.dateRange === "last-2-years" ||
     filters.dateRange === "last-year"
   ) {
     const preset =
@@ -174,6 +187,14 @@ const EXCLUDED_STANDALONE_AREA_SLUGS = new Set(["janeville"])
 
 export function isExcludedStandaloneAreaSlug(slug?: string | null) {
   return Boolean(slug && EXCLUDED_STANDALONE_AREA_SLUGS.has(String(slug).trim().toLowerCase()))
+}
+
+function normalisePprCounty(value?: string | null) {
+  return String(value || "").trim()
+}
+
+function normalisePprAreaSlug(value?: string | null) {
+  return areaSlug(String(value || "").trim())
 }
 
 export function areaNameFromSlug(slug: string) {
@@ -458,36 +479,9 @@ export function isStatementTimeoutError(error?: { message?: string } | null) {
   return Boolean(error?.message?.toLowerCase().includes("statement timeout"))
 }
 
-function propertyStyleFilterExpression(style?: string) {
-  switch (style) {
-    case "apartment":
-      return "address_raw.ilike.%apartment%,address_raw.ilike.%apt%"
-    case "detached":
-      return "property_description_raw.ilike.%detached%,address_raw.ilike.%detached%"
-    case "semi-detached":
-      return "property_description_raw.ilike.%semi-detached%,address_raw.ilike.%semi-detached%,address_raw.ilike.%semi detached%"
-    default:
-      return ""
-  }
-}
-
 export async function getPprCounties() {
-  const { data, error } = await supabase
-    .from("ppr_sales")
-    .select("county")
-    .not("county", "is", null)
-    .order("county", { ascending: true })
-    .limit(1000)
-
-  if (error || !data) return []
-
-  return Array.from(
-    new Set(
-      data
-        .map((row) => String(row.county || "").trim())
-        .filter(Boolean)
-    )
-  )
+  const areas = await getPprSearchAreas()
+  return Array.from(new Set(areas.map((area) => area.county)))
 }
 
 async function getPprQuickAreasUncached(limit = 8) {
@@ -513,6 +507,173 @@ const getPprQuickAreasCached = unstable_cache(
 
 export async function getPprQuickAreas(limit = 8) {
   return getPprQuickAreasCached(limit)
+}
+
+async function getPprSearchAreasUncached() {
+  const rows: PprAreaStats[] = []
+  const pageSize = 1000
+
+  for (let from = 0; ; from += pageSize) {
+    const to = from + pageSize - 1
+    const { data, error } = await supabase
+      .from("ppr_area_stats")
+      .select("county,area_slug,sales_count,last_sale_date")
+      .not("county", "is", null)
+      .not("area_slug", "is", null)
+      .order("county", { ascending: true })
+      .order("sales_count", { ascending: false })
+      .range(from, to)
+
+    if (error || !data) return [] as PprSearchAreaOption[]
+
+    rows.push(...(data as PprAreaStats[]))
+
+    if (data.length < pageSize) break
+  }
+
+  const options = new Map<string, PprSearchAreaOption>()
+
+  for (const row of rows) {
+    const county = normalisePprCounty(row.county)
+    const areaSlugValue = normalisePprAreaSlug(row.area_slug)
+
+    if (!county || !areaSlugValue || isExcludedStandaloneAreaSlug(areaSlugValue)) continue
+
+    const key = `${county}::${areaSlugValue}`
+    if (options.has(key)) continue
+
+    options.set(key, {
+      county,
+      areaSlug: areaSlugValue,
+      areaLabel: formatPprDisplayText(areaNameFromSlug(areaSlugValue)),
+      salesCount: Number(row.sales_count || 0),
+      lastSaleDate: row.last_sale_date ?? null,
+    })
+  }
+
+  return Array.from(options.values()).sort((a, b) => {
+    if (a.county !== b.county) return a.county.localeCompare(b.county)
+    if (b.salesCount !== a.salesCount) return b.salesCount - a.salesCount
+    return a.areaLabel.localeCompare(b.areaLabel)
+  })
+}
+
+const getPprSearchAreasCached = unstable_cache(
+  async () => getPprSearchAreasUncached(),
+  ["ppr-search-areas", PPR_DATASET_CACHE_VERSION, PPR_SEARCH_AREAS_CACHE_VERSION],
+  { revalidate: PPR_CACHE_REVALIDATE_SECONDS }
+)
+
+export async function getPprSearchAreas() {
+  return getPprSearchAreasCached()
+}
+
+export async function getPprSearchAreaSelection(
+  filters: Pick<PprSearchFilters, "county" | "areaSlug" | "areaLabel">
+) {
+  const county = normalisePprCounty(filters.county)
+  const areaSlugValue = normalisePprAreaSlug(filters.areaSlug)
+
+  if (!county || !areaSlugValue) return null
+
+  const { data, error } = await supabase
+    .from("ppr_area_stats")
+    .select("county,area_slug,sales_count,last_sale_date")
+    .eq("county", county)
+    .eq("area_slug", areaSlugValue)
+    .limit(1)
+    .maybeSingle()
+
+  if (error || !data) return null
+
+  const areaLabel = formatPprDisplayText(areaNameFromSlug(areaSlugValue))
+  const inputLabel = String(filters.areaLabel || "").trim()
+
+  if (inputLabel) {
+    const normalisedInput = normaliseSearchLabel(inputLabel)
+    const normalisedAreaLabel = normaliseSearchLabel(areaLabel)
+    if (normalisedInput !== normalisedAreaLabel && normalisePprAreaSlug(inputLabel) !== areaSlugValue) {
+      return null
+    }
+  }
+
+  return {
+    county,
+    areaSlug: areaSlugValue,
+    areaLabel,
+    salesCount: Number(data.sales_count || 0),
+    lastSaleDate: data.last_sale_date ?? null,
+  } satisfies PprSearchAreaOption
+}
+
+export async function getPprAreaSuggestions(query: string) {
+  const trimmedQuery = String(query || "").trim()
+  if (trimmedQuery.length < 2) return [] as PprSearchAreaOption[]
+
+  const querySlug = normalisePprAreaSlug(trimmedQuery)
+  if (!querySlug) return [] as PprSearchAreaOption[]
+
+  const serverSupabase = getServerSupabase()
+  const patterns = [`${querySlug}%`, `%${querySlug}%`]
+  const options = new Map<string, PprSearchAreaOption>()
+
+  for (const pattern of patterns) {
+    const { data, error } = await serverSupabase
+      .from("ppr_area_stats")
+      .select("county,area_slug,sales_count,last_sale_date")
+      .not("county", "is", null)
+      .not("area_slug", "is", null)
+      .ilike("area_slug", pattern)
+      .order("sales_count", { ascending: false })
+      .limit(PPR_SEARCH_SUGGESTION_LIMIT)
+
+    if (error || !data) continue
+
+    for (const row of data as PprAreaStats[]) {
+      const county = normalisePprCounty(row.county)
+      const areaSlugValue = normalisePprAreaSlug(row.area_slug)
+
+      if (!county || !areaSlugValue || isExcludedStandaloneAreaSlug(areaSlugValue)) continue
+
+      const key = `${county}::${areaSlugValue}`
+      if (options.has(key)) continue
+
+      options.set(key, {
+        county,
+        areaSlug: areaSlugValue,
+        areaLabel: formatPprDisplayText(areaNameFromSlug(areaSlugValue)),
+        salesCount: Number(row.sales_count || 0),
+        lastSaleDate: row.last_sale_date ?? null,
+      })
+
+      if (options.size >= PPR_SEARCH_SUGGESTION_LIMIT) break
+    }
+
+    if (options.size >= PPR_SEARCH_SUGGESTION_LIMIT) break
+  }
+
+  return Array.from(options.values())
+    .sort((a, b) => {
+      const normalisedQuery = trimmedQuery.toLowerCase()
+      const aStarts = normaliseSearchLabel(a.areaLabel).startsWith(normalisedQuery) || a.areaSlug.startsWith(querySlug)
+      const bStarts = normaliseSearchLabel(b.areaLabel).startsWith(normalisedQuery) || b.areaSlug.startsWith(querySlug)
+
+      if (aStarts !== bStarts) return aStarts ? -1 : 1
+      if (b.salesCount !== a.salesCount) return b.salesCount - a.salesCount
+      if (a.areaLabel !== b.areaLabel) return a.areaLabel.localeCompare(b.areaLabel)
+      return a.county.localeCompare(b.county)
+    })
+    .slice(0, PPR_SEARCH_SUGGESTION_LIMIT)
+}
+
+function normaliseSearchLabel(value?: string | null) {
+  return String(value || "").trim().toLowerCase()
+}
+
+export async function getPprSearchScope(
+  filters: Pick<PprSearchFilters, "county" | "areaSlug" | "areaLabel">
+) {
+  return getPprSearchAreaSelection(filters)
 }
 
 async function getPprDatasetSummaryUncached(): Promise<PprDatasetSummary> {
@@ -607,15 +768,26 @@ export async function getPprKpis() {
 
 export async function searchPprSales(filters: PprSearchFilters) {
   const resolvedFilters = withDefaultPprSearchFilters(filters)
+  const scope = await getPprSearchScope(resolvedFilters)
+
+  if (!scope) {
+    return {
+      sales: [] as PprSale[],
+      count: 0,
+      page: 1,
+      error: "Choose an area to search recorded sale prices.",
+    }
+  }
+
   const page = safePage(resolvedFilters.page)
-  const from = (page - 1) * PPR_PAGE_SIZE
-  const to = from + PPR_PAGE_SIZE - 1
   const sort = sortOption(resolvedFilters.sort)
 
   let query = supabase
     .from("ppr_sales")
     .select("*")
-    .range(from, to)
+    .eq("county", scope.county)
+    .eq("area_slug", scope.areaSlug)
+    .limit(PPR_SEARCH_RESULT_LIMIT)
 
   if (sort === "oldest") {
     query = query.order("date_of_sale", { ascending: true })
@@ -630,66 +802,13 @@ export async function searchPprSales(filters: PprSearchFilters) {
   const minPrice = numericFilter(resolvedFilters.minPrice)
   const maxPrice = numericFilter(resolvedFilters.maxPrice)
 
-  if (resolvedFilters.county) {
-    query = query.ilike("county", resolvedFilters.county)
-  }
-
-  if (resolvedFilters.area) {
-    const area = resolvedFilters.area.trim()
-    if (area) {
-      const expressions = areaFilterExpressions(area, !resolvedFilters.county)
-      if (expressions.broad) query = query.or(expressions.broad)
-    }
-  }
-
   if (minPrice !== null) query = query.gte("price_eur", minPrice)
   if (maxPrice !== null) query = query.lte("price_eur", maxPrice)
   if (resolvedFilters.dateFrom) query = query.gte("date_of_sale", resolvedFilters.dateFrom)
   if (resolvedFilters.dateTo) query = query.lte("date_of_sale", resolvedFilters.dateTo)
   if (resolvedFilters.newBuild === "true") query = query.eq("is_new_dwelling", true)
 
-  const propertyStyleExpression = propertyStyleFilterExpression(
-    resolvedFilters.propertyStyle
-  )
-  if (propertyStyleExpression) query = query.or(propertyStyleExpression)
-
-  let { data, error } = await query
-
-  if (error && resolvedFilters.area && isStatementTimeoutError(error)) {
-    const area = resolvedFilters.area.trim()
-    const expressions = areaFilterExpressions(area, !resolvedFilters.county)
-
-    if (expressions.fallback && expressions.fallback !== expressions.broad) {
-      let fallbackQuery = supabase.from("ppr_sales").select("*").range(from, to)
-
-      if (sort === "oldest") {
-        fallbackQuery = fallbackQuery.order("date_of_sale", { ascending: true })
-      } else if (sort === "price-high") {
-        fallbackQuery = fallbackQuery.order("price_eur", { ascending: false })
-      } else if (sort === "price-low") {
-        fallbackQuery = fallbackQuery.order("price_eur", { ascending: true })
-      } else {
-        fallbackQuery = fallbackQuery.order("date_of_sale", { ascending: false })
-      }
-
-      if (resolvedFilters.county) {
-        fallbackQuery = fallbackQuery.ilike("county", resolvedFilters.county)
-      }
-
-      fallbackQuery = fallbackQuery.or(expressions.fallback)
-
-      if (minPrice !== null) fallbackQuery = fallbackQuery.gte("price_eur", minPrice)
-      if (maxPrice !== null) fallbackQuery = fallbackQuery.lte("price_eur", maxPrice)
-      if (resolvedFilters.dateFrom) fallbackQuery = fallbackQuery.gte("date_of_sale", resolvedFilters.dateFrom)
-      if (resolvedFilters.dateTo) fallbackQuery = fallbackQuery.lte("date_of_sale", resolvedFilters.dateTo)
-      if (resolvedFilters.newBuild === "true") fallbackQuery = fallbackQuery.eq("is_new_dwelling", true)
-      if (propertyStyleExpression) fallbackQuery = fallbackQuery.or(propertyStyleExpression)
-
-      const fallbackResult = await fallbackQuery
-      data = fallbackResult.data
-      error = fallbackResult.error
-    }
-  }
+  const { data, error } = await query
 
   if (error) {
     return { sales: [] as PprSale[], count: 0, page, error: error.message }
@@ -705,21 +824,15 @@ export async function searchPprSales(filters: PprSearchFilters) {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function applySearchSummaryFilters(query: any, options: {
+  scope: PprSearchAreaOption
   resolvedFilters: ReturnType<typeof withDefaultPprSearchFilters>
-  areaExpression?: string
   minPrice: number | null
   maxPrice: number | null
-  propertyStyleExpression: string
 }) {
-  const { resolvedFilters, areaExpression, minPrice, maxPrice, propertyStyleExpression } = options
+  const { scope, resolvedFilters, minPrice, maxPrice } = options
 
-  if (resolvedFilters.county) {
-    query = query.ilike("county", resolvedFilters.county)
-  }
-
-  if (areaExpression) {
-    query = query.or(areaExpression)
-  }
+  query = query.eq("county", scope.county)
+  query = query.eq("area_slug", scope.areaSlug)
 
   if (minPrice !== null) {
     query = query.gte("price_eur", minPrice)
@@ -741,19 +854,14 @@ function applySearchSummaryFilters(query: any, options: {
     query = query.eq("is_new_dwelling", true)
   }
 
-  if (propertyStyleExpression) {
-    query = query.or(propertyStyleExpression)
-  }
-
   return query
 }
 
 async function countSearchResultsByPaging(options: {
+  scope: PprSearchAreaOption
   resolvedFilters: ReturnType<typeof withDefaultPprSearchFilters>
-  areaExpression?: string
   minPrice: number | null
   maxPrice: number | null
-  propertyStyleExpression: string
 }) {
   const pageSize = 1000
   let total = 0
@@ -778,17 +886,18 @@ async function getPprSearchSummaryUncached(
   filters: PprSearchFilters
 ): Promise<PprSearchSummary> {
   const resolvedFilters = withDefaultPprSearchFilters(filters)
+  const scope = await getPprSearchScope(resolvedFilters)
+
+  if (!scope) {
+    return {
+      count: 0,
+      latestSaleDate: null,
+    }
+  }
+
   const minPrice = numericFilter(resolvedFilters.minPrice)
   const maxPrice = numericFilter(resolvedFilters.maxPrice)
-  const shouldUseExactCount = Boolean(
-    resolvedFilters.area ||
-      resolvedFilters.county ||
-      resolvedFilters.minPrice ||
-      resolvedFilters.maxPrice ||
-      resolvedFilters.newBuild === "true" ||
-      resolvedFilters.propertyStyle
-  )
-  const countMode = shouldUseExactCount ? "exact" : "estimated"
+  const countMode = "exact"
 
   let countQuery = supabase
     .from("ppr_sales")
@@ -799,89 +908,32 @@ async function getPprSearchSummaryUncached(
     .select("date_of_sale")
     .order("date_of_sale", { ascending: false })
     .limit(1)
-  let broadAreaExpression = ""
-
-  if (resolvedFilters.area) {
-    const area = resolvedFilters.area.trim()
-    if (area) {
-      const expressions = areaFilterExpressions(area, !resolvedFilters.county)
-      broadAreaExpression = expressions.broad
-    }
-  }
-
-  const propertyStyleExpression = propertyStyleFilterExpression(
-    resolvedFilters.propertyStyle
-  )
   countQuery = applySearchSummaryFilters(countQuery, {
+    scope,
     resolvedFilters,
-    areaExpression: broadAreaExpression,
     minPrice,
     maxPrice,
-    propertyStyleExpression,
   })
   latestQuery = applySearchSummaryFilters(latestQuery, {
+    scope,
     resolvedFilters,
-    areaExpression: broadAreaExpression,
     minPrice,
     maxPrice,
-    propertyStyleExpression,
   })
 
   const [countResult, latestResult] = await Promise.all([
     countQuery,
     latestQuery,
   ])
-  const initialCountError = countResult.error
-  const initialLatestError = latestResult.error
   let count = countResult.count
-  let latest = latestResult.data
-
-  if ((initialCountError || initialLatestError) && resolvedFilters.area) {
-    const area = resolvedFilters.area.trim()
-    const expressions = areaFilterExpressions(area, !resolvedFilters.county)
-
-    if (
-      expressions.fallback &&
-      expressions.fallback !== expressions.broad &&
-      (isStatementTimeoutError(initialCountError) || isStatementTimeoutError(initialLatestError))
-    ) {
-      let fallbackCountQuery = supabase
-        .from("ppr_sales")
-        .select("id", { count: countMode, head: true })
-      let fallbackLatestQuery = supabase
-        .from("ppr_sales")
-        .select("date_of_sale")
-        .order("date_of_sale", { ascending: false })
-        .limit(1)
-
-      fallbackCountQuery = applySearchSummaryFilters(fallbackCountQuery, {
-        resolvedFilters,
-        areaExpression: expressions.fallback,
-        minPrice,
-        maxPrice,
-        propertyStyleExpression,
-      })
-      fallbackLatestQuery = applySearchSummaryFilters(fallbackLatestQuery, {
-        resolvedFilters,
-        areaExpression: expressions.fallback,
-        minPrice,
-        maxPrice,
-        propertyStyleExpression,
-      })
-
-      const fallbackSummary = await Promise.all([fallbackCountQuery, fallbackLatestQuery])
-      count = fallbackSummary[0].count
-      latest = fallbackSummary[1].data
-    }
-  }
+  const latest = latestResult.data
 
   if (count === null) {
     const fallbackCount = await countSearchResultsByPaging({
+      scope,
       resolvedFilters,
-      areaExpression: broadAreaExpression,
       minPrice,
       maxPrice,
-      propertyStyleExpression,
     })
 
     if (fallbackCount !== null) {
