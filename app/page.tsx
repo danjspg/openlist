@@ -77,6 +77,9 @@ export default async function HomePage() {
     getHomepageSoldPriceStats(),
     getPprDatasetSummary(),
   ])
+  const homepageSoldPriceStats = soldPriceStats.filter(
+    (stat) => stat.eyebrow !== "Most affordable market"
+  )
   const datasetDescription = buildPprDatasetDescription(datasetSummary)
 
   return (
@@ -194,7 +197,7 @@ export default async function HomePage() {
           </p>
         </div>
         <div className="mt-8 sm:mt-10">
-          <PprHomepageStatsBar stats={soldPriceStats} />
+          <PprHomepageStatsBar stats={homepageSoldPriceStats} />
         </div>
       </section>
 
