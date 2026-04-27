@@ -59,6 +59,9 @@ export const metadata: Metadata = {
   title: "Tracked Property Market Reports Ireland | OpenList",
   description:
     "Browse tracked property market reports for Ireland, from county comparisons to activity and price trend pages.",
+  alternates: {
+    canonical: "/sold-prices/tracked-markets",
+  },
 }
 
 export default function TrackedMarketsPage() {

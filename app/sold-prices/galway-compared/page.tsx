@@ -20,6 +20,9 @@ export const metadata: Metadata = {
   title: "Galway House Prices by Area | Sold Prices Compared",
   description:
     "Compare Galway house prices by area, including median sale prices, price change and recent sales volume.",
+  alternates: {
+    canonical: "/sold-prices/galway-compared",
+  },
 }
 
 export default async function GalwayComparedPage() {

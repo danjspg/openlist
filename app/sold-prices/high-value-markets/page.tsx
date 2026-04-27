@@ -19,6 +19,9 @@ export const metadata: Metadata = {
   title: "Premium Property Prices Ireland | OpenList",
   description:
     "Compare tracked Irish property markets with higher median sale prices, meaningful recent turnover and premium house-price trends.",
+  alternates: {
+    canonical: "/sold-prices/high-value-markets",
+  },
 }
 
 export default async function HighValueMarketsPage() {

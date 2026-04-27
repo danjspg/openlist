@@ -15,10 +15,8 @@ import {
 } from "@/lib/ppr-markets"
 import {
   areaNameFromSlug,
-  areaFilterExpressions,
   broadAreaFilterExpression,
   getPprDateRangePreset,
-  isStatementTimeoutError,
   type PprAreaStats,
   type PprDateRangeValue,
   type PprSale,
@@ -1011,7 +1009,8 @@ async function loadComparisonRowsFromTable(groupKey: string, range: PprDateRange
     .order("sort_rank", { ascending: true })
     .order("label", { ascending: true })
 
-  if (error || !data || data.length === 0) return null
+  if (error) return []
+  if (!data || data.length === 0) return null
   return (data as PprComparisonRowRecord[]).map(mapComparisonRowRecord)
 }
 
@@ -1023,7 +1022,8 @@ async function loadMarketInsightsFromTable(marketSlug: string, range: PprDateRan
     .eq("range_key", range)
     .maybeSingle()
 
-  if (error || !data) return null
+  if (error) throw new Error(error.message)
+  if (!data) return null
   return data as PprMarketInsightsRowRecord
 }
 
@@ -1040,7 +1040,8 @@ async function loadAreaInsightsFromTable(
     .eq("range_key", range)
     .maybeSingle()
 
-  if (error || !data) return null
+  if (error) throw new Error(error.message)
+  if (!data) return null
   return data as PprAreaInsightsRowRecord
 }
 
@@ -1169,36 +1170,20 @@ async function getCountySalesRows(county: string, startDate?: string) {
 }
 
 async function getAreaSalesRows(county: string, areaSlug: string, startDate?: string) {
-  const expressions = areaFilterExpressions(areaNameFromSlug(areaSlug), false)
-
-  try {
-    return await fetchSalesBatch(
-      ANALYTICS_CARD_SALE_SELECT,
-      (query) => {
-        const scoped = query
-          .ilike("county", county)
-          .or(expressions.broad || broadAreaFilterExpression(areaSlug, areaNameFromSlug(areaSlug)))
-        return startDate ? scoped.gte("date_of_sale", startDate) : scoped
-      }
-    )
-  } catch (error) {
-    if (!(error instanceof Error) || !isStatementTimeoutError(error)) {
-      throw error
+  return fetchSalesBatch(
+    ANALYTICS_CARD_SALE_SELECT,
+    (query) => {
+      const scoped = query
+        .ilike("county", county)
+        .eq("area_slug", areaSlug)
+      return startDate ? scoped.gte("date_of_sale", startDate) : scoped
     }
+  )
+}
 
-    if (!expressions.fallback || expressions.fallback === expressions.broad) {
-      throw error
-    }
-
-    return fetchSalesBatch(
-      ANALYTICS_CARD_SALE_SELECT,
-      (query) => {
-        const scoped = query
-          .ilike("county", county)
-          .or(expressions.fallback)
-        return startDate ? scoped.gte("date_of_sale", startDate) : scoped
-      }
-    )
+function emptyLocationInsights(): PprLocationInsights {
+  return {
+    totalSalesCount: 0,
   }
 }
 
@@ -1256,7 +1241,14 @@ export async function getMarketInsights(
   market: PprMarket,
   range: PprDateRangeValue = "last-year"
 ) {
-  return getMarketInsightsCached(market.slug, range)
+  try {
+    return await getMarketInsightsCached(market.slug, range)
+  } catch {
+    return {
+      insights: emptyLocationInsights(),
+      recentSales: [] as PprSale[],
+    }
+  }
 }
 
 const getAreaInsightsUncached = async (
@@ -1322,7 +1314,14 @@ export async function getAreaInsights(
   areaSlug: string,
   range: PprDateRangeValue = "last-year"
 ) {
-  return getAreaInsightsCached(county, areaSlug, range)
+  try {
+    return await getAreaInsightsCached(county, areaSlug, range)
+  } catch {
+    return {
+      insights: emptyLocationInsights(),
+      recentSales: [] as PprSale[],
+    }
+  }
 }
 
 const getNationalWindowSales = cache(async (range: PprDateRangeValue = "last-year") => {

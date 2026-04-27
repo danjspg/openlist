@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { unstable_cache } from "next/cache"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { supabase } from "@/lib/supabase"
@@ -20,17 +21,44 @@ import AdminFeaturedToggle from "@/components/AdminFeaturedToggle"
 import { getDisplayListingTitle } from "@/lib/listings"
 import { canCurrentUserEditListing } from "@/lib/listing-permissions"
 
+const getPublicListingBySlug = unstable_cache(
+  async (slug: string) => {
+    const { data, error } = await supabase
+      .from("listings")
+      .select("*")
+      .eq("slug", slug)
+      .maybeSingle()
+
+    if (error || !data) return null
+
+    const normalizedListing = normalizeListingStatus(data)
+    if (!isPublicSaleStatus(normalizedListing.status)) return null
+
+    return normalizedListing
+  },
+  ["public-listing-by-slug"],
+  { revalidate: 300 }
+)
+
+async function getNearbySalesForListingWithTimeout(
+  input: Parameters<typeof getNearbySalesForListing>[0],
+  timeoutMs = 1500
+) {
+  return Promise.race([
+    getNearbySalesForListing(input),
+    new Promise<Awaited<ReturnType<typeof getNearbySalesForListing>>>((resolve) => {
+      setTimeout(() => resolve([]), timeoutMs)
+    }),
+  ])
+}
+
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ slug: string }>
 }): Promise<Metadata> {
   const { slug } = await params
-  const { data: listing } = await supabase
-    .from("listings")
-    .select("slug,title,public_title,county,address_line_2,type,status")
-    .eq("slug", slug)
-    .maybeSingle()
+  const listing = await getPublicListingBySlug(slug)
 
   if (!listing) {
     return {
@@ -39,23 +67,13 @@ export async function generateMetadata({
     }
   }
 
-  const normalizedListing = normalizeListingStatus(listing)
-  if (!isPublicSaleStatus(normalizedListing.status)) {
-    return {
-      robots: {
-        index: false,
-        follow: false,
-      },
-    }
-  }
-
-  const displayTitle = getDisplayListingTitle(normalizedListing)
-  const locationLabel = normalizedListing.address_line_2
-    ? `${normalizedListing.address_line_2}, ${normalizedListing.county}`
-    : normalizedListing.county
+  const displayTitle = getDisplayListingTitle(listing)
+  const locationLabel = listing.address_line_2
+    ? `${listing.address_line_2}, ${listing.county}`
+    : listing.county
 
   return {
-    title: `${displayTitle} | Property for Sale in ${normalizedListing.county}`,
+    title: `${displayTitle} | Property for Sale in ${listing.county}`,
     description: `View photos, guide price and key details for this private property listing in ${locationLabel}, Ireland.`,
     alternates: {
       canonical: `/listings/${slug}`,
@@ -191,29 +209,12 @@ export default async function ListingPage({
   const { slug } = await params
   const { updated, created, email } = await searchParams
 
-  const { data: listing, error } = await supabase
-    .from("listings")
-    .select("*")
-    .eq("slug", slug)
-    .maybeSingle()
+  const normalizedListing = await getPublicListingBySlug(slug)
 
-  if (error) {
-    return (
-      <main className="min-h-screen bg-stone-50 p-6 sm:p-10">
-        <h1 className="text-2xl font-semibold text-stone-900">Database error</h1>
-        <p className="mt-3 text-stone-600">{error.message}</p>
-      </main>
-    )
-  }
-
-  if (!listing) {
+  if (!normalizedListing) {
     notFound()
   }
 
-  const normalizedListing = normalizeListingStatus(listing)
-  if (!isPublicSaleStatus(normalizedListing.status)) {
-    notFound()
-  }
   const isAdmin = await getCurrentUserIsAdmin()
   const canEditListing = await canCurrentUserEditListing(normalizedListing)
   const displayTitle = getDisplayListingTitle(normalizedListing)
@@ -222,7 +223,7 @@ export default async function ListingPage({
   const formattedPrice = formatEuro(normalizedListing.price)
   const images = normaliseImages(normalizedListing.images, normalizedListing.image)
   const dashboardEmail = email || normalizedListing.seller_email || ""
-  const nearbySales = await getNearbySalesForListing({
+  const nearbySales = await getNearbySalesForListingWithTimeout({
     county: normalizedListing.county,
     area: normalizedListing.address_line_2,
   })
@@ -647,7 +648,7 @@ export default async function ListingPage({
               </div>
 
               <EnquiryForm
-                listingSlug={listing.slug}
+                listingSlug={normalizedListing.slug}
                 listingTitle={displayTitle}
               />
             </div>

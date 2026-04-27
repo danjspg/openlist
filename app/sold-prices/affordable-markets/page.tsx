@@ -19,6 +19,9 @@ export const metadata: Metadata = {
   title: "Affordable Property Prices Ireland | OpenList",
   description:
     "Find tracked Irish property markets with lower median sale prices, meaningful recent turnover and comparable house-price data.",
+  alternates: {
+    canonical: "/sold-prices/affordable-markets",
+  },
 }
 
 export default async function AffordableMarketsPage() {

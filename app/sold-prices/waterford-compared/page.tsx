@@ -20,6 +20,9 @@ export const metadata: Metadata = {
   title: "Waterford House Prices by Area | Sold Prices Compared",
   description:
     "Compare Waterford house prices by area, including median sale prices, price change, activity and recent sales volume.",
+  alternates: {
+    canonical: "/sold-prices/waterford-compared",
+  },
 }
 
 export default async function WaterfordComparedPage() {

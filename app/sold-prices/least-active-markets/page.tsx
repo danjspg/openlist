@@ -22,6 +22,9 @@ export const metadata: Metadata = {
   title: "Least Active Property Markets Ireland | Sales Volume",
   description:
     "Compare tracked Irish property markets with lower recorded sales volume over the last 12 months, while keeping meaningful house-price context.",
+  alternates: {
+    canonical: "/sold-prices/least-active-markets",
+  },
 }
 
 export default async function LeastActiveMarketsPage() {

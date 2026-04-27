@@ -22,6 +22,9 @@ export const metadata: Metadata = {
   title: "Most Active Property Markets Ireland | Sales Volume",
   description:
     "Compare tracked Irish property markets with the highest recorded sales volume over the last 12 months, alongside median prices and price trends.",
+  alternates: {
+    canonical: "/sold-prices/most-active-markets",
+  },
 }
 
 export default async function MostActiveMarketsPage() {

@@ -21,6 +21,9 @@ export const metadata: Metadata = {
   title: "Dublin House Prices by Area | Sold Prices Compared",
   description:
     "Compare Dublin house prices by area, including median sale prices, price change, activity and recent sales volume.",
+  alternates: {
+    canonical: "/sold-prices/dublin-compared",
+  },
 }
 
 export default async function DublinComparedPage() {

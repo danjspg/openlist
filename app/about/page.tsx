@@ -1,4 +1,14 @@
+import type { Metadata } from "next"
 import Image from "next/image"
+
+export const metadata: Metadata = {
+  title: "About OpenList | Private Property Sales Ireland",
+  description:
+    "Learn about OpenList, a self-service platform for private property listings and public sold-price data in Ireland.",
+  alternates: {
+    canonical: "/about",
+  },
+}
 
 export default function AboutPage() {
   return (

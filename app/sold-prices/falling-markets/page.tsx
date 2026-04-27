@@ -21,6 +21,9 @@ export const metadata: Metadata = {
   title: "Falling Property Prices Ireland | OpenList",
   description:
     "See the tracked Irish property markets with the weakest year-on-year house-price performance, filtered to avoid thin-sample noise.",
+  alternates: {
+    canonical: "/sold-prices/falling-markets",
+  },
 }
 
 export default async function FallingMarketsPage() {

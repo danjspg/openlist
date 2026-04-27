@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import PprDisclaimer from "@/components/ppr/PprDisclaimer"
+import { getLegacyShortTownRedirect } from "@/lib/ppr-legacy-town-routes"
 import {
   areaNameFromSlug,
   buildPprDatasetDescription,
@@ -430,7 +431,7 @@ export default async function SoldPricesPage({
                 {featuredMarkets.map((market) => (
                   <Link
                     key={market.slug}
-                    href={`/sold-prices/${market.slug}`}
+                    href={getLegacyShortTownRedirect(market.slug) || `/sold-prices/${market.slug}`}
                     className="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-300 hover:bg-white hover:text-stone-900"
                   >
                     {pprMarketLabel(market)}

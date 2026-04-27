@@ -20,6 +20,9 @@ export const metadata: Metadata = {
   title: "Cork House Prices by Area | Sold Prices Compared",
   description:
     "Compare Cork house prices by area, with median sale prices, price change, activity and recent sales volume.",
+  alternates: {
+    canonical: "/sold-prices/cork-compared",
+  },
 }
 
 export default async function CorkComparedPage() {

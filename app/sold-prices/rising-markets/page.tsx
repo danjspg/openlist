@@ -21,6 +21,9 @@ export const metadata: Metadata = {
   title: "Rising Property Prices Ireland | OpenList",
   description:
     "See the tracked Irish property markets with the strongest year-on-year house-price growth, filtered to avoid thin-sample noise.",
+  alternates: {
+    canonical: "/sold-prices/rising-markets",
+  },
 }
 
 export default async function RisingMarketsPage() {

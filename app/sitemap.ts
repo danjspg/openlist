@@ -1,6 +1,5 @@
 import type { MetadataRoute } from "next"
-import { PUBLIC_SALE_STATUSES } from "@/lib/listing-status"
-import { isExcludedStandaloneAreaSlug } from "@/lib/ppr"
+import { LEGACY_SHORT_TOWN_REDIRECTS } from "@/lib/ppr-legacy-town-routes"
 import { PPR_MARKETS } from "@/lib/ppr-markets"
 import { getServerSupabase } from "@/lib/supabase"
 
@@ -13,7 +12,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     "",
     "/about",
     "/listings",
-    "/sell",
     "/sold-prices",
     "/sold-prices/tracked-markets",
     "/sold-prices/counties-compared",
@@ -36,45 +34,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     lastModified: now,
   }))
 
-  const marketRoutes = PPR_MARKETS.map((market) => ({
+  const marketRoutes = PPR_MARKETS.filter(
+    (market) => market.marketType !== "town_suburb"
+  ).map((market) => ({
     url: `${baseUrl}/sold-prices/${market.slug}`,
     lastModified: now,
   }))
 
-  const [{ data: areaRows }, { data: listingRows }] = await Promise.all([
-    supabase
-      .from("ppr_area_stats")
-      .select("county,area_slug,last_sale_date")
-      .not("county", "is", null)
-      .not("area_slug", "is", null)
-      .limit(100000),
-    supabase
-      .from("listings")
-      .select("slug,created_at,status")
-      .in("status", [...PUBLIC_SALE_STATUSES, "Featured"]),
-  ])
+  const canonicalTownRoutes = Object.values(LEGACY_SHORT_TOWN_REDIRECTS).map((path) => ({
+    url: `${baseUrl}${path}`,
+    lastModified: now,
+  }))
 
-  const seenAreas = new Set<string>()
-  const areaRoutes =
-    areaRows?.flatMap((row) => {
-      const county = String(row.county || "").trim().toLowerCase()
-      const areaSlug = String(row.area_slug || "").trim()
-
-      if (!county || !areaSlug || isExcludedStandaloneAreaSlug(areaSlug)) {
-        return []
-      }
-
-      const key = `${county}:${areaSlug}`
-      if (seenAreas.has(key)) {
-        return []
-      }
-      seenAreas.add(key)
-
-      return {
-        url: `${baseUrl}/sold-prices/${encodeURIComponent(county)}/${areaSlug}`,
-        lastModified: row.last_sale_date ? new Date(row.last_sale_date) : now,
-      }
-    }) ?? []
+  const { data: listingRows } = await supabase
+    .from("listings")
+    .select("slug,created_at,status")
+    .in("status", ["For Sale", "Featured"])
 
   const listingRoutes =
     listingRows?.map((listing) => ({
@@ -82,5 +57,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: listing.created_at ? new Date(listing.created_at) : now,
     })) ?? []
 
-  return [...staticRoutes, ...marketRoutes, ...areaRoutes, ...listingRoutes]
+  return [...staticRoutes, ...marketRoutes, ...canonicalTownRoutes, ...listingRoutes]
 }

@@ -21,6 +21,9 @@ export const metadata: Metadata = {
   title: "Hottest Property Markets Ireland | Price and Activity",
   description:
     "Compare tracked Irish property markets where both sales activity and prices have risen over the last 12 months.",
+  alternates: {
+    canonical: "/sold-prices/hottest-markets",
+  },
 }
 
 export default async function HottestMarketsPage() {

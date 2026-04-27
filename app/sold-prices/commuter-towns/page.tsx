@@ -21,6 +21,9 @@ export const metadata: Metadata = {
   title: "Dublin Commuter Town House Prices | OpenList",
   description:
     "Compare Dublin commuter town house prices, including median sale prices, recent sales volume and market trends.",
+  alternates: {
+    canonical: "/sold-prices/commuter-towns",
+  },
 }
 
 export default async function CommuterTownsPage() {

@@ -24,6 +24,9 @@ export const metadata: Metadata = {
   title: "Ireland County House Prices | Counties Compared",
   description:
     "Compare house prices across Ireland's 26 counties, including median sale prices, sales activity and year-on-year market trends.",
+  alternates: {
+    canonical: "/sold-prices/counties-compared",
+  },
 }
 
 export default async function CountiesComparedPage() {

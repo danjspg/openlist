@@ -16,6 +16,9 @@ export const dynamic = "force-dynamic"
 export const metadata: Metadata = {
   title: "Find Sales By Area | OpenList",
   description: "Choose an area to search recorded sale prices.",
+  alternates: {
+    canonical: "/sold-prices/search",
+  },
 }
 
 type SearchParams = {

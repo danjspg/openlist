@@ -389,7 +389,7 @@ export default async function HomePage() {
               Waterford
             </Link>
             <Link
-              href="/sold-prices/drogheda"
+              href="/sold-prices/louth/drogheda"
               className="rounded-full border border-stone-300 px-3 py-1.5 transition hover:border-stone-900 hover:text-stone-900"
             >
               Drogheda

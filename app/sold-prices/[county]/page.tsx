@@ -1,9 +1,10 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { notFound } from "next/navigation"
+import { notFound, permanentRedirect } from "next/navigation"
 import PprLocationInsights from "@/components/ppr/PprLocationInsights"
 import PprDisclaimer from "@/components/ppr/PprDisclaimer"
 import PprSaleCard from "@/components/ppr/PprSaleCard"
+import { getLegacyShortTownRedirect } from "@/lib/ppr-legacy-town-routes"
 import {
   PPR_MARKETS,
   getPprMarket,
@@ -72,6 +73,11 @@ export default async function PprMarketPage({ params }: Props) {
   const market = getPprMarket(county)
 
   if (!market) notFound()
+  if (market.marketType === "town_suburb") {
+    const redirectPath = getLegacyShortTownRedirect(market.slug)
+    if (!redirectPath) notFound()
+    permanentRedirect(redirectPath)
+  }
 
   const selectedRange: PprDateRangeValue = "last-year"
   const analyticsRange = getAnalyticsRange(selectedRange)

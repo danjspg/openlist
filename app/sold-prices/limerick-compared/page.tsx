@@ -20,6 +20,9 @@ export const metadata: Metadata = {
   title: "Limerick House Prices by Area | Sold Prices Compared",
   description:
     "Compare Limerick house prices by area, including median sale prices, price change and recent sales volume.",
+  alternates: {
+    canonical: "/sold-prices/limerick-compared",
+  },
 }
 
 export default async function LimerickComparedPage() {

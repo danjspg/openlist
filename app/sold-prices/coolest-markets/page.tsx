@@ -21,6 +21,9 @@ export const metadata: Metadata = {
   title: "Coolest Property Markets Ireland | Price and Activity",
   description:
     "Compare tracked Irish property markets where sales activity has weakened and prices have been flat or lower over the last 12 months.",
+  alternates: {
+    canonical: "/sold-prices/coolest-markets",
+  },
 }
 
 export default async function CoolestMarketsPage() {
