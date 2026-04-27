@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next"
-import { LEGACY_SHORT_TOWN_REDIRECTS } from "@/lib/ppr-legacy-town-routes"
 import { PPR_MARKETS } from "@/lib/ppr-markets"
+import { getCuratedPprAreaSitemapPaths } from "@/lib/ppr-sold-price-routes"
 import { getServerSupabase } from "@/lib/supabase"
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -41,7 +41,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     lastModified: now,
   }))
 
-  const canonicalTownRoutes = Object.values(LEGACY_SHORT_TOWN_REDIRECTS).map((path) => ({
+  const canonicalTownRoutes = getCuratedPprAreaSitemapPaths().map((path) => ({
     url: `${baseUrl}${path}`,
     lastModified: now,
   }))

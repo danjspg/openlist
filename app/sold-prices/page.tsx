@@ -1,7 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import PprDisclaimer from "@/components/ppr/PprDisclaimer"
-import { getLegacyShortTownRedirect } from "@/lib/ppr-legacy-town-routes"
 import {
   areaNameFromSlug,
   buildPprDatasetDescription,
@@ -12,6 +11,7 @@ import {
   type PprDateRangeValue,
 } from "@/lib/ppr"
 import { FEATURED_PPR_MARKETS, PPR_MARKETS, pprMarketLabel } from "@/lib/ppr-markets"
+import { getShortTownRedirect } from "@/lib/ppr-sold-price-routes"
 import {
   getAnalyticsRange,
   getHomepageSoldPriceStats,
@@ -72,6 +72,18 @@ export default async function SoldPricesPage({
   )
     .map((slug) => PPR_MARKETS.find((market) => market.slug === slug))
     .filter((market): market is (typeof PPR_MARKETS)[number] => Boolean(market))
+  const featuredMarketLinks = featuredMarkets
+    .map((market) => {
+      if (market.marketType !== "town_suburb") {
+        return { href: `/sold-prices/${market.slug}`, label: pprMarketLabel(market) }
+      }
+
+      const redirectPath = getShortTownRedirect(market.slug)
+      if (!redirectPath) return null
+
+      return { href: redirectPath, label: pprMarketLabel(market) }
+    })
+    .filter((link): link is { href: string; label: string } => Boolean(link))
   const marketReportGroups = [
     {
       title: "Core markets",
@@ -429,13 +441,13 @@ export default async function SoldPricesPage({
                 Tracked markets
               </h2>
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                {featuredMarkets.map((market) => (
+                {featuredMarketLinks.map((market) => (
                   <Link
-                    key={market.slug}
-                    href={getLegacyShortTownRedirect(market.slug) || `/sold-prices/${market.slug}`}
+                    key={market.href}
+                    href={market.href}
                     className="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-300 hover:bg-white hover:text-stone-900"
                   >
-                    {pprMarketLabel(market)}
+                    {market.label}
                   </Link>
                 ))}
               </div>

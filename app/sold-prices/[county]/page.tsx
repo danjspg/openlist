@@ -4,7 +4,6 @@ import { notFound, permanentRedirect } from "next/navigation"
 import PprLocationInsights from "@/components/ppr/PprLocationInsights"
 import PprDisclaimer from "@/components/ppr/PprDisclaimer"
 import PprSaleCard from "@/components/ppr/PprSaleCard"
-import { getLegacyShortTownRedirect } from "@/lib/ppr-legacy-town-routes"
 import {
   PPR_MARKETS,
   getPprMarket,
@@ -20,6 +19,7 @@ import {
   getPprDatasetSummary,
   type PprDateRangeValue,
 } from "@/lib/ppr"
+import { getShortTownRedirect } from "@/lib/ppr-sold-price-routes"
 import {
   euroDisplay,
   getAnalyticsRange,
@@ -45,9 +45,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { county } = await params
   const market = getPprMarket(county)
 
-  if (!market) {
+  if (!market || market.marketType === "town_suburb") {
     return {
       title: "Sold House Prices | OpenList",
+      robots: {
+        index: false,
+        follow: true,
+      },
     }
   }
 
@@ -72,11 +76,10 @@ export default async function PprMarketPage({ params }: Props) {
   const { county } = await params
   const market = getPprMarket(county)
 
-  if (!market) notFound()
-  if (market.marketType === "town_suburb") {
-    const redirectPath = getLegacyShortTownRedirect(market.slug)
-    if (!redirectPath) notFound()
-    permanentRedirect(redirectPath)
+  if (!market || market.marketType === "town_suburb") {
+    const redirectPath = getShortTownRedirect(county)
+    if (redirectPath) permanentRedirect(redirectPath)
+    notFound()
   }
 
   const selectedRange: PprDateRangeValue = "last-year"
