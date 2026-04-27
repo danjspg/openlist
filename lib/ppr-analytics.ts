@@ -16,6 +16,7 @@ import {
 import {
   areaNameFromSlug,
   broadAreaFilterExpression,
+  formatPprCountyDisplayName,
   getPprDateRangePreset,
   type PprAreaStats,
   type PprDateRangeValue,
@@ -2379,5 +2380,5 @@ export function signedPercent(value?: number) {
 export function formatAreaLabel(area: Pick<PprAreaStats, "area_slug" | "county">) {
   const areaName = areaNameFromSlug(area.area_slug || "")
   if (!area.county) return areaName
-  return `${areaName}, ${area.county}`
+  return `${areaName}, ${formatPprCountyDisplayName(area.county)}`
 }

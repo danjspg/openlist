@@ -4,6 +4,7 @@ import PprDisclaimer from "@/components/ppr/PprDisclaimer"
 import PprSaleCard from "@/components/ppr/PprSaleCard"
 import SoldPricesSearchForm from "@/components/ppr/SoldPricesSearchForm"
 import {
+  formatPprCountyDisplayName,
   formatPprDate,
   getPprSearchScope,
   searchPprSales,
@@ -70,6 +71,7 @@ export default async function SoldPricesSearchPage({
       : selectedRange === "last-5-years"
         ? "last 5 years"
         : "last 2 years"
+  const scopeCountyLabel = scope ? formatPprCountyDisplayName(scope.county) : ""
 
   return (
     <main className="min-h-screen bg-stone-50">
@@ -110,7 +112,7 @@ export default async function SoldPricesSearchPage({
               ) : (
                 <>
                   <p className="text-sm font-medium uppercase tracking-[0.2em] text-stone-500">
-                    {scope.county}
+                    {scopeCountyLabel}
                   </p>
                   <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">
                     {scope.areaLabel} sales
@@ -132,7 +134,7 @@ export default async function SoldPricesSearchPage({
                       href={`/sold-prices/${encodeURIComponent(scope.county.toLowerCase())}`}
                       className="inline-flex rounded-full border border-stone-300 px-5 py-2.5 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900"
                     >
-                      See {scope.county} market
+                      See {scopeCountyLabel} market
                     </Link>
                   </div>
                 </>

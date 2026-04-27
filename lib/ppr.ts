@@ -205,6 +205,18 @@ export function areaNameFromSlug(slug: string) {
     .join(" ")
 }
 
+export function formatPprCountyDisplayName(value?: string | null) {
+  const county = normalisePprCounty(value)
+  if (!county) return ""
+
+  const countySlug = areaSlug(county)
+  const canonicalCounty = IRISH_COUNTIES.find(
+    (irishCounty) => areaSlug(irishCounty) === countySlug
+  )
+
+  return canonicalCounty || areaNameFromSlug(countySlug)
+}
+
 export function formatPprCurrency(value?: number | string | null) {
   const numeric =
     typeof value === "number"

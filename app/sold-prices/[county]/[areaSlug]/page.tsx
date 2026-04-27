@@ -7,6 +7,7 @@ import PprSaleCard from "@/components/ppr/PprSaleCard"
 import { getPprMarket, getRelevantMarketComparisonLinks } from "@/lib/ppr-markets"
 import {
   areaNameFromSlug,
+  formatPprCountyDisplayName,
   formatPprCurrency,
   formatPprDate,
   formatPprDisplayText,
@@ -32,11 +33,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { county, areaSlug } = await params
   if (isExcludedStandaloneAreaSlug(areaSlug)) notFound()
   const decodedCounty = decodeURIComponent(county)
+  const countyLabel = formatPprCountyDisplayName(decodedCounty)
   const areaName = areaNameFromSlug(areaSlug)
 
   return {
-    title: `${areaName} Property Prices | Recent Sales & Trends`,
-    description: `See what homes are selling for in ${areaName}, ${decodedCounty}. View recent property sale prices, market trends and activity from recorded transactions.`,
+    title: `${areaName} Property Prices, ${countyLabel} | Recent Sales & Trends`,
+    description: `See what homes are selling for in ${areaName}, ${countyLabel}. View recent property sale prices, market trends and activity from recorded transactions.`,
     alternates: {
       canonical: `/sold-prices/${decodedCounty.toLowerCase()}/${areaSlug}`,
     },
@@ -53,6 +55,7 @@ export default async function PprAreaPage({ params }: Props) {
   const selectedRange: PprDateRangeValue = "last-year"
   const analyticsRange = getAnalyticsRange(selectedRange)
   const decodedCounty = decodeURIComponent(county)
+  const countyLabel = formatPprCountyDisplayName(decodedCounty)
   const areaName = areaNameFromSlug(areaSlug)
   const areaTitle = `${formatPprDisplayText(areaName).toUpperCase()} MARKET`
   const areaMarket = getPprMarket(areaSlug)
@@ -78,7 +81,7 @@ export default async function PprAreaPage({ params }: Props) {
               {areaTitle}
             </p>
             <h1 className="mt-2 text-4xl font-semibold tracking-tight text-stone-900 sm:text-5xl">
-              Property prices in {areaName}, {decodedCounty}
+              Property prices in {areaName}, {countyLabel}
             </h1>
             <p className="mt-5 max-w-3xl text-base leading-7 text-stone-600 sm:text-lg sm:leading-8">
               See recent sold property prices, pricing trends and sales activity for {areaName}.
@@ -92,7 +95,7 @@ export default async function PprAreaPage({ params }: Props) {
                 href={`/sold-prices/${decodedCounty.toLowerCase()}`}
                 className="inline-flex text-sm font-medium text-stone-600 transition hover:text-stone-900"
               >
-                See {decodedCounty} house prices
+                See {countyLabel} house prices
               </Link>
               <Link
                 href="/sold-prices"
@@ -189,7 +192,7 @@ export default async function PprAreaPage({ params }: Props) {
                 </h2>
                 <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">
                   Use these signals to compare local property prices, price change and recent market
-                  activity in {areaName} against nearby parts of {decodedCounty}.
+                  activity in {areaName} against nearby parts of {countyLabel}.
                 </p>
               </div>
 

@@ -5,6 +5,7 @@ import { getLegacyShortTownRedirect } from "@/lib/ppr-legacy-town-routes"
 import {
   areaNameFromSlug,
   buildPprDatasetDescription,
+  formatPprCountyDisplayName,
   formatPprCurrency,
   getPprDatasetSummary,
   getPprQuickAreas,
@@ -396,7 +397,7 @@ export default async function SoldPricesPage({
                     className="rounded-[24px] border border-stone-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                   >
                     <p className="text-sm uppercase tracking-[0.18em] text-stone-500">
-                      {area.county}
+                      {formatPprCountyDisplayName(area.county)}
                     </p>
                     <h3 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">
                       {areaNameFromSlug(area.area_slug || "")}
