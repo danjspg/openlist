@@ -64,6 +64,32 @@ async function runDownload(years) {
   })
 }
 
+async function rebuildPprAreaSummaries() {
+  await new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, ["scripts/rebuild-ppr-summaries.mjs"], {
+      cwd: repoRoot,
+      env: process.env,
+      stdio: "inherit",
+    })
+
+    child.on("error", reject)
+    child.on("exit", (code) => {
+      if (code === 0) resolve()
+      else reject(new Error(`rebuild-ppr-summaries exited with code ${code}`))
+    })
+  })
+}
+
+async function refreshDerivedPprTables() {
+  console.log("Rebuilding PPR area summaries...")
+  await rebuildPprAreaSummaries()
+  console.log("PPR area summaries refreshed.")
+
+  console.log("Rebuilding PPR analytics tables...")
+  await rebuildPprPhase1Analytics()
+  console.log("PPR analytics tables rebuilt.")
+}
+
 async function fileExists(filePath) {
   try {
     await access(filePath)
@@ -137,7 +163,9 @@ try {
   )
 
   if (newRecords.length === 0) {
-    console.log("No brand-new sold-prices rows detected for the current year. Exiting cleanly.")
+    console.log("No brand-new sold-prices rows detected for the current year.")
+    console.log("Refreshing derived sold-prices tables to keep summaries in sync.")
+    await refreshDerivedPprTables()
     logCompletion(0)
     process.exit(0)
   }
@@ -157,16 +185,7 @@ try {
     `${year}: Supabase insert/update result - imported ${result.insertedRows} new rows from ${result.processedRows} processed rows.`
   )
 
-  console.log("Refreshing PPR area summaries...")
-  const { error: refreshError } = await supabase.rpc("refresh_ppr_area_summaries")
-  if (refreshError) {
-    throw new Error("refresh_ppr_area_summaries RPC failed", { cause: refreshError })
-  }
-  console.log("PPR area summaries refreshed.")
-
-  console.log("Rebuilding PPR analytics tables...")
-  await rebuildPprPhase1Analytics()
-  console.log("PPR analytics tables rebuilt.")
+  await refreshDerivedPprTables()
 
   console.log(
     `Sold-prices refresh complete. Current-year source checked, ${result.insertedRows} new rows imported, ${result.processedRows} new rows processed.`
