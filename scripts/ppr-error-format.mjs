@@ -38,8 +38,13 @@ function pickSupabaseErrorFields(error) {
 
   const fields = {}
   for (const key of SAFE_ERROR_KEYS) {
-    if (error[key] !== undefined && error[key] !== null && error[key] !== "") {
-      fields[key] = sanitizeForLog(error[key])
+    const value = error[key]
+    if (
+      value !== undefined &&
+      value !== null &&
+      (typeof value !== "string" || value.trim() !== "")
+    ) {
+      fields[key] = sanitizeForLog(value)
     }
   }
 

@@ -204,6 +204,7 @@ function summarisePprRecords(records) {
 
 async function countSalesByYears(years) {
   const counts = new Map()
+  let reliable = true
 
   for (const year of years) {
     const { count, error } = await supabase
@@ -211,11 +212,17 @@ async function countSalesByYears(years) {
       .select("id", { count: "exact", head: true })
       .eq("year", year)
 
-    if (error) throw error
+    if (error) {
+      reliable = false
+      console.warn(`Could not count existing ppr_sales rows for ${year}. Continuing ingest.`)
+      console.warn(formatErrorForLog(error))
+      counts.set(year, null)
+      continue
+    }
     counts.set(year, count || 0)
   }
 
-  return counts
+  return { counts, reliable }
 }
 
 async function loadPprCsvRecords(csvPath, { sourceUrl = DEFAULT_SOURCE_URL } = {}) {
@@ -241,7 +248,9 @@ async function ingestPprCsv({
     console.log(`Skipped ${skippedDuplicateRows} duplicate PPR row(s) with repeated source hashes.`)
   }
   const summary = summarisePprRecords(records)
-  const countsBefore = await countSalesByYears(summary.years)
+  const { counts: countsBefore, reliable: countsBeforeReliable } =
+    await countSalesByYears(summary.years)
+  const processedByYear = new Map()
 
   for (const year of summary.years) {
     const yearRecords = records.filter((record) => record.year === year)
@@ -261,13 +270,22 @@ async function ingestPprCsv({
       processed += batch.length
       console.log(`${year}: processed ${processed}/${yearRecords.length}`)
     }
+    processedByYear.set(year, processed)
   }
 
-  const countsAfter = await countSalesByYears(summary.years)
+  const { counts: countsAfter, reliable: countsAfterReliable } =
+    await countSalesByYears(summary.years)
+  const countsReliable = countsBeforeReliable && countsAfterReliable
   const importedByYear = summary.years.map((year) => {
-    const importedRows = Math.max(0, (countsAfter.get(year) || 0) - (countsBefore.get(year) || 0))
-    console.log(`${year}: imported ${importedRows} new rows (${countsAfter.get(year) || 0} total for year)`)
-    return { year, importedRows, totalRows: countsAfter.get(year) || 0 }
+    const beforeCount = countsBefore.get(year)
+    const afterCount = countsAfter.get(year)
+    const importedRows =
+      countsReliable && typeof beforeCount === "number" && typeof afterCount === "number"
+        ? Math.max(0, afterCount - beforeCount)
+        : processedByYear.get(year) || 0
+    const totalRowsText = typeof afterCount === "number" ? `${afterCount} total for year` : "total unavailable"
+    console.log(`${year}: imported ${importedRows} new rows (${totalRowsText})`)
+    return { year, importedRows, totalRows: afterCount || 0 }
   })
   const insertedRows = importedByYear.reduce((sum, item) => sum + item.importedRows, 0)
 

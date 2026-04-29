@@ -92,7 +92,9 @@ async function filterToBrandNewRecords(records, year) {
       .eq("year", year)
       .in("source_row_hash", hashBatch)
 
-    if (error) throw error
+    if (error) {
+      throw new Error(`ppr_sales existing-hash lookup failed for ${year}`, { cause: error })
+    }
 
     for (const row of data || []) {
       if (row.source_row_hash) existingHashes.add(row.source_row_hash)
@@ -157,7 +159,9 @@ try {
 
   console.log("Refreshing PPR area summaries...")
   const { error: refreshError } = await supabase.rpc("refresh_ppr_area_summaries")
-  if (refreshError) throw refreshError
+  if (refreshError) {
+    throw new Error("refresh_ppr_area_summaries RPC failed", { cause: refreshError })
+  }
   console.log("PPR area summaries refreshed.")
 
   console.log("Rebuilding PPR analytics tables...")
