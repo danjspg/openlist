@@ -3,6 +3,7 @@ import { readFile } from "fs/promises"
 import { fileURLToPath } from "url"
 import { createClient } from "@supabase/supabase-js"
 import { rebuildPprPhase1Analytics } from "./rebuild-ppr-phase1-analytics.mjs"
+import { formatErrorForLog } from "./ppr-error-format.mjs"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -167,16 +168,22 @@ function chunk(items, size) {
   return chunks
 }
 
-function describeError(error) {
-  if (!error) return "Unknown error"
-  if (error instanceof Error) return error.message
-  if (typeof error === "string") return error
-  if (typeof error.message === "string" && error.message) return error.message
-  try {
-    return JSON.stringify(error)
-  } catch {
-    return String(error)
+function dedupeRecordsBySourceHash(records) {
+  const seen = new Set()
+  const deduped = []
+
+  for (const record of records) {
+    if (!record.source_row_hash) {
+      deduped.push(record)
+      continue
+    }
+
+    if (seen.has(record.source_row_hash)) continue
+    seen.add(record.source_row_hash)
+    deduped.push(record)
   }
+
+  return deduped
 }
 
 function latestSaleDate(records) {
@@ -227,7 +234,12 @@ async function ingestPprCsv({
     throw new Error("csvPath or records is required")
   }
 
-  const records = providedRecords || (await loadPprCsvRecords(csvPath, { sourceUrl }))
+  const loadedRecords = providedRecords || (await loadPprCsvRecords(csvPath, { sourceUrl }))
+  const records = dedupeRecordsBySourceHash(loadedRecords)
+  const skippedDuplicateRows = loadedRecords.length - records.length
+  if (skippedDuplicateRows > 0) {
+    console.log(`Skipped ${skippedDuplicateRows} duplicate PPR row(s) with repeated source hashes.`)
+  }
   const summary = summarisePprRecords(records)
   const countsBefore = await countSalesByYears(summary.years)
 
@@ -241,7 +253,10 @@ async function ingestPprCsv({
         .upsert(batch, { onConflict: "source_row_hash", ignoreDuplicates: true })
 
       if (error) {
-        throw new Error(`ppr_sales upsert failed for ${year}: ${describeError(error)}`)
+        throw new Error(
+          `ppr_sales upsert failed for ${year} after ${processed}/${yearRecords.length} rows`,
+          { cause: error }
+        )
       }
       processed += batch.length
       console.log(`${year}: processed ${processed}/${yearRecords.length}`)
@@ -298,7 +313,7 @@ if (isDirectRun) {
   }
 
   ingestPprCsv({ csvPath, sourceUrl, skipRebuild }).catch((error) => {
-    console.error(describeError(error))
+    console.error(formatErrorForLog(error))
     process.exit(1)
   })
 }

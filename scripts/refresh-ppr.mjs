@@ -4,6 +4,7 @@ import path from "path"
 import { fileURLToPath } from "url"
 import { createClient } from "@supabase/supabase-js"
 import { ingestPprCsv, loadPprCsvRecords, summarisePprRecords } from "./ingest-ppr-csv.mjs"
+import { formatErrorForLog } from "./ppr-error-format.mjs"
 import { rebuildPprPhase1Analytics } from "./rebuild-ppr-phase1-analytics.mjs"
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -168,7 +169,7 @@ try {
   )
   logCompletion(result.processedRows)
 } catch (error) {
-  const reason = error instanceof Error ? error.message : String(error)
-  console.error(`PPR refresh failed: ${reason}`)
+  console.error("PPR refresh failed:")
+  console.error(formatErrorForLog(error))
   process.exit(1)
 }
