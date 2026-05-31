@@ -395,25 +395,25 @@ export default async function HomePage() {
               Drogheda
             </Link>
             <Link
-              href="/sold-prices/swords"
+              href="/sold-prices/dublin/swords"
               className="rounded-full border border-stone-300 px-3 py-1.5 transition hover:border-stone-900 hover:text-stone-900"
             >
               Swords
             </Link>
             <Link
-              href="/sold-prices/bray"
+              href="/sold-prices/wicklow/bray"
               className="rounded-full border border-stone-300 px-3 py-1.5 transition hover:border-stone-900 hover:text-stone-900"
             >
               Bray
             </Link>
             <Link
-              href="/sold-prices/dundalk"
+              href="/sold-prices/louth/dundalk"
               className="rounded-full border border-stone-300 px-3 py-1.5 transition hover:border-stone-900 hover:text-stone-900"
             >
               Dundalk
             </Link>
             <Link
-              href="/sold-prices/navan"
+              href="/sold-prices/meath/navan"
               className="rounded-full border border-stone-300 px-3 py-1.5 transition hover:border-stone-900 hover:text-stone-900"
             >
               Navan

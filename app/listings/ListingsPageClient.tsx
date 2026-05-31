@@ -16,7 +16,7 @@ import {
   normalizeListingStatus,
 } from "@/lib/listing-status"
 
-type Listing = {
+export type Listing = {
   id?: number
   slug: string
   seller_email?: string | null
@@ -58,9 +58,9 @@ function formatEuro(value: string) {
   }).format(numeric)
 }
 
-export default function ListingsPage() {
-  const [listings, setListings] = useState<Listing[]>([])
-  const [loading, setLoading] = useState(true)
+export default function ListingsPage({ initialListings = [] }: { initialListings?: Listing[] }) {
+  const [listings, setListings] = useState<Listing[]>(initialListings)
+  const [loading, setLoading] = useState(initialListings.length === 0)
   const [error, setError] = useState<string | null>(null)
 
   const [searchTerm, setSearchTerm] = useState("")

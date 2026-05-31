@@ -297,16 +297,13 @@ export default async function SoldPricesPage({
                 Search recent recorded sales for a specific county and area.
               </p>
             </div>
-            <div className="flex shrink-0 flex-col items-start gap-2 md:items-end">
+            <div className="flex shrink-0 items-start md:items-end">
               <Link
                 href="/sold-prices/search"
                 className="inline-flex rounded-full bg-stone-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-stone-700"
               >
                 Search by area
               </Link>
-              <p className="text-sm leading-6 text-stone-500">
-                Results are limited to keep search fast and useful.
-              </p>
             </div>
           </div>
         </div>

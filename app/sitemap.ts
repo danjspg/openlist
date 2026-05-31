@@ -3,6 +3,8 @@ import { PPR_MARKETS } from "@/lib/ppr-markets"
 import { getCuratedPprAreaSitemapPaths } from "@/lib/ppr-sold-price-routes"
 import { getServerSupabase } from "@/lib/supabase"
 
+export const revalidate = 86400
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.openlist.ie"
   const now = new Date()
