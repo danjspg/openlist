@@ -137,6 +137,25 @@ export async function cancelViewing(formData: FormData) {
   redirect(`/my-viewings/${id}?cancelled=1`)
 }
 
+export async function deleteViewing(formData: FormData) {
+  const currentUser = await requireSellerUser()
+  const id = getRequired(formData, "id", "Viewing ID")
+  const supabase = getServerSupabase()
+
+  const { error } = await supabase
+    .from("viewings")
+    .delete()
+    .eq("id", id)
+    .eq("owner_user_id", currentUser.id)
+
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  revalidatePath("/my-viewings")
+  redirect("/my-viewings?deleted=1")
+}
+
 export async function updateViewing(formData: FormData) {
   const currentUser = await requireSellerUser()
   const id = getRequired(formData, "id", "Viewing ID")

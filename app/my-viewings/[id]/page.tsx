@@ -9,7 +9,7 @@ import {
   getViewingStatusLabel,
   type ViewingRow,
 } from "@/lib/viewings"
-import { cancelViewing } from "../actions"
+import { cancelViewing, deleteViewing } from "../actions"
 
 export const metadata: Metadata = {
   title: "Viewing Details | OpenList",
@@ -187,6 +187,22 @@ export default async function ViewingDetailsPage({
             >
               View all
             </Link>
+          </div>
+
+          <div className="mt-8 rounded-2xl border border-stone-200 bg-stone-50 p-5">
+            <p className="text-sm font-semibold text-stone-900">Delete record</p>
+            <p className="mt-2 text-sm leading-6 text-stone-600">
+              Remove this viewing from your list without sending any emails. Use cancellation instead when someone needs to be notified.
+            </p>
+            <form action={deleteViewing} className="mt-4">
+              <input type="hidden" name="id" value={viewing.id} />
+              <button
+                type="submit"
+                className="inline-flex items-center rounded-full border border-stone-300 bg-white px-5 py-3 text-sm font-medium text-stone-700 transition hover:border-red-300 hover:text-red-700"
+              >
+                Delete record
+              </button>
+            </form>
           </div>
         </div>
       </section>

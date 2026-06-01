@@ -104,9 +104,9 @@ function ViewingCard({ viewing }: { viewing: ViewingRow }) {
 export default async function MyViewingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ created?: string }>
+  searchParams: Promise<{ created?: string; deleted?: string }>
 }) {
-  const { created } = await searchParams
+  const { created, deleted } = await searchParams
   const currentUser = await requireSellerUser().catch(() => null)
 
   if (!currentUser) {
@@ -158,6 +158,12 @@ export default async function MyViewingsPage({
         {created === "1" && (
           <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-emerald-800">
             Viewing created and confirmation emails sent.
+          </div>
+        )}
+
+        {deleted === "1" && (
+          <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-emerald-800">
+            Viewing record deleted. No emails were sent.
           </div>
         )}
 
