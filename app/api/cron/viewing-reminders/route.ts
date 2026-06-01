@@ -22,8 +22,8 @@ export async function GET(request: Request) {
 
   const supabase = getServerSupabase()
   const now = Date.now()
-  const windowStart = new Date(now + 23 * 60 * 60 * 1000).toISOString()
-  const windowEnd = new Date(now + 25 * 60 * 60 * 1000).toISOString()
+  const windowStart = new Date(now + 12 * 60 * 60 * 1000).toISOString()
+  const windowEnd = new Date(now + 40 * 60 * 60 * 1000).toISOString()
 
   const { data, error } = await supabase
     .from("viewings")
