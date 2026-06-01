@@ -1,5 +1,6 @@
 import { createClient, type EmailOtpType, type Session, type User } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
+import type { NextResponse } from "next/server"
 
 export const SELLER_ACCESS_TOKEN_COOKIE = "openlist_seller_access_token"
 export const SELLER_REFRESH_TOKEN_COOKIE = "openlist_seller_refresh_token"
@@ -57,30 +58,42 @@ export async function requireSellerUser() {
   return user
 }
 
-export function applySellerSessionCookies(response: Response, session: Session) {
+export function applySellerSessionCookies(response: NextResponse, session: Session) {
   const maxAge = getCookieMaxAge(session)
   const secure = process.env.NODE_ENV === "production"
 
-  response.headers.append(
-    "Set-Cookie",
-    `${SELLER_ACCESS_TOKEN_COOKIE}=${session.access_token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure ? "; Secure" : ""}`
-  )
-  response.headers.append(
-    "Set-Cookie",
-    `${SELLER_REFRESH_TOKEN_COOKIE}=${session.refresh_token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure ? "; Secure" : ""}`
-  )
+  response.cookies.set(SELLER_ACCESS_TOKEN_COOKIE, session.access_token, {
+    path: "/",
+    httpOnly: true,
+    sameSite: "lax",
+    secure,
+    maxAge,
+  })
+  response.cookies.set(SELLER_REFRESH_TOKEN_COOKIE, session.refresh_token, {
+    path: "/",
+    httpOnly: true,
+    sameSite: "lax",
+    secure,
+    maxAge,
+  })
 }
 
-export function clearSellerSessionCookies(response: Response) {
+export function clearSellerSessionCookies(response: NextResponse) {
   const secure = process.env.NODE_ENV === "production"
-  response.headers.append(
-    "Set-Cookie",
-    `${SELLER_ACCESS_TOKEN_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure ? "; Secure" : ""}`
-  )
-  response.headers.append(
-    "Set-Cookie",
-    `${SELLER_REFRESH_TOKEN_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure ? "; Secure" : ""}`
-  )
+  response.cookies.set(SELLER_ACCESS_TOKEN_COOKIE, "", {
+    path: "/",
+    httpOnly: true,
+    sameSite: "lax",
+    secure,
+    maxAge: 0,
+  })
+  response.cookies.set(SELLER_REFRESH_TOKEN_COOKIE, "", {
+    path: "/",
+    httpOnly: true,
+    sameSite: "lax",
+    secure,
+    maxAge: 0,
+  })
 }
 
 export function createSupabaseAuthClient() {
