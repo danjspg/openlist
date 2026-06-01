@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { getSellerAuthRedirectUrl, getSafeRedirectPath } from "@/lib/site-url"
+import { getSellerAuthCallbackUrl, getSafeRedirectPath } from "@/lib/site-url"
 import { supabase } from "@/lib/supabase"
 
 export default function AuthEmailForm({
@@ -16,7 +16,7 @@ export default function AuthEmailForm({
   const [redirectUrl, setRedirectUrl] = useState("")
 
   useEffect(() => {
-    setRedirectUrl(getSellerAuthRedirectUrl(redirectTo, window.location.origin))
+    setRedirectUrl(getSellerAuthCallbackUrl(window.location.origin))
   }, [redirectTo])
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -27,7 +27,7 @@ export default function AuthEmailForm({
       setIsSubmitting(true)
       const safeNextPath = getSafeRedirectPath(redirectTo, "/my-listings")
       document.cookie = `openlist_auth_next=${encodeURIComponent(safeNextPath)}; Path=/; SameSite=Lax; Max-Age=600`
-      const nextRedirectUrl = getSellerAuthRedirectUrl(safeNextPath, window.location.origin)
+      const nextRedirectUrl = getSellerAuthCallbackUrl(window.location.origin)
       setRedirectUrl(nextRedirectUrl)
 
       const { error } = await supabase.auth.signInWithOtp({
@@ -83,7 +83,7 @@ export default function AuthEmailForm({
 
       {process.env.NODE_ENV !== "production" && redirectUrl && (
         <p className="mt-3 break-words rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-xs leading-5 text-stone-500">
-          Local sign-in v2. Return URL: <span className="font-medium text-stone-700">{redirectUrl}</span>
+          Local sign-in v3. Return URL: <span className="font-medium text-stone-700">{redirectUrl}</span>
         </p>
       )}
 
