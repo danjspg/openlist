@@ -14,7 +14,13 @@ export function getSafeRedirectPath(value: string | null | undefined, fallback =
   return value
 }
 
-export function getSellerAuthRedirectUrl(nextPath: string) {
+export function getSellerAuthRedirectUrl(nextPath: string, origin?: string) {
   const safeNextPath = getSafeRedirectPath(nextPath, "/my-listings")
-  return `${getPublicSiteUrl()}/auth/callback?next=${encodeURIComponent(safeNextPath)}`
+  const baseUrl = (origin || getPublicSiteUrl()).replace(/\/+$/, "")
+  return `${baseUrl}/auth/callback?next=${encodeURIComponent(safeNextPath)}`
+}
+
+export function getSellerAuthCallbackUrl(origin?: string) {
+  const baseUrl = (origin || getPublicSiteUrl()).replace(/\/+$/, "")
+  return `${baseUrl}/auth/callback`
 }

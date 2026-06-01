@@ -61,6 +61,16 @@ export default function Nav({
               >
                 My listings
               </Link>
+              <Link
+                href="/my-viewings"
+                className={`inline-flex items-center rounded-full border px-5 py-2.5 text-base font-medium transition ${
+                  pathname === "/my-viewings" || pathname.startsWith("/my-viewings/")
+                    ? "border-stone-900 text-stone-900"
+                    : "border-stone-300 text-stone-700 hover:border-stone-900 hover:text-stone-900"
+                }`}
+              >
+                Viewings
+              </Link>
               <SignOutButton />
             </>
           ) : (
@@ -106,16 +116,28 @@ export default function Nav({
         })}
 
         {isSellerAuthenticated ? (
-          <Link
-            href="/my-listings"
-            className={`shrink-0 font-medium transition ${
-              pathname === "/my-listings"
-                ? "text-stone-900"
-                : "text-stone-500 hover:text-stone-900"
-            }`}
-          >
-            My listings
-          </Link>
+          <>
+            <Link
+              href="/my-listings"
+              className={`shrink-0 font-medium transition ${
+                pathname === "/my-listings"
+                  ? "text-stone-900"
+                  : "text-stone-500 hover:text-stone-900"
+              }`}
+            >
+              My listings
+            </Link>
+            <Link
+              href="/my-viewings"
+              className={`shrink-0 font-medium transition ${
+                pathname === "/my-viewings" || pathname.startsWith("/my-viewings/")
+                  ? "text-stone-900"
+                  : "text-stone-500 hover:text-stone-900"
+              }`}
+            >
+              Viewings
+            </Link>
+          </>
         ) : (
           <Link
             href="/sign-in"

@@ -109,6 +109,9 @@ export default async function RootLayout({
                 <Link href="/my-listings" className="transition hover:text-stone-900">
                   My listings
                 </Link>
+                <Link href="/my-viewings" className="transition hover:text-stone-900">
+                  My viewings
+                </Link>
                 <Link href="/sell" className="transition hover:text-stone-900">
                   Start your listing
                 </Link>
