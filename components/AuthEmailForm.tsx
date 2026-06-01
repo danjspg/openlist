@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { getSellerAuthCallbackUrl, getSafeRedirectPath } from "@/lib/site-url"
+import { getSellerAuthRedirectUrl, getSafeRedirectPath } from "@/lib/site-url"
 import { supabase } from "@/lib/supabase"
 
 export default function AuthEmailForm({
@@ -16,7 +16,7 @@ export default function AuthEmailForm({
   const [redirectUrl, setRedirectUrl] = useState("")
 
   useEffect(() => {
-    setRedirectUrl(getSellerAuthCallbackUrl(window.location.origin))
+    setRedirectUrl(getSellerAuthRedirectUrl(redirectTo, window.location.origin))
   }, [redirectTo])
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -27,7 +27,7 @@ export default function AuthEmailForm({
       setIsSubmitting(true)
       const safeNextPath = getSafeRedirectPath(redirectTo, "/my-listings")
       document.cookie = `openlist_auth_next=${encodeURIComponent(safeNextPath)}; Path=/; SameSite=Lax; Max-Age=600`
-      const nextRedirectUrl = getSellerAuthCallbackUrl(window.location.origin)
+      const nextRedirectUrl = getSellerAuthRedirectUrl(safeNextPath, window.location.origin)
       setRedirectUrl(nextRedirectUrl)
 
       const { error } = await supabase.auth.signInWithOtp({

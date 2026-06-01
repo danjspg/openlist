@@ -69,6 +69,16 @@ function soldPricesNotFoundResponse() {
 }
 
 export function middleware(request: NextRequest) {
+  if (
+    request.nextUrl.pathname === "/" &&
+    request.nextUrl.searchParams.has("token_hash") &&
+    request.nextUrl.searchParams.has("type")
+  ) {
+    const url = request.nextUrl.clone()
+    url.pathname = "/auth/callback"
+    return NextResponse.redirect(url, 307)
+  }
+
   const match = request.nextUrl.pathname.match(/^\/sold-prices\/([^/]+)$/)
   if (!match) return NextResponse.next()
 
@@ -90,5 +100,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: "/sold-prices/:path*",
+  matcher: ["/", "/sold-prices/:path*"],
 }
