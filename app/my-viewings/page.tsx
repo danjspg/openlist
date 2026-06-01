@@ -70,6 +70,12 @@ function ViewingCard({ viewing }: { viewing: ViewingRow }) {
         >
           View details
         </Link>
+        <Link
+          href={`/my-viewings/new?from=${viewing.id}`}
+          className="inline-flex items-center rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:text-stone-900"
+        >
+          Create similar
+        </Link>
 
         {viewing.status === "scheduled" && (
           <form action={cancelViewing}>

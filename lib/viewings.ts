@@ -27,6 +27,54 @@ export type ViewingRow = {
   cancelled_at?: string | null
 }
 
+const EIRCODE_PATTERN = /\b([A-Z0-9]{3}\s?[A-Z0-9]{4})\b/i
+
+export function formatEircode(value: string) {
+  const compact = value.trim().replace(/\s+/g, "").toUpperCase()
+  if (!compact) return ""
+  if (compact.length !== 7) return value.trim().toUpperCase()
+  return `${compact.slice(0, 3)} ${compact.slice(3)}`
+}
+
+export function isValidEircode(value: string) {
+  if (!value.trim()) return true
+  return EIRCODE_PATTERN.test(formatEircode(value))
+}
+
+export function extractEircode(value: string) {
+  const match = value.match(EIRCODE_PATTERN)
+  return match ? formatEircode(match[1]) : ""
+}
+
+export function splitPropertyLocation(value: string) {
+  const eircode = extractEircode(value)
+  const address = eircode
+    ? value
+        .replace(new RegExp(`\\b${eircode.replace(" ", "\\s?")}\\b`, "i"), "")
+        .split("\n")
+        .map((part) => part.trim())
+        .filter(Boolean)
+        .join("\n")
+    : value.trim()
+
+  return {
+    address,
+    eircode,
+  }
+}
+
+export function getGoogleMapsUrl(location: string) {
+  const eircode = extractEircode(location)
+  const compactLocation = location
+    .split("\n")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join(", ")
+  const query = eircode ? `${eircode}, Ireland` : `${compactLocation}, Ireland`
+
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`
+}
+
 export function formatViewingDateTime(value: string | Date) {
   const date = value instanceof Date ? value : new Date(value)
 

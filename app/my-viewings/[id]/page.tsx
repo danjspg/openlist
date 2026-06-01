@@ -5,6 +5,7 @@ import { getServerSupabase } from "@/lib/supabase"
 import { requireSellerUser } from "@/lib/seller-auth"
 import {
   formatViewingDateTime,
+  getGoogleMapsUrl,
   getViewingStatusLabel,
   type ViewingRow,
 } from "@/lib/viewings"
@@ -100,6 +101,17 @@ export default async function ViewingDetailsPage({
 
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
             <Detail label="Location">{viewing.property_location}</Detail>
+            <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
+              <p className="text-xs uppercase tracking-[0.18em] text-stone-500">Map</p>
+              <a
+                href={getGoogleMapsUrl(viewing.property_location)}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-2 inline-flex text-sm font-semibold text-stone-900 underline underline-offset-4 transition hover:text-stone-600"
+              >
+                Open in Google Maps
+              </a>
+            </div>
             <Detail label="When">{formatViewingDateTime(viewing.viewing_starts_at)}</Detail>
             <Detail label="Viewer">
               <strong>{viewing.viewer_name}</strong>
@@ -149,6 +161,12 @@ export default async function ViewingDetailsPage({
                 </button>
               </form>
             )}
+            <Link
+              href={`/my-viewings/new?from=${viewing.id}`}
+              className="inline-flex items-center rounded-full border border-stone-300 px-5 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:text-stone-900"
+            >
+              Create similar
+            </Link>
             <Link
               href="/my-viewings"
               className="inline-flex items-center rounded-full border border-stone-300 px-5 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:text-stone-900"

@@ -1,8 +1,13 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { redirect } from "next/navigation"
+import { getServerSupabase } from "@/lib/supabase"
 import { getCurrentSellerUser } from "@/lib/seller-auth"
-import { getTomorrowDateInput } from "@/lib/viewings"
+import {
+  getTomorrowDateInput,
+  splitPropertyLocation,
+  type ViewingRow,
+} from "@/lib/viewings"
 import { createViewing } from "../actions"
 
 export const metadata: Metadata = {
@@ -13,13 +18,37 @@ export const metadata: Metadata = {
   },
 }
 
-export default async function NewViewingPage() {
+export default async function NewViewingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ from?: string }>
+}) {
+  const { from } = await searchParams
   const currentUser = await getCurrentSellerUser()
 
   if (!currentUser) {
     redirect("/sign-in?redirectTo=%2Fmy-viewings%2Fnew")
   }
 
+  let sourceViewing: ViewingRow | null = null
+
+  if (from) {
+    const supabase = getServerSupabase()
+    const { data, error } = await supabase
+      .from("viewings")
+      .select("*")
+      .eq("id", from)
+      .eq("owner_user_id", currentUser.id)
+      .maybeSingle()
+
+    if (error) {
+      throw new Error(error.message)
+    }
+
+    sourceViewing = (data as ViewingRow | null) ?? null
+  }
+
+  const sourceLocation = splitPropertyLocation(sourceViewing?.property_location ?? "")
   const tomorrowDateInput = await getTomorrowDateInput()
 
   return (
@@ -45,6 +74,12 @@ export default async function NewViewingPage() {
             Add the time, place and viewer details, then choose who should receive each email.
           </p>
 
+          {sourceViewing && (
+            <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm leading-6 text-emerald-800">
+              Location and seller contact details have been copied from the previous viewing. Add the new viewer and time.
+            </div>
+          )}
+
           <form action={createViewing} className="mt-8 space-y-8">
             <section>
               <h2 className="text-lg font-semibold tracking-tight text-stone-900">
@@ -57,6 +92,7 @@ export default async function NewViewingPage() {
                     name="propertyAddress"
                     required
                     rows={3}
+                    defaultValue={sourceLocation.address}
                     placeholder="Street, town, county, or meeting point"
                     className="mt-2 w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition focus:border-stone-900"
                   />
@@ -66,9 +102,14 @@ export default async function NewViewingPage() {
                   <span className="text-sm font-medium text-stone-700">Eircode, optional</span>
                   <input
                     name="propertyEircode"
+                    defaultValue={sourceLocation.eircode}
+                    pattern="[A-Za-z0-9]{3}\s?[A-Za-z0-9]{4}"
                     placeholder="A65 F4E2"
                     className="mt-2 h-12 w-full rounded-2xl border border-stone-300 bg-white px-4 uppercase text-stone-900 outline-none transition placeholder:normal-case focus:border-stone-900"
                   />
+                  <p className="mt-2 text-xs leading-5 text-stone-500">
+                    If added, OpenList checks the format and uses it for the Google Maps link.
+                  </p>
                   <a
                     href="https://finder.eircode.ie/"
                     target="_blank"
@@ -150,6 +191,7 @@ export default async function NewViewingPage() {
                   <input
                     name="contactName"
                     required
+                    defaultValue={sourceViewing?.contact_name ?? ""}
                     placeholder="e.g. Donal"
                     className="mt-2 h-12 w-full rounded-2xl border border-stone-300 bg-white px-4 text-stone-900 outline-none transition focus:border-stone-900"
                   />
@@ -161,7 +203,7 @@ export default async function NewViewingPage() {
                     type="email"
                     name="contactEmail"
                     required
-                    defaultValue={currentUser.email ?? ""}
+                    defaultValue={sourceViewing?.contact_email ?? currentUser.email ?? ""}
                     className="mt-2 h-12 w-full rounded-2xl border border-stone-300 bg-white px-4 text-stone-900 outline-none transition focus:border-stone-900"
                   />
                 </label>
@@ -170,6 +212,7 @@ export default async function NewViewingPage() {
                   <span className="text-sm font-medium text-stone-700">Seller contact phone, optional</span>
                   <input
                     name="contactPhone"
+                    defaultValue={sourceViewing?.contact_phone ?? ""}
                     className="mt-2 h-12 w-full rounded-2xl border border-stone-300 bg-white px-4 text-stone-900 outline-none transition focus:border-stone-900"
                   />
                 </label>
@@ -205,7 +248,7 @@ export default async function NewViewingPage() {
                       <input
                         type="checkbox"
                         name="sendConfirmationToViewer"
-                        defaultChecked
+                        defaultChecked={sourceViewing?.send_confirmation_to_viewer !== false}
                         className="mt-1 h-4 w-4 rounded border-stone-300 text-stone-900"
                       />
                       <span className="text-sm leading-6 text-stone-700">
@@ -216,7 +259,7 @@ export default async function NewViewingPage() {
                       <input
                         type="checkbox"
                         name="sendConfirmationToSeller"
-                        defaultChecked
+                        defaultChecked={sourceViewing?.send_confirmation_to_seller !== false}
                         className="mt-1 h-4 w-4 rounded border-stone-300 text-stone-900"
                       />
                       <span className="text-sm leading-6 text-stone-700">
@@ -238,7 +281,7 @@ export default async function NewViewingPage() {
                       <input
                         type="checkbox"
                         name="sendReminderToViewer"
-                        defaultChecked
+                        defaultChecked={sourceViewing?.send_reminder_to_viewer !== false}
                         className="mt-1 h-4 w-4 rounded border-stone-300 text-stone-900"
                       />
                       <span className="text-sm leading-6 text-stone-700">
@@ -249,7 +292,7 @@ export default async function NewViewingPage() {
                       <input
                         type="checkbox"
                         name="sendReminderToSeller"
-                        defaultChecked
+                        defaultChecked={sourceViewing?.send_reminder_to_seller !== false}
                         className="mt-1 h-4 w-4 rounded border-stone-300 text-stone-900"
                       />
                       <span className="text-sm leading-6 text-stone-700">

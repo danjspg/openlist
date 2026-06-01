@@ -2,6 +2,7 @@ import { getResendClient } from "@/lib/resend"
 import {
   formatViewingDateTime,
   formatViewingTime,
+  getGoogleMapsUrl,
   type ViewingRow,
 } from "@/lib/viewings"
 
@@ -19,16 +20,6 @@ function escapeHtml(value: string) {
 
 function formatMultiline(value: string) {
   return escapeHtml(value).replace(/\n/g, "<br />")
-}
-
-function getGoogleMapsUrl(location: string) {
-  const compactLocation = location
-    .split("\n")
-    .map((part) => part.trim())
-    .filter(Boolean)
-    .join(", ")
-
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(compactLocation)}`
 }
 
 function escapeIcsText(value: string) {

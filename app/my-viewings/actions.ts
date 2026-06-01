@@ -5,7 +5,12 @@ import { redirect } from "next/navigation"
 import { getServerSupabase } from "@/lib/supabase"
 import { requireSellerUser } from "@/lib/seller-auth"
 import { sendViewingCancellationEmails, sendViewingConfirmationEmails } from "@/lib/viewing-emails"
-import { parseDublinViewingDateTime, type ViewingRow } from "@/lib/viewings"
+import {
+  formatEircode,
+  isValidEircode,
+  parseDublinViewingDateTime,
+  type ViewingRow,
+} from "@/lib/viewings"
 
 function getRequired(formData: FormData, field: string, label: string) {
   const value = String(formData.get(field) ?? "").trim()
@@ -31,7 +36,12 @@ export async function createViewing(formData: FormData) {
   const contactEmail = normaliseEmail(getRequired(formData, "contactEmail", "Seller contact email"))
   const contactPhone = String(formData.get("contactPhone") ?? "").trim()
   const propertyAddress = String(formData.get("propertyAddress") ?? "").trim()
-  const propertyEircode = String(formData.get("propertyEircode") ?? "").trim().toUpperCase()
+  const propertyEircode = formatEircode(String(formData.get("propertyEircode") ?? ""))
+
+  if (propertyEircode && !isValidEircode(propertyEircode)) {
+    throw new Error("Please enter a valid Eircode, for example A65 F4E2.")
+  }
+
   const propertyLocation =
     [propertyAddress, propertyEircode].filter(Boolean).join("\n") ||
     getRequired(formData, "propertyLocation", "Property location")
