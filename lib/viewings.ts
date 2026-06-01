@@ -118,6 +118,19 @@ export function formatDateInput(value: string | Date) {
   }).format(date)
 }
 
+export function formatTimeInput(value: string | Date) {
+  const date = value instanceof Date ? value : new Date(value)
+
+  if (Number.isNaN(date.getTime())) return ""
+
+  return new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "Europe/Dublin",
+  }).format(date)
+}
+
 export async function getCurrentTimeMs() {
   return Date.now()
 }

@@ -4,9 +4,11 @@ import {
   getViewingCancellationSubject,
   getViewingConfirmationSubject,
   getViewingReminderSubject,
+  getViewingUpdateSubject,
   renderViewingCancellationEmailHtml,
   renderViewingConfirmationEmailHtml,
   renderViewingReminderEmailHtml,
+  renderViewingUpdateEmailHtml,
 } from "@/lib/viewing-emails"
 import type { ViewingRow } from "@/lib/viewings"
 
@@ -47,6 +49,13 @@ const emailPreviews = [
     label: "Reminder",
     subject: getViewingReminderSubject(sampleViewing),
     html: renderViewingReminderEmailHtml(sampleViewing),
+    attachment: "openlist-viewing.ics",
+  },
+  {
+    id: "update",
+    label: "Update",
+    subject: getViewingUpdateSubject(sampleViewing),
+    html: renderViewingUpdateEmailHtml(sampleViewing),
     attachment: "openlist-viewing.ics",
   },
   {

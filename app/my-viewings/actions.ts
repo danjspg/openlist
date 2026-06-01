@@ -4,7 +4,11 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { getServerSupabase } from "@/lib/supabase"
 import { requireSellerUser } from "@/lib/seller-auth"
-import { sendViewingCancellationEmails, sendViewingConfirmationEmails } from "@/lib/viewing-emails"
+import {
+  sendViewingCancellationEmails,
+  sendViewingConfirmationEmails,
+  sendViewingUpdateEmails,
+} from "@/lib/viewing-emails"
 import {
   formatEircode,
   isValidEircode,
@@ -131,4 +135,95 @@ export async function cancelViewing(formData: FormData) {
   revalidatePath("/my-viewings")
   revalidatePath(`/my-viewings/${id}`)
   redirect(`/my-viewings/${id}?cancelled=1`)
+}
+
+export async function updateViewing(formData: FormData) {
+  const currentUser = await requireSellerUser()
+  const id = getRequired(formData, "id", "Viewing ID")
+  const viewerName = getRequired(formData, "viewerName", "Viewer name")
+  const viewerEmail = normaliseEmail(getRequired(formData, "viewerEmail", "Viewer email"))
+  const viewerPhone = String(formData.get("viewerPhone") ?? "").trim()
+  const contactName = getRequired(formData, "contactName", "Seller contact name")
+  const contactEmail = normaliseEmail(getRequired(formData, "contactEmail", "Seller contact email"))
+  const contactPhone = String(formData.get("contactPhone") ?? "").trim()
+  const propertyAddress = String(formData.get("propertyAddress") ?? "").trim()
+  const propertyEircode = formatEircode(String(formData.get("propertyEircode") ?? ""))
+
+  if (propertyEircode && !isValidEircode(propertyEircode)) {
+    throw new Error("Please enter a valid Eircode, for example A65 F4E2.")
+  }
+
+  const propertyLocation =
+    [propertyAddress, propertyEircode].filter(Boolean).join("\n") ||
+    getRequired(formData, "propertyLocation", "Property location")
+  const viewingDate = getRequired(formData, "viewingDate", "Viewing date")
+  const viewingTime = getRequired(formData, "viewingTime", "Viewing time")
+  const notes = String(formData.get("notes") ?? "").trim()
+  const sendConfirmationToViewer = isChecked(formData, "sendConfirmationToViewer")
+  const sendConfirmationToSeller = isChecked(formData, "sendConfirmationToSeller")
+  const sendReminderToViewer = isChecked(formData, "sendReminderToViewer")
+  const sendReminderToSeller = isChecked(formData, "sendReminderToSeller")
+  const sendUpdateToViewer = isChecked(formData, "sendUpdateToViewer")
+  const sendUpdateToSeller = isChecked(formData, "sendUpdateToSeller")
+  const startsAt = parseDublinViewingDateTime(viewingDate, viewingTime)
+
+  if (startsAt.getTime() < Date.now() - 5 * 60 * 1000) {
+    throw new Error("Viewing time must be in the future.")
+  }
+
+  const supabase = getServerSupabase()
+  const { data: existing, error: existingError } = await supabase
+    .from("viewings")
+    .select("*")
+    .eq("id", id)
+    .eq("owner_user_id", currentUser.id)
+    .single()
+
+  if (existingError) {
+    throw new Error(existingError.message)
+  }
+
+  const previousViewing = existing as ViewingRow
+
+  if (previousViewing.status === "cancelled") {
+    throw new Error("Cancelled viewings cannot be updated.")
+  }
+
+  const timeChanged = new Date(previousViewing.viewing_starts_at).getTime() !== startsAt.getTime()
+  const { data, error } = await supabase
+    .from("viewings")
+    .update({
+      viewer_name: viewerName,
+      viewer_email: viewerEmail,
+      viewer_phone: viewerPhone || null,
+      contact_name: contactName,
+      contact_email: contactEmail,
+      contact_phone: contactPhone || null,
+      property_location: propertyLocation,
+      viewing_starts_at: startsAt.toISOString(),
+      notes: notes || null,
+      send_confirmation_to_viewer: sendConfirmationToViewer,
+      send_confirmation_to_seller: sendConfirmationToSeller,
+      send_reminder_to_viewer: sendReminderToViewer,
+      send_reminder_to_seller: sendReminderToSeller,
+      reminder_sent_at: timeChanged ? null : previousViewing.reminder_sent_at ?? null,
+      status: "scheduled",
+    })
+    .eq("id", id)
+    .eq("owner_user_id", currentUser.id)
+    .select("*")
+    .single()
+
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  await sendViewingUpdateEmails(data as ViewingRow, {
+    toViewer: sendUpdateToViewer,
+    toSeller: sendUpdateToSeller,
+  })
+
+  revalidatePath("/my-viewings")
+  revalidatePath(`/my-viewings/${id}`)
+  redirect(`/my-viewings/${id}?updated=1`)
 }

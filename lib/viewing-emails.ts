@@ -190,6 +190,10 @@ export function getViewingCancellationSubject(viewing: ViewingRow) {
   return `Viewing cancelled: ${viewing.property_location.split("\n")[0]}`
 }
 
+export function getViewingUpdateSubject(viewing: ViewingRow) {
+  return `Viewing updated: ${viewing.property_location.split("\n")[0]} on ${formatViewingDateTime(viewing.viewing_starts_at)}`
+}
+
 export function renderViewingConfirmationEmailHtml(viewing: ViewingRow) {
   return renderShell({
     title: "Viewing confirmed",
@@ -221,6 +225,18 @@ export function renderViewingCancellationEmailHtml(viewing: ViewingRow) {
     body: getSharedBody(
       viewing,
       "This viewing has been cancelled. Please reply directly if you need to arrange another time."
+    ),
+  })
+}
+
+export function renderViewingUpdateEmailHtml(viewing: ViewingRow) {
+  return renderShell({
+    title: "Viewing updated",
+    intro: "The viewing appointment details have been updated.",
+    body: getSharedBody(
+      viewing,
+      "Please use these latest details for the viewing. OpenList will send a reminder 1 day before the appointment if reminders are enabled.",
+      { showCalendarNotice: true }
     ),
   })
 }
@@ -341,4 +357,35 @@ export async function sendViewingCancellationEmails(viewing: ViewingRow) {
       html,
     }),
   ])
+}
+
+export async function sendViewingUpdateEmails(
+  viewing: ViewingRow,
+  options: { toViewer: boolean; toSeller: boolean }
+) {
+  const subject = getViewingUpdateSubject(viewing)
+  const html = renderViewingUpdateEmailHtml(viewing)
+  const emailTasks = []
+
+  if (options.toViewer) {
+    emailTasks.push(sendViewingEmail({
+      to: viewing.viewer_email,
+      replyTo: viewing.contact_email,
+      subject,
+      html,
+      viewing,
+    }))
+  }
+
+  if (options.toSeller) {
+    emailTasks.push(sendViewingEmail({
+      to: viewing.contact_email,
+      replyTo: viewing.viewer_email,
+      subject,
+      html,
+      viewing,
+    }))
+  }
+
+  await Promise.all(emailTasks)
 }

@@ -35,9 +35,9 @@ export default async function ViewingDetailsPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ cancelled?: string }>
+  searchParams: Promise<{ cancelled?: string; updated?: string }>
 }) {
-  const [{ id }, { cancelled }] = await Promise.all([params, searchParams])
+  const [{ id }, { cancelled, updated }] = await Promise.all([params, searchParams])
   const currentUser = await requireSellerUser().catch(() => null)
 
   if (!currentUser) {
@@ -77,6 +77,12 @@ export default async function ViewingDetailsPage({
         {cancelled === "1" && (
           <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-emerald-800">
             Viewing cancelled and emails sent.
+          </div>
+        )}
+
+        {updated === "1" && (
+          <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-emerald-800">
+            Viewing updated and selected emails sent.
           </div>
         )}
 
@@ -151,15 +157,23 @@ export default async function ViewingDetailsPage({
 
           <div className="mt-8 flex flex-wrap gap-3 border-t border-stone-200 pt-6">
             {viewing.status === "scheduled" && (
-              <form action={cancelViewing}>
-                <input type="hidden" name="id" value={viewing.id} />
-                <button
-                  type="submit"
-                  className="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-5 py-3 text-sm font-medium text-red-700 transition hover:border-red-300 hover:bg-red-100"
+              <>
+                <Link
+                  href={`/my-viewings/${viewing.id}/edit`}
+                  className="inline-flex items-center rounded-full bg-stone-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-stone-700"
                 >
-                  Cancel viewing
-                </button>
-              </form>
+                  Update viewing
+                </Link>
+                <form action={cancelViewing}>
+                  <input type="hidden" name="id" value={viewing.id} />
+                  <button
+                    type="submit"
+                    className="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-5 py-3 text-sm font-medium text-red-700 transition hover:border-red-300 hover:bg-red-100"
+                  >
+                    Cancel viewing
+                  </button>
+                </form>
+              </>
             )}
             <Link
               href={`/my-viewings/new?from=${viewing.id}`}
