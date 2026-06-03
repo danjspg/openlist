@@ -83,12 +83,12 @@ export default async function RootLayout({
                 </div>
 
                 <p className="mt-4 max-w-md text-sm leading-6 text-stone-600">
-                  OpenList is a self-service platform for property listings, sold-price information and viewing organisation in Ireland.
+                  OpenList is a self-service platform for creating property listings, researching sold prices and managing viewings in Ireland.
                 </p>
 
                 <div className="mt-6 space-y-3 text-xs leading-5 text-stone-500">
                   <p>
-                    OpenList is a self-service platform for property listings, sold-price information and viewing organisation in Ireland.
+                    OpenList is a self-service platform for creating property listings, researching sold prices and managing viewings in Ireland.
                   </p>
                   <p>
                     Listing details are provided by sellers and have not been independently verified.

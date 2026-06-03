@@ -234,32 +234,36 @@ export default async function HomePage() {
               step: "01",
               title: "Sell Privately",
               text: "Create and manage your own property listing.",
+              href: "/sell",
             },
             {
               step: "02",
               title: "Research Prices",
               text: "Browse public sold-price data and local market insights.",
+              href: "/sold-prices",
             },
             {
               step: "03",
               title: "Manage Viewings",
               text: "Create, edit, clone and track property viewings.",
+              href: "/viewings",
             },
           ].map((item) => (
-            <div
+            <Link
               key={item.step}
-              className="rounded-3xl border border-stone-200 bg-white p-7 shadow-sm sm:p-8"
+              href={item.href}
+              className="group rounded-3xl border border-stone-200 bg-white p-7 shadow-sm transition hover:-translate-y-1 hover:border-stone-300 hover:shadow-md sm:p-8"
             >
               <p className="text-sm font-medium tracking-[0.2em] text-stone-400">
                 {item.step}
               </p>
-              <h3 className="mt-4 text-2xl font-semibold tracking-tight">
+              <h3 className="mt-4 text-2xl font-semibold tracking-tight transition group-hover:text-stone-700">
                 {item.title}
               </h3>
               <p className="mt-4 text-base leading-7 text-stone-600">
                 {item.text}
               </p>
-            </div>
+            </Link>
           ))}
         </div>
       </section>
