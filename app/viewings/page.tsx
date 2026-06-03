@@ -166,7 +166,7 @@ export default async function ViewingsPage() {
       <section className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
         <div className="max-w-2xl">
           <h2 className="text-3xl font-semibold tracking-tight text-stone-900 md:text-4xl">
-            Everything included
+            Built for property viewings
           </h2>
         </div>
 
