@@ -36,6 +36,13 @@ export default async function RootLayout({
   children: React.ReactNode
 }) {
   const currentSellerUser = await getCurrentSellerUser()
+  const isSellerAuthenticated = Boolean(currentSellerUser)
+  const footerListingsLink = isSellerAuthenticated
+    ? { href: "/my-listings", label: "My listings" }
+    : { href: "/listings", label: "View listings" }
+  const footerViewingsLink = isSellerAuthenticated
+    ? { href: "/my-viewings", label: "My viewings" }
+    : { href: "/viewings", label: "Viewings" }
 
   return (
     <html lang="en" className="overflow-x-hidden">
@@ -61,7 +68,7 @@ export default async function RootLayout({
                 />
               </Link>
 
-              <Nav isSellerAuthenticated={Boolean(currentSellerUser)} />
+              <Nav isSellerAuthenticated={isSellerAuthenticated} />
             </div>
           </div>
         </header>
@@ -88,9 +95,6 @@ export default async function RootLayout({
 
                 <div className="mt-6 space-y-3 text-xs leading-5 text-stone-500">
                   <p>
-                    OpenList is a self-service platform for creating property listings, researching sold prices and managing viewings in Ireland.
-                  </p>
-                  <p>
                     Listing details are provided by sellers and have not been independently verified.
                   </p>
                   <p>
@@ -100,17 +104,14 @@ export default async function RootLayout({
               </div>
 
               <div className="flex flex-col gap-3 text-sm text-stone-600 md:items-end md:pt-12">
-                <Link href="/listings" className="transition hover:text-stone-900">
-                  View listings
+                <Link href={footerListingsLink.href} className="transition hover:text-stone-900">
+                  {footerListingsLink.label}
                 </Link>
                 <Link href="/sold-prices" className="transition hover:text-stone-900">
                   Sold prices
                 </Link>
-                <Link href="/my-listings" className="transition hover:text-stone-900">
-                  My listings
-                </Link>
-                <Link href="/my-viewings" className="transition hover:text-stone-900">
-                  My viewings
+                <Link href={footerViewingsLink.href} className="transition hover:text-stone-900">
+                  {footerViewingsLink.label}
                 </Link>
                 <Link href="/sell" className="transition hover:text-stone-900">
                   Start your listing

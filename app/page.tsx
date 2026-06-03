@@ -127,27 +127,31 @@ export default async function HomePage() {
                 {
                   title: "Sell Privately",
                   text: "Create and manage listings.",
+                  href: "/sell",
                 },
                 {
                   title: "Research Prices",
                   text: "Explore public sold-price data and local market reports.",
+                  href: "/sold-prices",
                 },
                 {
                   title: "Manage Viewings",
                   text: "Create, organise and track property viewings.",
+                  href: "/viewings",
                 },
               ].map((item) => (
-                <div
+                <Link
                   key={item.title}
-                  className="rounded-2xl border border-stone-200 bg-white/85 px-4 py-4 shadow-sm"
+                  href={item.href}
+                  className="group rounded-2xl border border-stone-200 bg-white/85 px-4 py-4 shadow-sm transition hover:-translate-y-0.5 hover:border-stone-300 hover:bg-white hover:shadow-md"
                 >
-                  <h2 className="text-base font-semibold tracking-tight text-stone-900">
+                  <h2 className="text-base font-semibold tracking-tight text-stone-900 transition group-hover:text-stone-700">
                     {item.title}
                   </h2>
                   <p className="mt-1.5 text-sm leading-5 text-stone-600">
                     {item.text}
                   </p>
-                </div>
+                </Link>
               ))}
             </div>
           </div>
@@ -458,7 +462,7 @@ export default async function HomePage() {
               THINKING OF SELLING?
             </p>
             <p className="mt-5 whitespace-pre-line text-base leading-7 text-stone-300 sm:text-lg sm:leading-8">
-              Create a clear, well-presented listing, research local sold prices and keep viewing administration organised.
+              Create a clear property listing, research local sold prices and manage viewings in one place.
             </p>
 
             <div className="mt-8">
@@ -478,27 +482,14 @@ export default async function HomePage() {
 
             <div className="mt-8 border-t border-white/10 pt-6">
               <p className="text-sm leading-6 text-stone-300">
-                Listing information is provided by sellers and has not been independently verified.
-                OpenList is a self-service listing and marketing platform. It does not
-                act as an estate agent and does not provide valuation services, pricing
-                advice, negotiation services, legal services, brokerage services, or
-                transaction management.
+                Listing details are provided by sellers and have not been independently verified.
+              </p>
+              <p className="mt-3 text-sm leading-6 text-stone-300">
+                OpenList is a self-service platform. You remain responsible for your
+                listing, enquiries and viewings.
               </p>
             </div>
           </div>
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-12">
-        <div className="max-w-[40rem] rounded-2xl border border-stone-200/60 bg-stone-100/40 px-4 py-3 shadow-[0_1px_2px_rgba(28,25,23,0.03)]">
-          <p className="text-[13px] leading-5 text-stone-600">
-            OpenList is a self-service platform for property listings, sold-price information and viewing organisation in Ireland.
-            Users remain responsible for their own listings, viewings and decisions.
-          </p>
-          <p className="mt-1.5 text-[13px] leading-5 text-stone-600">
-            Listing information is provided by sellers and has not been independently verified.
-            OpenList is a self-service listing and marketing platform. It does not act as an estate agent and does not provide valuation services, pricing advice, negotiation services, legal services, brokerage services, or transaction management.
-          </p>
         </div>
       </section>
     </main>
