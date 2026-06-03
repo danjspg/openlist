@@ -2,9 +2,9 @@ import type { Metadata } from "next"
 import Image from "next/image"
 
 export const metadata: Metadata = {
-  title: "About OpenList | Private Property Sales Ireland",
+  title: "About OpenList | Property Tools Ireland",
   description:
-    "Learn about OpenList, a self-service platform for private property listings and public sold-price data in Ireland.",
+    "Learn about OpenList, a self-service platform for property listings, sold-price research and viewing organisation in Ireland.",
   alternates: {
     canonical: "/about",
   },
@@ -31,8 +31,11 @@ export default function AboutPage() {
           </h1>
 
           <p className="mx-auto mt-5 max-w-3xl text-base leading-7 text-slate-600 sm:text-lg sm:leading-8">
-            OpenList is designed for people who want to sell their home
-            privately in Ireland.
+            OpenList provides software tools for property listings, sold-price research and viewing organisation in Ireland.
+          </p>
+
+          <p className="mx-auto mt-3 max-w-3xl text-sm leading-6 text-slate-600 sm:text-base sm:leading-7">
+            Users remain responsible for their own listings, enquiries, viewings and decisions.
           </p>
         </div>
 
@@ -40,32 +43,33 @@ export default function AboutPage() {
           <div className="rounded-[28px] border border-slate-200 bg-white p-8 shadow-sm">
             <div className="max-w-2xl space-y-5 text-base leading-7 text-slate-600 sm:space-y-6">
               <p>
-                OpenList is a self-service platform for private property
-                listings in Ireland.
+                OpenList is a self-service platform for property listings,
+                sold-price information and viewing organisation in Ireland.
               </p>
 
               <p>
-                Listings are created by property owners and enquiries go
-                directly to them.
+                Listings are created and managed by users, and enquiries go
+                directly to the listing contact.
               </p>
 
               <p>
-                It combines public sale price data with a simple listing tool.
+                It combines public sale price data, listing tools and viewing
+                administration in one place.
               </p>
 
               <p>
-                It provides access to recent sale prices and a way to create
-                and manage your own listing.
+                It provides access to recent sale prices, local market reports
+                and tools to create and manage your own property information.
               </p>
 
               <p>
-                The aim is simple — to make it easier to create and manage a
-                private property listing using public information.
+                The aim is simple — to make common property administration
+                tasks clearer using self-service software and public information.
               </p>
 
               <p>
-                OpenList was created to provide a straightforward platform for
-                private sellers where one did not previously exist.
+                Private listings remain part of OpenList, alongside tools for
+                sold-price research and viewing organisation.
               </p>
             </div>
           </div>
@@ -79,6 +83,7 @@ export default function AboutPage() {
                 <li>see public sale prices</li>
                 <li>browse property listings</li>
                 <li>create a straightforward listing</li>
+                <li>organise property viewings</li>
                 <li>deal directly with buyers</li>
               </ul>
             </div>

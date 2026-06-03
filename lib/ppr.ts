@@ -39,16 +39,6 @@ export type PprAreaStats = {
   last_sale_date?: string | null
 }
 
-export type PprAreaMonthly = {
-  id: string
-  county?: string | null
-  area_slug?: string | null
-  year_month?: string | null
-  sales_count?: number | null
-  median_price_eur?: number | string | null
-  avg_price_eur?: number | string | null
-}
-
 export type PprSearchFilters = {
   county?: string
   areaSlug?: string
@@ -1013,19 +1003,6 @@ export async function getAreaStats(county: string, slug: string) {
 
   if (error) return null
   return data as PprAreaStats | null
-}
-
-export async function getAreaMonthly(county: string, slug: string, limit = 18) {
-  const { data, error } = await supabase
-    .from("ppr_area_monthly")
-    .select("*")
-    .ilike("county", county)
-    .eq("area_slug", slug)
-    .order("year_month", { ascending: false })
-    .limit(limit)
-
-  if (error || !data) return []
-  return (data as PprAreaMonthly[]).reverse()
 }
 
 export async function getRecentAreaSales(county: string, slug: string, limit = 8) {

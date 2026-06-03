@@ -7,9 +7,9 @@ import { getCurrentSellerUser } from "@/lib/seller-auth"
 import "./globals.css"
 
 export const metadata: Metadata = {
-  title: "OpenList | Property Listings and Sold Prices Ireland",
+  title: "OpenList | Property Tools, Listings and Sold Prices Ireland",
   description:
-    "Browse private property listings and sold-price trends across Ireland, with recorded sale prices, market reports and direct-to-seller homes.",
+    "Self-service property tools for Ireland. Create listings, research public sold prices and manage property viewings in one place.",
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL || "https://www.openlist.ie"
   ),
@@ -83,12 +83,12 @@ export default async function RootLayout({
                 </div>
 
                 <p className="mt-4 max-w-md text-sm leading-6 text-stone-600">
-                  A private home sale platform for Ireland.
+                  OpenList is a self-service platform for property listings, sold-price information and viewing organisation in Ireland.
                 </p>
 
                 <div className="mt-6 space-y-3 text-xs leading-5 text-stone-500">
                   <p>
-                    OpenList is a platform for private property sales in Ireland.
+                    OpenList is a self-service platform for property listings, sold-price information and viewing organisation in Ireland.
                   </p>
                   <p>
                     Listing details are provided by sellers and have not been independently verified.

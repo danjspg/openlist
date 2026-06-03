@@ -25,14 +25,6 @@ function avg(values) {
   return values.reduce((sum, value) => sum + value, 0) / values.length
 }
 
-function monthStart(value) {
-  const date = new Date(`${value}T00:00:00Z`)
-  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(
-    2,
-    "0"
-  )}-01`
-}
-
 function chunk(items, size) {
   const chunks = []
   for (let i = 0; i < items.length; i += size) chunks.push(items.slice(i, i + size))
@@ -110,14 +102,12 @@ const sales = await loadAllSales()
 console.log(`Loaded ${sales.length} sales for summaries`)
 
 const areaGroups = new Map()
-const monthlyGroups = new Map()
 
 for (const sale of sales) {
   const price = Number(sale.price_eur)
   if (!Number.isFinite(price)) continue
 
   const areaKey = `${sale.county}||${sale.area_slug}`
-  const monthKey = `${sale.county}||${sale.area_slug}||${monthStart(sale.date_of_sale)}`
 
   if (!areaGroups.has(areaKey)) {
     areaGroups.set(areaKey, {
@@ -128,18 +118,8 @@ for (const sale of sales) {
     })
   }
 
-  if (!monthlyGroups.has(monthKey)) {
-    monthlyGroups.set(monthKey, {
-      county: sale.county,
-      area_slug: sale.area_slug,
-      year_month: monthStart(sale.date_of_sale),
-      prices: [],
-    })
-  }
-
   areaGroups.get(areaKey).dates.push(sale.date_of_sale)
   areaGroups.get(areaKey).prices.push(price)
-  monthlyGroups.get(monthKey).prices.push(price)
 }
 
 const areaStats = Array.from(areaGroups.values()).map((group) => ({
@@ -157,39 +137,13 @@ const areaStats = Array.from(areaGroups.values()).map((group) => ({
   last_sale_date: group.dates.sort().at(-1),
 }))
 
-const monthlyStats = Array.from(monthlyGroups.values()).map((group) => ({
-  county: group.county,
-  area_slug: group.area_slug,
-  year_month: group.year_month,
-  sales_count: group.prices.length,
-  median_price_eur: median(group.prices),
-  avg_price_eur: avg(group.prices),
-}))
-
-let { error } = await withRetry("delete monthly summaries", () =>
-  supabase
-    .from("ppr_area_monthly")
-    .delete()
-    .not("id", "is", null)
-)
-if (error) throw error
-
-;({ error } = await withRetry("delete area summaries", () =>
+const { error } = await withRetry("delete area summaries", () =>
   supabase
     .from("ppr_area_stats")
     .delete()
     .not("id", "is", null)
-))
+)
 if (error) throw error
-
-for (const batch of chunk(monthlyStats, 500)) {
-  const { error: insertError } = await withRetry("insert monthly summaries", () =>
-    supabase
-      .from("ppr_area_monthly")
-      .insert(batch)
-  )
-  if (insertError) throw insertError
-}
 
 for (const batch of chunk(areaStats, 500)) {
   const { error: insertError } = await withRetry("insert area summaries", () =>
@@ -200,6 +154,4 @@ for (const batch of chunk(areaStats, 500)) {
   if (insertError) throw insertError
 }
 
-console.log(
-  `PPR area summaries rebuilt. ${areaStats.length} areas, ${monthlyStats.length} monthly rows.`
-)
+console.log(`PPR area summaries rebuilt. ${areaStats.length} areas.`)

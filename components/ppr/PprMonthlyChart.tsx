@@ -1,13 +1,16 @@
-import {
-  formatPprCurrency,
-  formatPprDate,
-  type PprAreaMonthly,
-} from "@/lib/ppr"
+import { formatPprCurrency, formatPprDate } from "@/lib/ppr"
+
+type PprMonthlyChartRow = {
+  id: string
+  year_month?: string | null
+  median_price_eur?: number | string | null
+  avg_price_eur?: number | string | null
+}
 
 export default function PprMonthlyChart({
   monthly,
 }: {
-  monthly: PprAreaMonthly[]
+  monthly: PprMonthlyChartRow[]
 }) {
   if (monthly.length === 0) {
     return (

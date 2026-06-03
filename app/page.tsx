@@ -23,9 +23,9 @@ type Listing = {
 }
 
 export const metadata: Metadata = {
-  title: "OpenList | Private Property Listings and Sold Prices Ireland",
+  title: "OpenList | Property Tools, Listings and Sold Prices Ireland",
   description:
-    "Browse private property listings, recent sold prices and house-price trends across Ireland. Explore county markets, local sales and tracked market reports.",
+    "Self-service property tools for Ireland. Create listings, research public sold prices and manage property viewings in one place.",
   alternates: {
     canonical: "/",
   },
@@ -84,106 +84,123 @@ export default async function HomePage() {
 
   return (
     <main className="min-h-screen bg-stone-50 text-stone-900">
-      <section className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:gap-12 lg:py-24">
-        <div className="max-w-[580px]">
-          <p className="text-sm uppercase tracking-[0.25em] text-stone-500">
-            PRIVATE PROPERTY SALES IN IRELAND
-          </p>
-
-          <h1 className="mt-4 max-w-3xl text-4xl font-semibold tracking-tight text-stone-900 sm:mt-5 sm:text-5xl md:text-6xl">
-            A simpler way to sell property privately in Ireland
-          </h1>
-
-          <p className="mt-5 max-w-[34rem] text-base leading-7 text-stone-600 sm:mt-6 sm:text-lg sm:leading-8">
-            Create a clear, straightforward listing for the Irish market.
-          </p>
-
-          <p className="mt-3 max-w-[34rem] text-sm leading-6 text-stone-500 sm:text-base">
-            You manage your own listing and deal directly with buyers.
-          </p>
-
-          <div className="mt-8 sm:mt-9">
-            <div className="flex flex-wrap gap-3 sm:gap-4">
-              <Link
-                href="/sell"
-                className="rounded-full bg-stone-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-stone-700 sm:px-6"
-              >
-                Start your listing
-              </Link>
-              <Link
-                href="/sold-prices"
-                className="rounded-full border border-stone-300 px-5 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900 sm:px-6"
-              >
-                View sold prices
-              </Link>
-            </div>
-            <p className="mt-4 max-w-[34rem] text-sm leading-6 text-stone-500">
-              OpenList provides tools to create and manage your listing.
-              <br />
-              You remain the seller at all times.
+      <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16 lg:py-24">
+        <div className="grid gap-10 lg:grid-cols-[1.12fr_0.88fr] lg:items-center lg:gap-12">
+          <div className="max-w-[680px]">
+            <p className="text-sm uppercase tracking-[0.25em] text-stone-500">
+              SELF-SERVICE PROPERTY TOOLS
             </p>
-          </div>
 
-          <div className="mt-4 grid grid-cols-1 gap-4 text-sm text-stone-500 sm:mt-5 sm:grid-cols-2 sm:gap-6">
-            <div className="min-w-0">
-              <div className="text-xl font-semibold text-stone-900">Stay in control</div>
-              <div className="mt-0.5 leading-6">Manage your own listing and receive enquiries directly from buyers.</div>
-            </div>
-            <div className="min-w-0">
-              <div className="text-xl font-semibold text-stone-900">Clear listings</div>
-              <div className="mt-0.5 leading-6">Present your property in a simple, well-structured format.</div>
-            </div>
-          </div>
-        </div>
+            <h1 className="mt-4 max-w-3xl text-4xl font-semibold tracking-tight text-stone-900 sm:mt-5 sm:text-5xl md:text-[3.5rem] md:leading-[1.05]">
+              Property tools for Ireland
+            </h1>
 
-        <div className="grid gap-3 sm:gap-4 sm:grid-cols-2">
-          <Link
-            href="/listings"
-            className="group relative block h-[220px] overflow-hidden rounded-3xl bg-white shadow-sm sm:col-span-2 sm:h-[280px] lg:h-[360px]"
-          >
-            <Image
-              src="/home-hero-1.jpg"
-              alt="Browse OpenList property listings"
-              fill
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 100vw, 50vw"
-              className="object-cover transition duration-500 group-hover:scale-[1.02]"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-black/10 to-transparent transition duration-300 group-hover:from-black/45" />
-            <div className="absolute bottom-6 left-6">
-              <div className="inline-flex items-center rounded-full bg-white/92 px-4 py-2 text-sm font-semibold text-stone-900 shadow-sm backdrop-blur transition group-hover:bg-white">
-                View listings
-                <span className="ml-2 transition duration-200 group-hover:translate-x-0.5">
-                  →
-                </span>
+            <p className="mt-5 max-w-[34rem] text-base leading-7 text-stone-600 sm:mt-6 sm:text-lg sm:leading-8">
+              Create listings, research sold prices and organise property viewings.
+            </p>
+
+            <div className="mt-8 sm:mt-9">
+              <div className="flex flex-wrap gap-3 sm:gap-4">
+                <Link
+                  href="/sell"
+                  className="rounded-full bg-stone-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-stone-700 sm:px-6"
+                >
+                  Start your listing
+                </Link>
+                <Link
+                  href="/sold-prices"
+                  className="rounded-full border border-stone-300 px-5 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900 sm:px-6"
+                >
+                  View sold prices
+                </Link>
+                <Link
+                  href="/viewings"
+                  className="rounded-full border border-stone-300 px-5 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900 sm:px-6"
+                >
+                  Manage viewings
+                </Link>
               </div>
             </div>
-          </Link>
 
-          <Link
-            href="/listings"
-            className="group relative hidden h-36 overflow-hidden rounded-3xl bg-white shadow-sm sm:block sm:h-48 lg:h-52"
-          >
-            <Image
-              src="/home-hero-2.jpg"
-              alt="Modern interior on OpenList"
-              fill
-              sizes="(max-width: 640px) 100vw, 50vw"
-              className="object-cover transition duration-500 group-hover:scale-[1.02]"
-            />
-          </Link>
+            <div className="mt-7 grid gap-3 sm:grid-cols-3 lg:mt-8">
+              {[
+                {
+                  title: "Sell Privately",
+                  text: "Create and manage listings.",
+                },
+                {
+                  title: "Research Prices",
+                  text: "Explore public sold-price data and local market reports.",
+                },
+                {
+                  title: "Manage Viewings",
+                  text: "Create, organise and track property viewings.",
+                },
+              ].map((item) => (
+                <div
+                  key={item.title}
+                  className="rounded-2xl border border-stone-200 bg-white/85 px-4 py-4 shadow-sm"
+                >
+                  <h2 className="text-base font-semibold tracking-tight text-stone-900">
+                    {item.title}
+                  </h2>
+                  <p className="mt-1.5 text-sm leading-5 text-stone-600">
+                    {item.text}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
 
-          <Link
-            href="/listings"
-            className="group relative hidden h-36 overflow-hidden rounded-3xl bg-white shadow-sm sm:block sm:h-48 lg:h-52"
-          >
-            <Image
-              src="/home-hero-3.jpg"
-              alt="Elegant home on OpenList"
-              fill
-              sizes="(max-width: 640px) 100vw, 50vw"
-              className="object-cover transition duration-500 group-hover:scale-[1.02]"
-            />
-          </Link>
+          <div className="grid gap-3 sm:gap-4 sm:grid-cols-2">
+            <Link
+              href="/listings"
+              className="group relative block h-[220px] overflow-hidden rounded-3xl bg-white shadow-sm sm:col-span-2 sm:h-[280px] lg:h-[360px]"
+            >
+              <Image
+                src="/home-hero-1.jpg"
+                alt="Browse OpenList property listings"
+                fill
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 100vw, 50vw"
+                className="object-cover transition duration-500 group-hover:scale-[1.02]"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-black/10 to-transparent transition duration-300 group-hover:from-black/45" />
+              <div className="absolute bottom-6 left-6">
+                <div className="inline-flex items-center rounded-full bg-white/92 px-4 py-2 text-sm font-semibold text-stone-900 shadow-sm backdrop-blur transition group-hover:bg-white">
+                  View listings
+                  <span className="ml-2 transition duration-200 group-hover:translate-x-0.5">
+                    →
+                  </span>
+                </div>
+              </div>
+            </Link>
+
+            <Link
+              href="/listings"
+              className="group relative hidden h-36 overflow-hidden rounded-3xl bg-white shadow-sm sm:block sm:h-48 lg:h-52"
+            >
+              <Image
+                src="/home-hero-2.jpg"
+                alt="Modern interior on OpenList"
+                fill
+                sizes="(max-width: 640px) 100vw, 50vw"
+                className="object-cover transition duration-500 group-hover:scale-[1.02]"
+              />
+            </Link>
+
+            <Link
+              href="/listings"
+              className="group relative hidden h-36 overflow-hidden rounded-3xl bg-white shadow-sm sm:block sm:h-48 lg:h-52"
+            >
+              <Image
+                src="/home-hero-3.jpg"
+                alt="Elegant home on OpenList"
+                fill
+                sizes="(max-width: 640px) 100vw, 50vw"
+                className="object-cover transition duration-500 group-hover:scale-[1.02]"
+              />
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -204,10 +221,10 @@ export default async function HomePage() {
       <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16">
         <div className="max-w-2xl">
           <p className="text-sm uppercase tracking-[0.2em] text-stone-500">
-            How it works
+            What you can do
           </p>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">
-            A simpler way to sell your home privately in Ireland.
+            What you can do with OpenList
           </h2>
         </div>
 
@@ -215,18 +232,18 @@ export default async function HomePage() {
           {[
             {
               step: "01",
-              title: "Create your listing",
-              text: "Add your property details, photos and key information in a clear, straightforward format.",
+              title: "Sell Privately",
+              text: "Create and manage your own property listing.",
             },
             {
               step: "02",
-              title: "Go live",
-              text: "Put your listing online with a clean layout that gives buyers the information they need.",
+              title: "Research Prices",
+              text: "Browse public sold-price data and local market insights.",
             },
             {
               step: "03",
-              title: "Deal directly",
-              text: "Handle enquiries and viewings yourself, with buyers contacting you directly through the listing.",
+              title: "Manage Viewings",
+              text: "Create, edit, clone and track property viewings.",
             },
           ].map((item) => (
             <div
@@ -437,7 +454,7 @@ export default async function HomePage() {
               THINKING OF SELLING?
             </p>
             <p className="mt-5 whitespace-pre-line text-base leading-7 text-stone-300 sm:text-lg sm:leading-8">
-              Create a clear, well-presented private sale listing and receive enquiries directly from buyers.
+              Create a clear, well-presented listing, research local sold prices and keep viewing administration organised.
             </p>
 
             <div className="mt-8">
@@ -471,7 +488,8 @@ export default async function HomePage() {
       <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-12">
         <div className="max-w-[40rem] rounded-2xl border border-stone-200/60 bg-stone-100/40 px-4 py-3 shadow-[0_1px_2px_rgba(28,25,23,0.03)]">
           <p className="text-[13px] leading-5 text-stone-600">
-            OpenList is a self-service platform for private property listings in Ireland.
+            OpenList is a self-service platform for property listings, sold-price information and viewing organisation in Ireland.
+            Users remain responsible for their own listings, viewings and decisions.
           </p>
           <p className="mt-1.5 text-[13px] leading-5 text-stone-600">
             Listing information is provided by sellers and has not been independently verified.

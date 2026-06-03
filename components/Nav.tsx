@@ -7,6 +7,7 @@ import SignOutButton from "@/components/SignOutButton"
 const navItems = [
   { href: "/listings", label: "Listings" },
   { href: "/sold-prices", label: "Sold prices" },
+  { href: "/viewings", label: "Viewings" },
   { href: "/about", label: "About" },
 ]
 
@@ -19,8 +20,8 @@ export default function Nav({
 
   return (
     <>
-      <div className="hidden items-center gap-6 md:flex">
-        <nav className="flex items-center gap-8">
+      <div className="hidden items-center gap-5 md:flex">
+        <nav className="flex items-center gap-6">
           {navItems.map((item) => {
             const isActive =
               pathname === item.href || pathname.startsWith(`${item.href}/`)
@@ -60,16 +61,6 @@ export default function Nav({
                 }`}
               >
                 My listings
-              </Link>
-              <Link
-                href="/my-viewings"
-                className={`inline-flex items-center rounded-full border px-5 py-2.5 text-base font-medium transition ${
-                  pathname === "/my-viewings" || pathname.startsWith("/my-viewings/")
-                    ? "border-stone-900 text-stone-900"
-                    : "border-stone-300 text-stone-700 hover:border-stone-900 hover:text-stone-900"
-                }`}
-              >
-                Viewings
               </Link>
               <SignOutButton />
             </>
@@ -126,16 +117,6 @@ export default function Nav({
               }`}
             >
               My listings
-            </Link>
-            <Link
-              href="/my-viewings"
-              className={`shrink-0 font-medium transition ${
-                pathname === "/my-viewings" || pathname.startsWith("/my-viewings/")
-                  ? "text-stone-900"
-                  : "text-stone-500 hover:text-stone-900"
-              }`}
-            >
-              Viewings
             </Link>
           </>
         ) : (
