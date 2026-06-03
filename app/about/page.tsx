@@ -31,7 +31,7 @@ export default function AboutPage() {
           </h1>
 
           <p className="mx-auto mt-5 max-w-3xl text-base leading-7 text-slate-600 sm:text-lg sm:leading-8">
-            OpenList provides software tools for property listings, sold-price research and viewing organisation in Ireland.
+            OpenList provides self-service software tools for creating property listings, researching sold prices and managing viewings in Ireland.
           </p>
 
           <p className="mx-auto mt-3 max-w-3xl text-sm leading-6 text-slate-600 sm:text-base sm:leading-7">
@@ -43,33 +43,33 @@ export default function AboutPage() {
           <div className="rounded-[28px] border border-slate-200 bg-white p-8 shadow-sm">
             <div className="max-w-2xl space-y-5 text-base leading-7 text-slate-600 sm:space-y-6">
               <p>
-                OpenList is a self-service platform for property listings,
-                sold-price information and viewing organisation in Ireland.
+                OpenList is designed to make common property administration tasks simpler.
               </p>
 
               <p>
-                Listings are created and managed by users, and enquiries go
-                directly to the listing contact.
+                You can use OpenList to create and manage property listings,
+                research public sold-price data and organise property viewings.
               </p>
 
               <p>
-                It combines public sale price data, listing tools and viewing
-                administration in one place.
+                Listings are created and managed by users. Enquiries go directly
+                to the listing contact.
               </p>
 
               <p>
-                It provides access to recent sale prices, local market reports
-                and tools to create and manage your own property information.
+                Sold-price information is based on public Irish Residential
+                Property Price Register data and is provided as market context
+                only.
               </p>
 
               <p>
-                The aim is simple — to make common property administration
-                tasks clearer using self-service software and public information.
+                Viewing tools help users record appointments, notify participants
+                and keep track of upcoming viewings.
               </p>
 
               <p>
-                Private listings remain part of OpenList, alongside tools for
-                sold-price research and viewing organisation.
+                The aim is simple — to provide straightforward software tools for
+                people managing property-related activities themselves.
               </p>
             </div>
           </div>
@@ -80,11 +80,11 @@ export default function AboutPage() {
                 With OpenList you can
               </p>
               <ul className="mt-5 list-disc space-y-3 pl-5 text-base leading-7 text-slate-700">
-                <li>see public sale prices</li>
+                <li>research sold prices</li>
                 <li>browse property listings</li>
-                <li>create a straightforward listing</li>
+                <li>create and manage listings</li>
                 <li>organise property viewings</li>
-                <li>deal directly with buyers</li>
+                <li>keep track of appointments</li>
               </ul>
             </div>
 
@@ -93,8 +93,8 @@ export default function AboutPage() {
                 Platform role
               </p>
               <div className="mt-4 space-y-4 text-base leading-7 text-slate-600">
-                <p>You stay in control at every stage.</p>
-                <p>OpenList is not an estate agent.</p>
+                <p>You remain responsible for your listings, enquiries, viewings and decisions.</p>
+                <p>OpenList is not an estate agent or auctioneer.</p>
               </div>
             </div>
           </div>
