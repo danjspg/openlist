@@ -9,7 +9,7 @@ import "./globals.css"
 export const metadata: Metadata = {
   title: "OpenList | Property Tools, Listings and Sold Prices Ireland",
   description:
-    "Self-service property tools for Ireland. Create listings, research public sold prices and manage property viewings in one place.",
+    "Self-service property tools for Ireland. Create listings, research public sold prices, search planning applications and manage property viewings in one place.",
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL || "https://www.openlist.ie"
   ),
@@ -109,6 +109,9 @@ export default async function RootLayout({
                 </Link>
                 <Link href="/sold-prices" className="transition hover:text-stone-900">
                   Sold prices
+                </Link>
+                <Link href="/planning" className="transition hover:text-stone-900">
+                  Planning
                 </Link>
                 <Link href={footerViewingsLink.href} className="transition hover:text-stone-900">
                   {footerViewingsLink.label}

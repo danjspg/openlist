@@ -11,7 +11,8 @@
     "ppr:ingest": "node scripts/ingest-ppr-csv.mjs",
     "ppr:refresh": "node --env-file=.env.local scripts/refresh-ppr.mjs",
     "ppr:rebuild-summaries": "node scripts/rebuild-ppr-summaries.mjs",
-    "ppr:rebuild-analytics": "node scripts/rebuild-ppr-phase1-analytics.mjs"
+    "ppr:rebuild-analytics": "node scripts/rebuild-ppr-phase1-analytics.mjs",
+    "planning:cork:ingest": "node --env-file=.env.local scripts/ingest-cork-planning-applications.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.103.0",
