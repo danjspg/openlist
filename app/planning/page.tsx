@@ -6,6 +6,7 @@ import {
   getPlanningDashboard,
   normalisePlanningSearchParams,
   type PlanningApplication,
+  type PlanningCommencementSummary,
   type PlanningCountStat,
   type PlanningSearchParams,
 } from "@/lib/planning"
@@ -40,6 +41,7 @@ export default async function PlanningPage({
     ? dashboard.searchResults
     : dashboard.recentApplications
   const mostCommonType = dashboard.typeStats[0]
+  const commencements = dashboard.commencements
 
   return (
     <main className="bg-stone-50">
@@ -121,7 +123,7 @@ export default async function PlanningPage({
       </section>
 
       <section className="mx-auto grid max-w-6xl gap-6 px-4 py-8 sm:px-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:py-10">
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm">
             <div className="flex flex-col gap-3 border-b border-stone-200 pb-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
@@ -147,6 +149,114 @@ export default async function PlanningPage({
             <ApplicationsList applications={resultRows} />
           </div>
 
+          <section
+            id="commencements"
+            className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm"
+          >
+            <div className="flex flex-col gap-3 border-b border-stone-200 pb-4 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
+                  Commencements
+                </p>
+                <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-950">
+                  Cork County residential commencements
+                </h2>
+                <p className="mt-1 text-sm leading-6 text-stone-500">
+                  Monthly BCMS residential commencement notices and units for
+                  Cork County Council.
+                </p>
+              </div>
+              {commencements.sourceUrl ? (
+                <a
+                  href={commencements.sourceUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="self-start text-sm font-semibold text-stone-700 transition hover:text-stone-950"
+                >
+                  Open source CSV
+                </a>
+              ) : null}
+            </div>
+
+            {commencements.totalRows > 0 ? (
+              <div className="mt-5 space-y-6">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <Metric
+                    label="Latest month"
+                    value={
+                      commencements.latestMonth
+                        ? formatPlanningMonth(commencements.latestMonth)
+                        : "Not recorded"
+                    }
+                  />
+                  <Metric label="Units commenced" value={commencements.latestUnits} />
+                  <Metric label="Notices" value={commencements.latestNotices} />
+                  <Metric
+                    label="Year-to-date units"
+                    value={commencements.yearToDateUnits}
+                  />
+                </div>
+
+                <div className="rounded-lg border border-stone-200 bg-stone-50 p-5">
+                  <div className="border-b border-stone-200 pb-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                      <div>
+                        <h3 className="text-2xl font-semibold tracking-tight text-stone-950">
+                          Recent commencements
+                        </h3>
+                        <p className="mt-1 text-sm text-stone-500">
+                          Showing {commencements.selectedMetricLabel.toLowerCase()} for
+                          the latest Cork County commencement months.
+                        </p>
+                      </div>
+                      {commencements.selectedMetric !== "All Units" ? (
+                        <Link
+                          href={commencementMetricHref(filters, "All Units")}
+                          className="self-start text-sm font-semibold text-stone-700 transition hover:text-stone-950"
+                        >
+                          Show all units
+                        </Link>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <CommencementsList
+                    commencements={commencements.recentCommencements}
+                    selectedMetric={commencements.selectedMetric}
+                    selectedMetricLabel={commencements.selectedMetricLabel}
+                    buildMetricHref={(metric) =>
+                      commencementMetricHref(filters, metric)
+                    }
+                  />
+                </div>
+
+                <div className="grid gap-6 lg:grid-cols-2">
+                  <BarList
+                    title="Recent units commenced"
+                    subtitle="Monthly Cork County residential units from the BCMS source."
+                    stats={commencements.recentUnits}
+                  />
+                  <BarList
+                    title="Latest dwelling mix"
+                    subtitle="Unit split for the latest published month."
+                    stats={commencements.typeBreakdown}
+                    linkForStat={(stat) =>
+                      commencementMetricHref(
+                        filters,
+                        commencementMetricForLabel(stat.label)
+                      )
+                    }
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="mt-5 rounded-lg border border-dashed border-stone-300 bg-stone-50 p-5 text-sm leading-6 text-stone-600">
+                Commencement rows are not available in Supabase yet. Run the
+                commencement migration and importer to populate this section.
+              </div>
+            )}
+          </section>
+
           <div className="grid gap-6 lg:grid-cols-2">
             <BarList
               title="Applications by area"
@@ -164,7 +274,7 @@ export default async function PlanningPage({
           </div>
         </div>
 
-        <aside className="space-y-6">
+        <aside className="min-w-0 space-y-6">
           <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm">
             <h2 className="text-lg font-semibold tracking-tight text-stone-950">
               Dataset notes
@@ -172,8 +282,9 @@ export default async function PlanningPage({
             <div className="mt-4 space-y-4 text-sm leading-6 text-stone-600">
               <p>
                 This view uses public Cork County Council planning application
-                metadata imported into OpenList. It excludes linked application
-                documents and files.
+                metadata and public residential commencement summaries imported
+                into OpenList. It excludes linked application documents and
+                files.
               </p>
               <p>
                 Records are shown as published by the council source. Always
@@ -209,6 +320,32 @@ export default async function PlanningPage({
       </section>
     </main>
   )
+}
+
+function commencementMetricHref(
+  filters: Required<PlanningSearchParams>,
+  metric: string
+) {
+  const params = new URLSearchParams()
+
+  for (const key of ["q", "area", "status", "type"] as const) {
+    if (filters[key]) params.set(key, filters[key])
+  }
+
+  if (metric !== "All Units") {
+    params.set("commencementMetric", metric)
+  }
+
+  const query = params.toString()
+  return `/planning${query ? `?${query}` : ""}#commencements`
+}
+
+function commencementMetricForLabel(label: string) {
+  if (label === "One-off homes") return "Oneoffs"
+  if (label === "Scheme units") return "Scheme"
+  if (label === "Apartments") return "Apartments"
+  if (label === "Notices") return "Notices"
+  return "All Units"
 }
 
 function Metric({ label, value }: { label: string; value: string | number }) {
@@ -321,16 +458,125 @@ function ApplicationsList({
   )
 }
 
+function CommencementsList({
+  commencements,
+  selectedMetric,
+  selectedMetricLabel,
+  buildMetricHref,
+}: {
+  commencements: PlanningCommencementSummary[]
+  selectedMetric: string
+  selectedMetricLabel: string
+  buildMetricHref: (metric: string) => string
+}) {
+  if (commencements.length === 0) {
+    return (
+      <div className="py-10 text-center text-sm text-stone-500">
+        No commencement months are available yet.
+      </div>
+    )
+  }
+
+  return (
+    <div className="divide-y divide-stone-200">
+      {commencements.map((commencement) => (
+        <article
+          key={commencement.periodMonth}
+          className="grid gap-4 py-5 lg:grid-cols-[150px_minmax(0,1fr)]"
+        >
+          <div>
+            <p className="font-mono text-sm font-semibold text-stone-950">
+              {formatPlanningMonth(commencement.periodMonth)}
+            </p>
+            <p className="mt-2 text-sm text-stone-500">
+              {commencement.notices} notices
+            </p>
+            <p className="mt-3 inline-flex rounded-full border border-stone-200 bg-white px-3 py-1 text-xs font-semibold text-stone-600">
+              {commencement.selectedValue} {selectedMetricLabel.toLowerCase()}
+            </p>
+          </div>
+
+          <div className="min-w-0">
+            <h4 className="text-lg font-semibold leading-7 tracking-tight text-stone-950">
+              {commencement.selectedValue} {selectedMetricLabel.toLowerCase()} in
+              Cork County
+            </h4>
+            <p className="mt-2 text-sm leading-6 text-stone-600">
+              {commencement.units} total units and {commencement.notices} notices
+              were recorded for this month in the public BCMS residential
+              commencement dataset.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm text-stone-500">
+              <CommencementMetricLink
+                label="One-off homes"
+                value={commencement.oneOffs}
+                metric="Oneoffs"
+                selectedMetric={selectedMetric}
+                href={buildMetricHref("Oneoffs")}
+              />
+              <CommencementMetricLink
+                label="Scheme units"
+                value={commencement.scheme}
+                metric="Scheme"
+                selectedMetric={selectedMetric}
+                href={buildMetricHref("Scheme")}
+              />
+              <CommencementMetricLink
+                label="Apartments"
+                value={commencement.apartments}
+                metric="Apartments"
+                selectedMetric={selectedMetric}
+                href={buildMetricHref("Apartments")}
+              />
+            </div>
+          </div>
+        </article>
+      ))}
+    </div>
+  )
+}
+
+function CommencementMetricLink({
+  label,
+  value,
+  metric,
+  selectedMetric,
+  href,
+}: {
+  label: string
+  value: number
+  metric: string
+  selectedMetric: string
+  href: string
+}) {
+  const isSelected = metric === selectedMetric
+
+  return (
+    <Link
+      href={href}
+      className={`rounded-full border px-3 py-1 text-sm font-semibold transition ${
+        isSelected
+          ? "border-emerald-700 bg-emerald-50 text-emerald-900"
+          : "border-stone-200 bg-white text-stone-700 hover:border-stone-400 hover:text-stone-950"
+      }`}
+    >
+      {label}: {value}
+    </Link>
+  )
+}
+
 function BarList({
   title,
   subtitle,
   stats,
   compact = false,
+  linkForStat,
 }: {
   title: string
   subtitle: string
   stats: PlanningCountStat[]
   compact?: boolean
+  linkForStat?: (stat: PlanningCountStat) => string
 }) {
   const maxCount = Math.max(...stats.map((stat) => stat.count), 1)
 
@@ -348,9 +594,18 @@ function BarList({
               <span className="min-w-0 truncate font-medium text-stone-800">
                 {stat.label}
               </span>
-              <span className="shrink-0 font-semibold text-stone-950">
-                {stat.count}
-              </span>
+              {linkForStat ? (
+                <Link
+                  href={linkForStat(stat)}
+                  className="shrink-0 rounded-full border border-stone-200 bg-stone-50 px-2.5 py-1 font-semibold text-stone-950 transition hover:border-stone-400"
+                >
+                  {stat.count}
+                </Link>
+              ) : (
+                <span className="shrink-0 font-semibold text-stone-950">
+                  {stat.count}
+                </span>
+              )}
             </div>
             <div className="mt-2 h-2 overflow-hidden rounded-full bg-stone-100">
               <div
