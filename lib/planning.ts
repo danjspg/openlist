@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache"
 import { getServerSupabase } from "@/lib/supabase"
 
 export type PlanningApplication = {
@@ -74,6 +75,20 @@ export type PlanningDashboard = {
   commencements: PlanningCommencementsDashboard
 }
 
+type PlanningAggregateSummary = Pick<
+  PlanningDashboard,
+  | "totalCount"
+  | "latestRegistrationDate"
+  | "areaStats"
+  | "statusStats"
+  | "typeStats"
+  | "monthStats"
+  | "areaOptions"
+  | "statusOptions"
+  | "typeOptions"
+  | "activeArea"
+>
+
 export type PlanningSearchParams = {
   q?: string
   area?: string
@@ -85,6 +100,9 @@ export type PlanningSearchParams = {
 const CORK_AUTHORITY_CODE = "CORKCOCO"
 const COMMENCEMENT_MONTHS_BACK = 36
 const PLANNING_AGGREGATE_PAGE_SIZE = 1000
+const PLANNING_CACHE_REVALIDATE_SECONDS = 60 * 60 * 6
+const PLANNING_AGGREGATE_CACHE_VERSION = "v1"
+const PLANNING_AREA_OPTION_LIMIT = 80
 const APPLICATION_SELECT =
   "id,reference,application_type,proposal,location,applicant_name,agent_name,status,decision_text,registration_date,decision_date,final_grant_date,ward,source_url"
 const COMMENCEMENT_SELECT =
@@ -226,21 +244,12 @@ export async function getPlanningDashboard(
 ): Promise<PlanningDashboard> {
   const filters = normalisePlanningSearchParams(params)
   const supabase = getServerSupabase()
+  const hasApplicationFilters = Boolean(
+    filters.q || filters.area || filters.status || filters.type
+  )
 
-  const [countResult, latestResult, recentResult, aggregateRows, commencements] =
+  const [recentResult, overview, commencements, searchResult] =
     await Promise.all([
-      supabase
-        .from("planning_applications")
-        .select("id", { count: "exact", head: true })
-        .eq("local_authority_code", CORK_AUTHORITY_CODE),
-      supabase
-        .from("planning_applications")
-        .select("registration_date")
-        .eq("local_authority_code", CORK_AUTHORITY_CODE)
-        .not("registration_date", "is", null)
-        .order("registration_date", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
       supabase
         .from("planning_applications")
         .select(APPLICATION_SELECT)
@@ -248,52 +257,33 @@ export async function getPlanningDashboard(
         .order("registration_date", { ascending: false })
         .order("reference", { ascending: false })
         .limit(8),
-      getPlanningAggregateRows(),
+      getPlanningAggregateSummaryCached(),
       getPlanningCommencements(filters.commencementMetric),
+      hasApplicationFilters
+        ? getPlanningSearchResults(filters)
+        : Promise.resolve({ results: [] as PlanningApplication[], count: 0 }),
     ])
-
-  const searchResult = await getPlanningSearchResults(filters)
-  const filteredAggregateRows = aggregateRows.filter((row) =>
-    aggregateRowMatchesFilters(row, filters)
-  )
-
-  const areaStats = countBy(filteredAggregateRows, normaliseAreaName).slice(
-    0,
-    12
-  )
-  const statusStats = countBy(filteredAggregateRows, (row) => row.status).slice(
-    0,
-    8
-  )
-  const typeStats = countBy(
-    filteredAggregateRows,
-    (row) => row.application_type
-  ).slice(0, 8)
-  const monthStats = countByMonth(filteredAggregateRows).slice(0, 12).reverse()
-  const areaOptions = countBy(aggregateRows, normaliseAreaName).map(
-    (stat) => stat.label
-  )
+  const filteredSummary = hasApplicationFilters
+    ? buildPlanningAggregateSummary(
+        searchResult.results.map(planningApplicationToAggregateRow),
+        searchResult.count
+      )
+    : overview
 
   return {
-    totalCount: countResult.count ?? aggregateRows.length,
-    latestRegistrationDate:
-      latestResult.data?.registration_date ??
-      firstKnownValue(aggregateRows, (row) => row.registration_date),
+    totalCount: overview.totalCount,
+    latestRegistrationDate: overview.latestRegistrationDate,
     recentApplications: (recentResult.data ?? []) as PlanningApplication[],
     searchResults: searchResult.results,
     searchCount: searchResult.count,
-    areaStats,
-    statusStats,
-    typeStats,
-    monthStats,
-    areaOptions,
-    statusOptions: countBy(aggregateRows, (row) => row.status).map(
-      (stat) => stat.label
-    ),
-    typeOptions: countBy(aggregateRows, (row) => row.application_type).map(
-      (stat) => stat.label
-    ),
-    activeArea: areaStats[0] ?? null,
+    areaStats: filteredSummary.areaStats,
+    statusStats: filteredSummary.statusStats,
+    typeStats: filteredSummary.typeStats,
+    monthStats: filteredSummary.monthStats,
+    areaOptions: overview.areaOptions,
+    statusOptions: overview.statusOptions,
+    typeOptions: overview.typeOptions,
+    activeArea: filteredSummary.activeArea,
     commencements,
   }
 }
@@ -323,7 +313,26 @@ async function getPlanningAggregateRows() {
   return rows
 }
 
+async function getPlanningAggregateSummaryUncached() {
+  const rows = await getPlanningAggregateRows()
+  return buildPlanningAggregateSummary(rows)
+}
+
+// The planning dashboard used to scan all Cork planning rows on every request.
+// Cache only compact facet summaries so the Next data-cache item stays small.
+const getPlanningAggregateSummaryCached = unstable_cache(
+  async () => getPlanningAggregateSummaryUncached(),
+  ["planning-aggregate-summary", PLANNING_AGGREGATE_CACHE_VERSION],
+  { revalidate: PLANNING_CACHE_REVALIDATE_SECONDS }
+)
+
 async function getPlanningCommencements(
+  requestedMetric: string
+): Promise<PlanningCommencementsDashboard> {
+  return getPlanningCommencementsCached(requestedMetric)
+}
+
+async function getPlanningCommencementsUncached(
   requestedMetric: string
 ): Promise<PlanningCommencementsDashboard> {
   const supabase = getServerSupabase()
@@ -401,6 +410,12 @@ async function getPlanningCommencements(
     sourceUrl: rows[0]?.source_url ?? null,
   }
 }
+
+const getPlanningCommencementsCached = unstable_cache(
+  async (requestedMetric: string) => getPlanningCommencementsUncached(requestedMetric),
+  ["planning-commencements", PLANNING_AGGREGATE_CACHE_VERSION],
+  { revalidate: PLANNING_CACHE_REVALIDATE_SECONDS }
+)
 
 function filterRecentCommencementMonths(
   rows: PlanningCommencementRow[],
@@ -517,44 +532,6 @@ async function getPlanningSearchResults(
   }
 }
 
-function aggregateRowMatchesFilters(
-  row: PlanningAggregateRow,
-  filters: Required<PlanningSearchParams>
-) {
-  if (filters.q) {
-    const term = filters.q.toLowerCase()
-    const values = [
-      row.reference,
-      row.proposal,
-      row.location,
-      row.applicant_name,
-    ]
-
-    if (
-      !values.some((value) => cleanLabel(value).toLowerCase().includes(term))
-    ) {
-      return false
-    }
-  }
-
-  if (
-    filters.area &&
-    !cleanLabel(row.location).toLowerCase().includes(filters.area.toLowerCase())
-  ) {
-    return false
-  }
-
-  if (filters.status && row.status !== filters.status) {
-    return false
-  }
-
-  if (filters.type && row.application_type !== filters.type) {
-    return false
-  }
-
-  return true
-}
-
 function cleanParam(value: string | undefined) {
   return (value ?? "").trim().slice(0, 120)
 }
@@ -568,6 +545,45 @@ function firstKnownValue<T>(
   getValue: (row: T) => string | null | undefined
 ) {
   return rows.map(getValue).find(Boolean) ?? null
+}
+
+function buildPlanningAggregateSummary(
+  rows: PlanningAggregateRow[],
+  totalCount = rows.length
+): PlanningAggregateSummary {
+  const areaStats = countBy(rows, normaliseAreaName).slice(0, 12)
+  const statusStats = countBy(rows, (row) => row.status).slice(0, 8)
+  const typeStats = countBy(rows, (row) => row.application_type).slice(0, 8)
+
+  return {
+    totalCount,
+    latestRegistrationDate: firstKnownValue(rows, (row) => row.registration_date),
+    areaStats,
+    statusStats,
+    typeStats,
+    monthStats: countByMonth(rows).slice(0, 12).reverse(),
+    areaOptions: countBy(rows, normaliseAreaName)
+      .slice(0, PLANNING_AREA_OPTION_LIMIT)
+      .map((stat) => stat.label),
+    statusOptions: countBy(rows, (row) => row.status).map((stat) => stat.label),
+    typeOptions: countBy(rows, (row) => row.application_type).map((stat) => stat.label),
+    activeArea: areaStats[0] ?? null,
+  }
+}
+
+function planningApplicationToAggregateRow(
+  application: PlanningApplication
+): PlanningAggregateRow {
+  return {
+    reference: application.reference,
+    proposal: application.proposal,
+    ward: application.ward,
+    location: application.location,
+    applicant_name: application.applicant_name,
+    status: application.status,
+    application_type: application.application_type,
+    registration_date: application.registration_date,
+  }
 }
 
 function countBy<T>(

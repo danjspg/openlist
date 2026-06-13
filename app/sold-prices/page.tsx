@@ -20,7 +20,7 @@ import {
   signedPercent,
 } from "@/lib/ppr-analytics"
 
-export const dynamic = "force-dynamic"
+export const revalidate = 21600
 
 export async function generateMetadata(): Promise<Metadata> {
   const summary = await getPprDatasetSummary()

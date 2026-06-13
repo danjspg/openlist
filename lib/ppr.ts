@@ -76,7 +76,11 @@ export type PprDatasetSummary = {
   startYear: number | null
 }
 
-export const PPR_SEARCH_RESULT_LIMIT = 100
+export const PPR_SEARCH_RESULT_LIMIT = 25
+const PPR_SALE_CARD_SELECT =
+  "id,date_of_sale,address_raw,locality,county,price_eur,property_description_raw,vat_exclusive,area_slug,is_new_dwelling"
+const PPR_AREA_STATS_SELECT =
+  "id,geography_type,county,area_slug,eircode_prefix,period_start,period_end,sales_count,median_price_eur,avg_price_eur,min_price_eur,max_price_eur,last_sale_date"
 const PPR_CACHE_REVALIDATE_SECONDS = 60 * 60 * 6
 const PPR_DATASET_CACHE_VERSION = "v3"
 const PPR_SEARCH_AREAS_CACHE_VERSION = "v2"
@@ -181,6 +185,10 @@ export function isExcludedStandaloneAreaSlug(slug?: string | null) {
 
 function normalisePprCounty(value?: string | null) {
   return String(value || "").trim()
+}
+
+function canonicalPprCountyFilter(value?: string | null) {
+  return formatPprCountyDisplayName(value) || normalisePprCounty(value)
 }
 
 function normalisePprAreaSlug(value?: string | null) {
@@ -777,19 +785,21 @@ export async function searchPprSales(filters: PprSearchFilters) {
       sales: [] as PprSale[],
       count: 0,
       page: 1,
+      pageSize: PPR_SEARCH_RESULT_LIMIT,
+      totalPages: 1,
       error: "Choose an area to search recorded sale prices.",
     }
   }
 
   const page = safePage(resolvedFilters.page)
   const sort = sortOption(resolvedFilters.sort)
+  const offset = (page - 1) * PPR_SEARCH_RESULT_LIMIT
 
   let query = supabase
     .from("ppr_sales")
-    .select("*")
+    .select(PPR_SALE_CARD_SELECT, { count: "exact" })
     .eq("county", scope.county)
     .eq("area_slug", scope.areaSlug)
-    .limit(PPR_SEARCH_RESULT_LIMIT)
 
   if (sort === "oldest") {
     query = query.order("date_of_sale", { ascending: true })
@@ -810,16 +820,28 @@ export async function searchPprSales(filters: PprSearchFilters) {
   if (resolvedFilters.dateTo) query = query.lte("date_of_sale", resolvedFilters.dateTo)
   if (resolvedFilters.newBuild === "true") query = query.eq("is_new_dwelling", true)
 
-  const { data, error } = await query
+  const { data, count, error } = await query.range(
+    offset,
+    offset + PPR_SEARCH_RESULT_LIMIT - 1
+  )
 
   if (error) {
-    return { sales: [] as PprSale[], count: 0, page, error: error.message }
+    return {
+      sales: [] as PprSale[],
+      count: 0,
+      page,
+      pageSize: PPR_SEARCH_RESULT_LIMIT,
+      totalPages: 1,
+      error: error.message,
+    }
   }
 
   return {
     sales: (data ?? []) as PprSale[],
-    count: (data ?? []).length,
+    count: count ?? 0,
     page,
+    pageSize: PPR_SEARCH_RESULT_LIMIT,
+    totalPages: Math.max(1, Math.ceil((count ?? 0) / PPR_SEARCH_RESULT_LIMIT)),
     error: "",
   }
 }
@@ -962,19 +984,19 @@ export async function getPprSearchSummary(filters: PprSearchFilters): Promise<Pp
 export async function getMarketSoldPrices(market: PprMarket, limit = 12) {
   let query = supabase
     .from("ppr_sales")
-    .select("*", { count: "estimated" })
+    .select(PPR_SALE_CARD_SELECT, { count: "estimated" })
     .order("date_of_sale", { ascending: false })
     .limit(limit)
 
   if (market.marketType === "county") {
-    query = query.ilike("county", market.name)
+    query = query.eq("county", market.name)
   } else if (market.marketType === "dublin_district") {
     query = query.eq("eircode_prefix", dublinDistrictPrefix(market))
   } else {
     query = query.eq("area_slug", market.areaSlug ?? market.slug)
 
     if (market.county) {
-      query = query.ilike("county", market.county)
+      query = query.eq("county", market.county)
     }
   }
 
@@ -992,10 +1014,11 @@ export async function getMarketSoldPrices(market: PprMarket, limit = 12) {
 }
 
 export async function getAreaStats(county: string, slug: string) {
+  const canonicalCounty = canonicalPprCountyFilter(county)
   const { data, error } = await supabase
     .from("ppr_area_stats")
-    .select("*")
-    .ilike("county", county)
+    .select(PPR_AREA_STATS_SELECT)
+    .eq("county", canonicalCounty)
     .eq("area_slug", slug)
     .order("period_end", { ascending: false })
     .limit(1)
@@ -1006,10 +1029,11 @@ export async function getAreaStats(county: string, slug: string) {
 }
 
 export async function getRecentAreaSales(county: string, slug: string, limit = 8) {
+  const canonicalCounty = canonicalPprCountyFilter(county)
   const { data, error } = await supabase
     .from("ppr_sales")
-    .select("*")
-    .ilike("county", county)
+    .select(PPR_SALE_CARD_SELECT)
+    .eq("county", canonicalCounty)
     .or(broadAreaFilterExpression(slug, areaNameFromSlug(slug)))
     .order("date_of_sale", { ascending: false })
     .limit(limit)
@@ -1019,10 +1043,11 @@ export async function getRecentAreaSales(county: string, slug: string, limit = 8
 }
 
 export async function getNearbyAreaLinks(county: string, currentSlug: string, limit = 6) {
+  const canonicalCounty = canonicalPprCountyFilter(county)
   const { data, error } = await supabase
     .from("ppr_area_stats")
     .select("county,area_slug,sales_count,median_price_eur")
-    .ilike("county", county)
+    .eq("county", canonicalCounty)
     .neq("area_slug", currentSlug)
     .order("sales_count", { ascending: false })
     .limit(limit * 3)
@@ -1034,10 +1059,11 @@ export async function getNearbyAreaLinks(county: string, currentSlug: string, li
 }
 
 async function getCountyAreaLinksUncached(county: string, limit = 8) {
+  const canonicalCounty = canonicalPprCountyFilter(county)
   const { data, error } = await supabase
     .from("ppr_area_stats")
     .select("county,area_slug,sales_count,median_price_eur,last_sale_date")
-    .ilike("county", county)
+    .eq("county", canonicalCounty)
     .not("area_slug", "is", null)
     .order("sales_count", { ascending: false })
     .limit(limit * 3)
@@ -1068,11 +1094,12 @@ export async function getNearbySalesForListing({
   limit?: number
 }) {
   if (!county) return []
+  const canonicalCounty = canonicalPprCountyFilter(county)
 
   let query = supabase
     .from("ppr_sales")
-    .select("*")
-    .ilike("county", county)
+    .select(PPR_SALE_CARD_SELECT)
+    .eq("county", canonicalCounty)
     .order("date_of_sale", { ascending: false })
     .limit(limit)
 

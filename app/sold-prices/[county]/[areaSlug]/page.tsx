@@ -23,7 +23,7 @@ import {
   signedPercent,
 } from "@/lib/ppr-analytics"
 
-export const dynamic = "force-dynamic"
+export const revalidate = 21600
 
 type Props = {
   params: Promise<{ county: string; areaSlug: string }>

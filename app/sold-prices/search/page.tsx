@@ -118,7 +118,9 @@ export default async function SoldPricesSearchPage({
                     {scope.areaLabel} sales
                   </h2>
                   <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">
-                    {`Showing up to 100 recorded sales from the ${rangeLabel}.`}
+                    {results
+                      ? `Showing ${results.sales.length} of ${results.count} recorded sales from the ${rangeLabel}.`
+                      : `Showing recorded sales from the ${rangeLabel}.`}
                     {results?.sales?.[0]?.date_of_sale
                       ? ` Latest sale shown: ${formatPprDate(results.sales[0].date_of_sale)}.`
                       : ""}
@@ -144,7 +146,14 @@ export default async function SoldPricesSearchPage({
             {scope && results && (
               <div className="mt-6 space-y-4">
                 {results.sales.length > 0 ? (
-                  results.sales.map((sale) => <PprSaleCard key={sale.id} sale={sale} />)
+                  <>
+                    {results.sales.map((sale) => <PprSaleCard key={sale.id} sale={sale} />)}
+                    <SoldPricesPagination
+                      filters={filters}
+                      page={results.page}
+                      totalPages={results.totalPages}
+                    />
+                  </>
                 ) : (
                   <div className="rounded-[28px] border border-stone-200 bg-white p-8 text-stone-600 shadow-sm">
                     No recorded sales matched this area within the {rangeLabel}.
@@ -195,5 +204,60 @@ export default async function SoldPricesSearchPage({
         </div>
       </section>
     </main>
+  )
+}
+
+function soldPricesSearchPageHref(filters: PprSearchFilters, page: number) {
+  const params = new URLSearchParams()
+
+  for (const [key, value] of Object.entries(filters)) {
+    if (!value || key === "page") continue
+    params.set(key, value)
+  }
+
+  if (page > 1) params.set("page", String(page))
+
+  const query = params.toString()
+  return `/sold-prices/search${query ? `?${query}` : ""}`
+}
+
+function SoldPricesPagination({
+  filters,
+  page,
+  totalPages,
+}: {
+  filters: PprSearchFilters
+  page: number
+  totalPages: number
+}) {
+  if (totalPages <= 1) return null
+
+  return (
+    <nav
+      aria-label="Sold price result pages"
+      className="flex flex-col gap-3 rounded-[28px] border border-stone-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between"
+    >
+      <p className="text-sm font-medium text-stone-600">
+        Page {page} of {totalPages}
+      </p>
+      <div className="flex flex-wrap gap-3">
+        {page > 1 ? (
+          <Link
+            href={soldPricesSearchPageHref(filters, page - 1)}
+            className="inline-flex rounded-full border border-stone-300 px-5 py-2.5 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900"
+          >
+            Previous
+          </Link>
+        ) : null}
+        {page < totalPages ? (
+          <Link
+            href={soldPricesSearchPageHref(filters, page + 1)}
+            className="inline-flex rounded-full bg-stone-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-stone-700"
+          >
+            Next
+          </Link>
+        ) : null}
+      </div>
+    </nav>
   )
 }

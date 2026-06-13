@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { connection } from "next/server"
 import {
   formatPlanningDate,
   formatPlanningMonth,
@@ -11,7 +12,7 @@ import {
   type PlanningSearchParams,
 } from "@/lib/planning"
 
-export const dynamic = "force-dynamic"
+export const revalidate = 21600
 
 export const metadata: Metadata = {
   title: "Planning Applications Cork | OpenList",
@@ -33,10 +34,15 @@ export default async function PlanningPage({
 }) {
   const rawSearchParams = await (searchParams || Promise.resolve({}))
   const filters = normalisePlanningSearchParams(rawSearchParams)
-  const dashboard = await getPlanningDashboard(filters)
   const hasActiveSearch = Boolean(
     filters.q || filters.area || filters.status || filters.type
   )
+
+  if (hasActiveSearch || filters.commencementMetric) {
+    await connection()
+  }
+
+  const dashboard = await getPlanningDashboard(filters)
   const resultRows = hasActiveSearch
     ? dashboard.searchResults
     : dashboard.recentApplications
