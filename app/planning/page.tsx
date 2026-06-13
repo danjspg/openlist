@@ -118,12 +118,22 @@ export default async function PlanningPage({
               options={dashboard.typeOptions}
             />
 
-            <button
-              type="submit"
-              className="min-h-12 rounded-md bg-stone-950 px-5 text-base font-semibold text-white transition hover:bg-stone-700"
-            >
-              Search
-            </button>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <button
+                type="submit"
+                className="min-h-12 rounded-md bg-stone-950 px-5 text-base font-semibold text-white transition hover:bg-stone-700"
+              >
+                Search
+              </button>
+              {hasActiveSearch ? (
+                <Link
+                  href="/planning"
+                  className="inline-flex min-h-12 items-center justify-center rounded-md border border-stone-300 bg-white px-5 text-base font-semibold text-stone-700 transition hover:border-stone-900 hover:text-stone-950"
+                >
+                  Clear
+                </Link>
+              ) : null}
+            </div>
           </form>
         </div>
       </section>
