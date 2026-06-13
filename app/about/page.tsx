@@ -35,7 +35,11 @@ export default function AboutPage() {
           </p>
 
           <p className="mx-auto mt-3 max-w-3xl text-sm leading-6 text-slate-600 sm:text-base sm:leading-7">
-            Property information and self-service tools to help people make better-informed property decisions.
+            Research property activity, explore planning and development trends, manage viewings and create property listings.
+          </p>
+
+          <p className="mx-auto mt-3 max-w-3xl text-sm leading-6 text-slate-600 sm:text-base sm:leading-7">
+            Users remain responsible for their own listings, enquiries, viewings and decisions.
           </p>
         </div>
 
