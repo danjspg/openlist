@@ -25,7 +25,7 @@ type Listing = {
 export const metadata: Metadata = {
   title: "OpenList | Property Tools, Listings and Sold Prices Ireland",
   description:
-    "Self-service property tools for Ireland. Create listings, research public sold prices and manage property viewings in one place.",
+    "Self-service property tools for Ireland. Research sold prices, search planning data, manage property viewings and create listings in one place.",
   alternates: {
     canonical: "/",
   },
@@ -96,7 +96,7 @@ export default async function HomePage() {
             </h1>
 
             <p className="mt-5 max-w-[34rem] text-base leading-7 text-stone-600 sm:mt-6 sm:text-lg sm:leading-8">
-              Create listings, research sold prices and organise property viewings.
+              Sold prices, planning data, viewings and listings in one place.
             </p>
 
             <div className="mt-8 sm:mt-9">
@@ -122,17 +122,22 @@ export default async function HomePage() {
               </div>
             </div>
 
-            <div className="mt-7 grid gap-3 sm:grid-cols-3 lg:mt-8">
+            <div className="mt-7 grid gap-3 sm:grid-cols-2 lg:mt-8 lg:grid-cols-4">
               {[
                 {
-                  title: "Sell Privately",
-                  text: "Create and manage listings.",
+                  title: "Property Listings",
+                  text: "Create and manage property listings.",
                   href: "/sell",
                 },
                 {
                   title: "Research Prices",
-                  text: "Explore public sold-price data and local market reports.",
+                  text: "Explore sold-price data and local market insights.",
                   href: "/sold-prices",
+                },
+                {
+                  title: "Planning & Development",
+                  text: "Search planning applications and track building commencements.",
+                  href: "/planning",
                 },
                 {
                   title: "Manage Viewings",
@@ -232,25 +237,31 @@ export default async function HomePage() {
           </h2>
         </div>
 
-        <div className="mt-8 grid gap-6 sm:mt-10 md:grid-cols-3">
+        <div className="mt-8 grid gap-6 sm:mt-10 md:grid-cols-2 lg:grid-cols-4">
           {[
             {
               step: "01",
-              title: "Sell Privately",
-              text: "Create and manage your own property listing.",
-              href: "/sell",
+              title: "Research Prices",
+              text: "Browse sold-price data, market trends and local insights.",
+              href: "/sold-prices",
             },
             {
               step: "02",
-              title: "Research Prices",
-              text: "Browse public sold-price data and local market insights.",
-              href: "/sold-prices",
+              title: "Planning & Development",
+              text: "Search planning applications and track building commencement activity.",
+              href: "/planning",
             },
             {
               step: "03",
               title: "Manage Viewings",
               text: "Create, edit, clone and track property viewings.",
               href: "/viewings",
+            },
+            {
+              step: "04",
+              title: "Property Listings",
+              text: "Create and manage your own property listings.",
+              href: "/sell",
             },
           ].map((item) => (
             <Link
