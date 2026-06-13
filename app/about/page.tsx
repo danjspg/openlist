@@ -4,7 +4,7 @@ import Image from "next/image"
 export const metadata: Metadata = {
   title: "About OpenList | Property Tools Ireland",
   description:
-    "Learn about OpenList, a self-service platform for property listings, sold-price research and viewing organisation in Ireland.",
+    "Learn about OpenList, a property tools platform for sold prices, planning data, viewings and listings in Ireland.",
   alternates: {
     canonical: "/about",
   },
@@ -31,11 +31,11 @@ export default function AboutPage() {
           </h1>
 
           <p className="mx-auto mt-5 max-w-3xl text-base leading-7 text-slate-600 sm:text-lg sm:leading-8">
-            OpenList provides self-service software tools for creating property listings, researching sold prices and managing viewings in Ireland.
+            OpenList combines sold prices, planning data, viewings and listings in one simple platform.
           </p>
 
           <p className="mx-auto mt-3 max-w-3xl text-sm leading-6 text-slate-600 sm:text-base sm:leading-7">
-            Users remain responsible for their own listings, enquiries, viewings and decisions.
+            Property information and self-service tools to help people make better-informed property decisions.
           </p>
         </div>
 
@@ -43,33 +43,39 @@ export default function AboutPage() {
           <div className="rounded-[28px] border border-slate-200 bg-white p-8 shadow-sm">
             <div className="max-w-2xl space-y-5 text-base leading-7 text-slate-600 sm:space-y-6">
               <p>
-                OpenList is designed to make common property administration tasks simpler.
+                You can use OpenList to:
               </p>
 
-              <p>
-                You can use OpenList to create and manage property listings,
-                research public sold-price data and organise property viewings.
-              </p>
+              <ul className="list-disc space-y-3 pl-5">
+                <li>Research public sold-price data and local market activity</li>
+                <li>Search planning applications and explore development activity</li>
+                <li>Track building commencement trends and housing delivery indicators</li>
+                <li>Create and manage property listings</li>
+                <li>Organise and manage property viewings</li>
+              </ul>
 
               <p>
-                Listings are created and managed by users. Enquiries go directly
-                to the listing contact.
+                Property listings are created and managed by users, and
+                enquiries go directly to the listing contact.
               </p>
 
               <p>
                 Sold-price information is based on public Irish Residential
-                Property Price Register data and is provided as market context
-                only.
+                Property Price Register data. Planning and commencement
+                information is based on publicly available sources and is
+                provided for information purposes only.
               </p>
 
               <p>
-                Viewing tools help users record appointments, notify participants
-                and keep track of upcoming viewings.
+                OpenList provides property information and self-service tools. We
+                are not an estate agent, auctioneer, valuer, broker or legal
+                adviser.
               </p>
 
               <p>
-                The aim is simple — to provide straightforward software tools for
-                people managing property-related activities themselves.
+                The aim is simple: to provide practical property data and
+                straightforward software tools that help people make
+                better-informed property decisions.
               </p>
             </div>
           </div>
@@ -81,10 +87,10 @@ export default function AboutPage() {
               </p>
               <ul className="mt-5 list-disc space-y-3 pl-5 text-base leading-7 text-slate-700">
                 <li>research sold prices</li>
-                <li>browse property listings</li>
+                <li>search planning applications</li>
+                <li>track building commencements</li>
                 <li>create and manage listings</li>
                 <li>organise property viewings</li>
-                <li>keep track of appointments</li>
               </ul>
             </div>
 
@@ -93,8 +99,8 @@ export default function AboutPage() {
                 Platform role
               </p>
               <div className="mt-4 space-y-4 text-base leading-7 text-slate-600">
-                <p>You remain responsible for your listings, enquiries, viewings and decisions.</p>
-                <p>OpenList is not an estate agent or auctioneer.</p>
+                <p>Property listings are created and managed by users, and enquiries go directly to the listing contact.</p>
+                <p>OpenList is not an estate agent, auctioneer, valuer, broker or legal adviser.</p>
               </div>
             </div>
           </div>
@@ -105,7 +111,7 @@ export default function AboutPage() {
             Important
           </p>
           <p className="mt-4 max-w-4xl text-base leading-7 text-slate-600">
-            OpenList is a self-service listing and marketing platform. It does not act as an estate agent or auctioneer and does not provide valuation services, pricing advice, negotiation services, legal services, brokerage services, or transaction management.
+            Sold-price information is based on public Irish Residential Property Price Register data. Planning and commencement information is based on publicly available sources and is provided for information purposes only.
           </p>
         </div>
       </section>
