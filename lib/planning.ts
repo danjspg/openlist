@@ -83,7 +83,7 @@ export type PlanningSearchParams = {
 }
 
 const CORK_AUTHORITY_CODE = "CORKCOCO"
-const COMMENCEMENT_MONTHS_BACK = 60
+const COMMENCEMENT_MONTHS_BACK = 36
 const PLANNING_AGGREGATE_PAGE_SIZE = 1000
 const APPLICATION_SELECT =
   "id,reference,application_type,proposal,location,applicant_name,agent_name,status,decision_text,registration_date,decision_date,final_grant_date,ward,source_url"

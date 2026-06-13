@@ -9,7 +9,7 @@ const SOURCE_URL =
 const SOURCE_DATASET = "Residential Commencement Notices"
 const LOCAL_AUTHORITY = "Cork County"
 const LOCAL_AUTHORITY_CODE = "CORKCOCO"
-const DEFAULT_MONTHS_BACK = 60
+const DEFAULT_MONTHS_BACK = 36
 
 const MONTHS = [
   ["January", 1],

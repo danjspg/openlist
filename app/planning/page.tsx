@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic"
 export const metadata: Metadata = {
   title: "Planning Applications Cork | OpenList",
   description:
-    "Search five years of Cork County planning applications and explore public metadata by area, status and application type.",
+    "Search three years of Cork County planning applications and explore public metadata by area, status and application type.",
   alternates: {
     canonical: "/planning",
   },
@@ -56,7 +56,7 @@ export default async function PlanningPage({
                 Cork County planning applications
               </h1>
               <p className="mt-5 max-w-2xl text-lg leading-8 text-stone-600">
-                Search five years of Cork County Council planning applications
+                Search three years of Cork County Council planning applications
                 and scan public metadata by area, application type and current
                 status.
               </p>
@@ -206,7 +206,7 @@ export default async function PlanningPage({
                         </h3>
                         <p className="mt-1 text-sm text-stone-500">
                           Showing {commencements.selectedMetricLabel.toLowerCase()} for
-                          the latest five years of Cork County commencement months.
+                          the latest three years of Cork County commencement months.
                         </p>
                       </div>
                       {commencements.selectedMetric !== "All Units" ? (
@@ -260,7 +260,7 @@ export default async function PlanningPage({
           <div className="grid gap-6 lg:grid-cols-2">
             <BarList
               title="Applications by area"
-              subtitle="Top Cork County municipal districts in the imported five years."
+              subtitle="Top Cork County municipal districts in the imported three years."
               stats={dashboard.areaStats}
               linkForStat={(stat) => planningFilterHref(filters, "area", stat.label)}
             />
@@ -441,7 +441,7 @@ function ApplicationsList({
             </p>
             {application.status ? (
               <p className="mt-3 inline-flex rounded-full border border-stone-200 px-3 py-1 text-xs font-semibold text-stone-600">
-                {application.status}
+                Status: {application.status}
               </p>
             ) : null}
           </div>
@@ -458,7 +458,7 @@ function ApplicationsList({
                 <span>Applicant: {application.applicant_name}</span>
               ) : null}
               {application.application_type ? (
-                <span>Type: {application.application_type}</span>
+                <span>Application type: {application.application_type}</span>
               ) : null}
               {application.decision_text ? (
                 <span>Decision: {application.decision_text}</span>

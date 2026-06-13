@@ -11,7 +11,8 @@ const LOCAL_AUTHORITY_CODE = "CORKCOCO"
 const PRODUCT_CODE = "CITIZENPORTAL"
 const SERVICE_CODE = "PA"
 const DEFAULT_WINDOW_DAYS = 7
-const DEFAULT_RANGE_YEARS = 5
+const DEFAULT_RANGE_YEARS = 3
+const SEARCH_STATUSES = ["registered", "determined"]
 
 if (!supabaseUrl || !serviceRoleKey) {
   console.error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY")
@@ -72,10 +73,6 @@ function normaliseIdArray(value) {
 }
 
 function applicationDetailUrl(row) {
-  if (Number.isInteger(row.id)) {
-    return `https://planning.agileapplications.ie/corkcoco/application-details/${row.id}`
-  }
-
   const reference = row.reference
   if (!reference) return SOURCE_URL
 
@@ -143,11 +140,11 @@ function windowsBetween(from, to, windowDays) {
   return windows
 }
 
-async function fetchApplicationsWindow({ from, to }) {
+async function fetchApplicationsWindow({ from, to, status }) {
   const params = new URLSearchParams({
     registrationDateFrom: `${formatDate(from)}T00:00:00Z`,
     registrationDateTo: `${formatDate(to)}T23:59:59Z`,
-    status: "registered",
+    status,
   })
   const url = `${API_URL}?${params.toString()}`
   const response = await fetch(url, {
@@ -193,24 +190,30 @@ async function fetchApplicationRecords({ from, to, windowDays = DEFAULT_WINDOW_D
 
   for (const window of windows) {
     const label = `${formatDate(window.from)} to ${formatDate(window.to)}`
-    const data = await fetchApplicationsWindow(window)
+    for (const status of SEARCH_STATUSES) {
+      const data = await fetchApplicationsWindow({ ...window, status })
 
-    console.log(`${label}: fetched ${data.results.length}/${data.total} applications`)
+      console.log(
+        `${label} ${status}: fetched ${data.results.length}/${data.total} applications`
+      )
 
-    if (data.total > data.results.length && windowDays > 1) {
-      const smallerRecords = await fetchApplicationRecords({
-        from: window.from,
-        to: window.to,
-        windowDays: Math.max(1, Math.floor(windowDays / 2)),
-      })
-      for (const record of smallerRecords) recordsByReference.set(record.reference, record)
-      continue
-    }
+      if (data.total > data.results.length && windowDays > 1) {
+        const smallerRecords = await fetchApplicationRecords({
+          from: window.from,
+          to: window.to,
+          windowDays: Math.max(1, Math.floor(windowDays / 2)),
+        })
+        for (const record of smallerRecords) {
+          recordsByReference.set(record.reference, record)
+        }
+        continue
+      }
 
-    for (const row of data.results) {
-      if (!row.reference) continue
-      const record = mapApplication(row)
-      recordsByReference.set(record.reference, record)
+      for (const row of data.results) {
+        if (!row.reference) continue
+        const record = mapApplication(row)
+        recordsByReference.set(record.reference, record)
+      }
     }
   }
 
