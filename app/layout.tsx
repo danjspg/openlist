@@ -9,7 +9,7 @@ import "./globals.css"
 export const metadata: Metadata = {
   title: "OpenList | Property Tools, Listings and Sold Prices Ireland",
   description:
-    "Self-service property tools for Ireland. Create listings, research public sold prices, search planning applications and manage property viewings in one place.",
+    "Self-service property tools for Ireland. Research sold prices, search planning data, manage property viewings and create listings in one place.",
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL || "https://www.openlist.ie"
   ),
@@ -90,44 +90,52 @@ export default async function RootLayout({
                 </div>
 
                 <p className="mt-4 max-w-md text-sm leading-6 text-stone-600">
-                  OpenList is a self-service platform for creating property listings, researching sold prices and managing viewings in Ireland.
+                  OpenList combines sold prices, planning data, viewings and listings in one simple platform.
                 </p>
 
                 <div className="mt-6 space-y-3 text-xs leading-5 text-stone-500">
                   <p>
-                    Listing details are provided by sellers and have not been independently verified.
+                    OpenList provides property information and self-service tools. We are not an estate agent, auctioneer, valuer, broker or legal adviser.
                   </p>
                   <p>
-                    OpenList is not an estate agent or auctioneer and does not provide valuation services, pricing advice, negotiation services, legal services, brokerage services, or transaction management. Buyers and sellers deal directly, and all parties should satisfy themselves as to the accuracy of any information.
+                    Buyers and sellers deal directly and should independently verify all information before making decisions.
                   </p>
                 </div>
               </div>
 
-              <div className="flex flex-col gap-3 text-sm text-stone-600 md:items-end md:pt-12">
-                <Link href={footerListingsLink.href} className="transition hover:text-stone-900">
-                  {footerListingsLink.label}
-                </Link>
-                <Link href="/sold-prices" className="transition hover:text-stone-900">
-                  Sold prices
-                </Link>
-                <Link href="/planning" className="transition hover:text-stone-900">
-                  Planning
-                </Link>
-                <Link href={footerViewingsLink.href} className="transition hover:text-stone-900">
-                  {footerViewingsLink.label}
-                </Link>
-                <Link href="/sell" className="transition hover:text-stone-900">
-                  Start your listing
-                </Link>
-                <Link href="/about" className="transition hover:text-stone-900">
-                  About OpenList
-                </Link>
-                <Link href="/terms" className="transition hover:text-stone-900">
-                  Terms
-                </Link>
-                <Link href="/admin/access" className="text-stone-400 transition hover:text-stone-700">
-                  Admin
-                </Link>
+              <div className="grid gap-6 text-sm text-stone-600 sm:grid-cols-3 md:pt-12">
+                <FooterLinkGroup title="Property Data">
+                  <Link href="/sold-prices" className="transition hover:text-stone-900">
+                    Sold prices
+                  </Link>
+                  <Link href="/planning" className="transition hover:text-stone-900">
+                    Planning
+                  </Link>
+                </FooterLinkGroup>
+
+                <FooterLinkGroup title="Property Tools">
+                  <Link href={footerListingsLink.href} className="transition hover:text-stone-900">
+                    {footerListingsLink.label}
+                  </Link>
+                  <Link href={footerViewingsLink.href} className="transition hover:text-stone-900">
+                    {footerViewingsLink.label}
+                  </Link>
+                  <Link href="/sell" className="transition hover:text-stone-900">
+                    Start your listing
+                  </Link>
+                </FooterLinkGroup>
+
+                <FooterLinkGroup title="Company">
+                  <Link href="/about" className="transition hover:text-stone-900">
+                    About OpenList
+                  </Link>
+                  <Link href="/terms" className="transition hover:text-stone-900">
+                    Terms
+                  </Link>
+                  <Link href="/admin/access" className="text-stone-400 transition hover:text-stone-700">
+                    Admin
+                  </Link>
+                </FooterLinkGroup>
               </div>
             </div>
 
@@ -139,5 +147,22 @@ export default async function RootLayout({
         <Analytics />
       </body>
     </html>
+  )
+}
+
+function FooterLinkGroup({
+  title,
+  children,
+}: {
+  title: string
+  children: React.ReactNode
+}) {
+  return (
+    <div>
+      <h2 className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-400">
+        {title}
+      </h2>
+      <div className="mt-3 flex flex-col gap-3">{children}</div>
+    </div>
   )
 }
