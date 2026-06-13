@@ -9,6 +9,7 @@ const SOURCE_URL =
 const SOURCE_DATASET = "Residential Commencement Notices"
 const LOCAL_AUTHORITY = "Cork County"
 const LOCAL_AUTHORITY_CODE = "CORKCOCO"
+const DEFAULT_MONTHS_BACK = 60
 
 const MONTHS = [
   ["January", 1],
@@ -143,7 +144,9 @@ function filterLastMonths(records, monthsBack) {
   cutoff.setUTCMonth(cutoff.getUTCMonth() - (monthsBack - 1))
   const cutoffMonth = formatMonth(cutoff.getUTCFullYear(), cutoff.getUTCMonth() + 1)
 
-  return records.filter((record) => record.period_month >= cutoffMonth)
+  return records.filter(
+    (record) => record.period_month >= cutoffMonth && record.period_month <= latestMonth
+  )
 }
 
 function chunk(items, size) {
@@ -152,7 +155,7 @@ function chunk(items, size) {
   return chunks
 }
 
-async function ingestPlanningCommencements({ monthsBack = null } = {}) {
+async function ingestPlanningCommencements({ monthsBack = DEFAULT_MONTHS_BACK } = {}) {
   const allRecords = await fetchCommencementRecords()
   const records = filterLastMonths(allRecords, monthsBack)
   let processed = 0
@@ -190,7 +193,9 @@ const isDirectRun = import.meta.url === `file://${process.argv[1]}`
 if (isDirectRun) {
   const args = process.argv.slice(2)
   const monthsBackArg = args.find((arg) => arg.startsWith("--months="))
-  const monthsBack = monthsBackArg ? Number(monthsBackArg.split("=")[1]) : null
+  const monthsBack = monthsBackArg
+    ? Number(monthsBackArg.split("=")[1])
+    : DEFAULT_MONTHS_BACK
 
   ingestPlanningCommencements({
     monthsBack: Number.isFinite(monthsBack) ? monthsBack : null,

@@ -11,6 +11,7 @@ const LOCAL_AUTHORITY_CODE = "CORKCOCO"
 const PRODUCT_CODE = "CITIZENPORTAL"
 const SERVICE_CODE = "PA"
 const DEFAULT_WINDOW_DAYS = 7
+const DEFAULT_RANGE_YEARS = 5
 
 if (!supabaseUrl || !serviceRoleKey) {
   console.error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY")
@@ -42,7 +43,7 @@ function defaultDateRange() {
   const to = new Date()
   to.setUTCHours(0, 0, 0, 0)
   const from = new Date(to)
-  from.setUTCFullYear(from.getUTCFullYear() - 1)
+  from.setUTCFullYear(from.getUTCFullYear() - DEFAULT_RANGE_YEARS)
   return { from, to }
 }
 
@@ -70,9 +71,16 @@ function normaliseIdArray(value) {
   return value.map((item) => Number(item)).filter((item) => Number.isInteger(item))
 }
 
-function applicationDetailUrl(reference) {
+function applicationDetailUrl(row) {
+  if (Number.isInteger(row.id)) {
+    return `https://planning.agileapplications.ie/corkcoco/application-details/${row.id}`
+  }
+
+  const reference = row.reference
+  if (!reference) return SOURCE_URL
+
   const encodedReference = encodeURIComponent(reference)
-  return `https://planning.agileapplications.ie/corkcoco/application-details/${encodedReference}`
+  return `https://planning.agileapplications.ie/corkcoco/application-details/?ref=${encodedReference}`
 }
 
 function mapApplication(row) {
@@ -108,7 +116,7 @@ function mapApplication(row) {
     grid_northing: grid.northing,
     pending_amendment:
       typeof row.pendingAmendment === "boolean" ? row.pendingAmendment : null,
-    source_url: row.reference ? applicationDetailUrl(row.reference) : SOURCE_URL,
+    source_url: applicationDetailUrl(row),
     source_api_url: API_URL,
     source_payload: row,
     updated_at: new Date().toISOString(),

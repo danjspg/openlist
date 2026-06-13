@@ -83,6 +83,8 @@ export type PlanningSearchParams = {
 }
 
 const CORK_AUTHORITY_CODE = "CORKCOCO"
+const COMMENCEMENT_MONTHS_BACK = 60
+const PLANNING_AGGREGATE_PAGE_SIZE = 1000
 const APPLICATION_SELECT =
   "id,reference,application_type,proposal,location,applicant_name,agent_name,status,decision_text,registration_date,decision_date,final_grant_date,ward,source_url"
 const COMMENCEMENT_SELECT =
@@ -146,7 +148,7 @@ export async function getPlanningDashboard(
   const filters = normalisePlanningSearchParams(params)
   const supabase = getServerSupabase()
 
-  const [countResult, latestResult, recentResult, aggregateResult, commencements] =
+  const [countResult, latestResult, recentResult, aggregateRows, commencements] =
     await Promise.all([
       supabase
         .from("planning_applications")
@@ -167,15 +169,10 @@ export async function getPlanningDashboard(
         .order("registration_date", { ascending: false })
         .order("reference", { ascending: false })
         .limit(8),
-      supabase
-        .from("planning_applications")
-        .select("ward,location,status,application_type,registration_date")
-        .eq("local_authority_code", CORK_AUTHORITY_CODE)
-        .limit(5000),
+      getPlanningAggregateRows(),
       getPlanningCommencements(filters.commencementMetric),
     ])
 
-  const aggregateRows = (aggregateResult.data ?? []) as PlanningAggregateRow[]
   const searchResult = await getPlanningSearchResults(filters)
 
   const areaStats = countBy(aggregateRows, normaliseAreaName).slice(0, 12)
@@ -210,6 +207,29 @@ export async function getPlanningDashboard(
   }
 }
 
+async function getPlanningAggregateRows() {
+  const supabase = getServerSupabase()
+  const rows: PlanningAggregateRow[] = []
+
+  for (let from = 0; ; from += PLANNING_AGGREGATE_PAGE_SIZE) {
+    const to = from + PLANNING_AGGREGATE_PAGE_SIZE - 1
+    const { data, error } = await supabase
+      .from("planning_applications")
+      .select("ward,location,status,application_type,registration_date")
+      .eq("local_authority_code", CORK_AUTHORITY_CODE)
+      .order("registration_date", { ascending: false })
+      .range(from, to)
+
+    if (error) break
+
+    const page = (data ?? []) as PlanningAggregateRow[]
+    rows.push(...page)
+    if (page.length < PLANNING_AGGREGATE_PAGE_SIZE) break
+  }
+
+  return rows
+}
+
 async function getPlanningCommencements(
   requestedMetric: string
 ): Promise<PlanningCommencementsDashboard> {
@@ -224,8 +244,9 @@ async function getPlanningCommencements(
     return emptyCommencementsDashboard()
   }
 
-  const rows = ((data ?? []) as PlanningCommencementRow[]).filter(
-    (row) => row.value > 0
+  const rows = filterRecentCommencementMonths(
+    ((data ?? []) as PlanningCommencementRow[]).filter((row) => row.value > 0),
+    COMMENCEMENT_MONTHS_BACK
   )
   if (rows.length === 0) return emptyCommencementsDashboard()
 
@@ -286,6 +307,26 @@ async function getPlanningCommencements(
     typeBreakdown,
     sourceUrl: rows[0]?.source_url ?? null,
   }
+}
+
+function filterRecentCommencementMonths(
+  rows: PlanningCommencementRow[],
+  monthsBack: number
+) {
+  const populatedMonths = rows
+    .filter((row) => row.metric === "All Units" && row.value > 0)
+    .map((row) => row.period_month)
+    .sort()
+  const latestMonth = populatedMonths.at(-1)
+  if (!latestMonth) return rows
+
+  const cutoff = new Date(`${latestMonth}T00:00:00Z`)
+  cutoff.setUTCMonth(cutoff.getUTCMonth() - (monthsBack - 1))
+  const cutoffMonth = `${cutoff.getUTCFullYear()}-${String(
+    cutoff.getUTCMonth() + 1
+  ).padStart(2, "0")}-01`
+
+  return rows.filter((row) => row.period_month >= cutoffMonth)
 }
 
 function emptyCommencementsDashboard(): PlanningCommencementsDashboard {

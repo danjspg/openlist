@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic"
 export const metadata: Metadata = {
   title: "Planning Applications Cork | OpenList",
   description:
-    "Search recent Cork County planning applications and explore public metadata by area, status and application type.",
+    "Search five years of Cork County planning applications and explore public metadata by area, status and application type.",
   alternates: {
     canonical: "/planning",
   },
@@ -56,7 +56,7 @@ export default async function PlanningPage({
                 Cork County planning applications
               </h1>
               <p className="mt-5 max-w-2xl text-lg leading-8 text-stone-600">
-                Search the last year of Cork County Council planning applications
+                Search five years of Cork County Council planning applications
                 and scan public metadata by area, application type and current
                 status.
               </p>
@@ -206,7 +206,7 @@ export default async function PlanningPage({
                         </h3>
                         <p className="mt-1 text-sm text-stone-500">
                           Showing {commencements.selectedMetricLabel.toLowerCase()} for
-                          the latest Cork County commencement months.
+                          the latest five years of Cork County commencement months.
                         </p>
                       </div>
                       {commencements.selectedMetric !== "All Units" ? (
@@ -260,8 +260,9 @@ export default async function PlanningPage({
           <div className="grid gap-6 lg:grid-cols-2">
             <BarList
               title="Applications by area"
-              subtitle="Top Cork County municipal districts in the imported year."
+              subtitle="Top Cork County municipal districts in the imported five years."
               stats={dashboard.areaStats}
+              linkForStat={(stat) => planningFilterHref(filters, "area", stat.label)}
             />
             <BarList
               title="Monthly registrations"
@@ -308,6 +309,7 @@ export default async function PlanningPage({
             subtitle="Current public status labels from the source."
             stats={dashboard.statusStats}
             compact
+            linkForStat={(stat) => planningFilterHref(filters, "status", stat.label)}
           />
 
           <BarList
@@ -315,6 +317,7 @@ export default async function PlanningPage({
             subtitle="Most frequent application type labels."
             stats={dashboard.typeStats}
             compact
+            linkForStat={(stat) => planningFilterHref(filters, "type", stat.label)}
           />
         </aside>
       </section>
@@ -338,6 +341,26 @@ function commencementMetricHref(
 
   const query = params.toString()
   return `/planning${query ? `?${query}` : ""}#commencements`
+}
+
+function planningFilterHref(
+  filters: Required<PlanningSearchParams>,
+  key: "area" | "status" | "type",
+  value: string
+) {
+  const params = new URLSearchParams()
+
+  for (const filterKey of ["q", "area", "status", "type"] as const) {
+    const nextValue = filterKey === key ? value : filters[filterKey]
+    if (nextValue) params.set(filterKey, nextValue)
+  }
+
+  if (filters.commencementMetric) {
+    params.set("commencementMetric", filters.commencementMetric)
+  }
+
+  const query = params.toString()
+  return `/planning${query ? `?${query}` : ""}`
 }
 
 function commencementMetricForLabel(label: string) {
