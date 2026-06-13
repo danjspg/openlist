@@ -65,7 +65,7 @@ function PlanningToolCard({
   return (
     <Link
       href={href}
-      className="group rounded-lg border border-stone-200 bg-white p-6 shadow-sm transition hover:border-stone-300 hover:shadow-md"
+      className="group block h-full rounded-lg border border-stone-200 bg-white p-6 shadow-sm transition hover:border-stone-300 hover:shadow-md"
     >
       <h2 className="text-2xl font-semibold tracking-tight text-stone-950">
         {title}

@@ -9,6 +9,7 @@ import {
   type PlanningCommencementSummary,
   type PlanningCountStat,
   type PlanningSearchParams,
+  type PlanningShareStat,
 } from "@/lib/planning"
 
 export const revalidate = 21600
@@ -90,7 +91,11 @@ export default async function PlanningCommencementsPage({
               />
               <Metric label="Units commenced" value={dashboard.latestUnits} />
               <Metric label="Notices" value={dashboard.latestNotices} />
-              <Metric label="YTD units" value={dashboard.yearToDateUnits} />
+              <Metric label="12-month units" value={dashboard.rolling12MonthUnits} />
+              <Metric
+                label="YoY latest month"
+                value={formatSignedNumber(dashboard.latestMonthYearOverYearChange)}
+              />
             </div>
           </div>
 
@@ -207,6 +212,34 @@ export default async function PlanningCommencementsPage({
               }
             />
           </div>
+
+          <div className="grid gap-6 lg:grid-cols-3">
+            <ComparisonCard
+              title="Year-to-date units"
+              value={dashboard.yearToDateUnits}
+              detail="Residential units commenced in the latest published year to date."
+            />
+            <ComparisonCard
+              title="Month-on-month"
+              value={formatSignedNumber(dashboard.monthOnMonthUnitsChange)}
+              detail={
+                dashboard.previousMonthUnits === null
+                  ? "Previous month data is not available."
+                  : `Previous month: ${dashboard.previousMonthUnits} units.`
+              }
+            />
+            <ComparisonCard
+              title="Rolling 12 months"
+              value={dashboard.rolling12MonthUnits}
+              detail={
+                dashboard.rolling12MonthUnitsChange === null
+                  ? "Previous 12-month comparison is not available."
+                  : `${formatSignedNumber(
+                      dashboard.rolling12MonthUnitsChange
+                    )} versus the prior 12 months.`
+              }
+            />
+          </div>
         </div>
 
         <aside className="min-w-0 space-y-6">
@@ -224,6 +257,12 @@ export default async function PlanningCommencementsPage({
                 OpenList keeps this view bounded to recent published months and
                 does not create individual commencement detail pages.
               </p>
+              {dashboard.sourceDataset ? (
+                <p>Source dataset: {dashboard.sourceDataset}.</p>
+              ) : null}
+              {dashboard.latestUpdatedAt ? (
+                <p>Last imported: {formatDateTime(dashboard.latestUpdatedAt)}.</p>
+              ) : null}
             </div>
           </div>
 
@@ -231,6 +270,12 @@ export default async function PlanningCommencementsPage({
             title="Selected metric"
             value={dashboard.selectedMetricLabel}
             detail="Change the metric filter to compare all units, notices, one-off homes, scheme units and apartments."
+          />
+
+          <ShareList
+            title="Latest unit share"
+            subtitle="Share of latest-month units by residential category."
+            stats={dashboard.typeShares}
           />
 
           <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm">
@@ -291,6 +336,28 @@ function Metric({ label, value }: { label: string; value: string | number }) {
       <p className="mt-2 break-words text-2xl font-semibold tracking-tight text-stone-950">
         {value}
       </p>
+    </div>
+  )
+}
+
+function ComparisonCard({
+  title,
+  value,
+  detail,
+}: {
+  title: string
+  value: string | number
+  detail: string
+}) {
+  return (
+    <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm">
+      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">
+        {title}
+      </p>
+      <p className="mt-3 text-3xl font-semibold tracking-tight text-stone-950">
+        {value}
+      </p>
+      <p className="mt-2 text-sm leading-6 text-stone-500">{detail}</p>
     </div>
   )
 }
@@ -455,6 +522,53 @@ function BarList({
   )
 }
 
+function ShareList({
+  title,
+  subtitle,
+  stats,
+}: {
+  title: string
+  subtitle: string
+  stats: PlanningShareStat[]
+}) {
+  return (
+    <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm">
+      <h2 className="text-lg font-semibold tracking-tight text-stone-950">
+        {title}
+      </h2>
+      <p className="mt-1 text-sm leading-6 text-stone-500">{subtitle}</p>
+
+      {stats.length > 0 ? (
+        <div className="mt-5 space-y-4">
+          {stats.map((stat) => (
+            <div key={stat.label}>
+              <div className="flex items-baseline justify-between gap-4 text-sm">
+                <span className="min-w-0 truncate font-medium text-stone-800">
+                  {stat.label}
+                </span>
+                <span className="shrink-0 font-semibold text-stone-950">
+                  {formatPercent(stat.share)}
+                </span>
+              </div>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-stone-100">
+                <div
+                  className="h-full rounded-full bg-emerald-700"
+                  style={{ width: `${Math.max(6, stat.share * 100)}%` }}
+                />
+              </div>
+              <p className="mt-1 text-xs text-stone-500">{stat.count} units</p>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-5 text-sm text-stone-500">
+          Unit category shares are not available yet.
+        </p>
+      )}
+    </div>
+  )
+}
+
 function InsightCard({
   title,
   value,
@@ -473,4 +587,30 @@ function InsightCard({
       <p className="mt-3 text-sm leading-6 text-emerald-50">{detail}</p>
     </div>
   )
+}
+
+function formatSignedNumber(value: number | null) {
+  if (value === null) return "Not available"
+  if (value > 0) return `+${value}`
+  return String(value)
+}
+
+function formatPercent(value: number) {
+  return new Intl.NumberFormat("en-IE", {
+    style: "percent",
+    maximumFractionDigits: 0,
+  }).format(value)
+}
+
+function formatDateTime(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return "Not recorded"
+
+  return new Intl.DateTimeFormat("en-IE", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date)
 }

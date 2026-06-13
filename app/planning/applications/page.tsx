@@ -46,6 +46,9 @@ export default async function PlanningPage({
     ? dashboard.searchResults
     : dashboard.recentApplications
   const mostCommonType = dashboard.typeStats[0]
+  const latestMonthLabel = dashboard.latestRegistrationMonth
+    ? formatPlanningMonth(dashboard.latestRegistrationMonth)
+    : "latest month"
 
   return (
     <main className="bg-stone-50">
@@ -94,6 +97,11 @@ export default async function PlanningPage({
               <Metric
                 label="Most common type"
                 value={mostCommonType?.label ?? "Not recorded"}
+              />
+              <Metric label="Latest month apps" value={dashboard.latestMonthCount} />
+              <Metric
+                label="Month change"
+                value={formatSignedNumber(dashboard.latestMonthChange)}
               />
             </div>
           </div>
@@ -194,6 +202,27 @@ export default async function PlanningPage({
               }))}
             />
           </div>
+
+          <div className="grid gap-6 lg:grid-cols-3">
+            <BarList
+              title={`Areas in ${latestMonthLabel}`}
+              subtitle="Localities with the most applications in the latest registration month."
+              stats={dashboard.latestMonthAreaStats}
+              linkForStat={(stat) => planningFilterHref(filters, "area", stat.label)}
+            />
+            <BarList
+              title={`Status in ${latestMonthLabel}`}
+              subtitle="Current status mix for applications registered in the latest month."
+              stats={dashboard.latestMonthStatusStats}
+              linkForStat={(stat) => planningFilterHref(filters, "status", stat.label)}
+            />
+            <BarList
+              title={`Types in ${latestMonthLabel}`}
+              subtitle="Most common application types registered in the latest month."
+              stats={dashboard.latestMonthTypeStats}
+              linkForStat={(stat) => planningFilterHref(filters, "type", stat.label)}
+            />
+          </div>
         </div>
 
         <aside className="min-w-0 space-y-6">
@@ -288,6 +317,12 @@ function Metric({ label, value }: { label: string; value: string | number }) {
       </p>
     </div>
   )
+}
+
+function formatSignedNumber(value: number | null) {
+  if (value === null) return "Not available"
+  if (value > 0) return `+${value}`
+  return String(value)
 }
 
 function SelectFilter({
@@ -409,35 +444,39 @@ function BarList({
       </h2>
       <p className="mt-1 text-sm leading-6 text-stone-500">{subtitle}</p>
 
-      <div className={compact ? "mt-4 space-y-3" : "mt-5 space-y-4"}>
-        {stats.map((stat) => (
-          <div key={stat.label}>
-            <div className="flex items-baseline justify-between gap-4 text-sm">
-              <span className="min-w-0 truncate font-medium text-stone-800">
-                {stat.label}
-              </span>
-              {linkForStat ? (
-                <Link
-                  href={linkForStat(stat)}
-                  className="shrink-0 rounded-full border border-stone-200 bg-stone-50 px-2.5 py-1 font-semibold text-stone-950 transition hover:border-stone-400"
-                >
-                  {stat.count}
-                </Link>
-              ) : (
-                <span className="shrink-0 font-semibold text-stone-950">
-                  {stat.count}
+      {stats.length > 0 ? (
+        <div className={compact ? "mt-4 space-y-3" : "mt-5 space-y-4"}>
+          {stats.map((stat) => (
+            <div key={stat.label}>
+              <div className="flex items-baseline justify-between gap-4 text-sm">
+                <span className="min-w-0 truncate font-medium text-stone-800">
+                  {stat.label}
                 </span>
-              )}
+                {linkForStat ? (
+                  <Link
+                    href={linkForStat(stat)}
+                    className="shrink-0 rounded-full border border-stone-200 bg-stone-50 px-2.5 py-1 font-semibold text-stone-950 transition hover:border-stone-400"
+                  >
+                    {stat.count}
+                  </Link>
+                ) : (
+                  <span className="shrink-0 font-semibold text-stone-950">
+                    {stat.count}
+                  </span>
+                )}
+              </div>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-stone-100">
+                <div
+                  className="h-full rounded-full bg-emerald-700"
+                  style={{ width: `${Math.max(6, (stat.count / maxCount) * 100)}%` }}
+                />
+              </div>
             </div>
-            <div className="mt-2 h-2 overflow-hidden rounded-full bg-stone-100">
-              <div
-                className="h-full rounded-full bg-emerald-700"
-                style={{ width: `${Math.max(6, (stat.count / maxCount) * 100)}%` }}
-              />
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-5 text-sm text-stone-500">No records available yet.</p>
+      )}
     </div>
   )
 }

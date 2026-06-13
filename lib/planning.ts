@@ -32,6 +32,7 @@ export type PlanningCommencement = {
   value: number
   source_url: string
   source_dataset: string
+  updated_at: string | null
 }
 
 export type PlanningCommencementsDashboard = {
@@ -54,6 +55,16 @@ export type PlanningCommencementsPage = PlanningCommencementsDashboard & {
   metricOptions: { value: string; label: string }[]
   monthOptions: string[]
   selectedMonth: string
+  sourceDataset: string | null
+  latestUpdatedAt: string | null
+  rolling12MonthUnits: number
+  previousRolling12MonthUnits: number
+  rolling12MonthUnitsChange: number | null
+  previousMonthUnits: number | null
+  monthOnMonthUnitsChange: number | null
+  latestMonthPreviousYearUnits: number | null
+  latestMonthYearOverYearChange: number | null
+  typeShares: PlanningShareStat[]
 }
 
 export type PlanningCommencementSummary = {
@@ -66,9 +77,17 @@ export type PlanningCommencementSummary = {
   apartments: number
 }
 
+export type PlanningShareStat = PlanningCountStat & {
+  share: number
+}
+
 export type PlanningDashboard = {
   totalCount: number
   latestRegistrationDate: string | null
+  latestRegistrationMonth: string | null
+  latestMonthCount: number
+  previousMonthCount: number | null
+  latestMonthChange: number | null
   recentApplications: PlanningApplication[]
   searchResults: PlanningApplication[]
   searchCount: number
@@ -76,6 +95,9 @@ export type PlanningDashboard = {
   statusStats: PlanningCountStat[]
   typeStats: PlanningCountStat[]
   monthStats: PlanningCountStat[]
+  latestMonthAreaStats: PlanningCountStat[]
+  latestMonthStatusStats: PlanningCountStat[]
+  latestMonthTypeStats: PlanningCountStat[]
   areaOptions: string[]
   statusOptions: string[]
   typeOptions: string[]
@@ -86,10 +108,17 @@ type PlanningAggregateSummary = Pick<
   PlanningDashboard,
   | "totalCount"
   | "latestRegistrationDate"
+  | "latestRegistrationMonth"
+  | "latestMonthCount"
+  | "previousMonthCount"
+  | "latestMonthChange"
   | "areaStats"
   | "statusStats"
   | "typeStats"
   | "monthStats"
+  | "latestMonthAreaStats"
+  | "latestMonthStatusStats"
+  | "latestMonthTypeStats"
   | "areaOptions"
   | "statusOptions"
   | "typeOptions"
@@ -109,12 +138,12 @@ const CORK_AUTHORITY_CODE = "CORKCOCO"
 const COMMENCEMENT_MONTHS_BACK = 36
 const PLANNING_AGGREGATE_PAGE_SIZE = 1000
 const PLANNING_CACHE_REVALIDATE_SECONDS = 60 * 60 * 6
-const PLANNING_AGGREGATE_CACHE_VERSION = "v1"
+const PLANNING_AGGREGATE_CACHE_VERSION = "v2"
 const PLANNING_AREA_OPTION_LIMIT = 80
 const APPLICATION_SELECT =
   "id,reference,application_type,proposal,location,applicant_name,agent_name,status,decision_text,registration_date,decision_date,final_grant_date,ward,source_url"
 const COMMENCEMENT_SELECT =
-  "id,metric,period_month,year,month,value,source_url,source_dataset"
+  "id,metric,period_month,year,month,value,source_url,source_dataset,updated_at"
 const CORK_LOCALITY_NAMES = [
   "Carrigaline",
   "Myrtleville",
@@ -281,6 +310,10 @@ export async function getPlanningDashboard(
   return {
     totalCount: overview.totalCount,
     latestRegistrationDate: overview.latestRegistrationDate,
+    latestRegistrationMonth: filteredSummary.latestRegistrationMonth,
+    latestMonthCount: filteredSummary.latestMonthCount,
+    previousMonthCount: filteredSummary.previousMonthCount,
+    latestMonthChange: filteredSummary.latestMonthChange,
     recentApplications: (recentResult.data ?? []) as PlanningApplication[],
     searchResults: searchResult.results,
     searchCount: searchResult.count,
@@ -288,6 +321,9 @@ export async function getPlanningDashboard(
     statusStats: filteredSummary.statusStats,
     typeStats: filteredSummary.typeStats,
     monthStats: filteredSummary.monthStats,
+    latestMonthAreaStats: filteredSummary.latestMonthAreaStats,
+    latestMonthStatusStats: filteredSummary.latestMonthStatusStats,
+    latestMonthTypeStats: filteredSummary.latestMonthTypeStats,
     areaOptions: overview.areaOptions,
     statusOptions: overview.statusOptions,
     typeOptions: overview.typeOptions,
@@ -358,6 +394,7 @@ export async function getPlanningCommencementsPage(
       metricOptions: commencementMetricOptions(),
       monthOptions: [],
       selectedMonth,
+      ...emptyCommencementsPageExtras(),
     }
   }
 
@@ -374,10 +411,11 @@ export async function getPlanningCommencementsPage(
       metricOptions: commencementMetricOptions(),
       monthOptions: [],
       selectedMonth,
+      ...emptyCommencementsPageExtras(),
     }
   }
 
-  let rowsQuery = supabase
+  const rowsQuery = supabase
     .from("planning_commencements")
     .select(COMMENCEMENT_SELECT)
     .eq("local_authority_code", CORK_AUTHORITY_CODE)
@@ -385,10 +423,6 @@ export async function getPlanningCommencementsPage(
     .lte("period_month", latestMonth)
     .gt("value", 0)
     .order("period_month", { ascending: false })
-
-  if (selectedMonth) {
-    rowsQuery = rowsQuery.eq("period_month", `${selectedMonth}-01`)
-  }
 
   const rowsResult = await rowsQuery.limit(COMMENCEMENT_MONTHS_BACK * COMMENCEMENT_METRICS.length)
   if (rowsResult.error) {
@@ -399,6 +433,7 @@ export async function getPlanningCommencementsPage(
       metricOptions: commencementMetricOptions(),
       monthOptions: allUnits.map((row) => row.period_month.slice(0, 7)),
       selectedMonth,
+      ...emptyCommencementsPageExtras(),
     }
   }
 
@@ -422,6 +457,22 @@ export async function getPlanningCommencementsPage(
     )
 
   const latestUnitsRow = allUnits[0] ?? null
+  const previousMonthUnits = allUnits[1]?.value ?? null
+  const monthOnMonthUnitsChange =
+    previousMonthUnits === null ? null : latestUnitsRow.value - previousMonthUnits
+  const previousYearMonth = monthOffset(latestMonth, -12)
+  const latestMonthPreviousYearUnits =
+    allUnits.find((row) => row.period_month === previousYearMonth)?.value ?? null
+  const latestMonthYearOverYearChange =
+    latestMonthPreviousYearUnits === null
+      ? null
+      : latestUnitsRow.value - latestMonthPreviousYearUnits
+  const rolling12MonthUnits = sumRows(allUnits.slice(0, 12))
+  const previousRolling12MonthUnits = sumRows(allUnits.slice(12, 24))
+  const rolling12MonthUnitsChange =
+    previousRolling12MonthUnits > 0
+      ? rolling12MonthUnits - previousRolling12MonthUnits
+      : null
   const latestNotices =
     rows.find((row) => row.period_month === latestMonth && row.metric === "Notices")
       ?.value ?? 0
@@ -445,6 +496,15 @@ export async function getPlanningCommencementsPage(
     }))
     .filter((stat) => stat.count > 0)
     .sort((a, b) => b.count - a.count)
+  const typeShares = typeBreakdown.map((stat) => ({
+    ...stat,
+    share: latestUnitsRow.value > 0 ? stat.count / latestUnitsRow.value : 0,
+  }))
+  const latestUpdatedAt = rows
+    .map((row) => row.updated_at)
+    .filter(Boolean)
+    .sort()
+    .at(-1) ?? null
 
   return {
     totalRows: rows.length,
@@ -469,6 +529,31 @@ export async function getPlanningCommencementsPage(
     metricOptions: commencementMetricOptions(),
     monthOptions: allUnits.map((row) => row.period_month.slice(0, 7)),
     selectedMonth,
+    sourceDataset: rows[0]?.source_dataset ?? latestUnitsRow.source_dataset ?? null,
+    latestUpdatedAt,
+    rolling12MonthUnits,
+    previousRolling12MonthUnits,
+    rolling12MonthUnitsChange,
+    previousMonthUnits,
+    monthOnMonthUnitsChange,
+    latestMonthPreviousYearUnits,
+    latestMonthYearOverYearChange,
+    typeShares,
+  }
+}
+
+function emptyCommencementsPageExtras() {
+  return {
+    sourceDataset: null,
+    latestUpdatedAt: null,
+    rolling12MonthUnits: 0,
+    previousRolling12MonthUnits: 0,
+    rolling12MonthUnitsChange: null,
+    previousMonthUnits: null,
+    monthOnMonthUnitsChange: null,
+    latestMonthPreviousYearUnits: null,
+    latestMonthYearOverYearChange: null,
+    typeShares: [] as PlanningShareStat[],
   }
 }
 
@@ -533,6 +618,20 @@ function commencementMetricOptions() {
 function normaliseCommencementMonth(value: string) {
   const month = cleanParam(value)
   return /^\d{4}-\d{2}$/.test(month) ? month : ""
+}
+
+function monthOffset(value: string, offset: number) {
+  const date = new Date(`${value}T00:00:00Z`)
+  date.setUTCMonth(date.getUTCMonth() + offset)
+
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(
+    2,
+    "0"
+  )}-01`
+}
+
+function sumRows(rows: PlanningCommencementRow[]) {
+  return rows.reduce((sum, row) => sum + row.value, 0)
 }
 
 async function getPlanningSearchResults(
@@ -601,14 +700,38 @@ function buildPlanningAggregateSummary(
   const areaStats = countBy(rows, normaliseAreaName).slice(0, 12)
   const statusStats = countBy(rows, (row) => row.status).slice(0, 8)
   const typeStats = countBy(rows, (row) => row.application_type).slice(0, 8)
+  const monthStatsDescending = countByMonth(rows)
+  const latestRegistrationDate = firstKnownValue(rows, (row) => row.registration_date)
+  const latestRegistrationMonth = latestRegistrationDate?.slice(0, 7) ?? null
+  const previousRegistrationMonth = latestRegistrationMonth
+    ? monthOffset(`${latestRegistrationMonth}-01`, -1).slice(0, 7)
+    : null
+  const latestMonthRows = latestRegistrationMonth
+    ? rows.filter((row) => row.registration_date?.startsWith(latestRegistrationMonth))
+    : []
+  const latestMonthCount = latestMonthRows.length
+  const previousMonthCount = previousRegistrationMonth
+    ? rows.filter((row) => row.registration_date?.startsWith(previousRegistrationMonth))
+        .length
+    : null
 
   return {
     totalCount,
-    latestRegistrationDate: firstKnownValue(rows, (row) => row.registration_date),
+    latestRegistrationDate,
+    latestRegistrationMonth,
+    latestMonthCount,
+    previousMonthCount,
+    latestMonthChange:
+      previousMonthCount === null ? null : latestMonthCount - previousMonthCount,
     areaStats,
     statusStats,
     typeStats,
-    monthStats: countByMonth(rows).slice(0, 12).reverse(),
+    monthStats: monthStatsDescending.slice(0, 12).reverse(),
+    latestMonthAreaStats: countBy(latestMonthRows, normaliseAreaName).slice(0, 8),
+    latestMonthStatusStats: countBy(latestMonthRows, (row) => row.status).slice(0, 6),
+    latestMonthTypeStats: countBy(latestMonthRows, (row) =>
+      row.application_type
+    ).slice(0, 6),
     areaOptions: countBy(rows, normaliseAreaName)
       .slice(0, PLANNING_AREA_OPTION_LIMIT)
       .map((stat) => stat.label),
