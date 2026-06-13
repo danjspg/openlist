@@ -48,6 +48,14 @@ export type PlanningCommencementsDashboard = {
   sourceUrl: string | null
 }
 
+export type PlanningCommencementsPage = PlanningCommencementsDashboard & {
+  results: PlanningCommencementSummary[]
+  searchCount: number
+  metricOptions: { value: string; label: string }[]
+  monthOptions: string[]
+  selectedMonth: string
+}
+
 export type PlanningCommencementSummary = {
   periodMonth: string
   selectedValue: number
@@ -72,7 +80,6 @@ export type PlanningDashboard = {
   statusOptions: string[]
   typeOptions: string[]
   activeArea: PlanningCountStat | null
-  commencements: PlanningCommencementsDashboard
 }
 
 type PlanningAggregateSummary = Pick<
@@ -95,6 +102,7 @@ export type PlanningSearchParams = {
   status?: string
   type?: string
   commencementMetric?: string
+  month?: string
 }
 
 const CORK_AUTHORITY_CODE = "CORKCOCO"
@@ -236,6 +244,7 @@ export function normalisePlanningSearchParams(
     status: cleanParam(params.status),
     type: cleanParam(params.type),
     commencementMetric: cleanParam(params.commencementMetric),
+    month: cleanParam(params.month),
   }
 }
 
@@ -248,7 +257,7 @@ export async function getPlanningDashboard(
     filters.q || filters.area || filters.status || filters.type
   )
 
-  const [recentResult, overview, commencements, searchResult] =
+  const [recentResult, overview, searchResult] =
     await Promise.all([
       supabase
         .from("planning_applications")
@@ -258,7 +267,6 @@ export async function getPlanningDashboard(
         .order("reference", { ascending: false })
         .limit(8),
       getPlanningAggregateSummaryCached(),
-      getPlanningCommencements(filters.commencementMetric),
       hasApplicationFilters
         ? getPlanningSearchResults(filters)
         : Promise.resolve({ results: [] as PlanningApplication[], count: 0 }),
@@ -284,7 +292,6 @@ export async function getPlanningDashboard(
     statusOptions: overview.statusOptions,
     typeOptions: overview.typeOptions,
     activeArea: filteredSummary.activeArea,
-    commencements,
   }
 }
 
@@ -326,58 +333,109 @@ const getPlanningAggregateSummaryCached = unstable_cache(
   { revalidate: PLANNING_CACHE_REVALIDATE_SECONDS }
 )
 
-async function getPlanningCommencements(
-  requestedMetric: string
-): Promise<PlanningCommencementsDashboard> {
-  return getPlanningCommencementsCached(requestedMetric)
-}
-
-async function getPlanningCommencementsUncached(
-  requestedMetric: string
-): Promise<PlanningCommencementsDashboard> {
+export async function getPlanningCommencementsPage(
+  params: PlanningSearchParams = {}
+): Promise<PlanningCommencementsPage> {
+  const filters = normalisePlanningSearchParams(params)
+  const selectedMetric = normaliseCommencementMetric(filters.commencementMetric)
+  const selectedMonth = normaliseCommencementMonth(filters.month)
   const supabase = getServerSupabase()
-  const { data, error } = await supabase
+
+  const allUnitsResult = await supabase
     .from("planning_commencements")
     .select(COMMENCEMENT_SELECT)
     .eq("local_authority_code", CORK_AUTHORITY_CODE)
+    .eq("metric", "All Units")
+    .gt("value", 0)
     .order("period_month", { ascending: false })
+    .limit(COMMENCEMENT_MONTHS_BACK)
 
-  if (error) {
-    return emptyCommencementsDashboard()
+  if (allUnitsResult.error) {
+    return {
+      ...emptyCommencementsDashboard(),
+      results: [],
+      searchCount: 0,
+      metricOptions: commencementMetricOptions(),
+      monthOptions: [],
+      selectedMonth,
+    }
   }
 
-  const rows = filterRecentCommencementMonths(
-    ((data ?? []) as PlanningCommencementRow[]).filter((row) => row.value > 0),
-    COMMENCEMENT_MONTHS_BACK
+  const allUnits = ((allUnitsResult.data ?? []) as PlanningCommencementRow[]).sort(
+    (a, b) => b.period_month.localeCompare(a.period_month)
   )
-  if (rows.length === 0) return emptyCommencementsDashboard()
+  const latestMonth = allUnits[0]?.period_month ?? null
+  const oldestMonth = allUnits.at(-1)?.period_month ?? null
+  if (!latestMonth || !oldestMonth) {
+    return {
+      ...emptyCommencementsDashboard(),
+      results: [],
+      searchCount: 0,
+      metricOptions: commencementMetricOptions(),
+      monthOptions: [],
+      selectedMonth,
+    }
+  }
 
-  const allUnits = rows
-    .filter((row) => row.metric === "All Units")
-    .sort((a, b) => b.period_month.localeCompare(a.period_month))
-  const selectedMetric = normaliseCommencementMetric(requestedMetric)
-  const selectedMetricLabel = commencementMetricLabel(selectedMetric)
+  let rowsQuery = supabase
+    .from("planning_commencements")
+    .select(COMMENCEMENT_SELECT)
+    .eq("local_authority_code", CORK_AUTHORITY_CODE)
+    .gte("period_month", oldestMonth)
+    .lte("period_month", latestMonth)
+    .gt("value", 0)
+    .order("period_month", { ascending: false })
+
+  if (selectedMonth) {
+    rowsQuery = rowsQuery.eq("period_month", `${selectedMonth}-01`)
+  }
+
+  const rowsResult = await rowsQuery.limit(COMMENCEMENT_MONTHS_BACK * COMMENCEMENT_METRICS.length)
+  if (rowsResult.error) {
+    return {
+      ...emptyCommencementsDashboard(),
+      results: [],
+      searchCount: 0,
+      metricOptions: commencementMetricOptions(),
+      monthOptions: allUnits.map((row) => row.period_month.slice(0, 7)),
+      selectedMonth,
+    }
+  }
+
+  const rows = (rowsResult.data ?? []) as PlanningCommencementRow[]
   const selectedRows = rows
     .filter((row) => row.metric === selectedMetric)
     .sort((a, b) => b.period_month.localeCompare(a.period_month))
+  const selectedRowsByMonth = new Map(
+    selectedRows.map((row) => [row.period_month, row.value])
+  )
+  const months = selectedMonth
+    ? rows
+        .map((row) => row.period_month)
+        .filter((month, index, values) => values.indexOf(month) === index)
+        .sort((a, b) => b.localeCompare(a))
+    : allUnits.map((row) => row.period_month)
+  const results = months
+    .filter((month) => selectedRowsByMonth.has(month))
+    .map((month) =>
+      commencementSummaryForMonth(rows, month, selectedRowsByMonth.get(month) ?? 0)
+    )
+
   const latestUnitsRow = allUnits[0] ?? null
-  const latestMonth = latestUnitsRow?.period_month ?? null
   const latestNotices =
     rows.find((row) => row.period_month === latestMonth && row.metric === "Notices")
       ?.value ?? 0
   const latestYear = latestUnitsRow?.year ?? null
   const yearToDateUnits = latestYear
     ? allUnits
-        .filter((row) => row.year === latestYear && row.period_month <= latestMonth!)
+        .filter((row) => row.year === latestYear && row.period_month <= latestMonth)
         .reduce((sum, row) => sum + row.value, 0)
     : 0
-
-  const typeMetrics = [
+  const typeBreakdown = [
     { source: "Oneoffs", label: "One-off homes" },
     { source: "Scheme", label: "Scheme units" },
     { source: "Apartments", label: "Apartments" },
   ]
-  const typeBreakdown = typeMetrics
     .map((metric) => ({
       label: metric.label,
       count:
@@ -391,14 +449,12 @@ async function getPlanningCommencementsUncached(
   return {
     totalRows: rows.length,
     latestMonth,
-    latestUnits: latestUnitsRow?.value ?? 0,
+    latestUnits: latestUnitsRow.value,
     latestNotices,
     yearToDateUnits,
     selectedMetric,
-    selectedMetricLabel,
-    recentCommencements: selectedRows.slice(0, 8).map((row) =>
-      commencementSummaryForMonth(rows, row.period_month, row.value)
-    ),
+    selectedMetricLabel: commencementMetricLabel(selectedMetric),
+    recentCommencements: results.slice(0, 8),
     recentUnits: allUnits
       .slice(0, 12)
       .reverse()
@@ -407,34 +463,13 @@ async function getPlanningCommencementsUncached(
         count: row.value,
       })),
     typeBreakdown,
-    sourceUrl: rows[0]?.source_url ?? null,
+    sourceUrl: rows[0]?.source_url ?? latestUnitsRow.source_url ?? null,
+    results,
+    searchCount: results.length,
+    metricOptions: commencementMetricOptions(),
+    monthOptions: allUnits.map((row) => row.period_month.slice(0, 7)),
+    selectedMonth,
   }
-}
-
-const getPlanningCommencementsCached = unstable_cache(
-  async (requestedMetric: string) => getPlanningCommencementsUncached(requestedMetric),
-  ["planning-commencements", PLANNING_AGGREGATE_CACHE_VERSION],
-  { revalidate: PLANNING_CACHE_REVALIDATE_SECONDS }
-)
-
-function filterRecentCommencementMonths(
-  rows: PlanningCommencementRow[],
-  monthsBack: number
-) {
-  const populatedMonths = rows
-    .filter((row) => row.metric === "All Units" && row.value > 0)
-    .map((row) => row.period_month)
-    .sort()
-  const latestMonth = populatedMonths.at(-1)
-  if (!latestMonth) return rows
-
-  const cutoff = new Date(`${latestMonth}T00:00:00Z`)
-  cutoff.setUTCMonth(cutoff.getUTCMonth() - (monthsBack - 1))
-  const cutoffMonth = `${cutoff.getUTCFullYear()}-${String(
-    cutoff.getUTCMonth() + 1
-  ).padStart(2, "0")}-01`
-
-  return rows.filter((row) => row.period_month >= cutoffMonth)
 }
 
 function emptyCommencementsDashboard(): PlanningCommencementsDashboard {
@@ -486,6 +521,18 @@ function commencementMetricLabel(value: string) {
     COMMENCEMENT_METRICS.find((metric) => metric.source === value)?.label ??
     "All units"
   )
+}
+
+function commencementMetricOptions() {
+  return COMMENCEMENT_METRICS.map((metric) => ({
+    value: metric.source === "All Units" ? "" : metric.source,
+    label: metric.label,
+  }))
+}
+
+function normaliseCommencementMonth(value: string) {
+  const month = cleanParam(value)
+  return /^\d{4}-\d{2}$/.test(month) ? month : ""
 }
 
 async function getPlanningSearchResults(
