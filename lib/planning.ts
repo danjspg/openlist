@@ -89,10 +89,89 @@ const APPLICATION_SELECT =
   "id,reference,application_type,proposal,location,applicant_name,agent_name,status,decision_text,registration_date,decision_date,final_grant_date,ward,source_url"
 const COMMENCEMENT_SELECT =
   "id,metric,period_month,year,month,value,source_url,source_dataset"
+const CORK_LOCALITY_NAMES = [
+  "Carrigaline",
+  "Myrtleville",
+  "Crosshaven",
+  "Fountainstown",
+  "Monkstown",
+  "Passage West",
+  "Ringaskiddy",
+  "Douglas",
+  "Glanmire",
+  "Ballincollig",
+  "Blarney",
+  "Tower",
+  "Mallow",
+  "Fermoy",
+  "Midleton",
+  "Cobh",
+  "Youghal",
+  "Kinsale",
+  "Bandon",
+  "Clonakilty",
+  "Macroom",
+  "Skibbereen",
+  "Bantry",
+  "Dunmanway",
+  "Mitchelstown",
+  "Charleville",
+  "Kanturk",
+  "Newmarket",
+  "Millstreet",
+  "Buttevant",
+  "Doneraile",
+  "Castletownbere",
+  "Schull",
+  "Baltimore",
+  "Rosscarbery",
+  "Leap",
+  "Innishannon",
+  "Belgooly",
+  "Ballinspittle",
+  "Riverstick",
+  "Minane Bridge",
+  "Watergrasshill",
+  "Carrigtwohill",
+  "Little Island",
+  "Whitegate",
+  "Aghada",
+  "Cloyne",
+  "Castlemartyr",
+  "Killeagh",
+  "Rathcormac",
+  "Glanworth",
+  "Kilworth",
+  "Coachford",
+  "Dripsey",
+  "Ballyvourney",
+  "Ballydehob",
+  "Ballylickey",
+  "Timoleague",
+  "Courtmacsherry",
+  "Enniskeane",
+  "Ballineen",
+  "Ballygarvan",
+  "Ballinhassig",
+  "Grenagh",
+  "Rylane",
+  "Banteer",
+  "Boherbue",
+  "Freemount",
+  "Liscarroll",
+  "Newtownshandrum",
+  "Shanagarry",
+  "Ballycotton",
+  "Goleen",
+  "Allihies",
+].sort((a, b) => b.length - a.length)
 
 type PlanningAggregateRow = {
+  reference: string | null
+  proposal: string | null
   ward: string | null
   location: string | null
+  applicant_name: string | null
   status: string | null
   application_type: string | null
   registration_date: string | null
@@ -174,14 +253,26 @@ export async function getPlanningDashboard(
     ])
 
   const searchResult = await getPlanningSearchResults(filters)
+  const filteredAggregateRows = aggregateRows.filter((row) =>
+    aggregateRowMatchesFilters(row, filters)
+  )
 
-  const areaStats = countBy(aggregateRows, normaliseAreaName).slice(0, 12)
-  const statusStats = countBy(aggregateRows, (row) => row.status).slice(0, 8)
-  const typeStats = countBy(aggregateRows, (row) => row.application_type).slice(
+  const areaStats = countBy(filteredAggregateRows, normaliseAreaName).slice(
+    0,
+    12
+  )
+  const statusStats = countBy(filteredAggregateRows, (row) => row.status).slice(
     0,
     8
   )
-  const monthStats = countByMonth(aggregateRows).slice(0, 12).reverse()
+  const typeStats = countBy(
+    filteredAggregateRows,
+    (row) => row.application_type
+  ).slice(0, 8)
+  const monthStats = countByMonth(filteredAggregateRows).slice(0, 12).reverse()
+  const areaOptions = countBy(aggregateRows, normaliseAreaName).map(
+    (stat) => stat.label
+  )
 
   return {
     totalCount: countResult.count ?? aggregateRows.length,
@@ -195,7 +286,7 @@ export async function getPlanningDashboard(
     statusStats,
     typeStats,
     monthStats,
-    areaOptions: areaStats.map((stat) => stat.label),
+    areaOptions,
     statusOptions: countBy(aggregateRows, (row) => row.status).map(
       (stat) => stat.label
     ),
@@ -215,7 +306,9 @@ async function getPlanningAggregateRows() {
     const to = from + PLANNING_AGGREGATE_PAGE_SIZE - 1
     const { data, error } = await supabase
       .from("planning_applications")
-      .select("ward,location,status,application_type,registration_date")
+      .select(
+        "reference,proposal,ward,location,applicant_name,status,application_type,registration_date"
+      )
       .eq("local_authority_code", CORK_AUTHORITY_CODE)
       .order("registration_date", { ascending: false })
       .range(from, to)
@@ -402,7 +495,7 @@ async function getPlanningSearchResults(
   }
 
   if (filters.area) {
-    query = query.ilike("ward", `%${escapePostgrestLike(filters.area)}%`)
+    query = query.ilike("location", `%${escapePostgrestLike(filters.area)}%`)
   }
 
   if (filters.status) {
@@ -422,6 +515,44 @@ async function getPlanningSearchResults(
     results: (data ?? []) as PlanningApplication[],
     count: count ?? data?.length ?? 0,
   }
+}
+
+function aggregateRowMatchesFilters(
+  row: PlanningAggregateRow,
+  filters: Required<PlanningSearchParams>
+) {
+  if (filters.q) {
+    const term = filters.q.toLowerCase()
+    const values = [
+      row.reference,
+      row.proposal,
+      row.location,
+      row.applicant_name,
+    ]
+
+    if (
+      !values.some((value) => cleanLabel(value).toLowerCase().includes(term))
+    ) {
+      return false
+    }
+  }
+
+  if (
+    filters.area &&
+    !cleanLabel(row.location).toLowerCase().includes(filters.area.toLowerCase())
+  ) {
+    return false
+  }
+
+  if (filters.status && row.status !== filters.status) {
+    return false
+  }
+
+  if (filters.type && row.application_type !== filters.type) {
+    return false
+  }
+
+  return true
 }
 
 function cleanParam(value: string | undefined) {
@@ -477,6 +608,9 @@ function cleanLabel(value: string | null | undefined) {
 }
 
 function normaliseAreaName(row: PlanningAggregateRow) {
+  const locality = normaliseLocationLocality(row.location)
+  if (locality) return locality
+
   const ward = cleanLabel(row.ward)
   if (ward) {
     return ward
@@ -485,11 +619,34 @@ function normaliseAreaName(row: PlanningAggregateRow) {
       .replace(/^The Municipal District of\s*/i, "")
   }
 
-  const locationParts = cleanLabel(row.location)
+  return ""
+}
+
+function normaliseLocationLocality(value: string | null | undefined) {
+  const location = cleanLabel(value)
+    .replace(/\b[A-Z]\d{2}\s?[A-Z0-9]{4}\b/gi, "")
+    .replace(/\bcounty\s+cork\b\.?/gi, "")
+    .replace(/\bco\.?\s*cork\b\.?/gi, "")
+    .replace(/\bcork\b\.?$/i, "")
+    .replace(/\s+/g, " ")
+    .trim()
+
+  if (!location) return ""
+
+  const matchedLocality = CORK_LOCALITY_NAMES.find((locality) =>
+    new RegExp(`\\b${escapeRegExp(locality)}\\b`, "i").test(location)
+  )
+  if (matchedLocality) return matchedLocality
+
+  const locationParts = location
     .split(",")
     .map((part) => part.trim())
     .filter(Boolean)
-    .filter((part) => !/^co\.?\s*cork$/i.test(part))
+    .filter((part) => !/^\d+$/.test(part))
 
-  return locationParts.at(-1) ?? ""
+  return locationParts.at(-1) ?? location
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 }

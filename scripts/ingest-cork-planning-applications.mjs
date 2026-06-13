@@ -76,8 +76,8 @@ function applicationDetailUrl(row) {
   const reference = row.reference
   if (!reference) return SOURCE_URL
 
-  const encodedReference = encodeURIComponent(reference)
-  return `https://planning.agileapplications.ie/corkcoco/application-details/?ref=${encodedReference}`
+  const criteria = encodeURIComponent(JSON.stringify({ query: reference }))
+  return `https://planning.agileapplications.ie/corkcoco/search-applications/results?criteria=${criteria}`
 }
 
 function mapApplication(row) {

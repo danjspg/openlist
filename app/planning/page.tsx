@@ -260,7 +260,7 @@ export default async function PlanningPage({
           <div className="grid gap-6 lg:grid-cols-2">
             <BarList
               title="Applications by area"
-              subtitle="Top Cork County municipal districts in the imported three years."
+              subtitle="Top Cork County localities in the imported three years."
               stats={dashboard.areaStats}
               linkForStat={(stat) => planningFilterHref(filters, "area", stat.label)}
             />
