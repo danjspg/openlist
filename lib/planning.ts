@@ -23,64 +23,6 @@ export type PlanningCountStat = {
   count: number
 }
 
-export type PlanningCommencement = {
-  id: string
-  metric: string
-  period_month: string
-  year: number
-  month: number
-  value: number
-  source_url: string
-  source_dataset: string
-  updated_at: string | null
-}
-
-export type PlanningCommencementsDashboard = {
-  totalRows: number
-  latestMonth: string | null
-  latestUnits: number
-  latestNotices: number
-  yearToDateUnits: number
-  selectedMetric: string
-  selectedMetricLabel: string
-  recentCommencements: PlanningCommencementSummary[]
-  recentUnits: PlanningCountStat[]
-  typeBreakdown: PlanningCountStat[]
-  sourceUrl: string | null
-}
-
-export type PlanningCommencementsPage = PlanningCommencementsDashboard & {
-  results: PlanningCommencementSummary[]
-  searchCount: number
-  metricOptions: { value: string; label: string }[]
-  monthOptions: string[]
-  selectedMonth: string
-  sourceDataset: string | null
-  latestUpdatedAt: string | null
-  rolling12MonthUnits: number
-  previousRolling12MonthUnits: number
-  rolling12MonthUnitsChange: number | null
-  previousMonthUnits: number | null
-  monthOnMonthUnitsChange: number | null
-  latestMonthPreviousYearUnits: number | null
-  latestMonthYearOverYearChange: number | null
-  typeShares: PlanningShareStat[]
-}
-
-export type PlanningCommencementSummary = {
-  periodMonth: string
-  selectedValue: number
-  units: number
-  notices: number
-  oneOffs: number
-  scheme: number
-  apartments: number
-}
-
-export type PlanningShareStat = PlanningCountStat & {
-  share: number
-}
-
 export type PlanningDashboard = {
   totalCount: number
   latestRegistrationDate: string | null
@@ -130,20 +72,15 @@ export type PlanningSearchParams = {
   area?: string
   status?: string
   type?: string
-  commencementMetric?: string
-  month?: string
 }
 
 const CORK_AUTHORITY_CODE = "CORKCOCO"
-const COMMENCEMENT_MONTHS_BACK = 36
 const PLANNING_AGGREGATE_PAGE_SIZE = 1000
 const PLANNING_CACHE_REVALIDATE_SECONDS = 60 * 60 * 6
 const PLANNING_AGGREGATE_CACHE_VERSION = "v2"
 const PLANNING_AREA_OPTION_LIMIT = 80
 const APPLICATION_SELECT =
   "id,reference,application_type,proposal,location,applicant_name,agent_name,status,decision_text,registration_date,decision_date,final_grant_date,ward,source_url"
-const COMMENCEMENT_SELECT =
-  "id,metric,period_month,year,month,value,source_url,source_dataset,updated_at"
 const CORK_LOCALITY_NAMES = [
   "Carrigaline",
   "Myrtleville",
@@ -232,16 +169,6 @@ type PlanningAggregateRow = {
   registration_date: string | null
 }
 
-type PlanningCommencementRow = PlanningCommencement
-
-const COMMENCEMENT_METRICS = [
-  { source: "All Units", label: "All units" },
-  { source: "Notices", label: "Notices" },
-  { source: "Oneoffs", label: "One-off homes" },
-  { source: "Scheme", label: "Scheme units" },
-  { source: "Apartments", label: "Apartments" },
-]
-
 export function formatPlanningDate(value: string | null | undefined) {
   if (!value) return "Not recorded"
 
@@ -272,8 +199,6 @@ export function normalisePlanningSearchParams(
     area: cleanParam(params.area),
     status: cleanParam(params.status),
     type: cleanParam(params.type),
-    commencementMetric: cleanParam(params.commencementMetric),
-    month: cleanParam(params.month),
   }
 }
 
@@ -369,271 +294,6 @@ const getPlanningAggregateSummaryCached = unstable_cache(
   { revalidate: PLANNING_CACHE_REVALIDATE_SECONDS }
 )
 
-export async function getPlanningCommencementsPage(
-  params: PlanningSearchParams = {}
-): Promise<PlanningCommencementsPage> {
-  const filters = normalisePlanningSearchParams(params)
-  const selectedMetric = normaliseCommencementMetric(filters.commencementMetric)
-  const selectedMonth = normaliseCommencementMonth(filters.month)
-  const supabase = getServerSupabase()
-
-  const allUnitsResult = await supabase
-    .from("planning_commencements")
-    .select(COMMENCEMENT_SELECT)
-    .eq("local_authority_code", CORK_AUTHORITY_CODE)
-    .eq("metric", "All Units")
-    .gt("value", 0)
-    .order("period_month", { ascending: false })
-    .limit(COMMENCEMENT_MONTHS_BACK)
-
-  if (allUnitsResult.error) {
-    return {
-      ...emptyCommencementsDashboard(),
-      results: [],
-      searchCount: 0,
-      metricOptions: commencementMetricOptions(),
-      monthOptions: [],
-      selectedMonth,
-      ...emptyCommencementsPageExtras(),
-    }
-  }
-
-  const allUnits = ((allUnitsResult.data ?? []) as PlanningCommencementRow[]).sort(
-    (a, b) => b.period_month.localeCompare(a.period_month)
-  )
-  const latestMonth = allUnits[0]?.period_month ?? null
-  const oldestMonth = allUnits.at(-1)?.period_month ?? null
-  if (!latestMonth || !oldestMonth) {
-    return {
-      ...emptyCommencementsDashboard(),
-      results: [],
-      searchCount: 0,
-      metricOptions: commencementMetricOptions(),
-      monthOptions: [],
-      selectedMonth,
-      ...emptyCommencementsPageExtras(),
-    }
-  }
-
-  const rowsQuery = supabase
-    .from("planning_commencements")
-    .select(COMMENCEMENT_SELECT)
-    .eq("local_authority_code", CORK_AUTHORITY_CODE)
-    .gte("period_month", oldestMonth)
-    .lte("period_month", latestMonth)
-    .gt("value", 0)
-    .order("period_month", { ascending: false })
-
-  const rowsResult = await rowsQuery.limit(COMMENCEMENT_MONTHS_BACK * COMMENCEMENT_METRICS.length)
-  if (rowsResult.error) {
-    return {
-      ...emptyCommencementsDashboard(),
-      results: [],
-      searchCount: 0,
-      metricOptions: commencementMetricOptions(),
-      monthOptions: allUnits.map((row) => row.period_month.slice(0, 7)),
-      selectedMonth,
-      ...emptyCommencementsPageExtras(),
-    }
-  }
-
-  const rows = (rowsResult.data ?? []) as PlanningCommencementRow[]
-  const selectedRows = rows
-    .filter((row) => row.metric === selectedMetric)
-    .sort((a, b) => b.period_month.localeCompare(a.period_month))
-  const selectedRowsByMonth = new Map(
-    selectedRows.map((row) => [row.period_month, row.value])
-  )
-  const months = selectedMonth
-    ? rows
-        .map((row) => row.period_month)
-        .filter((month, index, values) => values.indexOf(month) === index)
-        .sort((a, b) => b.localeCompare(a))
-    : allUnits.map((row) => row.period_month)
-  const results = months
-    .filter((month) => selectedRowsByMonth.has(month))
-    .map((month) =>
-      commencementSummaryForMonth(rows, month, selectedRowsByMonth.get(month) ?? 0)
-    )
-
-  const latestUnitsRow = allUnits[0] ?? null
-  const previousMonthUnits = allUnits[1]?.value ?? null
-  const monthOnMonthUnitsChange =
-    previousMonthUnits === null ? null : latestUnitsRow.value - previousMonthUnits
-  const previousYearMonth = monthOffset(latestMonth, -12)
-  const latestMonthPreviousYearUnits =
-    allUnits.find((row) => row.period_month === previousYearMonth)?.value ?? null
-  const latestMonthYearOverYearChange =
-    latestMonthPreviousYearUnits === null
-      ? null
-      : latestUnitsRow.value - latestMonthPreviousYearUnits
-  const rolling12MonthUnits = sumRows(allUnits.slice(0, 12))
-  const previousRolling12MonthUnits = sumRows(allUnits.slice(12, 24))
-  const rolling12MonthUnitsChange =
-    previousRolling12MonthUnits > 0
-      ? rolling12MonthUnits - previousRolling12MonthUnits
-      : null
-  const latestNotices =
-    rows.find((row) => row.period_month === latestMonth && row.metric === "Notices")
-      ?.value ?? 0
-  const latestYear = latestUnitsRow?.year ?? null
-  const yearToDateUnits = latestYear
-    ? allUnits
-        .filter((row) => row.year === latestYear && row.period_month <= latestMonth)
-        .reduce((sum, row) => sum + row.value, 0)
-    : 0
-  const typeBreakdown = [
-    { source: "Oneoffs", label: "One-off homes" },
-    { source: "Scheme", label: "Scheme units" },
-    { source: "Apartments", label: "Apartments" },
-  ]
-    .map((metric) => ({
-      label: metric.label,
-      count:
-        rows.find(
-          (row) => row.period_month === latestMonth && row.metric === metric.source
-        )?.value ?? 0,
-    }))
-    .filter((stat) => stat.count > 0)
-    .sort((a, b) => b.count - a.count)
-  const typeShares = typeBreakdown.map((stat) => ({
-    ...stat,
-    share: latestUnitsRow.value > 0 ? stat.count / latestUnitsRow.value : 0,
-  }))
-  const latestUpdatedAt = rows
-    .map((row) => row.updated_at)
-    .filter(Boolean)
-    .sort()
-    .at(-1) ?? null
-
-  return {
-    totalRows: rows.length,
-    latestMonth,
-    latestUnits: latestUnitsRow.value,
-    latestNotices,
-    yearToDateUnits,
-    selectedMetric,
-    selectedMetricLabel: commencementMetricLabel(selectedMetric),
-    recentCommencements: results.slice(0, 8),
-    recentUnits: allUnits
-      .slice(0, 12)
-      .reverse()
-      .map((row) => ({
-        label: formatPlanningMonth(row.period_month),
-        count: row.value,
-      })),
-    typeBreakdown,
-    sourceUrl: rows[0]?.source_url ?? latestUnitsRow.source_url ?? null,
-    results,
-    searchCount: results.length,
-    metricOptions: commencementMetricOptions(),
-    monthOptions: allUnits.map((row) => row.period_month.slice(0, 7)),
-    selectedMonth,
-    sourceDataset: rows[0]?.source_dataset ?? latestUnitsRow.source_dataset ?? null,
-    latestUpdatedAt,
-    rolling12MonthUnits,
-    previousRolling12MonthUnits,
-    rolling12MonthUnitsChange,
-    previousMonthUnits,
-    monthOnMonthUnitsChange,
-    latestMonthPreviousYearUnits,
-    latestMonthYearOverYearChange,
-    typeShares,
-  }
-}
-
-function emptyCommencementsPageExtras() {
-  return {
-    sourceDataset: null,
-    latestUpdatedAt: null,
-    rolling12MonthUnits: 0,
-    previousRolling12MonthUnits: 0,
-    rolling12MonthUnitsChange: null,
-    previousMonthUnits: null,
-    monthOnMonthUnitsChange: null,
-    latestMonthPreviousYearUnits: null,
-    latestMonthYearOverYearChange: null,
-    typeShares: [] as PlanningShareStat[],
-  }
-}
-
-function emptyCommencementsDashboard(): PlanningCommencementsDashboard {
-  return {
-    totalRows: 0,
-    latestMonth: null,
-    latestUnits: 0,
-    latestNotices: 0,
-    yearToDateUnits: 0,
-    selectedMetric: "All Units",
-    selectedMetricLabel: "All units",
-    recentCommencements: [],
-    recentUnits: [],
-    typeBreakdown: [],
-    sourceUrl: null,
-  }
-}
-
-function commencementSummaryForMonth(
-  rows: PlanningCommencementRow[],
-  periodMonth: string,
-  selectedValue: number
-): PlanningCommencementSummary {
-  const valueForMetric = (metric: string) =>
-    rows.find((row) => row.period_month === periodMonth && row.metric === metric)
-      ?.value ?? 0
-
-  return {
-    periodMonth,
-    selectedValue,
-    units: valueForMetric("All Units"),
-    notices: valueForMetric("Notices"),
-    oneOffs: valueForMetric("Oneoffs"),
-    scheme: valueForMetric("Scheme"),
-    apartments: valueForMetric("Apartments"),
-  }
-}
-
-function normaliseCommencementMetric(value: string) {
-  return (
-    COMMENCEMENT_METRICS.find(
-      (metric) => metric.source.toLowerCase() === value.toLowerCase()
-    )?.source ?? "All Units"
-  )
-}
-
-function commencementMetricLabel(value: string) {
-  return (
-    COMMENCEMENT_METRICS.find((metric) => metric.source === value)?.label ??
-    "All units"
-  )
-}
-
-function commencementMetricOptions() {
-  return COMMENCEMENT_METRICS.map((metric) => ({
-    value: metric.source === "All Units" ? "" : metric.source,
-    label: metric.label,
-  }))
-}
-
-function normaliseCommencementMonth(value: string) {
-  const month = cleanParam(value)
-  return /^\d{4}-\d{2}$/.test(month) ? month : ""
-}
-
-function monthOffset(value: string, offset: number) {
-  const date = new Date(`${value}T00:00:00Z`)
-  date.setUTCMonth(date.getUTCMonth() + offset)
-
-  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(
-    2,
-    "0"
-  )}-01`
-}
-
-function sumRows(rows: PlanningCommencementRow[]) {
-  return rows.reduce((sum, row) => sum + row.value, 0)
-}
-
 async function getPlanningSearchResults(
   filters: Required<PlanningSearchParams>
 ) {
@@ -680,6 +340,16 @@ async function getPlanningSearchResults(
 
 function cleanParam(value: string | undefined) {
   return (value ?? "").trim().slice(0, 120)
+}
+
+function monthOffset(value: string, offset: number) {
+  const date = new Date(`${value}T00:00:00Z`)
+  date.setUTCMonth(date.getUTCMonth() + offset)
+
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(
+    2,
+    "0"
+  )}-01`
 }
 
 function escapePostgrestLike(value: string) {

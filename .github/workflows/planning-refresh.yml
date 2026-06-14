@@ -37,12 +37,3 @@ jobs:
           echo "Starting Cork planning applications refresh job"
           node scripts/ingest-cork-planning-applications.mjs
           echo "Cork planning applications refresh job completed"
-
-      - name: Refresh Cork planning commencements
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: |
-          echo "Starting Cork planning commencements refresh job"
-          node scripts/ingest-cork-planning-commencements.mjs --months=36
-          echo "Cork planning commencements refresh job completed"

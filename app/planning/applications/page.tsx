@@ -61,12 +61,6 @@ export default async function PlanningPage({
             >
               Back to planning tools
             </Link>
-            <Link
-              href="/planning/commencements"
-              className="text-sm font-semibold text-stone-600 transition hover:text-stone-950"
-            >
-              View building commencements
-            </Link>
           </div>
 
           <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-end">
@@ -241,22 +235,6 @@ export default async function PlanningPage({
                 check the official application record before making decisions.
               </p>
             </div>
-          </div>
-
-          <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm">
-            <h2 className="text-lg font-semibold tracking-tight text-stone-950">
-              Related planning tool
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-stone-600">
-              Building commencements show monthly residential notices and unit
-              counts from the BCMS public dataset.
-            </p>
-            <Link
-              href="/planning/commencements"
-              className="mt-4 inline-flex text-sm font-semibold text-stone-700 transition hover:text-stone-950"
-            >
-              View building commencements
-            </Link>
           </div>
 
           <InsightCard

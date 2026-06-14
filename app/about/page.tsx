@@ -53,7 +53,6 @@ export default function AboutPage() {
               <ul className="list-disc space-y-3 pl-5">
                 <li>Research public sold-price data and local market activity</li>
                 <li>Search planning applications and explore development activity</li>
-                <li>Track building commencement trends and housing delivery indicators</li>
                 <li>Create and manage property listings</li>
                 <li>Organise and manage property viewings</li>
               </ul>
@@ -65,9 +64,9 @@ export default function AboutPage() {
 
               <p>
                 Sold-price information is based on public Irish Residential
-                Property Price Register data. Planning and commencement
-                information is based on publicly available sources and is
-                provided for information purposes only.
+                Property Price Register data. Planning information is based on
+                publicly available sources and is provided for information
+                purposes only.
               </p>
 
               <p>
@@ -92,7 +91,6 @@ export default function AboutPage() {
               <ul className="mt-5 list-disc space-y-3 pl-5 text-base leading-7 text-slate-700">
                 <li>research sold prices</li>
                 <li>search planning applications</li>
-                <li>track building commencements</li>
                 <li>create and manage listings</li>
                 <li>organise property viewings</li>
               </ul>
@@ -115,7 +113,7 @@ export default function AboutPage() {
             Important
           </p>
           <p className="mt-4 max-w-4xl text-base leading-7 text-slate-600">
-            Sold-price information is based on public Irish Residential Property Price Register data. Planning and commencement information is based on publicly available sources and is provided for information purposes only.
+            Sold-price information is based on public Irish Residential Property Price Register data. Planning information is based on publicly available sources and is provided for information purposes only.
           </p>
         </div>
       </section>

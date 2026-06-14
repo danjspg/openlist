@@ -4,7 +4,7 @@ import Link from "next/link"
 export const metadata: Metadata = {
   title: "Planning Tools | OpenList",
   description:
-    "Search Cork County planning applications and review monthly building commencement trends with OpenList planning tools.",
+    "Search Cork County planning applications with OpenList planning tools.",
   alternates: {
     canonical: "/planning",
   },
@@ -26,25 +26,18 @@ export default function PlanningToolsPage() {
             Planning Tools
           </h1>
           <p className="mt-5 max-w-2xl text-lg leading-8 text-stone-600">
-            Search individual Cork County planning applications and review
-            monthly building commencement trends from public planning and
-            housing datasets.
+            Search individual Cork County planning applications from public
+            planning datasets.
           </p>
         </div>
       </section>
 
-      <section className="mx-auto grid max-w-6xl gap-6 px-4 py-8 sm:px-6 md:grid-cols-2 lg:py-10">
+      <section className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:py-10">
         <PlanningToolCard
           title="Planning Applications"
           description="Find individual Cork County Council applications by reference, location, applicant, status and application type."
           href="/planning/applications"
           cta="Search planning applications"
-        />
-        <PlanningToolCard
-          title="Building Commencements"
-          description="Review monthly construction-start trends, commencement notices, housing-unit counts and apartment indicators."
-          href="/planning/commencements"
-          cta="View building commencements"
         />
       </section>
     </main>

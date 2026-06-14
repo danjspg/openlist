@@ -136,7 +136,7 @@ export default async function HomePage() {
                 },
                 {
                   title: "Planning & Development",
-                  text: "Search planning applications and track building commencements.",
+                  text: "Search planning applications and development activity.",
                   href: "/planning",
                 },
                 {
@@ -248,7 +248,7 @@ export default async function HomePage() {
             {
               step: "02",
               title: "Planning & Development",
-              text: "Search planning applications and track building commencement activity.",
+              text: "Search planning applications and development activity.",
               href: "/planning",
             },
             {
