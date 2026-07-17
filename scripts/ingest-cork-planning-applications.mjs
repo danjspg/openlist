@@ -11,8 +11,11 @@ const LOCAL_AUTHORITY_CODE = "CORKCOCO"
 const PRODUCT_CODE = "CITIZENPORTAL"
 const SERVICE_CODE = "PA"
 const DEFAULT_WINDOW_DAYS = 7
-const DEFAULT_RANGE_YEARS = 3
+const DEFAULT_RANGE_DAYS = Number(process.env.PLANNING_DEFAULT_RANGE_DAYS || 28)
 const SEARCH_STATUSES = ["registered", "determined"]
+const API_REQUEST_DELAY_MS = Number(process.env.PLANNING_API_REQUEST_DELAY_MS || 1000)
+const API_MAX_RETRIES = Number(process.env.PLANNING_API_MAX_RETRIES || 5)
+const RETRYABLE_HTTP_STATUSES = new Set([408, 409, 425, 429, 500, 502, 503, 504])
 
 if (!supabaseUrl || !serviceRoleKey) {
   console.error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY")
@@ -31,6 +34,30 @@ function addDays(date, days) {
   return next
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function parseRetryAfterMs(value) {
+  if (!value) return null
+
+  const seconds = Number(value)
+  if (Number.isFinite(seconds)) return Math.max(0, seconds * 1000)
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+
+  return Math.max(0, date.getTime() - Date.now())
+}
+
+function retryDelayMs(response, attempt) {
+  const retryAfterMs = parseRetryAfterMs(response.headers.get("retry-after"))
+  if (retryAfterMs !== null) return retryAfterMs
+
+  const baseDelayMs = response.status === 429 ? 5000 : 1000
+  return baseDelayMs * 2 ** (attempt - 1)
+}
+
 function parseDateArg(value) {
   if (!value) return null
   const date = new Date(`${value}T00:00:00Z`)
@@ -40,12 +67,58 @@ function parseDateArg(value) {
   return date
 }
 
-function defaultDateRange() {
+function todayUtc() {
   const to = new Date()
   to.setUTCHours(0, 0, 0, 0)
-  const from = new Date(to)
-  from.setUTCFullYear(from.getUTCFullYear() - DEFAULT_RANGE_YEARS)
+  return to
+}
+
+async function latestImportedRegistrationDate() {
+  const { data, error } = await supabase
+    .from("planning_applications")
+    .select("registration_date")
+    .eq("local_authority_code", LOCAL_AUTHORITY_CODE)
+    .not("registration_date", "is", null)
+    .order("registration_date", { ascending: false })
+    .limit(1)
+
+  if (error) throw error
+
+  const latest = data?.[0]?.registration_date
+  return latest ? parseDateArg(latest) : null
+}
+
+async function defaultDateRange() {
+  const to = todayUtc()
+  const latest = await latestImportedRegistrationDate()
+
+  if (latest) {
+    const from = latest > to ? to : latest
+    console.log(
+      `Defaulting planning import range to latest stored registration date ${formatDate(from)} through ${formatDate(to)}.`
+    )
+    return { from, to }
+  }
+
+  const from = addDays(to, -DEFAULT_RANGE_DAYS)
+  console.log(
+    `No existing Cork planning rows found; defaulting planning import range to ${formatDate(from)} through ${formatDate(to)}.`
+  )
   return { from, to }
+}
+
+async function resolveDateRange(from, to) {
+  if (from && to) return { from, to }
+
+  if (from && !to) {
+    return { from, to: todayUtc() }
+  }
+
+  const defaults = await defaultDateRange()
+  return {
+    from: from || defaults.from,
+    to: to || defaults.to,
+  }
 }
 
 function parseIrishGridReference(value) {
@@ -147,26 +220,45 @@ async function fetchApplicationsWindow({ from, to, status }) {
     status,
   })
   const url = `${API_URL}?${params.toString()}`
-  const response = await fetch(url, {
-    headers: {
-      "User-Agent": "OpenList planning applications importer",
-      "x-client": LOCAL_AUTHORITY_CODE,
-      "x-product": PRODUCT_CODE,
-      "x-service": SERVICE_CODE,
-    },
-  })
+  const label = `${formatDate(from)} to ${formatDate(to)} ${status}`
+  let response
 
-  if (!response.ok) {
-    throw new Error(`Planning API request failed: HTTP ${response.status}`)
+  for (let attempt = 1; attempt <= API_MAX_RETRIES + 1; attempt += 1) {
+    if (API_REQUEST_DELAY_MS > 0) await sleep(API_REQUEST_DELAY_MS)
+
+    response = await fetch(url, {
+      headers: {
+        "User-Agent": "OpenList planning applications importer",
+        "x-client": LOCAL_AUTHORITY_CODE,
+        "x-product": PRODUCT_CODE,
+        "x-service": SERVICE_CODE,
+      },
+    })
+
+    if (response.ok) break
+
+    if (!RETRYABLE_HTTP_STATUSES.has(response.status) || attempt > API_MAX_RETRIES) {
+      throw new Error(`Planning API request failed for ${label}: HTTP ${response.status}`)
+    }
+
+    const delayMs = retryDelayMs(response, attempt)
+    console.warn(
+      `${label}: HTTP ${response.status}; retrying in ${Math.round(delayMs / 1000)}s (attempt ${attempt}/${API_MAX_RETRIES})`
+    )
+    await sleep(delayMs)
   }
 
   const data = await response.json()
   if (Array.isArray(data) && data[0]?.code) {
-    throw new Error(data[0].message || "Planning API returned an error")
+    throw new Error(
+      `Planning API returned an error for ${label}: ${
+        data[0].message || "unknown API error"
+      }`
+    )
   }
 
   if (!data || !Array.isArray(data.results)) {
-    throw new Error("Planning API returned an unexpected response")
+    throw new Error(`Planning API returned an unexpected response for ${label}`)
   }
 
   return data
@@ -221,11 +313,9 @@ async function fetchApplicationRecords({ from, to, windowDays = DEFAULT_WINDOW_D
 }
 
 async function ingestPlanningApplications({ from, to, windowDays = DEFAULT_WINDOW_DAYS } = {}) {
-  if (!from || !to) {
-    const defaults = defaultDateRange()
-    from ||= defaults.from
-    to ||= defaults.to
-  }
+  const dateRange = await resolveDateRange(from, to)
+  from = dateRange.from
+  to = dateRange.to
 
   if (from > to) {
     throw new Error("from date must be before to date")
@@ -271,11 +361,9 @@ async function ingestPlanningApplications({ from, to, windowDays = DEFAULT_WINDO
 }
 
 async function fetchPlanningApplications({ from, to, windowDays = DEFAULT_WINDOW_DAYS } = {}) {
-  if (!from || !to) {
-    const defaults = defaultDateRange()
-    from ||= defaults.from
-    to ||= defaults.to
-  }
+  const dateRange = await resolveDateRange(from, to)
+  from = dateRange.from
+  to = dateRange.to
 
   if (from > to) {
     throw new Error("from date must be before to date")
