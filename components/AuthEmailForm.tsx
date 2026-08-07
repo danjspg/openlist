@@ -25,7 +25,7 @@ export default function AuthEmailForm({
 
     try {
       setIsSubmitting(true)
-      const safeNextPath = getSafeRedirectPath(redirectTo, "/my-listings")
+      const safeNextPath = getSafeRedirectPath(redirectTo, "/my-viewings")
       document.cookie = `openlist_auth_next=${encodeURIComponent(safeNextPath)}; Path=/; SameSite=Lax; Max-Age=600`
       const nextRedirectUrl = getSellerAuthCallbackUrl(window.location.origin)
       setRedirectUrl(nextRedirectUrl)

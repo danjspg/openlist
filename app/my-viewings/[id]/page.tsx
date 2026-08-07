@@ -130,7 +130,7 @@ export default async function ViewingDetailsPage({
                 </>
               )}
             </Detail>
-            <Detail label="Seller contact">
+            <Detail label="Property contact">
               <strong>{viewing.contact_name}</strong>
               <br />
               {viewing.contact_email}
@@ -146,10 +146,10 @@ export default async function ViewingDetailsPage({
             </div>
             <div className="sm:col-span-2">
               <Detail label="Email options">
-                Confirmation: viewer {viewing.send_confirmation_to_viewer === false ? "off" : "on"}, seller contact{" "}
+                Confirmation: viewer {viewing.send_confirmation_to_viewer === false ? "off" : "on"}, property contact{" "}
                 {viewing.send_confirmation_to_seller === false ? "off" : "on"}
                 <br />
-                Reminder: viewer {viewing.send_reminder_to_viewer === false ? "off" : "on"}, seller contact{" "}
+                Reminder: viewer {viewing.send_reminder_to_viewer === false ? "off" : "on"}, property contact{" "}
                 {viewing.send_reminder_to_seller === false ? "off" : "on"}
               </Detail>
             </div>

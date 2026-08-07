@@ -16,7 +16,7 @@ export default async function SignInPage({
   searchParams: Promise<{ redirectTo?: string; error?: string }>
 }) {
   const { redirectTo, error } = await searchParams
-  const next = getSafeRedirectPath(redirectTo, "/my-listings")
+  const next = getSafeRedirectPath(redirectTo, "/my-viewings")
 
   return (
     <main className="min-h-screen bg-stone-50">

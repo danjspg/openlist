@@ -1,79 +1,41 @@
 import type { Metadata } from "next"
-import { unstable_cache } from "next/cache"
 import Image from "next/image"
 import Link from "next/link"
 import PprHomepageStatsBar from "@/components/ppr/PprHomepageStatsBar"
 import { getHomepageSoldPriceStats } from "@/lib/ppr-analytics"
 import { buildPprDatasetDescription, getPprDatasetSummary } from "@/lib/ppr"
-import { getServerSupabase } from "@/lib/supabase"
-import { isPublicSaleStatus, normalizeListingStatus, PUBLIC_SALE_STATUSES } from "@/lib/listing-status"
-import { getDisplayListingTitle } from "@/lib/listings"
-
-type Listing = {
-  slug: string
-  title: string
-  public_title?: string | null
-  county: string
-  price: string
-  image: string
-  images?: string[] | null
-  status: string
-  featured?: boolean
-  created_at?: string
-}
 
 export const metadata: Metadata = {
-  title: "OpenList | Property Tools, Listings and Sold Prices Ireland",
+  title: "OpenList | Property Tools & Sold Prices Ireland",
   description:
-    "Self-service property tools for Ireland. Research sold prices, search planning data, manage property viewings and create listings in one place.",
+    "Property tools for Ireland. Research sold prices, explore planning data and organise property viewings in one place.",
   alternates: {
     canonical: "/",
   },
 }
 
 export const revalidate = 21600
-const HOMEPAGE_RECENT_LISTINGS_CACHE_VERSION = "v2"
 
-const getHomepageRecentListings = unstable_cache(
-  async (): Promise<Listing[]> => {
-    const supabase = getServerSupabase()
-    const { data, error } = await supabase
-      .from("listings")
-      .select("slug,title,public_title,county,price,image,images,status,created_at")
-      .in("status", [...PUBLIC_SALE_STATUSES, "Featured"])
-      .order("created_at", { ascending: false })
-      .limit(6)
-
-    if (error || !data) {
-      return []
-    }
-
-    return (data as Listing[])
-      .map((listing) => normalizeListingStatus(listing))
-      .filter((listing) => isPublicSaleStatus(listing.status))
-      .slice(0, 3)
+const coreTools = [
+  {
+    title: "Research Prices",
+    text: "Explore sold-price data, market trends and local insights.",
+    href: "/sold-prices",
   },
-  ["homepage-recent-listings", HOMEPAGE_RECENT_LISTINGS_CACHE_VERSION],
-  { revalidate: 21600 }
-)
-
-function formatEuro(value: string) {
-  const numeric = Number(value.replace(/[^0-9.]/g, ""))
-
-  if (Number.isNaN(numeric)) {
-    return value
-  }
-
-  return new Intl.NumberFormat("en-IE", {
-    style: "currency",
-    currency: "EUR",
-    maximumFractionDigits: 0,
-  }).format(numeric)
-}
+  {
+    title: "Planning & Development",
+    text: "Search planning applications and development activity.",
+    href: "/planning",
+  },
+  {
+    title: "Manage Viewings",
+    text: "Create, organise and track property viewings.",
+    href: "/viewings",
+  },
+]
 
 export default async function HomePage() {
-  const [recentListings, soldPriceStats, datasetSummary] = await Promise.all([
-    getHomepageRecentListings(),
+  const [soldPriceStats, datasetSummary] = await Promise.all([
     getHomepageSoldPriceStats(),
     getPprDatasetSummary(),
   ])
@@ -88,7 +50,7 @@ export default async function HomePage() {
         <div className="grid gap-10 lg:grid-cols-[1.12fr_0.88fr] lg:items-center lg:gap-12">
           <div className="max-w-[680px]">
             <p className="text-sm uppercase tracking-[0.25em] text-stone-500">
-              SELF-SERVICE PROPERTY TOOLS
+              PROPERTY TOOLS FOR IRELAND
             </p>
 
             <h1 className="mt-4 max-w-3xl text-4xl font-semibold tracking-tight text-stone-900 sm:mt-5 sm:text-5xl md:text-[3.5rem] md:leading-[1.05]">
@@ -96,55 +58,32 @@ export default async function HomePage() {
             </h1>
 
             <p className="mt-5 max-w-[34rem] text-base leading-7 text-stone-600 sm:mt-6 sm:text-lg sm:leading-8">
-              Sold prices, planning data, viewings and listings in one place.
+              Sold prices, planning data and property viewing tools in one place.
             </p>
 
-            <div className="mt-8 sm:mt-9">
-              <div className="flex flex-wrap gap-3 sm:gap-4">
-                <Link
-                  href="/sell"
-                  className="rounded-full bg-stone-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-stone-700 sm:px-6"
-                >
-                  Start your listing
-                </Link>
-                <Link
-                  href="/sold-prices"
-                  className="rounded-full border border-stone-300 px-5 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900 sm:px-6"
-                >
-                  View sold prices
-                </Link>
-                <Link
-                  href="/viewings"
-                  className="rounded-full border border-stone-300 px-5 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900 sm:px-6"
-                >
-                  Manage viewings
-                </Link>
-              </div>
+            <div className="mt-8 flex flex-wrap gap-3 sm:mt-9 sm:gap-4">
+              <Link
+                href="/sold-prices"
+                className="rounded-full bg-stone-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-stone-700 sm:px-6"
+              >
+                View sold prices
+              </Link>
+              <Link
+                href="/planning"
+                className="rounded-full border border-stone-300 px-5 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900 sm:px-6"
+              >
+                Search planning
+              </Link>
+              <Link
+                href="/viewings"
+                className="rounded-full border border-stone-300 px-5 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900 sm:px-6"
+              >
+                Manage viewings
+              </Link>
             </div>
 
-            <div className="mt-7 grid gap-3 sm:grid-cols-2 lg:mt-8 lg:grid-cols-4">
-              {[
-                {
-                  title: "Property Listings",
-                  text: "Create and manage property listings.",
-                  href: "/sell",
-                },
-                {
-                  title: "Research Prices",
-                  text: "Explore sold-price data and local market insights.",
-                  href: "/sold-prices",
-                },
-                {
-                  title: "Planning & Development",
-                  text: "Search planning applications and development activity.",
-                  href: "/planning",
-                },
-                {
-                  title: "Manage Viewings",
-                  text: "Create, organise and track property viewings.",
-                  href: "/viewings",
-                },
-              ].map((item) => (
+            <div className="mt-7 grid gap-3 sm:grid-cols-3 lg:mt-8">
+              {coreTools.map((item) => (
                 <Link
                   key={item.title}
                   href={item.href}
@@ -163,12 +102,12 @@ export default async function HomePage() {
 
           <div className="grid gap-3 sm:gap-4 sm:grid-cols-2">
             <Link
-              href="/listings"
+              href="/sold-prices"
               className="group relative block h-[220px] overflow-hidden rounded-3xl bg-white shadow-sm sm:col-span-2 sm:h-[280px] lg:h-[360px]"
             >
               <Image
                 src="/home-hero-1.jpg"
-                alt="Browse OpenList property listings"
+                alt="OpenList sold-price research"
                 fill
                 sizes="(max-width: 640px) 100vw, (max-width: 1024px) 100vw, 50vw"
                 className="object-cover transition duration-500 group-hover:scale-[1.02]"
@@ -176,38 +115,44 @@ export default async function HomePage() {
               <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-black/10 to-transparent transition duration-300 group-hover:from-black/45" />
               <div className="absolute bottom-6 left-6">
                 <div className="inline-flex items-center rounded-full bg-white/92 px-4 py-2 text-sm font-semibold text-stone-900 shadow-sm backdrop-blur transition group-hover:bg-white">
-                  View listings
+                  Explore sold prices
                   <span className="ml-2 transition duration-200 group-hover:translate-x-0.5">
-                    →
+                    &rarr;
                   </span>
                 </div>
               </div>
             </Link>
 
             <Link
-              href="/listings"
+              href="/planning"
               className="group relative hidden h-36 overflow-hidden rounded-3xl bg-white shadow-sm sm:block sm:h-48 lg:h-52"
             >
               <Image
                 src="/home-hero-2.jpg"
-                alt="Modern interior on OpenList"
+                alt="OpenList planning research"
                 fill
                 sizes="(max-width: 640px) 100vw, 50vw"
                 className="object-cover transition duration-500 group-hover:scale-[1.02]"
               />
+              <div className="absolute bottom-4 left-4 rounded-full bg-white/92 px-3 py-1.5 text-sm font-semibold text-stone-900 shadow-sm">
+                Planning
+              </div>
             </Link>
 
             <Link
-              href="/listings"
+              href="/viewings"
               className="group relative hidden h-36 overflow-hidden rounded-3xl bg-white shadow-sm sm:block sm:h-48 lg:h-52"
             >
               <Image
                 src="/home-hero-3.jpg"
-                alt="Elegant home on OpenList"
+                alt="OpenList viewing management"
                 fill
                 sizes="(max-width: 640px) 100vw, 50vw"
                 className="object-cover transition duration-500 group-hover:scale-[1.02]"
               />
+              <div className="absolute bottom-4 left-4 rounded-full bg-white/92 px-3 py-1.5 text-sm font-semibold text-stone-900 shadow-sm">
+                Viewings
+              </div>
             </Link>
           </div>
         </div>
@@ -237,7 +182,7 @@ export default async function HomePage() {
           </h2>
         </div>
 
-        <div className="mt-8 grid gap-6 sm:mt-10 md:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-8 grid gap-6 sm:mt-10 md:grid-cols-3">
           {[
             {
               step: "01",
@@ -256,12 +201,6 @@ export default async function HomePage() {
               title: "Manage Viewings",
               text: "Create, edit, clone and track property viewings.",
               href: "/viewings",
-            },
-            {
-              step: "04",
-              title: "Property Listings",
-              text: "Create and manage your own property listings.",
-              href: "/sell",
             },
           ].map((item) => (
             <Link
@@ -283,104 +222,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="border-y border-stone-200 bg-stone-100/70">
-        <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16">
-          <div className="max-w-2xl">
-            <p className="text-sm uppercase tracking-[0.2em] text-stone-500">
-              Latest listings
-            </p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">
-              Homes and sites across Ireland, presented with more care.
-            </h2>
-          </div>
-
-          <div className="mt-8 grid grid-cols-1 gap-6 sm:mt-10 sm:grid-cols-2 md:grid-cols-3 md:gap-8">
-            {recentListings.length > 0 ? (
-              recentListings.map((listing) => {
-                const displayImage =
-                  listing.images && listing.images.length > 0
-                    ? listing.images[0]
-                    : listing.image
-
-                return (
-                  <Link
-                    key={listing.slug}
-                    href={`/listings/${listing.slug}`}
-                    className="group block cursor-pointer overflow-hidden rounded-[30px] border border-stone-200 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-md"
-                  >
-                    <article>
-                      <div className="relative h-52 overflow-hidden sm:h-60">
-                        <Image
-                          src={displayImage}
-                          alt={getDisplayListingTitle(listing)}
-                          fill
-                          sizes="(max-width: 768px) 100vw, 33vw"
-                          unoptimized
-                          className="object-cover transition duration-500 group-hover:scale-[1.02]"
-                        />
-                        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent" />
-
-                        <div className="absolute right-4 top-4">
-                          <span className="inline-flex items-center rounded-full bg-white/92 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-700 shadow-sm backdrop-blur">
-                            {listing.status}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="p-5 sm:p-6">
-                        <div className="flex items-center justify-between gap-4">
-                          <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500 sm:text-xs">
-                            {listing.county}
-                          </span>
-
-                          <span className="shrink-0 text-base font-semibold text-stone-900 sm:text-lg">
-                            {formatEuro(listing.price)}
-                          </span>
-                        </div>
-
-                        <h3 className="mt-3 text-xl font-semibold leading-snug tracking-tight text-stone-900 sm:text-2xl">
-                          {getDisplayListingTitle(listing)}
-                        </h3>
-
-                        <div className="mt-5 inline-flex items-center text-sm font-medium text-stone-600 transition group-hover:text-stone-900">
-                          View listing
-                          <svg
-                            className="ml-2 h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            aria-hidden="true"
-                          >
-                            <path d="M5 12h14" />
-                            <path d="m12 5 7 7-7 7" />
-                          </svg>
-                        </div>
-                      </div>
-                    </article>
-                  </Link>
-                )
-              })
-            ) : (
-              <div className="rounded-3xl border border-stone-200 bg-white p-8 text-stone-600 md:col-span-3">
-                Listings will appear here soon.
-              </div>
-            )}
-          </div>
-
-          <div className="mt-8 sm:mt-10">
-            <Link
-              href="/listings"
-              className="inline-block rounded-full border border-stone-300 px-5 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900"
-            >
-              View all listings
-            </Link>
-          </div>
-        </div>
-      </section>
-
       <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16">
         <div className="rounded-[32px] border border-stone-200 bg-white p-7 shadow-sm sm:p-8 md:p-10">
           <h2 className="text-3xl font-semibold tracking-tight text-stone-900 md:text-4xl">
@@ -390,116 +231,44 @@ export default async function HomePage() {
             {datasetDescription}
           </p>
           <p className="mt-4 max-w-3xl text-sm leading-6 text-stone-600">
-            Property price information is provided for general information only and as market context only. It does not constitute a valuation, pricing advice, investment advice, legal advice, or a recommendation about how any property should be marketed or sold.
+            Property price information is provided for general information only and as market context only. It does not constitute a valuation, pricing advice, investment advice, legal advice, or a recommendation about any property decision.
           </p>
           <div className="mt-4 flex flex-wrap items-center gap-2 text-sm text-stone-600">
             <span className="font-medium text-stone-700">Popular areas:</span>
-            <Link
-              href="/sold-prices/dublin"
-              className="rounded-full border border-stone-300 px-3 py-1.5 transition hover:border-stone-900 hover:text-stone-900"
-            >
-              Dublin
-            </Link>
-            <Link
-              href="/sold-prices/cork"
-              className="rounded-full border border-stone-300 px-3 py-1.5 transition hover:border-stone-900 hover:text-stone-900"
-            >
-              Cork
-            </Link>
-            <Link
-              href="/sold-prices/galway"
-              className="rounded-full border border-stone-300 px-3 py-1.5 transition hover:border-stone-900 hover:text-stone-900"
-            >
-              Galway
-            </Link>
-            <Link
-              href="/sold-prices/limerick"
-              className="rounded-full border border-stone-300 px-3 py-1.5 transition hover:border-stone-900 hover:text-stone-900"
-            >
-              Limerick
-            </Link>
-            <Link
-              href="/sold-prices/waterford"
-              className="rounded-full border border-stone-300 px-3 py-1.5 transition hover:border-stone-900 hover:text-stone-900"
-            >
-              Waterford
-            </Link>
-            <Link
-              href="/sold-prices/louth/drogheda"
-              className="rounded-full border border-stone-300 px-3 py-1.5 transition hover:border-stone-900 hover:text-stone-900"
-            >
-              Drogheda
-            </Link>
-            <Link
-              href="/sold-prices/dublin/swords"
-              className="rounded-full border border-stone-300 px-3 py-1.5 transition hover:border-stone-900 hover:text-stone-900"
-            >
-              Swords
-            </Link>
-            <Link
-              href="/sold-prices/wicklow/bray"
-              className="rounded-full border border-stone-300 px-3 py-1.5 transition hover:border-stone-900 hover:text-stone-900"
-            >
-              Bray
-            </Link>
-            <Link
-              href="/sold-prices/louth/dundalk"
-              className="rounded-full border border-stone-300 px-3 py-1.5 transition hover:border-stone-900 hover:text-stone-900"
-            >
-              Dundalk
-            </Link>
-            <Link
-              href="/sold-prices/meath/navan"
-              className="rounded-full border border-stone-300 px-3 py-1.5 transition hover:border-stone-900 hover:text-stone-900"
-            >
-              Navan
-            </Link>
+            {[
+              ["/sold-prices/dublin", "Dublin"],
+              ["/sold-prices/cork", "Cork"],
+              ["/sold-prices/galway", "Galway"],
+              ["/sold-prices/limerick", "Limerick"],
+              ["/sold-prices/waterford", "Waterford"],
+              ["/sold-prices/louth/drogheda", "Drogheda"],
+              ["/sold-prices/dublin/swords", "Swords"],
+              ["/sold-prices/wicklow/bray", "Bray"],
+              ["/sold-prices/louth/dundalk", "Dundalk"],
+              ["/sold-prices/meath/navan", "Navan"],
+            ].map(([href, label]) => (
+              <Link
+                key={href}
+                href={href}
+                className="rounded-full border border-stone-300 px-3 py-1.5 transition hover:border-stone-900 hover:text-stone-900"
+              >
+                {label}
+              </Link>
+            ))}
           </div>
-          <div className="mt-6">
+          <div className="mt-6 flex flex-wrap gap-3">
             <Link
               href="/sold-prices"
               className="inline-block rounded-full bg-stone-900 px-6 py-3 text-sm font-medium text-white transition hover:bg-stone-700"
             >
               View sold prices
             </Link>
-          </div>
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-6xl px-4 pb-4 sm:px-6">
-        <div className="rounded-[2rem] bg-stone-900 px-6 py-10 text-white sm:px-8 sm:py-12 md:px-12 md:py-16">
-          <div className="max-w-2xl">
-            <p className="text-sm uppercase tracking-[0.2em] text-stone-400">
-              THINKING OF SELLING?
-            </p>
-            <p className="mt-5 whitespace-pre-line text-base leading-7 text-stone-300 sm:text-lg sm:leading-8">
-              Create a clear property listing, research local sold prices and manage viewings in one place.
-            </p>
-
-            <div className="mt-8">
-              <Link
-                href="/sell"
-                className="inline-block rounded-full bg-white px-6 py-3 text-sm font-medium text-stone-900 transition hover:bg-stone-200"
-              >
-                Start your listing
-              </Link>
-            </div>
-
-            <div className="mt-8 border-t border-white/10 pt-6">
-              <p className="whitespace-pre-line text-sm leading-6 text-stone-300">
-                You manage your listing and deal directly with buyers.
-              </p>
-            </div>
-
-            <div className="mt-8 border-t border-white/10 pt-6">
-              <p className="text-sm leading-6 text-stone-300">
-                Listing details are provided by sellers and have not been independently verified.
-              </p>
-              <p className="mt-3 text-sm leading-6 text-stone-300">
-                OpenList is a self-service platform. You remain responsible for your
-                listing, enquiries and viewings.
-              </p>
-            </div>
+            <Link
+              href="/planning"
+              className="inline-block rounded-full border border-stone-300 px-6 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900"
+            >
+              Search planning data
+            </Link>
           </div>
         </div>
       </section>

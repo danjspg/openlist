@@ -76,7 +76,7 @@ export default async function NewViewingPage({
 
           {sourceViewing && (
             <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm leading-6 text-emerald-800">
-              Location and seller contact details have been copied from the previous viewing. Add the new viewer and time.
+              Location and property contact details have been copied from the previous viewing. Add the new viewer and time.
             </div>
           )}
 
@@ -180,14 +180,14 @@ export default async function NewViewingPage({
 
             <section>
               <h2 className="text-lg font-semibold tracking-tight text-stone-900">
-                Seller contact
+                Property contact
               </h2>
               <p className="mt-2 text-sm leading-6 text-stone-500">
                 Use your own details, or the details of the person who will meet the viewer.
               </p>
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 <label>
-                  <span className="text-sm font-medium text-stone-700">Seller contact name</span>
+                  <span className="text-sm font-medium text-stone-700">Property contact name</span>
                   <input
                     name="contactName"
                     required
@@ -198,7 +198,7 @@ export default async function NewViewingPage({
                 </label>
 
                 <label>
-                  <span className="text-sm font-medium text-stone-700">Seller contact email</span>
+                  <span className="text-sm font-medium text-stone-700">Property contact email</span>
                   <input
                     type="email"
                     name="contactEmail"
@@ -209,7 +209,7 @@ export default async function NewViewingPage({
                 </label>
 
                 <label>
-                  <span className="text-sm font-medium text-stone-700">Seller contact phone, optional</span>
+                  <span className="text-sm font-medium text-stone-700">Property contact phone, optional</span>
                   <input
                     name="contactPhone"
                     defaultValue={sourceViewing?.contact_phone ?? ""}
@@ -263,7 +263,7 @@ export default async function NewViewingPage({
                         className="mt-1 h-4 w-4 rounded border-stone-300 text-stone-900"
                       />
                       <span className="text-sm leading-6 text-stone-700">
-                        Send to seller contact
+                        Send to property contact
                       </span>
                     </label>
                   </div>
@@ -296,7 +296,7 @@ export default async function NewViewingPage({
                         className="mt-1 h-4 w-4 rounded border-stone-300 text-stone-900"
                       />
                       <span className="text-sm leading-6 text-stone-700">
-                        Send to seller contact
+                        Send to property contact
                       </span>
                     </label>
                   </div>

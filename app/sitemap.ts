@@ -1,20 +1,19 @@
 import type { MetadataRoute } from "next"
 import { PPR_MARKETS } from "@/lib/ppr-markets"
 import { getCuratedPprAreaSitemapPaths } from "@/lib/ppr-sold-price-routes"
-import { getServerSupabase } from "@/lib/supabase"
 
 export const revalidate = 86400
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.openlist.ie"
   const now = new Date()
-  const supabase = getServerSupabase()
 
   const staticRoutes = [
     "",
     "/about",
-    "/listings",
     "/planning",
+    "/terms",
+    "/viewings",
     "/sold-prices",
     "/sold-prices/tracked-markets",
     "/sold-prices/counties-compared",
@@ -49,16 +48,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     lastModified: now,
   }))
 
-  const { data: listingRows } = await supabase
-    .from("listings")
-    .select("slug,created_at,status")
-    .in("status", ["For Sale", "Featured"])
-
-  const listingRoutes =
-    listingRows?.map((listing) => ({
-      url: `${baseUrl}/listings/${listing.slug}`,
-      lastModified: listing.created_at ? new Date(listing.created_at) : now,
-    })) ?? []
-
-  return [...staticRoutes, ...marketRoutes, ...canonicalTownRoutes, ...listingRoutes]
+  return [...staticRoutes, ...marketRoutes, ...canonicalTownRoutes]
 }

@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
   const cookieNext = request.cookies.get("openlist_auth_next")?.value
   const next = getSafeRedirectPath(
     url.searchParams.get("next") || (cookieNext ? decodeURIComponent(cookieNext) : null),
-    "/my-listings"
+    "/my-viewings"
   )
 
   if (!tokenHash || !isEmailOtpType(type)) {

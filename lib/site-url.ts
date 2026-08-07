@@ -7,15 +7,25 @@ export function getPublicSiteUrl() {
   return configuredUrl.replace(/\/+$/, "")
 }
 
-export function getSafeRedirectPath(value: string | null | undefined, fallback = "/my-listings") {
+export function getSafeRedirectPath(value: string | null | undefined, fallback = "/my-viewings") {
   if (!value) return fallback
   if (!value.startsWith("/")) return fallback
   if (value.startsWith("//")) return fallback
+  if (
+    value === "/sell" ||
+    value === "/listings" ||
+    value.startsWith("/listings/") ||
+    value === "/my-listings" ||
+    value.startsWith("/my-listings/") ||
+    value === "/enquiries"
+  ) {
+    return fallback
+  }
   return value
 }
 
 export function getSellerAuthRedirectUrl(nextPath: string, origin?: string) {
-  const safeNextPath = getSafeRedirectPath(nextPath, "/my-listings")
+  const safeNextPath = getSafeRedirectPath(nextPath, "/my-viewings")
   const baseUrl = (origin || getPublicSiteUrl()).replace(/\/+$/, "")
   return `${baseUrl}/auth/callback?next=${encodeURIComponent(safeNextPath)}`
 }

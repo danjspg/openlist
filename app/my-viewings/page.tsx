@@ -57,7 +57,7 @@ function ViewingCard({ viewing }: { viewing: ViewingRow }) {
           )}
         </div>
         <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
-          <p className="text-xs uppercase tracking-[0.18em] text-stone-500">Seller contact</p>
+          <p className="text-xs uppercase tracking-[0.18em] text-stone-500">Property contact</p>
           <p className="mt-2 font-medium text-stone-900">{viewing.contact_name}</p>
           <p className="break-words text-stone-600">{viewing.contact_email}</p>
         </div>

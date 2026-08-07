@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation"
 import SignOutButton from "@/components/SignOutButton"
 
 const navItems = [
-  { href: "/listings", label: "Listings" },
   { href: "/sold-prices", label: "Sold prices" },
   { href: "/planning", label: "Planning" },
   { href: "/viewings", label: "Viewings" },
@@ -54,36 +53,26 @@ export default function Nav({
           {isSellerAuthenticated ? (
             <>
               <Link
-                href="/my-listings"
+                href="/my-viewings"
                 className={`inline-flex items-center rounded-full border px-5 py-2.5 text-base font-medium transition ${
-                  pathname === "/my-listings"
+                  pathname === "/my-viewings" ||
+                  pathname.startsWith("/my-viewings/")
                     ? "border-stone-900 text-stone-900"
                     : "border-stone-300 text-stone-700 hover:border-stone-900 hover:text-stone-900"
                 }`}
               >
-                My listings
+                My viewings
               </Link>
               <SignOutButton />
             </>
           ) : (
             <Link
-              href="/sign-in"
+              href="/sign-in?redirectTo=%2Fmy-viewings"
               className="inline-flex items-center rounded-full border border-stone-300 px-5 py-2.5 text-base font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900"
             >
               Sign in
             </Link>
           )}
-
-          <Link
-            href="/sell"
-            className={`inline-flex items-center rounded-full px-6 py-2.5 text-base font-medium text-white shadow-sm transition ${
-              pathname === "/sell"
-                ? "bg-stone-700"
-                : "bg-stone-900 hover:bg-stone-700"
-            }`}
-          >
-            Start your listing
-          </Link>
         </div>
       </div>
 
@@ -108,37 +97,24 @@ export default function Nav({
         })}
 
         {isSellerAuthenticated ? (
-          <>
-            <Link
-              href="/my-listings"
-              className={`shrink-0 font-medium transition ${
-                pathname === "/my-listings"
-                  ? "text-stone-900"
-                  : "text-stone-500 hover:text-stone-900"
-              }`}
-            >
-              My listings
-            </Link>
-          </>
+          <Link
+            href="/my-viewings"
+            className={`shrink-0 font-medium transition ${
+              pathname === "/my-viewings" || pathname.startsWith("/my-viewings/")
+                ? "text-stone-900"
+                : "text-stone-500 hover:text-stone-900"
+            }`}
+          >
+            My viewings
+          </Link>
         ) : (
           <Link
-            href="/sign-in"
+            href="/sign-in?redirectTo=%2Fmy-viewings"
             className="shrink-0 font-medium text-stone-500 transition hover:text-stone-900"
           >
             Sign in
           </Link>
         )}
-
-        <Link
-          href="/sell"
-          className={`ml-auto inline-flex shrink-0 items-center rounded-full px-4 py-2 text-sm font-medium text-white shadow-sm transition ${
-            pathname === "/sell"
-              ? "bg-stone-700"
-              : "bg-stone-900 hover:bg-stone-700"
-          }`}
-        >
-          Start your listing
-        </Link>
       </div>
     </>
   )

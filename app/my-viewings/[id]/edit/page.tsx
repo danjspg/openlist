@@ -170,11 +170,11 @@ export default async function EditViewingPage({
 
               <section>
                 <h2 className="text-lg font-semibold tracking-tight text-stone-900">
-                  Seller contact
+                  Property contact
                 </h2>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
                   <label>
-                    <span className="text-sm font-medium text-stone-700">Seller contact name</span>
+                    <span className="text-sm font-medium text-stone-700">Property contact name</span>
                     <input
                       name="contactName"
                       required
@@ -184,7 +184,7 @@ export default async function EditViewingPage({
                   </label>
 
                   <label>
-                    <span className="text-sm font-medium text-stone-700">Seller contact email</span>
+                    <span className="text-sm font-medium text-stone-700">Property contact email</span>
                     <input
                       type="email"
                       name="contactEmail"
@@ -195,7 +195,7 @@ export default async function EditViewingPage({
                   </label>
 
                   <label>
-                    <span className="text-sm font-medium text-stone-700">Seller contact phone, optional</span>
+                    <span className="text-sm font-medium text-stone-700">Property contact phone, optional</span>
                     <input
                       name="contactPhone"
                       defaultValue={viewing.contact_phone ?? ""}
@@ -246,7 +246,7 @@ export default async function EditViewingPage({
                           className="mt-1 h-4 w-4 rounded border-stone-300 text-stone-900"
                         />
                         <span className="text-sm leading-6 text-stone-700">
-                          Send to seller contact
+                          Send to property contact
                         </span>
                       </label>
                     </div>
@@ -276,7 +276,7 @@ export default async function EditViewingPage({
                           className="mt-1 h-4 w-4 rounded border-stone-300 text-stone-900"
                         />
                         <span className="text-sm leading-6 text-stone-700">
-                          Send reminder to seller contact
+                          Send reminder to property contact
                         </span>
                       </label>
                     </div>

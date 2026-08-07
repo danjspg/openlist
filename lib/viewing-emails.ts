@@ -55,7 +55,7 @@ function buildViewingCalendarAttachment(viewing: ViewingRow) {
   const mapsUrl = getGoogleMapsUrl(viewing.property_location)
   const descriptionParts = [
     `Viewer: ${viewing.viewer_name} (${viewing.viewer_email})`,
-    `Seller contact: ${viewing.contact_name} (${viewing.contact_email})`,
+    `Property contact: ${viewing.contact_name} (${viewing.contact_email})`,
     `Map: ${mapsUrl}`,
     viewing.notes ? `Notes: ${viewing.notes}` : "",
     disclaimer,
@@ -155,7 +155,7 @@ function getSharedBody(
       `<strong>${escapeHtml(viewing.viewer_name)}</strong><br /><a href="mailto:${escapeHtml(viewing.viewer_email)}" style="color:#1c1917; text-decoration:none;">${escapeHtml(viewing.viewer_email)}</a>${viewerPhone}`
     )}
     ${detail(
-      "Seller contact",
+      "Property contact",
       `<strong>${escapeHtml(viewing.contact_name)}</strong><br /><a href="mailto:${escapeHtml(viewing.contact_email)}" style="color:#1c1917; text-decoration:none;">${escapeHtml(viewing.contact_email)}</a>${contactPhone}`
     )}
     ${notes}

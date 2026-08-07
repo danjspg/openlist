@@ -7,9 +7,9 @@ import { getCurrentSellerUser } from "@/lib/seller-auth"
 import "./globals.css"
 
 export const metadata: Metadata = {
-  title: "OpenList | Property Tools, Listings and Sold Prices Ireland",
+  title: "OpenList | Property Tools & Sold Prices Ireland",
   description:
-    "Self-service property tools for Ireland. Research sold prices, search planning data, manage property viewings and create listings in one place.",
+    "Property tools for Ireland. Research sold prices, explore planning data and organise property viewings in one place.",
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL || "https://www.openlist.ie"
   ),
@@ -37,9 +37,6 @@ export default async function RootLayout({
 }) {
   const currentSellerUser = await getCurrentSellerUser()
   const isSellerAuthenticated = Boolean(currentSellerUser)
-  const footerListingsLink = isSellerAuthenticated
-    ? { href: "/my-listings", label: "My listings" }
-    : { href: "/listings", label: "View listings" }
   const footerViewingsLink = isSellerAuthenticated
     ? { href: "/my-viewings", label: "My viewings" }
     : { href: "/viewings", label: "Viewings" }
@@ -90,15 +87,12 @@ export default async function RootLayout({
                 </div>
 
                 <p className="mt-4 max-w-md text-sm leading-6 text-stone-600">
-                  OpenList combines sold prices, planning data, viewings and listings in one simple platform.
+                  OpenList makes Irish property data easier to explore, bringing together sold prices, planning applications and practical property tools.
                 </p>
 
                 <div className="mt-6 space-y-3 text-xs leading-5 text-stone-500">
                   <p>
-                    OpenList provides property information and self-service tools. We are not an estate agent, auctioneer, valuer, broker or legal adviser.
-                  </p>
-                  <p>
-                    Buyers and sellers deal directly and should independently verify all information before making decisions.
+                    Information is provided for general purposes only and may not always reflect the latest official record. OpenList is not an estate agent, auctioneer, valuer, broker or legal adviser.
                   </p>
                 </div>
               </div>
@@ -114,14 +108,8 @@ export default async function RootLayout({
                 </FooterLinkGroup>
 
                 <FooterLinkGroup title="Property Tools">
-                  <Link href={footerListingsLink.href} className="transition hover:text-stone-900">
-                    {footerListingsLink.label}
-                  </Link>
                   <Link href={footerViewingsLink.href} className="transition hover:text-stone-900">
                     {footerViewingsLink.label}
-                  </Link>
-                  <Link href="/sell" className="transition hover:text-stone-900">
-                    Start your listing
                   </Link>
                 </FooterLinkGroup>
 

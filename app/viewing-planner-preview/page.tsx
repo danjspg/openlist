@@ -23,7 +23,7 @@ const previewViewings: ViewingRow[] = [
     viewer_email: "aoife@example.com",
     viewer_phone: "087 000 0000",
     contact_name: "Daniel",
-    contact_email: "seller@example.com",
+    contact_email: "contact@example.com",
     contact_phone: "086 000 0000",
     property_location: "12 Harbour View, Kinsale, Co. Cork",
     viewing_starts_at: new Date(Date.now() + 27 * 60 * 60 * 1000).toISOString(),
@@ -37,7 +37,7 @@ const previewViewings: ViewingRow[] = [
     viewer_name: "Mark O'Brien",
     viewer_email: "mark@example.com",
     contact_name: "Daniel",
-    contact_email: "seller@example.com",
+    contact_email: "contact@example.com",
     property_location: "Apartment 4, Main Street, Midleton, Co. Cork",
     viewing_starts_at: new Date(Date.now() - 30 * 60 * 60 * 1000).toISOString(),
     notes: null,
@@ -80,7 +80,7 @@ function PreviewCard({ viewing }: { viewing: ViewingRow }) {
           {viewing.viewer_phone && <p className="mt-1 text-stone-600">{viewing.viewer_phone}</p>}
         </div>
         <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
-          <p className="text-xs uppercase tracking-[0.18em] text-stone-500">Seller contact</p>
+          <p className="text-xs uppercase tracking-[0.18em] text-stone-500">Property contact</p>
           <p className="mt-2 font-medium text-stone-900">{viewing.contact_name}</p>
           <p className="break-words text-stone-600">{viewing.contact_email}</p>
         </div>
@@ -219,14 +219,14 @@ export default function ViewingPlannerPreviewPage() {
               </label>
 
               <div className="border-t border-stone-200 pt-4">
-                <p className="text-sm font-semibold text-stone-900">Seller contact</p>
+                <p className="text-sm font-semibold text-stone-900">Property contact</p>
                 <p className="mt-1 text-sm leading-6 text-stone-500">
                   Use your own details, or the details of the person who will meet the viewer.
                 </p>
               </div>
 
               <label className="block">
-                <span className="text-sm font-medium text-stone-700">Seller contact name</span>
+                <span className="text-sm font-medium text-stone-700">Property contact name</span>
                 <input
                   defaultValue="Donal"
                   className="mt-2 h-12 w-full rounded-2xl border border-stone-300 bg-white px-4 text-stone-900 outline-none transition focus:border-stone-900"
@@ -234,16 +234,16 @@ export default function ViewingPlannerPreviewPage() {
               </label>
 
               <label className="block">
-                <span className="text-sm font-medium text-stone-700">Seller contact email</span>
+                <span className="text-sm font-medium text-stone-700">Property contact email</span>
                 <input
                   type="email"
-                  defaultValue="seller@example.com"
+                  defaultValue="contact@example.com"
                   className="mt-2 h-12 w-full rounded-2xl border border-stone-300 bg-white px-4 text-stone-900 outline-none transition focus:border-stone-900"
                 />
               </label>
 
               <label className="block">
-                <span className="text-sm font-medium text-stone-700">Seller contact phone, optional</span>
+                <span className="text-sm font-medium text-stone-700">Property contact phone, optional</span>
                 <input
                   defaultValue="086 000 0000"
                   className="mt-2 h-12 w-full rounded-2xl border border-stone-300 bg-white px-4 text-stone-900 outline-none transition focus:border-stone-900"
@@ -275,7 +275,7 @@ export default function ViewingPlannerPreviewPage() {
                   </label>
                   <label className="flex items-start gap-3">
                     <input type="checkbox" defaultChecked className="mt-1 h-4 w-4" />
-                    <span className="text-sm leading-6 text-stone-700">Send to seller contact</span>
+                    <span className="text-sm leading-6 text-stone-700">Send to property contact</span>
                   </label>
                 </div>
               </div>
@@ -292,7 +292,7 @@ export default function ViewingPlannerPreviewPage() {
                   </label>
                   <label className="flex items-start gap-3">
                     <input type="checkbox" defaultChecked className="mt-1 h-4 w-4" />
-                    <span className="text-sm leading-6 text-stone-700">Send to seller contact</span>
+                    <span className="text-sm leading-6 text-stone-700">Send to property contact</span>
                   </label>
                 </div>
               </div>

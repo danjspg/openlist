@@ -4,7 +4,7 @@ import Image from "next/image"
 export const metadata: Metadata = {
   title: "About OpenList | Property Tools Ireland",
   description:
-    "Learn about OpenList, a property tools platform for sold prices, planning data, viewings and listings in Ireland.",
+    "Learn about OpenList, a property tools platform for sold prices, planning data and viewing management in Ireland.",
   alternates: {
     canonical: "/about",
   },
@@ -31,36 +31,24 @@ export default function AboutPage() {
           </h1>
 
           <p className="mx-auto mt-5 max-w-3xl text-base leading-7 text-slate-600 sm:text-lg sm:leading-8">
-            OpenList combines sold prices, planning data, viewings and listings in one simple platform.
+            OpenList makes Irish property data easier to explore.
           </p>
 
           <p className="mx-auto mt-3 max-w-3xl text-sm leading-6 text-slate-600 sm:text-base sm:leading-7">
-            Research property activity, explore planning and development trends, manage viewings and create property listings.
-          </p>
-
-          <p className="mx-auto mt-3 max-w-3xl text-sm leading-6 text-slate-600 sm:text-base sm:leading-7">
-            Users remain responsible for their own listings, enquiries, viewings and decisions.
+            Research sold prices, explore planning applications and local development activity, and organise property viewings in one place.
           </p>
         </div>
 
         <div className="mt-10 grid gap-8 lg:grid-cols-[1.2fr_0.8fr] sm:mt-12">
           <div className="rounded-[28px] border border-slate-200 bg-white p-8 shadow-sm">
             <div className="max-w-2xl space-y-5 text-base leading-7 text-slate-600 sm:space-y-6">
-              <p>
-                You can use OpenList to:
-              </p>
+              <p>You can use OpenList to:</p>
 
               <ul className="list-disc space-y-3 pl-5">
                 <li>Research public sold-price data and local market activity</li>
                 <li>Search planning applications and explore development activity</li>
-                <li>Create and manage property listings</li>
                 <li>Organise and manage property viewings</li>
               </ul>
-
-              <p>
-                Property listings are created and managed by users, and
-                enquiries go directly to the listing contact.
-              </p>
 
               <p>
                 Sold-price information is based on public Irish Residential
@@ -91,7 +79,6 @@ export default function AboutPage() {
               <ul className="mt-5 list-disc space-y-3 pl-5 text-base leading-7 text-slate-700">
                 <li>research sold prices</li>
                 <li>search planning applications</li>
-                <li>create and manage listings</li>
                 <li>organise property viewings</li>
               </ul>
             </div>
@@ -101,7 +88,7 @@ export default function AboutPage() {
                 Platform role
               </p>
               <div className="mt-4 space-y-4 text-base leading-7 text-slate-600">
-                <p>Property listings are created and managed by users, and enquiries go directly to the listing contact.</p>
+                <p>OpenList provides information and software tools for property research and viewing management.</p>
                 <p>OpenList is not an estate agent, auctioneer, valuer, broker or legal adviser.</p>
               </div>
             </div>
@@ -113,7 +100,7 @@ export default function AboutPage() {
             Important
           </p>
           <p className="mt-4 max-w-4xl text-base leading-7 text-slate-600">
-            Sold-price information is based on public Irish Residential Property Price Register data. Planning information is based on publicly available sources and is provided for information purposes only.
+            Sold-price information is based on public Irish Residential Property Price Register data. Planning information is based on publicly available sources and is provided for information purposes only. Users should independently verify relevant property information before making decisions.
           </p>
         </div>
       </section>
