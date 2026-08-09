@@ -5,6 +5,10 @@ import PprDisclaimer from "@/components/ppr/PprDisclaimer"
 import PprLocationInsights from "@/components/ppr/PprLocationInsights"
 import PprSaleCard from "@/components/ppr/PprSaleCard"
 import { getPprMarket, getRelevantMarketComparisonLinks } from "@/lib/ppr-markets"
+import { formatPlanningDate } from "@/lib/planning"
+import { getPlanningAuthorityByCode } from "@/lib/planning-authorities"
+import { planningApplicationPath } from "@/lib/property-intelligence"
+import { getPlanningApplicationsForSoldPriceArea } from "@/lib/property-research"
 import {
   areaNameFromSlug,
   formatPprCountyDisplayName,
@@ -66,9 +70,10 @@ export default async function PprAreaPage({ params }: Props) {
         { href: "/sold-prices/affordable-markets", label: "Affordable Markets" },
       ]
 
-  const [areaData, nearbyAreas] = await Promise.all([
+  const [areaData, nearbyAreas, planningApplications] = await Promise.all([
     getAreaInsights(decodedCounty, areaSlug, selectedRange),
     getNearbyAreaLinks(decodedCounty, areaSlug),
+    getPlanningApplicationsForSoldPriceArea(decodedCounty, areaName),
   ])
   const { insights, recentSales } = areaData
 
@@ -222,6 +227,35 @@ export default async function PprAreaPage({ params }: Props) {
                 <div className="rounded-[28px] border border-stone-200 bg-white p-8 text-stone-600 shadow-sm">
                   No recent sales are available for this area yet.
                 </div>
+              )}
+            </div>
+
+            <div className="rounded-[28px] border border-stone-200 bg-white p-6 shadow-sm sm:p-8">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="text-sm uppercase tracking-[0.18em] text-stone-500">Development activity</p>
+                  <h2 className="mt-2 text-3xl font-semibold tracking-tight text-stone-900">Planning applications in {areaName}</h2>
+                  <p className="mt-3 max-w-2xl text-sm leading-6 text-stone-600">Recent applications matched by the area name in the published application address. This does not imply a link to any sold property shown above.</p>
+                </div>
+                <Link href={`/planning?area=${encodeURIComponent(areaName)}`} className="shrink-0 text-sm font-semibold text-stone-700 transition hover:text-stone-950">Search all planning →</Link>
+              </div>
+
+              {planningApplications.length > 0 ? (
+                <div className="mt-6 divide-y divide-stone-200 border-y border-stone-200">
+                  {planningApplications.map((application) => {
+                    const authority = getPlanningAuthorityByCode(application.local_authority_code)
+                    const href = authority ? planningApplicationPath(authority, application.reference) : "/planning"
+                    return (
+                      <Link key={application.id} href={href} className="block py-5 transition hover:bg-stone-50 sm:px-3">
+                        <div className="flex flex-wrap items-baseline justify-between gap-2"><p className="font-mono text-sm font-semibold text-emerald-800">{application.reference}</p><p className="text-sm text-stone-500">{formatPlanningDate(application.registration_date)}</p></div>
+                        <p className="mt-2 font-semibold leading-6 text-stone-900">{application.proposal || "Proposal not recorded"}</p>
+                        <p className="mt-1 text-sm leading-6 text-stone-500">{application.location || application.local_authority}</p>
+                      </Link>
+                    )
+                  })}
+                </div>
+              ) : (
+                <p className="mt-6 rounded-2xl bg-stone-50 p-5 text-sm leading-6 text-stone-600">No recent planning applications could be matched reliably to this locality. Try the full planning search.</p>
               )}
             </div>
           </section>

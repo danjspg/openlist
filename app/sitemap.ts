@@ -1,4 +1,7 @@
 import type { MetadataRoute } from "next"
+import { getPlanningSitemapApplications } from "@/lib/planning"
+import { PLANNING_AUTHORITIES, getPlanningAuthorityByCode } from "@/lib/planning-authorities"
+import { planningApplicationPath } from "@/lib/property-intelligence"
 import { PPR_MARKETS } from "@/lib/ppr-markets"
 import { getCuratedPprAreaSitemapPaths } from "@/lib/ppr-sold-price-routes"
 
@@ -12,6 +15,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     "",
     "/about",
     "/planning",
+    "/search",
     "/terms",
     "/viewings",
     "/sold-prices",
@@ -48,5 +52,26 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     lastModified: now,
   }))
 
-  return [...staticRoutes, ...marketRoutes, ...canonicalTownRoutes]
+  const planningAuthorityRoutes = PLANNING_AUTHORITIES.map((authority) => ({
+    url: `${baseUrl}/planning/${authority.slug}`,
+    lastModified: now,
+  }))
+
+  const planningApplications = await getPlanningSitemapApplications()
+  const planningApplicationRoutes = planningApplications.flatMap((application) => {
+    const authority = getPlanningAuthorityByCode(application.local_authority_code)
+    if (!authority) return []
+    return [{
+      url: `${baseUrl}${planningApplicationPath(authority, application.reference)}`,
+      lastModified: application.updated_at ? new Date(application.updated_at) : now,
+    }]
+  })
+
+  return [
+    ...staticRoutes,
+    ...planningAuthorityRoutes,
+    ...planningApplicationRoutes,
+    ...marketRoutes,
+    ...canonicalTownRoutes,
+  ]
 }

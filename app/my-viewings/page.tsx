@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { getServerSupabase } from "@/lib/supabase"
-import { requireSellerUser } from "@/lib/seller-auth"
+import { requireUser } from "@/lib/auth"
 import {
   formatViewingDateTime,
   getCurrentTimeMs,
@@ -107,7 +107,7 @@ export default async function MyViewingsPage({
   searchParams: Promise<{ created?: string; deleted?: string }>
 }) {
   const { created, deleted } = await searchParams
-  const currentUser = await requireSellerUser().catch(() => null)
+  const currentUser = await requireUser().catch(() => null)
 
   if (!currentUser) {
     redirect("/sign-in?redirectTo=%2Fmy-viewings")

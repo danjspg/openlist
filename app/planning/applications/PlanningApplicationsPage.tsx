@@ -1,22 +1,35 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { connection } from "next/server"
+import PlanningResultsView, {
+  type PlanningResultRecord,
+} from "@/components/planning/PlanningResultsView"
+import {
+  PLANNING_AUTHORITIES,
+  getPlanningAuthorityByCode,
+  type PlanningAuthority,
+} from "@/lib/planning-authorities"
 import {
   formatPlanningDate,
   formatPlanningMonth,
   getPlanningDashboard,
   normalisePlanningSearchParams,
-  type PlanningApplication,
   type PlanningCountStat,
   type PlanningSearchParams,
 } from "@/lib/planning"
+import {
+  countyForPlanningAuthority,
+  planningApplicationPath,
+  planningGridToWgs84,
+} from "@/lib/property-intelligence"
+import { presentPlanningProposal } from "@/lib/planning-presentation"
 
 export const revalidate = 21600
 
 export const metadata: Metadata = {
-  title: "Search Planning Applications Cork | OpenList",
+  title: "Search Planning Applications Ireland | OpenList",
   description:
-    "Search three years of Cork County planning applications and explore public metadata by area, status and application type.",
+    "Search Irish planning applications by location, reference, development, applicant or status.",
   alternates: {
     canonical: "/planning",
   },
@@ -31,69 +44,137 @@ export default async function PlanningPage({
 }: {
   searchParams?: Promise<PlanningSearchParams>
 }) {
+  return <PlanningApplicationsView searchParams={searchParams} />
+}
+
+export async function PlanningApplicationsView({
+  searchParams,
+  authority,
+}: {
+  searchParams?: Promise<PlanningSearchParams>
+  authority?: PlanningAuthority
+}) {
   const rawSearchParams = await (searchParams || Promise.resolve({}))
   const filters = normalisePlanningSearchParams(rawSearchParams)
   const hasActiveSearch = Boolean(
-    filters.q || filters.area || filters.status || filters.type
+    filters.q || filters.area || filters.council || filters.status || filters.type
   )
 
   if (hasActiveSearch) {
     await connection()
   }
 
-  const dashboard = await getPlanningDashboard(filters)
+  const dashboard = await getPlanningDashboard(filters, authority ?? null)
   const resultRows = hasActiveSearch
     ? dashboard.searchResults
     : dashboard.recentApplications
+  const planningResults: PlanningResultRecord[] = resultRows.map((application) => {
+    const resultAuthority = getPlanningAuthorityByCode(application.local_authority_code)
+    return {
+      id: application.id,
+      reference: application.reference,
+      registrationDate: application.registration_date,
+      status: application.status,
+      proposal: presentPlanningProposal(
+        application.proposal,
+        "No proposal text recorded"
+      ).display,
+      authority: application.local_authority,
+      location: application.location,
+      applicant: application.applicant_name,
+      applicationType: application.application_type,
+      decision: application.decision_text,
+      detailHref: resultAuthority
+        ? planningApplicationPath(resultAuthority, application.reference)
+        : null,
+      coordinates: planningGridToWgs84(application),
+    }
+  })
   const mostCommonType = dashboard.typeStats[0]
+  const isCouncilScoped = Boolean(authority || filters.council)
+  const scopedAuthority: PlanningAuthority | null =
+    authority ??
+    (PLANNING_AUTHORITIES.find(
+      (candidate) => candidate.shortName === filters.council
+    ) as PlanningAuthority | undefined) ??
+    null
+  const planningPath = authority ? `/planning/${authority.slug}` : "/planning"
+  const pageTitle = authority
+    ? `${authority.shortName} planning applications`
+    : "National planning applications"
+  const pageDescription = authority
+    ? `Search ${authority.historyLabel} of ${authority.name} planning applications by location, reference, development, applicant or status.`
+    : "Search current Irish planning applications across local authorities by location, reference, development, applicant or status."
+  const latestRegistrationsLabel = authority
+    ? `Latest registrations from ${authority.name}.`
+    : "Latest registrations across imported local authorities."
   const latestMonthLabel = dashboard.latestRegistrationMonth
     ? formatPlanningMonth(dashboard.latestRegistrationMonth)
     : "latest month"
+  const areaSubtitle = authority
+    ? `Top ${authority.shortName} localities in the imported ${authority.historyLabel}.`
+    : filters.council
+      ? `Top localities in ${filters.council}.`
+      : "Most active local authorities in the imported planning data."
+  const areaFilterLabel = authority ? "Area" : "Council"
+  const areaFilterName = authority ? "area" : "council"
+  const areaFilterValue = authority ? filters.area : filters.council
+  const areaFilterKey = isCouncilScoped ? "area" : "council"
+  const areaStatsTitle = isCouncilScoped
+    ? "Applications by area"
+    : "Applications by council"
+  const latestMonthAreaTitle = authority
+    ? `Areas in ${latestMonthLabel}`
+    : filters.council
+      ? `Areas in ${latestMonthLabel}`
+      : `Councils in ${latestMonthLabel}`
+  const latestMonthAreaSubtitle = authority
+    ? "Localities with the most applications in the latest registration month."
+    : filters.council
+      ? "Localities with the most applications in the latest registration month."
+      : "Local authorities with the most applications in the latest registration month."
+  const quickCouncilStats = !authority && !filters.council
+    ? dashboard.areaStats.slice(0, 6)
+    : []
+  const statsWindowLabel = scopedAuthority?.isDeepCoverage
+    ? `Based on ${scopedAuthority.historyLabel} of imported ${scopedAuthority.shortName} planning data.`
+    : isCouncilScoped
+      ? "Based on the latest 12 months of imported planning data for this council."
+      : "Based on the latest 12 months of imported national planning data, with Cork County also carrying deeper history."
+  const datasetNote = authority
+    ? `This view uses public ${authority.name} planning application information imported into OpenList. Linked application documents are not included.`
+    : "This view uses public planning application information imported into OpenList from Irish local-authority sources. Linked application documents are not included."
+  const soldPriceCounty = authority
+    ? countyForPlanningAuthority(authority.code)
+    : null
 
   return (
     <main className="bg-stone-50">
       <section className="border-b border-stone-200 bg-white">
         <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:py-16">
-          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-end">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-stone-500">
-                Public planning metadata
-              </p>
-              <h1 className="mt-4 max-w-3xl text-4xl font-semibold tracking-tight text-stone-950 sm:text-5xl">
-                Cork County planning applications
-              </h1>
-              <p className="mt-5 max-w-2xl text-lg leading-8 text-stone-600">
-                Search three years of Cork County Council planning applications
-                and scan public metadata by area, application type and current
-                status.
-              </p>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Metric label="Applications" value={dashboard.totalCount} />
-              <Metric
-                label="Latest registered"
-                value={formatPlanningDate(dashboard.latestRegistrationDate)}
-              />
-              <Metric
-                label="Most active area"
-                value={dashboard.activeArea?.label ?? "Not recorded"}
-              />
-              <Metric
-                label="Most common type"
-                value={mostCommonType?.label ?? "Not recorded"}
-              />
-              <Metric label="Latest month apps" value={dashboard.latestMonthCount} />
-              <Metric
-                label="Month change"
-                value={formatSignedNumber(dashboard.latestMonthChange)}
-              />
-            </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-stone-500">
+              Planning in Ireland
+            </p>
+            <h1 className="mt-4 max-w-4xl text-4xl font-semibold tracking-tight text-stone-950 sm:text-5xl">
+              {pageTitle}
+            </h1>
+            <p className="mt-5 max-w-3xl text-lg leading-8 text-stone-600">
+              {pageDescription}
+            </p>
+            {soldPriceCounty ? (
+              <Link
+                href={`/sold-prices/${soldPriceCounty.toLowerCase()}`}
+                className="mt-4 inline-flex text-sm font-semibold text-emerald-800 transition hover:text-emerald-950"
+              >
+                Sold prices in {soldPriceCounty} <span aria-hidden="true" className="ml-1">→</span>
+              </Link>
+            ) : null}
           </div>
 
           <form
-            action="/planning"
-            className="mt-10 grid gap-3 rounded-lg border border-stone-200 bg-stone-50 p-3 shadow-sm sm:grid-cols-[minmax(0,1.5fr)_minmax(150px,0.8fr)_minmax(150px,0.8fr)_minmax(150px,0.8fr)_auto]"
+            action={planningPath}
+            className="mt-10 grid gap-3 rounded-2xl border border-stone-300 bg-stone-50 p-4 shadow-sm sm:grid-cols-[minmax(0,1.5fr)_minmax(150px,0.8fr)_minmax(150px,0.8fr)_minmax(150px,0.8fr)_auto] sm:p-5"
           >
             <input
               id="planning-search"
@@ -101,14 +182,14 @@ export default async function PlanningPage({
               type="search"
               aria-label="Search planning applications"
               defaultValue={filters.q}
-              placeholder="Reference, location, applicant or proposal"
-              className="min-h-12 rounded-md border border-stone-200 bg-white px-4 text-base text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-stone-900"
+              placeholder="Search an address, area, planning reference or development"
+              className="min-h-14 rounded-lg border border-stone-300 bg-white px-4 text-base text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-stone-900 focus:ring-2 focus:ring-stone-200"
             />
 
             <SelectFilter
-              label="Area"
-              name="area"
-              value={filters.area}
+              label={areaFilterLabel}
+              name={areaFilterName}
+              value={areaFilterValue}
               options={dashboard.areaOptions}
             />
             <SelectFilter
@@ -127,20 +208,45 @@ export default async function PlanningPage({
             <div className="flex flex-col gap-2 sm:flex-row">
               <button
                 type="submit"
-                className="min-h-12 rounded-md bg-stone-950 px-5 text-base font-semibold text-white transition hover:bg-stone-700"
+                className="min-h-14 rounded-lg bg-stone-950 px-5 text-base font-semibold text-white transition hover:bg-stone-700"
               >
-                Search
+                Search planning
               </button>
               {hasActiveSearch ? (
                 <Link
-                  href="/planning"
-                  className="inline-flex min-h-12 items-center justify-center rounded-md border border-stone-300 bg-white px-5 text-base font-semibold text-stone-700 transition hover:border-stone-900 hover:text-stone-950"
+                  href={planningPath}
+                  className="inline-flex min-h-14 items-center justify-center rounded-lg border border-stone-300 bg-white px-5 text-base font-semibold text-stone-700 transition hover:border-stone-900 hover:text-stone-950"
                 >
                   Clear
                 </Link>
               ) : null}
             </div>
           </form>
+
+          {quickCouncilStats.length > 0 ? (
+            <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
+              <span className="mr-1 font-semibold text-stone-500">
+                Most active councils
+              </span>
+              {quickCouncilStats.map((stat) => (
+                <Link
+                  key={stat.label}
+                  href={planningFilterHref(
+                    planningPath,
+                    filters,
+                    "council",
+                    stat.label
+                  )}
+                  className="inline-flex min-h-10 items-center rounded-md border border-stone-200 bg-white px-3 font-semibold text-stone-800 transition hover:border-stone-400 hover:text-stone-950"
+                >
+                  {stat.label}
+                  <span className="ml-2 text-stone-500">
+                    {stat.count.toLocaleString("en-IE")}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          ) : null}
         </div>
       </section>
 
@@ -154,13 +260,13 @@ export default async function PlanningPage({
                 </h2>
                 <p className="mt-1 text-sm text-stone-500">
                   {hasActiveSearch
-                    ? `${dashboard.searchCount} public records match the selected filters.`
-                    : "Latest registrations from Cork County Council."}
+                    ? `${dashboard.searchCount} planning applications match the selected filters.`
+                    : latestRegistrationsLabel}
                 </p>
               </div>
               {hasActiveSearch ? (
                 <Link
-                  href="/planning"
+                  href={planningPath}
                   className="self-start text-sm font-semibold text-stone-700 transition hover:text-stone-950"
                 >
                   Clear filters
@@ -168,15 +274,17 @@ export default async function PlanningPage({
               ) : null}
             </div>
 
-            <ApplicationsList applications={resultRows} />
+            <PlanningResultsView applications={planningResults} />
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">
             <BarList
-              title="Applications by area"
-              subtitle="Top Cork County localities in the imported three years."
+              title={areaStatsTitle}
+              subtitle={areaSubtitle}
               stats={dashboard.areaStats}
-              linkForStat={(stat) => planningFilterHref(filters, "area", stat.label)}
+              linkForStat={(stat) =>
+                planningFilterHref(planningPath, filters, areaFilterKey, stat.label)
+              }
             />
             <BarList
               title="Monthly registrations"
@@ -190,22 +298,28 @@ export default async function PlanningPage({
 
           <div className="grid gap-6 lg:grid-cols-3">
             <BarList
-              title={`Areas in ${latestMonthLabel}`}
-              subtitle="Localities with the most applications in the latest registration month."
+              title={latestMonthAreaTitle}
+              subtitle={latestMonthAreaSubtitle}
               stats={dashboard.latestMonthAreaStats}
-              linkForStat={(stat) => planningFilterHref(filters, "area", stat.label)}
+              linkForStat={(stat) =>
+                planningFilterHref(planningPath, filters, areaFilterKey, stat.label)
+              }
             />
             <BarList
               title={`Status in ${latestMonthLabel}`}
               subtitle="Current status mix for applications registered in the latest month."
               stats={dashboard.latestMonthStatusStats}
-              linkForStat={(stat) => planningFilterHref(filters, "status", stat.label)}
+              linkForStat={(stat) =>
+                planningFilterHref(planningPath, filters, "status", stat.label)
+              }
             />
             <BarList
               title={`Types in ${latestMonthLabel}`}
               subtitle="Most common application types registered in the latest month."
               stats={dashboard.latestMonthTypeStats}
-              linkForStat={(stat) => planningFilterHref(filters, "type", stat.label)}
+              linkForStat={(stat) =>
+                planningFilterHref(planningPath, filters, "type", stat.label)
+              }
             />
           </div>
         </div>
@@ -213,14 +327,10 @@ export default async function PlanningPage({
         <aside className="min-w-0 space-y-6">
           <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm">
             <h2 className="text-lg font-semibold tracking-tight text-stone-950">
-              Dataset notes
+              Source notes
             </h2>
             <div className="mt-4 space-y-4 text-sm leading-6 text-stone-600">
-              <p>
-                This view uses public Cork County Council planning application
-                metadata imported into OpenList. It excludes linked application
-                documents and files.
-              </p>
+              <p>{datasetNote}</p>
               <p>
                 Records are shown as published by the council source. Always
                 check the official application record before making decisions.
@@ -243,7 +353,9 @@ export default async function PlanningPage({
             subtitle="Current public status labels from the source."
             stats={dashboard.statusStats}
             compact
-            linkForStat={(stat) => planningFilterHref(filters, "status", stat.label)}
+            linkForStat={(stat) =>
+              planningFilterHref(planningPath, filters, "status", stat.label)
+            }
           />
 
           <BarList
@@ -251,41 +363,458 @@ export default async function PlanningPage({
             subtitle="Most frequent application type labels."
             stats={dashboard.typeStats}
             compact
-            linkForStat={(stat) => planningFilterHref(filters, "type", stat.label)}
+            linkForStat={(stat) =>
+              planningFilterHref(planningPath, filters, "type", stat.label)
+            }
           />
         </aside>
+      </section>
+
+      <section className="border-y border-stone-200 bg-white">
+        <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:py-14">
+          <h2 className="text-2xl font-semibold tracking-tight text-stone-950">
+            Planning activity and trends
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-stone-500">{statsWindowLabel}</p>
+
+          <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            <Metric label="Applications" value={dashboard.totalCount} />
+            <Metric
+              label="Latest registered"
+              value={formatPlanningDate(dashboard.latestRegistrationDate)}
+            />
+            <Metric
+              label={isCouncilScoped ? "Most active area" : "Most active council"}
+              value={dashboard.activeArea?.label ?? "Not recorded"}
+            />
+            <Metric label="Most common type" value={mostCommonType?.label ?? "Not recorded"} />
+            <Metric label="Latest month apps" value={dashboard.latestMonthCount} />
+            <Metric label="Month change" value={formatSignedNumber(dashboard.latestMonthChange)} />
+          </div>
+
+          <div className="mt-6 grid gap-4 lg:grid-cols-2">
+            <TrendPanel stats={dashboard.monthStats} />
+            <TreemapPanel
+              title={isCouncilScoped ? "Area overview" : "Council overview"}
+              stats={dashboard.areaStats}
+              emptyLabel={isCouncilScoped ? "No areas recorded" : "No councils recorded"}
+            />
+            <DistributionPanel title="Status mix" stats={dashboard.statusStats} emptyLabel="No statuses recorded" />
+            <DistributionPanel title="Application types" stats={dashboard.typeStats} emptyLabel="No types recorded" />
+          </div>
+        </div>
       </section>
     </main>
   )
 }
 
 function planningFilterHref(
+  basePath: string,
   filters: Required<PlanningSearchParams>,
-  key: "area" | "status" | "type",
+  key: "area" | "council" | "status" | "type",
   value: string
 ) {
   const params = new URLSearchParams()
 
-  for (const filterKey of ["q", "area", "status", "type"] as const) {
+  for (const filterKey of ["q", "area", "council", "status", "type"] as const) {
     const nextValue = filterKey === key ? value : filters[filterKey]
     if (nextValue) params.set(filterKey, nextValue)
   }
 
   const query = params.toString()
-  return `/planning${query ? `?${query}` : ""}`
+  return `${basePath}${query ? `?${query}` : ""}`
 }
 
 function Metric({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="rounded-lg border border-stone-200 bg-stone-50 p-4">
+    <div className="flex min-h-28 flex-col justify-between rounded-lg border border-stone-200 bg-stone-50 p-4">
       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">
         {label}
       </p>
-      <p className="mt-2 break-words text-2xl font-semibold tracking-tight text-stone-950">
+      <p className="mt-3 min-w-0 break-words text-2xl font-semibold leading-tight tracking-tight text-stone-950 lg:text-xl xl:text-2xl">
         {value}
       </p>
     </div>
   )
+}
+
+function TreemapPanel({
+  title,
+  stats,
+  emptyLabel,
+}: {
+  title: string
+  stats: PlanningCountStat[]
+  emptyLabel: string
+}) {
+  const total = stats.reduce((sum, stat) => sum + stat.count, 0)
+  const lead = stats[0]
+  const tiles = buildTreemapTiles(stats)
+
+  return (
+    <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm">
+      <div>
+        <h3 className="text-base font-semibold tracking-tight text-stone-950">
+          {title}
+        </h3>
+        <p className="mt-1 text-sm text-stone-500">
+          {lead
+            ? `${lead.label} accounts for ${formatShare(lead.count, total)}`
+            : emptyLabel}
+        </p>
+      </div>
+
+      {tiles.length > 0 ? (
+        <div className="mt-5">
+          <div
+            role="img"
+            aria-label="Planning activity treemap"
+            className="relative h-64 overflow-hidden rounded-md border border-stone-200 bg-stone-100 sm:h-72"
+          >
+            {tiles.map((tile, index) => (
+              <div
+                key={tile.label}
+                className={treemapTileClass(index)}
+                style={{
+                  left: `${tile.x}%`,
+                  top: `${tile.y}%`,
+                  width: `${tile.width}%`,
+                  height: `${tile.height}%`,
+                }}
+              >
+                <span className="block text-xs font-semibold leading-tight">
+                  {tile.label}
+                </span>
+                <span className="mt-1 block text-xs font-medium opacity-85">
+                  {formatShare(tile.count, total)}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            {stats.slice(0, 6).map((stat) => (
+              <div
+                key={stat.label}
+                className="flex items-baseline justify-between gap-3 rounded-md bg-stone-50 px-3 py-2 text-sm"
+              >
+                <span className="min-w-0 font-medium leading-tight text-stone-800">
+                  {stat.label}
+                </span>
+                <span className="shrink-0 font-semibold text-stone-950">
+                  {formatShare(stat.count, total)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="mt-5 flex h-64 w-full items-center justify-center rounded-md bg-stone-50 px-3 text-center text-sm text-stone-500 sm:h-72">
+          {emptyLabel}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function buildTreemapTiles(stats: PlanningCountStat[]) {
+  const topStats = stats.slice(0, 8)
+  const visibleTotal = topStats.reduce((sum, stat) => sum + stat.count, 0)
+  if (visibleTotal <= 0) return []
+
+  const rows: PlanningCountStat[][] = []
+  let row: PlanningCountStat[] = []
+  let rowTotal = 0
+  const targetRowTotal = visibleTotal / 3
+
+  for (const stat of topStats) {
+    if (row.length > 0 && rowTotal + stat.count > targetRowTotal && rows.length < 2) {
+      rows.push(row)
+      row = []
+      rowTotal = 0
+    }
+
+    row.push(stat)
+    rowTotal += stat.count
+  }
+
+  if (row.length > 0) rows.push(row)
+
+  let y = 0
+
+  return rows.flatMap((currentRow) => {
+    const currentRowTotal = currentRow.reduce((sum, stat) => sum + stat.count, 0)
+    const rowHeight = (currentRowTotal / visibleTotal) * 100
+    let x = 0
+
+    const rowTiles = currentRow.map((stat) => {
+      const width = (stat.count / currentRowTotal) * 100
+      const tile = {
+        ...stat,
+        x,
+        y,
+        width,
+        height: rowHeight,
+      }
+
+      x += width
+      return tile
+    })
+
+    y += rowHeight
+    return rowTiles
+  })
+}
+
+function treemapTileClass(index: number) {
+  const classes = [
+    "absolute flex flex-col justify-end overflow-hidden border border-white/80 bg-emerald-800 p-2 text-white",
+    "absolute flex flex-col justify-end overflow-hidden border border-white/80 bg-teal-700 p-2 text-white",
+    "absolute flex flex-col justify-end overflow-hidden border border-white/80 bg-lime-700 p-2 text-white",
+    "absolute flex flex-col justify-end overflow-hidden border border-white/80 bg-stone-700 p-2 text-white",
+    "absolute flex flex-col justify-end overflow-hidden border border-white/80 bg-emerald-600 p-2 text-white",
+    "absolute flex flex-col justify-end overflow-hidden border border-white/80 bg-teal-600 p-2 text-white",
+    "absolute flex flex-col justify-end overflow-hidden border border-white/80 bg-lime-600 p-2 text-white",
+    "absolute flex flex-col justify-end overflow-hidden border border-white/80 bg-stone-500 p-2 text-white",
+  ]
+
+  return classes[index % classes.length]
+}
+
+function TrendPanel({ stats }: { stats: PlanningCountStat[] }) {
+  const currentMonth = currentPlanningMonthKey()
+  const chartStats = stats.filter((stat) => stat.label < currentMonth).slice(-12)
+  const maxCount = Math.max(...chartStats.map((stat) => stat.count), 1)
+  const latest = chartStats.at(-1)
+  const previous = chartStats.at(-2)
+  const latestDelta = latest && previous ? latest.count - previous.count : null
+  const width = 420
+  const height = 220
+  const paddingLeft = 42
+  const paddingRight = 18
+  const paddingTop = 18
+  const paddingBottom = 38
+  const chartWidth = width - paddingLeft - paddingRight
+  const chartHeight = height - paddingTop - paddingBottom
+  const points = chartStats.map((stat, index) => {
+    const x =
+      chartStats.length === 1
+        ? width / 2
+        : paddingLeft + (index / (chartStats.length - 1)) * chartWidth
+    const y = paddingTop + (1 - stat.count / maxCount) * chartHeight
+
+    return { ...stat, x, y }
+  })
+  const linePath = points
+    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
+    .join(" ")
+  const areaPath =
+    points.length > 0
+      ? `${linePath} L ${points.at(-1)?.x} ${height - paddingBottom} L ${points[0].x} ${
+          height - paddingBottom
+        } Z`
+      : ""
+  const yTicks = [1, 0.75, 0.5, 0.25, 0].map((ratio) => ({
+    y: paddingTop + ratio * chartHeight,
+    value: Math.round((1 - ratio) * maxCount),
+  }))
+
+  return (
+    <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h3 className="text-base font-semibold tracking-tight text-stone-950">
+            Monthly trend
+          </h3>
+          <p className="mt-1 text-sm text-stone-500">
+            {latest ? formatPlanningMonth(latest.label) : "No month data"}
+          </p>
+        </div>
+        <p className="rounded-md bg-stone-100 px-2.5 py-1 text-sm font-semibold text-stone-800">
+          {latestDelta === null ? "n/a" : formatSignedNumber(latestDelta)}
+        </p>
+      </div>
+
+      <div className="mt-5">
+        {chartStats.length > 0 ? (
+          <>
+            <svg
+              role="img"
+              aria-label="Planning applications by month"
+              viewBox={`0 0 ${width} ${height}`}
+              className="h-64 w-full overflow-visible sm:h-72"
+              preserveAspectRatio="xMidYMid meet"
+            >
+              <defs>
+                <linearGradient id="planningTrendFill" x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="0%" stopColor="rgb(4 120 87)" stopOpacity="0.22" />
+                  <stop offset="100%" stopColor="rgb(4 120 87)" stopOpacity="0.03" />
+                </linearGradient>
+              </defs>
+              {yTicks.map((tick) => (
+                <g key={tick.y}>
+                  <path
+                    d={`M ${paddingLeft} ${tick.y} H ${width - paddingRight}`}
+                    fill="none"
+                    stroke="rgb(231 229 228)"
+                    strokeWidth="1"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                  <text
+                    x={paddingLeft - 10}
+                    y={tick.y + 4}
+                    textAnchor="end"
+                    className="fill-stone-400 text-[10px] font-medium"
+                  >
+                    {tick.value}
+                  </text>
+                </g>
+              ))}
+              <path
+                d={`M ${paddingLeft} ${height - paddingBottom} H ${
+                  width - paddingRight
+                }`}
+                fill="none"
+                stroke="rgb(168 162 158)"
+                strokeWidth="1"
+                vectorEffect="non-scaling-stroke"
+              />
+              {areaPath ? (
+                <path d={areaPath} fill="url(#planningTrendFill)" />
+              ) : null}
+              <path
+                d={linePath}
+                fill="none"
+                stroke="rgb(4 120 87)"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="3"
+                vectorEffect="non-scaling-stroke"
+              />
+              {points.map((point) => (
+                <g key={point.label}>
+                  <circle
+                    cx={point.x}
+                    cy={point.y}
+                    r="4"
+                    fill="white"
+                    stroke="rgb(4 120 87)"
+                    strokeWidth="2"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                  <circle
+                    cx={point.x}
+                    cy={point.y}
+                    r="1.5"
+                    fill="rgb(4 120 87)"
+                  />
+                </g>
+              ))}
+              {points.map((point, index) =>
+                index === 0 ||
+                index === points.length - 1 ||
+                index === Math.floor(points.length / 2) ? (
+                  <text
+                    key={`${point.label}-label`}
+                    x={point.x}
+                    y={height - 16}
+                    textAnchor="middle"
+                    className="fill-stone-500 text-[10px] font-medium"
+                  >
+                    {formatShortPlanningMonth(point.label)}
+                  </text>
+                ) : null
+              )}
+            </svg>
+          </>
+        ) : (
+          <div className="flex h-64 w-full items-center justify-center rounded-md bg-stone-50 text-sm text-stone-500 sm:h-72">
+            No trend data
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function DistributionPanel({
+  title,
+  stats,
+  emptyLabel,
+}: {
+  title: string
+  stats: PlanningCountStat[]
+  emptyLabel: string
+}) {
+  const shownStats = stats.slice(0, 4)
+  const total = stats.reduce((sum, stat) => sum + stat.count, 0)
+  const maxCount = Math.max(...shownStats.map((stat) => stat.count), 1)
+  const lead = shownStats[0]
+
+  return (
+    <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm">
+      <div>
+        <h3 className="text-base font-semibold tracking-tight text-stone-950">
+          {title}
+        </h3>
+        <p className="mt-1 text-sm text-stone-500">
+          {lead
+            ? `${lead.label} accounts for ${formatShare(lead.count, total)}`
+            : emptyLabel}
+        </p>
+      </div>
+
+      <div className="mt-5 space-y-3">
+        {shownStats.length > 0 ? (
+          shownStats.map((stat) => (
+            <div key={stat.label}>
+              <div className="flex items-baseline justify-between gap-3 text-sm">
+                <span className="min-w-0 truncate font-medium text-stone-800">
+                  {stat.label}
+                </span>
+                <span className="shrink-0 font-semibold text-stone-950">
+                  {formatShare(stat.count, total)}
+                </span>
+              </div>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-stone-100">
+                <div
+                  className="h-full rounded-full bg-emerald-700"
+                  style={{ width: `${Math.max(6, (stat.count / maxCount) * 100)}%` }}
+                />
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="rounded-md bg-stone-50 px-3 py-6 text-center text-sm text-stone-500">
+            {emptyLabel}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function formatShare(count: number, total: number) {
+  if (total <= 0) return "0%"
+  return `${Math.round((count / total) * 100)}%`
+}
+
+function formatShortPlanningMonth(value: string | undefined) {
+  if (!value) return ""
+
+  const date = new Date(`${value}-01T00:00:00`)
+  if (Number.isNaN(date.getTime())) return value
+
+  return new Intl.DateTimeFormat("en-IE", {
+    month: "short",
+    year: "2-digit",
+  }).format(date)
+}
+
+function currentPlanningMonthKey() {
+  const now = new Date()
+
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
 }
 
 function formatSignedNumber(value: number | null) {
@@ -319,75 +848,6 @@ function SelectFilter({
         </option>
       ))}
     </select>
-  )
-}
-
-function ApplicationsList({
-  applications,
-}: {
-  applications: PlanningApplication[]
-}) {
-  if (applications.length === 0) {
-    return (
-      <div className="py-12 text-center text-sm text-stone-500">
-        No planning applications matched those filters.
-      </div>
-    )
-  }
-
-  return (
-    <div className="divide-y divide-stone-200">
-      {applications.map((application) => (
-        <article
-          key={application.id}
-          className="grid gap-4 py-5 lg:grid-cols-[150px_minmax(0,1fr)]"
-        >
-          <div>
-            <p className="font-mono text-sm font-semibold text-stone-950">
-              {application.reference}
-            </p>
-            <p className="mt-2 text-sm text-stone-500">
-              {formatPlanningDate(application.registration_date)}
-            </p>
-            {application.status ? (
-              <p className="mt-3 inline-flex rounded-full border border-stone-200 px-3 py-1 text-xs font-semibold text-stone-600">
-                Status: {application.status}
-              </p>
-            ) : null}
-          </div>
-
-          <div className="min-w-0">
-            <h3 className="text-lg font-semibold leading-7 tracking-tight text-stone-950">
-              {application.proposal || "No proposal text recorded"}
-            </h3>
-            <p className="mt-2 text-sm leading-6 text-stone-600">
-              {application.location || "No location recorded"}
-            </p>
-            <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm text-stone-500">
-              {application.applicant_name ? (
-                <span>Applicant: {application.applicant_name}</span>
-              ) : null}
-              {application.application_type ? (
-                <span>Application type: {application.application_type}</span>
-              ) : null}
-              {application.decision_text ? (
-                <span>Decision: {application.decision_text}</span>
-              ) : null}
-            </div>
-            {application.source_url ? (
-              <a
-                href={application.source_url}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-4 inline-flex text-sm font-semibold text-stone-700 transition hover:text-stone-950"
-              >
-                Open council record
-              </a>
-            ) : null}
-          </div>
-        </article>
-      ))}
-    </div>
   )
 }
 

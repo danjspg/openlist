@@ -7,14 +7,14 @@ import SignOutButton from "@/components/SignOutButton"
 const navItems = [
   { href: "/sold-prices", label: "Sold prices" },
   { href: "/planning", label: "Planning" },
-  { href: "/viewings", label: "Viewings" },
+  { href: "/search", label: "Search" },
   { href: "/about", label: "About" },
 ]
 
 export default function Nav({
-  isSellerAuthenticated,
+  isAuthenticated,
 }: {
-  isSellerAuthenticated: boolean
+  isAuthenticated: boolean
 }) {
   const pathname = usePathname()
 
@@ -50,7 +50,7 @@ export default function Nav({
         </nav>
 
         <div className="flex items-center gap-3">
-          {isSellerAuthenticated ? (
+          {isAuthenticated ? (
             <>
               <Link
                 href="/my-viewings"
@@ -76,7 +76,10 @@ export default function Nav({
         </div>
       </div>
 
-      <div className="flex items-center gap-5 overflow-x-auto border-t border-stone-200/70 py-3 text-[15px] md:hidden">
+      <nav
+        className="flex w-full basis-full items-center justify-between gap-2 overflow-x-auto border-t border-stone-200/70 py-1 text-sm md:hidden"
+        aria-label="Primary navigation"
+      >
         {navItems.map((item) => {
           const isActive =
             pathname === item.href || pathname.startsWith(`${item.href}/`)
@@ -85,21 +88,30 @@ export default function Nav({
             <Link
               key={item.href}
               href={item.href}
-              className={`shrink-0 font-medium transition ${
+              aria-label={item.href === "/search" ? "Search" : undefined}
+              className={`inline-flex min-h-11 shrink-0 items-center font-medium transition ${
                 isActive
                   ? "text-stone-900"
                   : "text-stone-500 hover:text-stone-900"
               }`}
             >
-              {item.label}
+              {item.href === "/search" ? (
+                <>
+                  <span className="sr-only">Search</span>
+                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                    <circle cx="11" cy="11" r="6.5" />
+                    <path d="m16 16 4 4" />
+                  </svg>
+                </>
+              ) : item.label}
             </Link>
           )
         })}
 
-        {isSellerAuthenticated ? (
+        {isAuthenticated ? (
           <Link
             href="/my-viewings"
-            className={`shrink-0 font-medium transition ${
+            className={`inline-flex min-h-11 shrink-0 items-center font-medium transition ${
               pathname === "/my-viewings" || pathname.startsWith("/my-viewings/")
                 ? "text-stone-900"
                 : "text-stone-500 hover:text-stone-900"
@@ -110,12 +122,12 @@ export default function Nav({
         ) : (
           <Link
             href="/sign-in?redirectTo=%2Fmy-viewings"
-            className="shrink-0 font-medium text-stone-500 transition hover:text-stone-900"
+            className="inline-flex min-h-11 shrink-0 items-center font-medium text-stone-500 transition hover:text-stone-900"
           >
             Sign in
           </Link>
         )}
-      </div>
+      </nav>
     </>
   )
 }

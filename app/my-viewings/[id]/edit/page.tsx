@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
 import { getServerSupabase } from "@/lib/supabase"
-import { requireSellerUser } from "@/lib/seller-auth"
+import { requireUser } from "@/lib/auth"
 import {
   formatDateInput,
   formatTimeInput,
@@ -25,7 +25,7 @@ export default async function EditViewingPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const currentUser = await requireSellerUser().catch(() => null)
+  const currentUser = await requireUser().catch(() => null)
 
   if (!currentUser) {
     redirect(`/sign-in?redirectTo=${encodeURIComponent(`/my-viewings/${id}/edit`)}`)

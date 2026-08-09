@@ -21,6 +21,8 @@ export type PprSale = {
   year?: number | null
   month?: number | null
   area_slug?: string | null
+  lat?: number | string | null
+  lng?: number | string | null
 }
 
 export type PprAreaStats = {

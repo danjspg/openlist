@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { getServerSupabase } from "@/lib/supabase"
-import { requireSellerUser } from "@/lib/seller-auth"
+import { requireUser } from "@/lib/auth"
 import {
   sendViewingCancellationEmails,
   sendViewingConfirmationEmails,
@@ -31,7 +31,7 @@ function isChecked(formData: FormData, field: string) {
 }
 
 export async function createViewing(formData: FormData) {
-  const currentUser = await requireSellerUser()
+  const currentUser = await requireUser()
 
   const viewerName = getRequired(formData, "viewerName", "Viewer name")
   const viewerEmail = normaliseEmail(getRequired(formData, "viewerEmail", "Viewer email"))
@@ -96,7 +96,7 @@ export async function createViewing(formData: FormData) {
 }
 
 export async function cancelViewing(formData: FormData) {
-  const currentUser = await requireSellerUser()
+  const currentUser = await requireUser()
   const id = getRequired(formData, "id", "Viewing ID")
   const supabase = getServerSupabase()
 
@@ -138,7 +138,7 @@ export async function cancelViewing(formData: FormData) {
 }
 
 export async function deleteViewing(formData: FormData) {
-  const currentUser = await requireSellerUser()
+  const currentUser = await requireUser()
   const id = getRequired(formData, "id", "Viewing ID")
   const supabase = getServerSupabase()
 
@@ -157,7 +157,7 @@ export async function deleteViewing(formData: FormData) {
 }
 
 export async function updateViewing(formData: FormData) {
-  const currentUser = await requireSellerUser()
+  const currentUser = await requireUser()
   const id = getRequired(formData, "id", "Viewing ID")
   const viewerName = getRequired(formData, "viewerName", "Viewer name")
   const viewerEmail = normaliseEmail(getRequired(formData, "viewerEmail", "Viewer email"))

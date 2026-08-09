@@ -2,9 +2,9 @@ import type { Metadata } from "next"
 import Image from "next/image"
 
 export const metadata: Metadata = {
-  title: "About OpenList | Property Tools Ireland",
+  title: "About OpenList | Property Intelligence Ireland",
   description:
-    "Learn about OpenList, a property tools platform for sold prices, planning data and viewing management in Ireland.",
+    "Learn how OpenList connects Irish sold prices, planning applications and location context for property research.",
   alternates: {
     canonical: "/about",
   },
@@ -31,11 +31,11 @@ export default function AboutPage() {
           </h1>
 
           <p className="mx-auto mt-5 max-w-3xl text-base leading-7 text-slate-600 sm:text-lg sm:leading-8">
-            OpenList makes Irish property data easier to explore.
+            OpenList helps people understand property in Ireland.
           </p>
 
           <p className="mx-auto mt-3 max-w-3xl text-sm leading-6 text-slate-600 sm:text-base sm:leading-7">
-            Research sold prices, explore planning applications and local development activity, and organise property viewings in one place.
+            Search sold prices and planning applications, then move between both datasets to understand places and development activity in context.
           </p>
         </div>
 
@@ -47,7 +47,7 @@ export default function AboutPage() {
               <ul className="list-disc space-y-3 pl-5">
                 <li>Research public sold-price data and local market activity</li>
                 <li>Search planning applications and explore development activity</li>
-                <li>Organise and manage property viewings</li>
+                <li>Move between planning activity and local sold-price context</li>
               </ul>
 
               <p>
@@ -58,15 +58,14 @@ export default function AboutPage() {
               </p>
 
               <p>
-                OpenList provides property information and self-service tools. We
+                OpenList provides property intelligence and a secondary personal viewing utility. We
                 are not an estate agent, auctioneer, valuer, broker or legal
                 adviser.
               </p>
 
               <p>
-                The aim is simple: to provide practical property data and
-                straightforward software tools that help people make
-                better-informed property decisions.
+                The aim is simple: make public property information easier to search,
+                connect and understand without overstating what the source data proves.
               </p>
             </div>
           </div>
@@ -79,7 +78,7 @@ export default function AboutPage() {
               <ul className="mt-5 list-disc space-y-3 pl-5 text-base leading-7 text-slate-700">
                 <li>research sold prices</li>
                 <li>search planning applications</li>
-                <li>organise property viewings</li>
+                <li>connect local planning and sold-price context</li>
               </ul>
             </div>
 
@@ -88,7 +87,7 @@ export default function AboutPage() {
                 Platform role
               </p>
               <div className="mt-4 space-y-4 text-base leading-7 text-slate-600">
-                <p>OpenList provides information and software tools for property research and viewing management.</p>
+                <p>OpenList provides property research context from sold-price and planning data. Viewings remains available as an optional signed-in account utility.</p>
                 <p>OpenList is not an estate agent, auctioneer, valuer, broker or legal adviser.</p>
               </div>
             </div>

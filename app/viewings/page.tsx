@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Image from "next/image"
 import Link from "next/link"
-import { getCurrentSellerUser } from "@/lib/seller-auth"
+import { getCurrentUser } from "@/lib/auth"
 
 export const metadata: Metadata = {
   title: "Property Viewing Management | OpenList",
@@ -51,7 +51,7 @@ const typicalUses = [
 ]
 
 export default async function ViewingsPage() {
-  const currentUser = await getCurrentSellerUser()
+  const currentUser = await getCurrentUser()
   const dashboardHref = "/my-viewings"
   const signInHref = "/sign-in?redirectTo=%2Fmy-viewings"
   const primaryHref = currentUser ? dashboardHref : signInHref

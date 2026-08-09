@@ -3,13 +3,14 @@ import { Analytics } from "@vercel/analytics/next"
 import Image from "next/image"
 import Link from "next/link"
 import Nav from "@/components/Nav"
-import { getCurrentSellerUser } from "@/lib/seller-auth"
+import { getCurrentUser } from "@/lib/auth"
+import "leaflet/dist/leaflet.css"
 import "./globals.css"
 
 export const metadata: Metadata = {
-  title: "OpenList | Property Tools & Sold Prices Ireland",
+  title: "OpenList | Property Intelligence for Ireland",
   description:
-    "Property tools for Ireland. Research sold prices, explore planning data and organise property viewings in one place.",
+    "Search Irish sold prices and planning applications. Research properties, neighbourhoods and development activity in one place.",
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL || "https://www.openlist.ie"
   ),
@@ -35,9 +36,9 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  const currentSellerUser = await getCurrentSellerUser()
-  const isSellerAuthenticated = Boolean(currentSellerUser)
-  const footerViewingsLink = isSellerAuthenticated
+  const currentUser = await getCurrentUser()
+  const isAuthenticated = Boolean(currentUser)
+  const footerViewingsLink = isAuthenticated
     ? { href: "/my-viewings", label: "My viewings" }
     : { href: "/viewings", label: "Viewings" }
 
@@ -46,7 +47,7 @@ export default async function RootLayout({
       <body className="overflow-x-hidden bg-stone-50 text-stone-900">
         <header className="sticky top-0 z-50 border-b border-stone-200/80 bg-white/90 backdrop-blur-md">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
-            <div className="flex items-center justify-between gap-4 py-3 sm:py-5 md:py-6">
+            <div className="flex flex-wrap items-center justify-between gap-x-4 py-3 sm:py-5 md:flex-nowrap md:py-6">
               <Link href="/" className="flex shrink-0 items-center">
                 <Image
                   src="/logo-small.png"
@@ -65,7 +66,7 @@ export default async function RootLayout({
                 />
               </Link>
 
-              <Nav isSellerAuthenticated={isSellerAuthenticated} />
+              <Nav isAuthenticated={isAuthenticated} />
             </div>
           </div>
         </header>
@@ -87,7 +88,7 @@ export default async function RootLayout({
                 </div>
 
                 <p className="mt-4 max-w-md text-sm leading-6 text-stone-600">
-                  OpenList makes Irish property data easier to explore, bringing together sold prices, planning applications and practical property tools.
+                  OpenList makes Irish property data easier to understand by connecting sold prices, planning applications and location context.
                 </p>
 
                 <div className="mt-6 space-y-3 text-xs leading-5 text-stone-500">
@@ -98,7 +99,7 @@ export default async function RootLayout({
               </div>
 
               <div className="grid gap-6 text-sm text-stone-600 sm:grid-cols-3 md:pt-12">
-                <FooterLinkGroup title="Property Data">
+                <FooterLinkGroup title="Property intelligence">
                   <Link href="/sold-prices" className="transition hover:text-stone-900">
                     Sold prices
                   </Link>
@@ -107,7 +108,7 @@ export default async function RootLayout({
                   </Link>
                 </FooterLinkGroup>
 
-                <FooterLinkGroup title="Property Tools">
+                <FooterLinkGroup title="Account tools">
                   <Link href={footerViewingsLink.href} className="transition hover:text-stone-900">
                     {footerViewingsLink.label}
                   </Link>

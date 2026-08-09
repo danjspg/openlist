@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { getServerSupabase } from "@/lib/supabase"
-import { getCurrentSellerUser } from "@/lib/seller-auth"
+import { getCurrentUser } from "@/lib/auth"
 import {
   getTomorrowDateInput,
   splitPropertyLocation,
@@ -24,7 +24,7 @@ export default async function NewViewingPage({
   searchParams: Promise<{ from?: string }>
 }) {
   const { from } = await searchParams
-  const currentUser = await getCurrentSellerUser()
+  const currentUser = await getCurrentUser()
 
   if (!currentUser) {
     redirect("/sign-in?redirectTo=%2Fmy-viewings%2Fnew")

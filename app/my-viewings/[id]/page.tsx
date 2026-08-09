@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
 import { getServerSupabase } from "@/lib/supabase"
-import { requireSellerUser } from "@/lib/seller-auth"
+import { requireUser } from "@/lib/auth"
 import {
   formatViewingDateTime,
   getGoogleMapsUrl,
@@ -38,7 +38,7 @@ export default async function ViewingDetailsPage({
   searchParams: Promise<{ cancelled?: string; updated?: string }>
 }) {
   const [{ id }, { cancelled, updated }] = await Promise.all([params, searchParams])
-  const currentUser = await requireSellerUser().catch(() => null)
+  const currentUser = await requireUser().catch(() => null)
 
   if (!currentUser) {
     redirect(`/sign-in?redirectTo=${encodeURIComponent(`/my-viewings/${id}`)}`)

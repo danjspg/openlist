@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from "next/server"
 import type { EmailOtpType } from "@supabase/supabase-js"
 import { getSafeRedirectPath } from "@/lib/site-url"
 import {
-  applySellerSessionCookies,
-  createSupabaseAuthClient,
+  applySessionCookies,
+  createAuthClient,
   isEmailOtpType,
-} from "@/lib/seller-auth"
+} from "@/lib/auth"
 
 async function verifyEmailToken(tokenHash: string, type: EmailOtpType) {
-  const supabase = createSupabaseAuthClient()
+  const supabase = createAuthClient()
   const attempts: EmailOtpType[] =
     type === "email"
       ? ["email", "magiclink"]
@@ -31,7 +31,7 @@ async function verifyEmailToken(tokenHash: string, type: EmailOtpType) {
     lastError = error
   }
 
-  console.error("Seller auth callback failed", {
+  console.error("Auth callback failed", {
     type,
     error: lastError instanceof Error ? lastError.message : "No session returned",
   })
@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
   }
 
   const response = NextResponse.redirect(new URL(next, request.url))
-  applySellerSessionCookies(response, session)
+  applySessionCookies(response, session)
   response.cookies.set("openlist_auth_next", "", {
     path: "/",
     maxAge: 0,

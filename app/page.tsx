@@ -6,9 +6,9 @@ import { getHomepageSoldPriceStats } from "@/lib/ppr-analytics"
 import { buildPprDatasetDescription, getPprDatasetSummary } from "@/lib/ppr"
 
 export const metadata: Metadata = {
-  title: "OpenList | Property Tools & Sold Prices Ireland",
+  title: "OpenList | Property Intelligence for Ireland",
   description:
-    "Property tools for Ireland. Research sold prices, explore planning data and organise property viewings in one place.",
+    "Search Irish sold prices and planning applications. Research properties, neighbourhoods and development activity with OpenList.",
   alternates: {
     canonical: "/",
   },
@@ -16,23 +16,30 @@ export const metadata: Metadata = {
 
 export const revalidate = 21600
 
-const coreTools = [
+const primaryProducts = [
   {
-    title: "Research Prices",
-    text: "Explore sold-price data, market trends and local insights.",
-    href: "/sold-prices",
+    title: "See what properties really sold for",
+    text: "Search Property Price Register records, compare locations and explore market trends.",
   },
   {
-    title: "Planning & Development",
-    text: "Search planning applications and development activity.",
-    href: "/planning",
-  },
-  {
-    title: "Manage Viewings",
-    text: "Create, organise and track property viewings.",
-    href: "/viewings",
+    title: "See what’s being built around you",
+    text: "Search planning applications, development activity and planning decisions.",
   },
 ]
+
+// Keep homepage photography swappable by role instead of coupling copy or links to files.
+const homepageImages = {
+  establishedHousing: {
+    src: "/home-established-street-v2.jpg",
+    alt: "A street of established Irish homes",
+    position: "object-center",
+  },
+  plannedDevelopment: {
+    src: "/home-planning-aerial-v2.jpg",
+    alt: "An Irish neighbourhood beside active housing construction",
+    position: "object-center",
+  },
+} as const
 
 export default async function HomePage() {
   const [soldPriceStats, datasetSummary] = await Promise.all([
@@ -50,16 +57,28 @@ export default async function HomePage() {
         <div className="grid gap-10 lg:grid-cols-[1.12fr_0.88fr] lg:items-center lg:gap-12">
           <div className="max-w-[680px]">
             <p className="text-sm uppercase tracking-[0.25em] text-stone-500">
-              PROPERTY TOOLS FOR IRELAND
+              PROPERTY INTELLIGENCE FOR IRELAND
             </p>
 
             <h1 className="mt-4 max-w-3xl text-4xl font-semibold tracking-tight text-stone-900 sm:mt-5 sm:text-5xl md:text-[3.5rem] md:leading-[1.05]">
-              Property tools for Ireland
+              Understand property in Ireland
             </h1>
 
             <p className="mt-5 max-w-[34rem] text-base leading-7 text-stone-600 sm:mt-6 sm:text-lg sm:leading-8">
-              Sold prices, planning data and property viewing tools in one place.
+              Search Irish sold prices and planning applications. Research properties,
+              neighbourhoods and development activity in one place.
             </p>
+
+            <form action="/search" className="mt-7 flex max-w-xl gap-2 rounded-2xl border border-stone-300 bg-white p-2 shadow-sm">
+              <input
+                type="search"
+                name="q"
+                aria-label="Search property intelligence"
+                placeholder="Search an address, area, Eircode or planning reference"
+                className="min-h-12 min-w-0 flex-1 rounded-xl px-3 text-sm outline-none placeholder:text-stone-400 focus:bg-stone-50 sm:text-base"
+              />
+              <button type="submit" className="min-h-12 shrink-0 rounded-xl bg-stone-950 px-4 text-sm font-semibold text-white transition hover:bg-stone-700 sm:px-5">Search</button>
+            </form>
 
             <div className="mt-8 flex flex-wrap gap-3 sm:mt-9 sm:gap-4">
               <Link
@@ -74,86 +93,46 @@ export default async function HomePage() {
               >
                 Search planning
               </Link>
-              <Link
-                href="/viewings"
-                className="rounded-full border border-stone-300 px-5 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900 sm:px-6"
-              >
-                Manage viewings
-              </Link>
             </div>
 
-            <div className="mt-7 grid gap-3 sm:grid-cols-3 lg:mt-8">
-              {coreTools.map((item) => (
-                <Link
+            <div className="mt-7 grid gap-3 sm:grid-cols-2 lg:mt-8">
+              {primaryProducts.map((item) => (
+                <article
                   key={item.title}
-                  href={item.href}
-                  className="group rounded-2xl border border-stone-200 bg-white/85 px-4 py-4 shadow-sm transition hover:-translate-y-0.5 hover:border-stone-300 hover:bg-white hover:shadow-md"
+                  className="rounded-2xl border border-stone-200 bg-white/85 px-4 py-4 shadow-sm"
                 >
-                  <h2 className="text-base font-semibold tracking-tight text-stone-900 transition group-hover:text-stone-700">
+                  <h2 className="text-base font-semibold tracking-tight text-stone-900">
                     {item.title}
                   </h2>
                   <p className="mt-1.5 text-sm leading-5 text-stone-600">
                     {item.text}
                   </p>
-                </Link>
+                </article>
               ))}
             </div>
           </div>
 
-          <div className="grid gap-3 sm:gap-4 sm:grid-cols-2">
-            <Link
-              href="/sold-prices"
-              className="group relative block h-[220px] overflow-hidden rounded-3xl bg-white shadow-sm sm:col-span-2 sm:h-[280px] lg:h-[360px]"
-            >
+          <div className="grid gap-3 sm:grid-cols-2 sm:gap-4" aria-label="Irish housing and development photography">
+            <div className="relative h-[220px] overflow-hidden rounded-3xl bg-white shadow-sm sm:col-span-2 sm:h-[280px] lg:h-[360px]">
               <Image
-                src="/home-hero-1.jpg"
-                alt="OpenList sold-price research"
+                src={homepageImages.establishedHousing.src}
+                alt={homepageImages.establishedHousing.alt}
                 fill
+                priority
                 sizes="(max-width: 640px) 100vw, (max-width: 1024px) 100vw, 50vw"
-                className="object-cover transition duration-500 group-hover:scale-[1.02]"
+                className={`object-cover ${homepageImages.establishedHousing.position}`}
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-black/10 to-transparent transition duration-300 group-hover:from-black/45" />
-              <div className="absolute bottom-6 left-6">
-                <div className="inline-flex items-center rounded-full bg-white/92 px-4 py-2 text-sm font-semibold text-stone-900 shadow-sm backdrop-blur transition group-hover:bg-white">
-                  Explore sold prices
-                  <span className="ml-2 transition duration-200 group-hover:translate-x-0.5">
-                    &rarr;
-                  </span>
-                </div>
-              </div>
-            </Link>
+            </div>
 
-            <Link
-              href="/planning"
-              className="group relative hidden h-36 overflow-hidden rounded-3xl bg-white shadow-sm sm:block sm:h-48 lg:h-52"
-            >
+            <div className="relative hidden h-36 overflow-hidden rounded-3xl bg-white shadow-sm sm:col-span-2 sm:block sm:h-48 lg:h-52">
               <Image
-                src="/home-hero-2.jpg"
-                alt="OpenList planning research"
+                src={homepageImages.plannedDevelopment.src}
+                alt={homepageImages.plannedDevelopment.alt}
                 fill
-                sizes="(max-width: 640px) 100vw, 50vw"
-                className="object-cover transition duration-500 group-hover:scale-[1.02]"
+                sizes="(max-width: 1024px) 100vw, 50vw"
+                className={`object-cover ${homepageImages.plannedDevelopment.position}`}
               />
-              <div className="absolute bottom-4 left-4 rounded-full bg-white/92 px-3 py-1.5 text-sm font-semibold text-stone-900 shadow-sm">
-                Planning
-              </div>
-            </Link>
-
-            <Link
-              href="/viewings"
-              className="group relative hidden h-36 overflow-hidden rounded-3xl bg-white shadow-sm sm:block sm:h-48 lg:h-52"
-            >
-              <Image
-                src="/home-hero-3.jpg"
-                alt="OpenList viewing management"
-                fill
-                sizes="(max-width: 640px) 100vw, 50vw"
-                className="object-cover transition duration-500 group-hover:scale-[1.02]"
-              />
-              <div className="absolute bottom-4 left-4 rounded-full bg-white/92 px-3 py-1.5 text-sm font-semibold text-stone-900 shadow-sm">
-                Viewings
-              </div>
-            </Link>
+            </div>
           </div>
         </div>
       </section>
@@ -172,53 +151,16 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16">
-        <div className="max-w-2xl">
-          <p className="text-sm uppercase tracking-[0.2em] text-stone-500">
-            What you can do
-          </p>
-          <h2 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">
-            What you can do with OpenList
-          </h2>
-        </div>
-
-        <div className="mt-8 grid gap-6 sm:mt-10 md:grid-cols-3">
-          {[
-            {
-              step: "01",
-              title: "Research Prices",
-              text: "Browse sold-price data, market trends and local insights.",
-              href: "/sold-prices",
-            },
-            {
-              step: "02",
-              title: "Planning & Development",
-              text: "Search planning applications and development activity.",
-              href: "/planning",
-            },
-            {
-              step: "03",
-              title: "Manage Viewings",
-              text: "Create, edit, clone and track property viewings.",
-              href: "/viewings",
-            },
-          ].map((item) => (
-            <Link
-              key={item.step}
-              href={item.href}
-              className="group rounded-3xl border border-stone-200 bg-white p-7 shadow-sm transition hover:-translate-y-1 hover:border-stone-300 hover:shadow-md sm:p-8"
-            >
-              <p className="text-sm font-medium tracking-[0.2em] text-stone-400">
-                {item.step}
-              </p>
-              <h3 className="mt-4 text-2xl font-semibold tracking-tight transition group-hover:text-stone-700">
-                {item.title}
-              </h3>
-              <p className="mt-4 text-base leading-7 text-stone-600">
-                {item.text}
-              </p>
-            </Link>
-          ))}
+      <section className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
+        <div className="flex flex-col gap-5 rounded-3xl border border-stone-200 bg-stone-100 p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-stone-500">Planning a purchase?</p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">Keep your property viewings organised.</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">Viewings is a personal signed-in utility for keeping dates, notes and property details together.</p>
+          </div>
+          <Link href="/viewings" className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full border border-stone-300 bg-white px-5 text-sm font-semibold text-stone-800 transition hover:border-stone-900">
+            Manage viewings
+          </Link>
         </div>
       </section>
 
@@ -256,18 +198,12 @@ export default async function HomePage() {
               </Link>
             ))}
           </div>
-          <div className="mt-6 flex flex-wrap gap-3">
+          <div className="mt-6">
             <Link
               href="/sold-prices"
               className="inline-block rounded-full bg-stone-900 px-6 py-3 text-sm font-medium text-white transition hover:bg-stone-700"
             >
               View sold prices
-            </Link>
-            <Link
-              href="/planning"
-              className="inline-block rounded-full border border-stone-300 px-6 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900"
-            >
-              Search planning data
             </Link>
           </div>
         </div>

@@ -7,16 +7,20 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test tests/**/*.test.ts",
     "ppr:download": "node scripts/download-ppr-csvs.mjs",
     "ppr:ingest": "node scripts/ingest-ppr-csv.mjs",
     "ppr:refresh": "node --env-file=.env.local scripts/refresh-ppr.mjs",
     "ppr:rebuild-summaries": "node scripts/rebuild-ppr-summaries.mjs",
     "ppr:rebuild-analytics": "node scripts/rebuild-ppr-phase1-analytics.mjs",
-    "planning:cork:ingest": "node --env-file=.env.local scripts/ingest-cork-planning-applications.mjs"
+    "planning:cork:ingest": "node --env-file=.env.local scripts/ingest-cork-planning-applications.mjs",
+    "planning:national:ingest": "node --env-file=.env.local scripts/ingest-national-planning-applications.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.103.0",
     "@vercel/analytics": "^2.0.1",
+    "leaflet": "^1.9.4",
     "next": "^15.5.15",
     "openai": "^6.34.0",
     "react": "19.2.4",
@@ -25,12 +29,14 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/leaflet": "^1.9.22",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.3",
     "tailwindcss": "^4",
+    "tsx": "^4.23.11",
     "typescript": "^5"
   }
 }
