@@ -1,6 +1,5 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { connection } from "next/server"
 import PlanningResultsView, {
   type PlanningResultRecord,
 } from "@/components/planning/PlanningResultsView"
@@ -23,6 +22,10 @@ import {
   planningGridToWgs84,
 } from "@/lib/property-intelligence"
 import { presentPlanningProposal } from "@/lib/planning-presentation"
+import {
+  buildPlanningFilterFields,
+  type PlanningFilterKey,
+} from "@/lib/planning-filters"
 
 export const revalidate = 21600
 
@@ -39,12 +42,8 @@ export const metadata: Metadata = {
   },
 }
 
-export default async function PlanningPage({
-  searchParams,
-}: {
-  searchParams?: Promise<PlanningSearchParams>
-}) {
-  return <PlanningApplicationsView searchParams={searchParams} />
+export default function PlanningPage() {
+  return <PlanningApplicationsView />
 }
 
 export async function PlanningApplicationsView({
@@ -59,10 +58,6 @@ export async function PlanningApplicationsView({
   const hasActiveSearch = Boolean(
     filters.q || filters.area || filters.council || filters.status || filters.type
   )
-
-  if (hasActiveSearch) {
-    await connection()
-  }
 
   const dashboard = await getPlanningDashboard(filters, authority ?? null)
   const resultRows = hasActiveSearch
@@ -229,10 +224,10 @@ export async function PlanningApplicationsView({
                 Most active councils
               </span>
               {quickCouncilStats.map((stat) => (
-                <Link
+                <PlanningFilterButton
                   key={stat.label}
-                  href={planningFilterHref(
-                    planningPath,
+                  action={planningPath}
+                  fields={buildPlanningFilterFields(
                     filters,
                     "council",
                     stat.label
@@ -243,7 +238,7 @@ export async function PlanningApplicationsView({
                   <span className="ml-2 text-stone-500">
                     {stat.count.toLocaleString("en-IE")}
                   </span>
-                </Link>
+                </PlanningFilterButton>
               ))}
             </div>
           ) : null}
@@ -282,8 +277,8 @@ export async function PlanningApplicationsView({
               title={areaStatsTitle}
               subtitle={areaSubtitle}
               stats={dashboard.areaStats}
-              linkForStat={(stat) =>
-                planningFilterHref(planningPath, filters, areaFilterKey, stat.label)
+              filterForStat={(stat) =>
+                planningFilterSpec(planningPath, filters, areaFilterKey, stat.label)
               }
             />
             <BarList
@@ -301,24 +296,24 @@ export async function PlanningApplicationsView({
               title={latestMonthAreaTitle}
               subtitle={latestMonthAreaSubtitle}
               stats={dashboard.latestMonthAreaStats}
-              linkForStat={(stat) =>
-                planningFilterHref(planningPath, filters, areaFilterKey, stat.label)
+              filterForStat={(stat) =>
+                planningFilterSpec(planningPath, filters, areaFilterKey, stat.label)
               }
             />
             <BarList
               title={`Status in ${latestMonthLabel}`}
               subtitle="Current status mix for applications registered in the latest month."
               stats={dashboard.latestMonthStatusStats}
-              linkForStat={(stat) =>
-                planningFilterHref(planningPath, filters, "status", stat.label)
+              filterForStat={(stat) =>
+                planningFilterSpec(planningPath, filters, "status", stat.label)
               }
             />
             <BarList
               title={`Types in ${latestMonthLabel}`}
               subtitle="Most common application types registered in the latest month."
               stats={dashboard.latestMonthTypeStats}
-              linkForStat={(stat) =>
-                planningFilterHref(planningPath, filters, "type", stat.label)
+              filterForStat={(stat) =>
+                planningFilterSpec(planningPath, filters, "type", stat.label)
               }
             />
           </div>
@@ -353,8 +348,8 @@ export async function PlanningApplicationsView({
             subtitle="Current public status labels from the source."
             stats={dashboard.statusStats}
             compact
-            linkForStat={(stat) =>
-              planningFilterHref(planningPath, filters, "status", stat.label)
+            filterForStat={(stat) =>
+              planningFilterSpec(planningPath, filters, "status", stat.label)
             }
           />
 
@@ -363,8 +358,8 @@ export async function PlanningApplicationsView({
             subtitle="Most frequent application type labels."
             stats={dashboard.typeStats}
             compact
-            linkForStat={(stat) =>
-              planningFilterHref(planningPath, filters, "type", stat.label)
+            filterForStat={(stat) =>
+              planningFilterSpec(planningPath, filters, "type", stat.label)
             }
           />
         </aside>
@@ -408,21 +403,16 @@ export async function PlanningApplicationsView({
   )
 }
 
-function planningFilterHref(
+function planningFilterSpec(
   basePath: string,
   filters: Required<PlanningSearchParams>,
-  key: "area" | "council" | "status" | "type",
+  key: PlanningFilterKey,
   value: string
 ) {
-  const params = new URLSearchParams()
-
-  for (const filterKey of ["q", "area", "council", "status", "type"] as const) {
-    const nextValue = filterKey === key ? value : filters[filterKey]
-    if (nextValue) params.set(filterKey, nextValue)
+  return {
+    action: basePath,
+    fields: buildPlanningFilterFields(filters, key, value),
   }
-
-  const query = params.toString()
-  return `${basePath}${query ? `?${query}` : ""}`
 }
 
 function Metric({ label, value }: { label: string; value: string | number }) {
@@ -856,13 +846,13 @@ function BarList({
   subtitle,
   stats,
   compact = false,
-  linkForStat,
+  filterForStat,
 }: {
   title: string
   subtitle: string
   stats: PlanningCountStat[]
   compact?: boolean
-  linkForStat?: (stat: PlanningCountStat) => string
+  filterForStat?: (stat: PlanningCountStat) => PlanningFilterSpec
 }) {
   const maxCount = Math.max(...stats.map((stat) => stat.count), 1)
 
@@ -881,13 +871,13 @@ function BarList({
                 <span className="min-w-0 truncate font-medium text-stone-800">
                   {stat.label}
                 </span>
-                {linkForStat ? (
-                  <Link
-                    href={linkForStat(stat)}
+                {filterForStat ? (
+                  <PlanningFilterButton
+                    {...filterForStat(stat)}
                     className="shrink-0 rounded-full border border-stone-200 bg-stone-50 px-2.5 py-1 font-semibold text-stone-950 transition hover:border-stone-400"
                   >
                     {stat.count}
-                  </Link>
+                  </PlanningFilterButton>
                 ) : (
                   <span className="shrink-0 font-semibold text-stone-950">
                     {stat.count}
@@ -907,6 +897,32 @@ function BarList({
         <p className="mt-5 text-sm text-stone-500">No records available yet.</p>
       )}
     </div>
+  )
+}
+
+type PlanningFilterSpec = {
+  action: string
+  fields: Partial<Record<keyof PlanningSearchParams, string>>
+}
+
+function PlanningFilterButton({
+  action,
+  fields,
+  className,
+  children,
+}: PlanningFilterSpec & {
+  className: string
+  children: React.ReactNode
+}) {
+  return (
+    <form action={action} method="get" className="inline-flex">
+      {Object.entries(fields).map(([name, value]) => (
+        <input key={name} type="hidden" name={name} value={value} />
+      ))}
+      <button type="submit" className={className}>
+        {children}
+      </button>
+    </form>
   )
 }
 

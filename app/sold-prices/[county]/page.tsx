@@ -5,7 +5,6 @@ import PprLocationInsights from "@/components/ppr/PprLocationInsights"
 import PprDisclaimer from "@/components/ppr/PprDisclaimer"
 import PprSaleCard from "@/components/ppr/PprSaleCard"
 import {
-  PPR_MARKETS,
   getPprMarket,
   getRelevantMarketComparisonLinks,
   isCountyPprMarket,
@@ -36,9 +35,7 @@ export const dynamicParams = true
 export const revalidate = 21600
 
 export function generateStaticParams() {
-  return PPR_MARKETS.filter((market) => market.marketType === "county").map((market) => ({
-    county: market.slug,
-  }))
+  return []
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {

@@ -28,6 +28,12 @@ import {
 } from "@/lib/ppr-analytics"
 
 export const revalidate = 21600
+export const dynamicParams = true
+
+// Area pages are generated on first request and retained as ISR entries.
+export function generateStaticParams() {
+  return []
+}
 
 type Props = {
   params: Promise<{ county: string; areaSlug: string }>
@@ -237,7 +243,12 @@ export default async function PprAreaPage({ params }: Props) {
                   <h2 className="mt-2 text-3xl font-semibold tracking-tight text-stone-900">Planning applications in {areaName}</h2>
                   <p className="mt-3 max-w-2xl text-sm leading-6 text-stone-600">Recent applications matched by the area name in the published application address. This does not imply a link to any sold property shown above.</p>
                 </div>
-                <Link href={`/planning?area=${encodeURIComponent(areaName)}`} className="shrink-0 text-sm font-semibold text-stone-700 transition hover:text-stone-950">Search all planning →</Link>
+                <form action="/planning" method="get" className="shrink-0">
+                  <input type="hidden" name="area" value={areaName} />
+                  <button type="submit" className="text-sm font-semibold text-stone-700 transition hover:text-stone-950">
+                    Search all planning →
+                  </button>
+                </form>
               </div>
 
               {planningApplications.length > 0 ? (

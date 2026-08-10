@@ -1,25 +1,21 @@
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import {
-  PLANNING_AUTHORITIES,
   getPlanningAuthorityBySlug,
 } from "@/lib/planning-authorities"
 import {
   PlanningApplicationsView,
 } from "@/app/planning/applications/PlanningApplicationsPage"
-import type { PlanningSearchParams } from "@/lib/planning"
 
 export const revalidate = 21600
+export const dynamicParams = true
 
 type PlanningAuthorityPageProps = {
   params: Promise<{ authority: string }>
-  searchParams?: Promise<PlanningSearchParams>
 }
 
 export function generateStaticParams() {
-  return PLANNING_AUTHORITIES.map((authority) => ({
-    authority: authority.slug,
-  }))
+  return []
 }
 
 export async function generateMetadata({
@@ -47,7 +43,6 @@ export async function generateMetadata({
 
 export default async function PlanningAuthorityPage({
   params,
-  searchParams,
 }: PlanningAuthorityPageProps) {
   const { authority: authoritySlug } = await params
   const authority = getPlanningAuthorityBySlug(authoritySlug)
@@ -56,7 +51,5 @@ export default async function PlanningAuthorityPage({
     notFound()
   }
 
-  return (
-    <PlanningApplicationsView searchParams={searchParams} authority={authority} />
-  )
+  return <PlanningApplicationsView authority={authority} />
 }

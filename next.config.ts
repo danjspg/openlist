@@ -1,6 +1,7 @@
 import type { NextConfig } from "next"
 
 const nextConfig: NextConfig = {
+  staticPageGenerationTimeout: 180,
   images: {
     remotePatterns: [
       {
@@ -10,6 +11,11 @@ const nextConfig: NextConfig = {
     ],
   },
   experimental: {
+    // Keep build-time ISR priming gentle on the shared data APIs. Public routes
+    // still prerender, but only two data-backed pages are generated at once.
+    staticGenerationMaxConcurrency: 2,
+    staticGenerationMinPagesPerWorker: 1,
+    staticGenerationRetryCount: 2,
     serverActions: {
       bodySizeLimit: "8mb",
     },

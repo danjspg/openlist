@@ -16,6 +16,13 @@ import { presentPlanningProposal } from "@/lib/planning-presentation"
 import { getPublicSiteUrl } from "@/lib/site-url"
 
 export const revalidate = 21600
+export const dynamicParams = true
+
+// Planning details are generated on demand, then retained as six-hour ISR entries.
+// Returning no build-time params avoids generating all 44,500 records at deploy time.
+export function generateStaticParams() {
+  return []
+}
 
 type Props = {
   params: Promise<{ authority: string; reference: string }>
@@ -82,10 +89,9 @@ export default async function PlanningApplicationPage({ params }: Props) {
     research.location.eircode ||
     research.location.county ||
     authority.shortName
-  const planningAreaPath = research.location.locality
-    ? `/planning/${authority.slug}?area=${encodeURIComponent(research.location.locality)}`
-    : `/planning/${authority.slug}`
-  const unifiedResearchPath = `/search?q=${encodeURIComponent(researchLabel)}`
+  const planningAreaFields = research.location.locality
+    ? { area: research.location.locality }
+    : null
 
   return (
     <main className="min-h-screen bg-stone-50">
@@ -258,8 +264,21 @@ export default async function PlanningApplicationPage({ params }: Props) {
             </p>
             <div className="mt-5 divide-y divide-stone-700 border-y border-stone-700">
               <ResearchLink href={soldPricePath}>Sold prices in {researchLabel}</ResearchLink>
-              <ResearchLink href={planningAreaPath}>Planning applications in {researchLabel}</ResearchLink>
-              <ResearchLink href={unifiedResearchPath}>Search all OpenList results</ResearchLink>
+              {planningAreaFields ? (
+                <ResearchForm
+                  action={`/planning/${authority.slug}`}
+                  fields={planningAreaFields}
+                >
+                  Planning applications in {researchLabel}
+                </ResearchForm>
+              ) : (
+                <ResearchLink href={`/planning/${authority.slug}`}>
+                  Planning applications in {researchLabel}
+                </ResearchLink>
+              )}
+              <ResearchForm action="/search" fields={{ q: researchLabel }}>
+                Search all OpenList results
+              </ResearchForm>
             </div>
           </div>
         </aside>
@@ -318,6 +337,31 @@ function ResearchLink({ href, children }: { href: string; children: React.ReactN
       <span>{children}</span>
       <span aria-hidden="true">→</span>
     </Link>
+  )
+}
+
+function ResearchForm({
+  action,
+  fields,
+  children,
+}: {
+  action: string
+  fields: Record<string, string>
+  children: React.ReactNode
+}) {
+  return (
+    <form action={action} method="get">
+      {Object.entries(fields).map(([name, value]) => (
+        <input key={name} type="hidden" name={name} value={value} />
+      ))}
+      <button
+        type="submit"
+        className="flex min-h-12 w-full items-center justify-between gap-3 py-3 text-left text-sm font-semibold text-white transition hover:text-emerald-300"
+      >
+        <span>{children}</span>
+        <span aria-hidden="true">→</span>
+      </button>
+    </form>
   )
 }
 

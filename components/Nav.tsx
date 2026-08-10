@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import SignOutButton from "@/components/SignOutButton"
+import { useAuthState } from "@/components/AuthStateProvider"
 
 const navItems = [
   { href: "/sold-prices", label: "Sold prices" },
@@ -11,12 +12,9 @@ const navItems = [
   { href: "/about", label: "About" },
 ]
 
-export default function Nav({
-  isAuthenticated,
-}: {
-  isAuthenticated: boolean
-}) {
+export default function Nav() {
   const pathname = usePathname()
+  const { isAuthenticated } = useAuthState()
 
   return (
     <>

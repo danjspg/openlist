@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache"
 import { areaNameFromSlug, type PprSale, type PprSearchAreaOption } from "@/lib/ppr"
 import {
   PLANNING_APPLICATION_SELECT,
@@ -26,17 +27,31 @@ export type PlanningResearchContext = {
 const NEARBY_SALE_SELECT =
   "id,date_of_sale,address_raw,address_normalised,locality,county,eircode,eircode_prefix,price_eur,property_description_raw,is_new_dwelling,vat_exclusive,source_url,area_slug,lat,lng"
 
+const PLANNING_RESEARCH_REVALIDATE_SECONDS = 60 * 60 * 6
+const PPR_AREA_CANDIDATE_REVALIDATE_SECONDS = 60 * 60 * 24
+const PLANNING_RESEARCH_CACHE_VERSION = "v2"
+
 export async function getPlanningResearchContext(
   application: PlanningApplication
 ): Promise<PlanningResearchContext> {
+  return getPlanningResearchContextCached(application)
+}
+
+const getPlanningResearchContextCached = unstable_cache(
+  async function getPlanningResearchContextUncached(
+    application: PlanningApplication
+  ): Promise<PlanningResearchContext> {
   const county = countyForPlanningAuthority(application.local_authority_code)
-  const areas = county ? await getPprAreaCandidatesForCounty(county) : []
+  const areas = county ? await getPprAreaCandidatesForCountyCached(county) : []
   const location = matchPlanningLocation(application, areas)
   const coordinates = planningGridToWgs84(application)
   const nearbySales = await findNearbySales(location)
 
   return { location, coordinates, nearbySales }
-}
+  },
+  ["planning-research-context", PLANNING_RESEARCH_CACHE_VERSION],
+  { revalidate: PLANNING_RESEARCH_REVALIDATE_SECONDS }
+)
 
 async function findNearbySales(
   location: LocationIntelligenceContext
@@ -79,7 +94,7 @@ async function findNearbySales(
   return [] as NearbySoldPrice[]
 }
 
-async function getPprAreaCandidatesForCounty(county: string) {
+const getPprAreaCandidatesForCountyCached = unstable_cache(async function getPprAreaCandidatesForCounty(county: string) {
   const { data } = await getServerSupabase()
     .from("ppr_area_stats")
     .select("county,area_slug,sales_count,last_sale_date")
@@ -98,12 +113,22 @@ async function getPprAreaCandidatesForCounty(county: string) {
       lastSaleDate: row.last_sale_date ?? null,
     } satisfies PprSearchAreaOption]
   })
-}
+}, ["planning-ppr-area-candidates", PLANNING_RESEARCH_CACHE_VERSION], {
+  revalidate: PPR_AREA_CANDIDATE_REVALIDATE_SECONDS,
+})
 
 export async function getPlanningApplicationsForSoldPriceArea(
   county: string,
   locality: string,
   limit = 5
+) {
+  return getPlanningApplicationsForSoldPriceAreaCached(county, locality, limit)
+}
+
+const getPlanningApplicationsForSoldPriceAreaCached = unstable_cache(async function getPlanningApplicationsForSoldPriceAreaUncached(
+  county: string,
+  locality: string,
+  limit: number
 ) {
   const authorityCodes = authorityCodesForCounty(county)
   if (authorityCodes.length === 0 || locality.trim().length < 2) {
@@ -120,7 +145,9 @@ export async function getPlanningApplicationsForSoldPriceArea(
     .limit(limit)
 
   return (data ?? []) as PlanningApplication[]
-}
+}, ["planning-applications-for-sold-price-area", PLANNING_RESEARCH_CACHE_VERSION], {
+  revalidate: PLANNING_RESEARCH_REVALIDATE_SECONDS,
+})
 
 function escapePostgrestLike(value: string) {
   return value.replace(/[,%]/g, " ").replace(/\s+/g, " ").trim()

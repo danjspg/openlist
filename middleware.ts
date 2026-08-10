@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { getPprMarket } from "@/lib/ppr-markets"
 import { getShortTownRedirect } from "@/lib/ppr-sold-price-routes"
+import { getUtilityCrawlPolicy } from "@/lib/crawl-policy"
 
 const PUBLIC_SOLD_PRICE_SINGLE_SEGMENT_ROUTES = new Set([
   "tracked-markets",
@@ -79,6 +80,31 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(url, 307)
   }
 
+  const crawlPolicy = getUtilityCrawlPolicy(
+    request.nextUrl.pathname,
+    request.nextUrl.searchParams
+  )
+  if (crawlPolicy) {
+    const rewriteUrl = request.nextUrl.clone()
+    const authorityMatch = request.nextUrl.pathname.match(/^\/planning\/([^/]+)$/)
+    const shouldRewritePlanningFilters =
+      request.nextUrl.pathname === "/planning" ||
+      (authorityMatch && authorityMatch[1] !== "applications")
+
+    if (shouldRewritePlanningFilters) {
+      rewriteUrl.pathname = "/planning/applications"
+      if (authorityMatch) {
+        rewriteUrl.searchParams.set("_authority", authorityMatch[1])
+      }
+    }
+
+    const response = shouldRewritePlanningFilters
+      ? NextResponse.rewrite(rewriteUrl)
+      : NextResponse.next()
+    response.headers.set("x-robots-tag", crawlPolicy.robots)
+    return response
+  }
+
   const match = request.nextUrl.pathname.match(/^\/sold-prices\/([^/]+)$/)
   if (!match) return NextResponse.next()
 
@@ -100,5 +126,38 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/sold-prices/:path*"],
+  matcher: [
+    {
+      source: "/",
+      has: [
+        { type: "query", key: "token_hash" },
+        { type: "query", key: "type" },
+      ],
+    },
+    "/sold-prices/:county",
+    {
+      source: "/planning/:path*",
+      has: [{ type: "query", key: "q" }],
+    },
+    {
+      source: "/planning/:path*",
+      has: [{ type: "query", key: "area" }],
+    },
+    {
+      source: "/planning/:path*",
+      has: [{ type: "query", key: "council" }],
+    },
+    {
+      source: "/planning/:path*",
+      has: [{ type: "query", key: "status" }],
+    },
+    {
+      source: "/planning/:path*",
+      has: [{ type: "query", key: "type" }],
+    },
+    {
+      source: "/search",
+      has: [{ type: "query", key: "q" }],
+    },
+  ],
 }

@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache"
 import { getPprAreaSuggestions, type PprSale } from "@/lib/ppr"
 import {
   PLANNING_APPLICATION_SELECT,
@@ -24,6 +25,14 @@ export async function searchPropertyIntelligence(
   if (cleanedQuery.length < 2) {
     return { places: [], addresses: [], planningApplications: [] }
   }
+
+  return searchPropertyIntelligenceCached(cleanedQuery)
+}
+
+const searchPropertyIntelligenceCached = unstable_cache(
+  async function searchPropertyIntelligenceUncached(
+    cleanedQuery: string
+  ): Promise<UnifiedSearchResults> {
 
   const supabase = getServerSupabase()
   const planningTerm = escapePostgrestLike(cleanedQuery)
@@ -98,7 +107,10 @@ export async function searchPropertyIntelligence(
       }
     ),
   }
-}
+  },
+  ["unified-property-search", "v2"],
+  { revalidate: 60 * 60 }
+)
 
 function escapePostgrestLike(value: string) {
   return value.replace(/[,%]/g, " ").replace(/\s+/g, " ").trim()

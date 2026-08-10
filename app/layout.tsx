@@ -2,8 +2,9 @@ import type { Metadata, Viewport } from "next"
 import { Analytics } from "@vercel/analytics/next"
 import Image from "next/image"
 import Link from "next/link"
+import AccountFooterLink from "@/components/AccountFooterLink"
+import AuthStateProvider from "@/components/AuthStateProvider"
 import Nav from "@/components/Nav"
-import { getCurrentUser } from "@/lib/auth"
 import "leaflet/dist/leaflet.css"
 import "./globals.css"
 
@@ -31,21 +32,16 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 }
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const currentUser = await getCurrentUser()
-  const isAuthenticated = Boolean(currentUser)
-  const footerViewingsLink = isAuthenticated
-    ? { href: "/my-viewings", label: "My viewings" }
-    : { href: "/viewings", label: "Viewings" }
-
   return (
     <html lang="en" className="overflow-x-hidden">
       <body className="overflow-x-hidden bg-stone-50 text-stone-900">
-        <header className="sticky top-0 z-50 border-b border-stone-200/80 bg-white/90 backdrop-blur-md">
+        <AuthStateProvider>
+          <header className="sticky top-0 z-50 border-b border-stone-200/80 bg-white/90 backdrop-blur-md">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <div className="flex flex-wrap items-center justify-between gap-x-4 py-3 sm:py-5 md:flex-nowrap md:py-6">
               <Link href="/" className="flex shrink-0 items-center">
@@ -66,14 +62,14 @@ export default async function RootLayout({
                 />
               </Link>
 
-              <Nav isAuthenticated={isAuthenticated} />
+              <Nav />
             </div>
           </div>
-        </header>
+          </header>
 
-        {children}
+          {children}
 
-        <footer className="mt-16 border-t border-stone-200 bg-white">
+          <footer className="mt-16 border-t border-stone-200 bg-white">
           <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
             <div className="grid gap-10 md:grid-cols-2">
               <div>
@@ -109,9 +105,7 @@ export default async function RootLayout({
                 </FooterLinkGroup>
 
                 <FooterLinkGroup title="Account tools">
-                  <Link href={footerViewingsLink.href} className="transition hover:text-stone-900">
-                    {footerViewingsLink.label}
-                  </Link>
+                  <AccountFooterLink />
                 </FooterLinkGroup>
 
                 <FooterLinkGroup title="Company">
@@ -132,7 +126,8 @@ export default async function RootLayout({
               © {new Date().getFullYear()} OpenList. All rights reserved.
             </div>
           </div>
-        </footer>
+          </footer>
+        </AuthStateProvider>
         <Analytics />
       </body>
     </html>

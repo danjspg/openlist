@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Image from "next/image"
 import Link from "next/link"
-import { getCurrentUser } from "@/lib/auth"
+import ViewingsPrimaryLink from "@/components/ViewingsPrimaryLink"
 
 export const metadata: Metadata = {
   title: "Property Viewing Management | OpenList",
@@ -50,11 +50,8 @@ const typicalUses = [
   "Property inspections",
 ]
 
-export default async function ViewingsPage() {
-  const currentUser = await getCurrentUser()
-  const dashboardHref = "/my-viewings"
+export default function ViewingsPage() {
   const signInHref = "/sign-in?redirectTo=%2Fmy-viewings"
-  const primaryHref = currentUser ? dashboardHref : signInHref
 
   return (
     <main className="min-h-screen bg-stone-50 text-stone-900">
@@ -72,12 +69,7 @@ export default async function ViewingsPage() {
             </p>
 
             <div className="mt-8 flex flex-wrap gap-3 sm:mt-9 sm:gap-4">
-              <Link
-                href={primaryHref}
-                className="rounded-full bg-stone-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-stone-700 sm:px-6"
-              >
-                Start managing viewings
-              </Link>
+              <ViewingsPrimaryLink />
               <Link
                 href={signInHref}
                 className="rounded-full border border-stone-300 px-5 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900 sm:px-6"
