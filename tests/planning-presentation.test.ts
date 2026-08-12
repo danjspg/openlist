@@ -1,6 +1,9 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { presentPlanningProposal } from "../lib/planning-presentation"
+import {
+  meaningfulPlanningValue,
+  presentPlanningProposal,
+} from "../lib/planning-presentation"
 
 test("a dangling numbered proposal is shortened at a defensible clause boundary", () => {
   const original =
@@ -44,4 +47,11 @@ test("missing proposal text uses the supplied fallback without claiming truncati
     original: null,
     isLikelyTruncated: false,
   })
+})
+
+test("optional planning values omit source absence markers", () => {
+  for (const value of [null, undefined, "", "  ", "Not recorded", "Not recorded in source", "N/A", "null"]) {
+    assert.equal(meaningfulPlanningValue(value), null)
+  }
+  assert.equal(meaningfulPlanningValue("  Conditional  "), "Conditional")
 })

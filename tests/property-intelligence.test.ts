@@ -1,5 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
+import { wgs84ToPlanningGrid } from "../lib/eircode-planning-grid"
 import {
   distanceInKilometres,
   extractEircode,
@@ -42,6 +43,18 @@ test("ITM coordinates convert around their published origin and legacy grid is n
   assert.ok(Math.abs(origin.lat - 53.5) < 0.0001)
   assert.ok(Math.abs(origin.lng + 8) < 0.0001)
   assert.equal(planningGridToWgs84({ grid_easting: 151_387, grid_northing: 108_151 }), null)
+})
+
+test("WGS84 and ITM conversion round-trip closely enough for a 2 km candidate box", () => {
+  const location = { lat: 51.915, lng: -8.18 }
+  const grid = wgs84ToPlanningGrid(location)
+  assert.ok(grid)
+  const roundTrip = planningGridToWgs84({
+    grid_easting: grid.easting,
+    grid_northing: grid.northing,
+  })
+  assert.ok(roundTrip)
+  assert.ok(distanceInKilometres(location, roundTrip) < 0.001)
 })
 
 test("distance helper returns useful geographic distance", () => {

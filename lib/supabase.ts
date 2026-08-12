@@ -7,9 +7,13 @@ const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 export function getServerSupabase() {
+  const serverKey = isConfiguredSupabaseKey(supabaseServiceRoleKey)
+    ? supabaseServiceRoleKey
+    : supabaseAnonKey
+
   return createClient(
     supabaseUrl,
-    supabaseServiceRoleKey || supabaseAnonKey,
+    serverKey,
     {
       auth: {
         persistSession: false,
@@ -17,4 +21,11 @@ export function getServerSupabase() {
       },
     }
   )
+}
+
+function isConfiguredSupabaseKey(value: string | undefined): value is string {
+  // Vercel preview environments may intentionally carry a short placeholder
+  // instead of a service-role secret. Public OpenList reads can safely use the
+  // configured anon key rather than sending a malformed credential.
+  return Boolean(value && value.trim().length >= 32)
 }

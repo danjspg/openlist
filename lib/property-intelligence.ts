@@ -1,5 +1,8 @@
 import type { PprSearchAreaOption } from "@/lib/ppr"
 import type { PlanningAuthority } from "@/lib/planning-authorities"
+import { extractEircode } from "@/lib/eircode.mjs"
+
+export { extractEircode } from "@/lib/eircode.mjs"
 
 export type LocationMatchKind = "eircode" | "locality" | "county" | "none"
 
@@ -87,14 +90,6 @@ export function authorityCodesForCounty(county: string) {
     ([candidate]) => normaliseSlug(candidate) === normaliseSlug(county)
   )
   return entry?.[1] ?? []
-}
-
-export function extractEircode(value: string | null | undefined) {
-  const match = String(value ?? "")
-    .toUpperCase()
-    .match(/\b([AC-FHKNPRTV-Y]\d{2})\s?([0-9AC-FHKNPRTV-Y]{4})\b/)
-
-  return match ? `${match[1]} ${match[2]}` : null
 }
 
 function normalisedSearchText(value: string) {

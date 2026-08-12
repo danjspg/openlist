@@ -30,7 +30,7 @@ const primaryProducts = [
 // Keep homepage photography swappable by role instead of coupling copy or links to files.
 const homepageImages = {
   establishedHousing: {
-    src: "/home-established-street-v2.jpg",
+    src: "/home-modern-irish-street.jpg",
     alt: "A street of established Irish homes",
     position: "object-center",
   },
@@ -154,7 +154,7 @@ export default async function HomePage() {
       <section className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
         <div className="flex flex-col gap-5 rounded-3xl border border-stone-200 bg-stone-100 p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-stone-500">Planning a purchase?</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-stone-500">Viewing organiser</p>
             <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">Keep your property viewings organised.</h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">Viewings is a personal signed-in utility for keeping dates, notes and property details together.</p>
           </div>

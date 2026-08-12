@@ -4,6 +4,7 @@ import { fileURLToPath } from "url"
 import { createClient } from "@supabase/supabase-js"
 import { rebuildPprPhase1Analytics } from "./rebuild-ppr-phase1-analytics.mjs"
 import { formatErrorForLog } from "./ppr-error-format.mjs"
+import { pprEircodeFields } from "../lib/eircode-ingestion.mjs"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -111,7 +112,7 @@ function mapRow(headers, row, sourceUrl = DEFAULT_SOURCE_URL) {
   const price = parsePrice(priceValue)
   const address = record.Address
   const county = record.County
-  const eircode = record.Eircode || null
+  const eircodeFields = pprEircodeFields(record.Eircode)
 
   if (!dateOfSale || !price || !address) return null
 
@@ -148,8 +149,7 @@ function mapRow(headers, row, sourceUrl = DEFAULT_SOURCE_URL) {
     address_normalised: address.replace(/\s+/g, " ").trim().toUpperCase(),
     locality,
     county,
-    eircode,
-    eircode_prefix: eircode ? eircode.slice(0, 3).toUpperCase() : null,
+    ...eircodeFields,
     price_eur: price,
     price_display: priceValue,
     property_description_raw: propertyDescription || null,

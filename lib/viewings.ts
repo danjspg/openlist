@@ -1,3 +1,9 @@
+import {
+  extractEircode as extractCanonicalEircode,
+  isValidEircode as isCanonicalEircode,
+  normaliseEircode,
+} from "@/lib/eircode.mjs"
+
 export type ViewingStatus = "scheduled" | "cancelled" | "completed"
 
 export type ViewingRow = {
@@ -27,23 +33,17 @@ export type ViewingRow = {
   cancelled_at?: string | null
 }
 
-const EIRCODE_PATTERN = /\b([A-Z0-9]{3}\s?[A-Z0-9]{4})\b/i
-
 export function formatEircode(value: string) {
-  const compact = value.trim().replace(/\s+/g, "").toUpperCase()
-  if (!compact) return ""
-  if (compact.length !== 7) return value.trim().toUpperCase()
-  return `${compact.slice(0, 3)} ${compact.slice(3)}`
+  return normaliseEircode(value) ?? value.trim().toUpperCase()
 }
 
 export function isValidEircode(value: string) {
   if (!value.trim()) return true
-  return EIRCODE_PATTERN.test(formatEircode(value))
+  return isCanonicalEircode(value)
 }
 
 export function extractEircode(value: string) {
-  const match = value.match(EIRCODE_PATTERN)
-  return match ? formatEircode(match[1]) : ""
+  return extractCanonicalEircode(value) ?? ""
 }
 
 export function splitPropertyLocation(value: string) {

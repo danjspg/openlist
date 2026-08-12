@@ -690,8 +690,12 @@ export async function getPprSearchScope(
 
 async function getPprDatasetSummaryUncached(): Promise<PprDatasetSummary> {
   const serverSupabase = getServerSupabase()
-  const [{ count, error: countError }, { data: earliest }, { data: latest }] = await Promise.all([
-    serverSupabase.from("ppr_sales").select("id", { count: "exact", head: true }),
+  const [{ data: snapshot }, { data: earliest }, { data: latest }] = await Promise.all([
+    serverSupabase
+      .from("ppr_national_snapshots")
+      .select("sales_count")
+      .eq("range_key", "all")
+      .maybeSingle(),
     serverSupabase
       .from("ppr_sales")
       .select("date_of_sale")
@@ -707,11 +711,12 @@ async function getPprDatasetSummaryUncached(): Promise<PprDatasetSummary> {
   ])
 
   const earliestSaleDate = earliest?.date_of_sale ?? null
-  let salesCount = count ?? 0
+  let salesCount = Number(snapshot?.sales_count ?? 0)
 
-  // If we can see dated rows but the cached/exact count path reports zero,
-  // retry with an estimated count so the top-level stats do not show a false empty dataset.
-  if ((salesCount === 0 || countError) && latest?.date_of_sale) {
+  // The refreshed national snapshot is the cheapest source for the homepage
+  // count. If it is unavailable, an estimated database count is a safe backup;
+  // presentation remains neutral if both sources fail.
+  if (salesCount <= 0 && latest?.date_of_sale) {
     const { count: estimatedCount } = await serverSupabase
       .from("ppr_sales")
       .select("date_of_sale", { count: "estimated", head: true })
@@ -740,6 +745,10 @@ export async function getPprDatasetSummary(): Promise<PprDatasetSummary> {
 }
 
 export function buildPprDatasetDescription(summary: Pick<PprDatasetSummary, "salesCount" | "startYear">) {
+  if (!Number.isFinite(summary.salesCount) || summary.salesCount <= 0) {
+    return "Search public property sales across Ireland."
+  }
+
   const formattedCount = new Intl.NumberFormat("en-IE").format(summary.salesCount)
 
   if (summary.startYear) {

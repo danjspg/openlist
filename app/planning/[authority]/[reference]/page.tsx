@@ -12,7 +12,10 @@ import {
   planningReferenceSlug,
 } from "@/lib/property-intelligence"
 import { getPlanningResearchContext } from "@/lib/property-research"
-import { presentPlanningProposal } from "@/lib/planning-presentation"
+import {
+  meaningfulPlanningValue,
+  presentPlanningProposal,
+} from "@/lib/planning-presentation"
 import { getPublicSiteUrl } from "@/lib/site-url"
 
 export const revalidate = 21600
@@ -56,6 +59,8 @@ export default async function PlanningApplicationPage({ params }: Props) {
   const application = await getPlanningApplication(authority, resolved.reference)
   if (!application) notFound()
   const proposal = presentPlanningProposal(application.proposal)
+  const fullProposal = proposal.original ?? proposal.display
+  const currentStatus = meaningfulPlanningValue(application.status)
 
   const canonicalSlug = planningReferenceSlug(application.reference)
   if (resolved.reference !== canonicalSlug) notFound()
@@ -67,7 +72,7 @@ export default async function PlanningApplicationPage({ params }: Props) {
     "@type": "WebPage",
     name: `Planning application ${application.reference}`,
     url: `${getPublicSiteUrl()}${canonicalPath}`,
-    description: proposal.display,
+    description: fullProposal,
     dateModified: application.updated_at || undefined,
     about: {
       "@type": "GovernmentService",
@@ -118,24 +123,34 @@ export default async function PlanningApplicationPage({ params }: Props) {
                 Planning application {application.reference}
               </p>
               <h1 className="mt-4 max-w-4xl text-3xl font-semibold leading-tight tracking-tight text-stone-950 sm:text-4xl">
-                {proposal.display}
+                {fullProposal}
               </h1>
+              {proposal.isLikelyTruncated ? (
+                <p className="mt-3 max-w-3xl text-xs leading-5 text-stone-500">
+                  This proposal is shown exactly as available in OpenList and appears incomplete in the council source.
+                </p>
+              ) : null}
               <p className="mt-5 max-w-3xl text-lg leading-8 text-stone-600">
                 {application.location || "The source record does not include a location."}
               </p>
             </div>
 
+            {currentStatus || application.source_url ? (
             <div className="rounded-2xl border border-stone-200 bg-stone-50 p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">Current status</p>
-              <p className="mt-3 text-2xl font-semibold tracking-tight text-stone-950">
-                {application.status || "Not recorded"}
-              </p>
+              {currentStatus ? (
+                <>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">Current status</p>
+                  <p className="mt-3 text-2xl font-semibold tracking-tight text-stone-950">
+                    {currentStatus}
+                  </p>
+                </>
+              ) : null}
               {application.source_url ? (
                 <a
                   href={application.source_url}
                   target="_blank"
                   rel="noreferrer"
-                  className="mt-5 inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-stone-950 px-4 text-center text-sm font-semibold text-white transition hover:bg-stone-700"
+                  className={`${currentStatus ? "mt-5" : ""} inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-stone-950 px-4 text-center text-sm font-semibold text-white transition hover:bg-stone-700`}
                 >
                   View official council application
                 </a>
@@ -145,6 +160,7 @@ export default async function PlanningApplicationPage({ params }: Props) {
                 </p>
               )}
             </div>
+            ) : null}
           </div>
         </div>
       </section>
@@ -171,15 +187,6 @@ export default async function PlanningApplicationPage({ params }: Props) {
               <Detail label="Ward / district" value={application.ward} />
               <Detail label="Grid reference" value={application.grid_reference} />
             </dl>
-            {proposal.isLikelyTruncated && proposal.original ? (
-              <div className="mt-8 border-t border-stone-200 pt-6">
-                <h3 className="text-sm font-semibold text-stone-950">Proposal as supplied by the council</h3>
-                <p className="mt-2 break-words text-sm leading-6 text-stone-700">{proposal.original}</p>
-                <p className="mt-2 text-xs leading-5 text-stone-500">
-                  This source text appears incomplete. OpenList has shortened the heading at a safe clause boundary and has not reconstructed the missing words.
-                </p>
-              </div>
-            ) : null}
           </section>
 
           {research.coordinates ? (
@@ -288,7 +295,8 @@ export default async function PlanningApplicationPage({ params }: Props) {
 }
 
 function Detail({ label, value, mono = false }: { label: string; value: string | null | undefined; mono?: boolean }) {
-  const shownValue = value && value !== "Not recorded" ? value : "Not recorded in source"
+  const shownValue = meaningfulPlanningValue(value)
+  if (!shownValue) return null
   return (
     <div>
       <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-stone-500">{label}</dt>

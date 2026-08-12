@@ -74,10 +74,6 @@ export default async function PprComparisonPageShell({
               Compare house prices, recent sale volumes and year-on-year market movement across the
               tracked locations in this report.
             </p>
-            <div className="mt-6 rounded-[22px] border border-stone-200 bg-white/80 px-4 py-4 text-sm leading-6 text-stone-600">
-              Detailed sold-prices search is being updated. Use the tracked market pages and
-              comparison views below in the meantime.
-            </div>
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <div className="inline-flex rounded-full border border-stone-200 bg-white/80 px-4 py-2 text-sm font-medium text-stone-600">
                 Snapshot: Last 12 months

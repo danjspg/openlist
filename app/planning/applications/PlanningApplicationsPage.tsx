@@ -110,7 +110,7 @@ export async function PlanningApplicationsView({
     ? `Top ${authority.shortName} localities in the imported ${authority.historyLabel}.`
     : filters.council
       ? `Top localities in ${filters.council}.`
-      : "Most active local authorities in the imported planning data."
+      : "Most active local authorities in the latest 12 months available nationally."
   const areaFilterLabel = authority ? "Area" : "Council"
   const areaFilterName = authority ? "area" : "council"
   const areaFilterValue = authority ? filters.area : filters.council
@@ -128,14 +128,16 @@ export async function PlanningApplicationsView({
     : filters.council
       ? "Localities with the most applications in the latest registration month."
       : "Local authorities with the most applications in the latest registration month."
-  const quickCouncilStats = !authority && !filters.council
-    ? dashboard.areaStats.slice(0, 6)
+  const quickCouncilStats = !authority && !hasActiveSearch
+    ? dashboard.councilActivityStats.slice(0, 5)
     : []
   const statsWindowLabel = scopedAuthority?.isDeepCoverage
     ? `Based on ${scopedAuthority.historyLabel} of imported ${scopedAuthority.shortName} planning data.`
     : isCouncilScoped
       ? "Based on the latest 12 months of imported planning data for this council."
-      : "Based on the latest 12 months of imported national planning data, with Cork County also carrying deeper history."
+      : dashboard.councilActivityPeriodStart && dashboard.councilActivityPeriodEnd
+        ? `Council comparisons use the same latest-12-month window nationally: ${formatPlanningDate(dashboard.councilActivityPeriodStart)} to ${formatPlanningDate(dashboard.councilActivityPeriodEnd)}.`
+        : "Council comparisons use the same latest-12-month window nationally."
   const datasetNote = authority
     ? `This view uses public ${authority.name} planning application information imported into OpenList. Linked application documents are not included.`
     : "This view uses public planning application information imported into OpenList from Irish local-authority sources. Linked application documents are not included."

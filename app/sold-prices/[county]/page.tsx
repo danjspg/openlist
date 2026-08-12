@@ -228,9 +228,6 @@ export default async function PprMarketPage({ params }: Props) {
                   Recent sales
                 </h2>
               </div>
-              <p className="text-sm text-stone-500">
-                Detailed sold-prices search is being updated.
-              </p>
             </div>
 
             {recentSales.length > 0 ? (

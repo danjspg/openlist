@@ -4,6 +4,31 @@ export type PlanningProposalPresentation = {
   isLikelyTruncated: boolean
 }
 
+const UNAVAILABLE_SOURCE_VALUES = new Set([
+  "-",
+  "n/a",
+  "na",
+  "none",
+  "null",
+  "not applicable",
+  "not available",
+  "not recorded",
+  "not recorded in source",
+  "not supplied",
+  "undefined",
+  "unknown",
+])
+
+export function meaningfulPlanningValue(
+  value: string | null | undefined
+) {
+  const cleaned = String(value ?? "").replace(/\s+/g, " ").trim()
+  if (!cleaned || UNAVAILABLE_SOURCE_VALUES.has(cleaned.toLowerCase())) {
+    return null
+  }
+  return cleaned
+}
+
 const DANGLING_NUMBERED_ITEM = /[,;]\s*(?:and\s+)?\d+\s*[\).:-]\s*[A-Za-z]{1,3}\s*$/i
 const DANGLING_SHORT_CLAUSE = /[,;:]\s+[A-Za-z]{1,2}\s*$/i
 const DANGLING_CONNECTOR = /\b(?:and|or|with|to|for|of|the|including|comprising)\s*$/i

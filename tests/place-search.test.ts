@@ -4,6 +4,7 @@ import {
   classifyUnifiedSearchIntent,
   rankAddressResults,
   rankPlaceSuggestions,
+  selectUniqueExactPlaceSuggestion,
 } from "../lib/place-search"
 import type { PprSearchAreaOption } from "../lib/ppr"
 
@@ -56,9 +57,30 @@ test("established places with place-like suffixes remain eligible", () => {
   assert.equal(ranked.some((item) => item.areaLabel === "Phoenix Park Road"), false)
 })
 
+test("an unambiguous exact place can safely scope recent sold prices", () => {
+  const suggestions = [
+    area("Myrtleville", 25),
+    area("Fountainstown Myrtleville", 1),
+  ]
+
+  assert.equal(
+    selectUniqueExactPlaceSuggestion("myrtleville", suggestions)?.areaSlug,
+    "myrtleville"
+  )
+  assert.equal(
+    selectUniqueExactPlaceSuggestion("Springfield", [
+      area("Springfield", 40, "Cork"),
+      area("Springfield", 20, "Dublin"),
+    ]),
+    null
+  )
+})
+
 test("search intent distinguishes references, Eircodes, addresses and areas", () => {
   assert.equal(classifyUnifiedSearchIntent("26/1638"), "planning-reference")
   assert.equal(classifyUnifiedSearchIntent("T45 PX70"), "eircode")
+  assert.equal(classifyUnifiedSearchIntent("D6W F2H3"), "eircode")
+  assert.equal(classifyUnifiedSearchIntent("A65 O4E2"), "invalid-eircode")
   assert.equal(classifyUnifiedSearchIntent("12 Main Street, Carrigaline"), "address")
   assert.equal(classifyUnifiedSearchIntent("Carrigaline"), "area")
 })

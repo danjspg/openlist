@@ -50,6 +50,32 @@ test("planning research and sold-area support queries use central caches", async
   assert.match(soldArea, /generateStaticParams\(\)/)
 })
 
+test("Eircode fallbacks use bounded routing-key queries instead of broad county text", async () => {
+  const [eircode, research, migration] = await Promise.all([
+    source("lib/eircode-intelligence.ts"),
+    source("lib/property-research.ts"),
+    source(
+      "supabase/migrations/20260812120000_add_planning_eircode_prefix.sql"
+    ),
+  ])
+
+  assert.match(eircode, /findRecentRoutingKeySales/)
+  assert.doesNotMatch(eircode, /getRecentPlanningApplicationsForCounty/)
+  assert.doesNotMatch(eircode, /getPlanningApplicationsForSoldPriceArea/)
+  assert.match(research, /\.eq\("eircode_prefix", routingKey\)/)
+  assert.match(research, /localityCandidateLimit/)
+  assert.match(migration, /planning_applications_eircode_prefix_date_idx/)
+})
+
+test("exact place searches load sold prices through indexed area fields", async () => {
+  const unified = await source("lib/unified-search.ts")
+
+  assert.match(unified, /selectUniqueExactPlaceSuggestion/)
+  assert.match(unified, /\.eq\("county", exactPlace\.county\)/)
+  assert.match(unified, /\.eq\("area_slug", exactPlace\.areaSlug\)/)
+  assert.match(unified, /\.limit\(6\)/)
+})
+
 test("sitemap timestamps come from planning records rather than build time", async () => {
   const sitemap = await source("app/sitemap.ts")
 

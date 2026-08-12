@@ -1,8 +1,10 @@
 import type { PprSale, PprSearchAreaOption } from "@/lib/ppr"
+import { isValidEircode, looksLikeEircode } from "@/lib/eircode.mjs"
 
 export type UnifiedSearchIntent =
   | "planning-reference"
   | "eircode"
+  | "invalid-eircode"
   | "address"
   | "area"
 
@@ -62,15 +64,12 @@ function addressVariantKey(option: PprSearchAreaOption) {
 
 export function classifyUnifiedSearchIntent(query: string): UnifiedSearchIntent {
   const cleaned = query.trim().replace(/\s+/g, " ")
-  const compact = cleaned.replace(/\s+/g, "").toUpperCase()
-
   if (/^\d{1,4}\s*[\/-]\s*[A-Z0-9-]{1,12}$/i.test(cleaned)) {
     return "planning-reference"
   }
 
-  if (/^[AC-FHKNPRTV-Y]\d{2}[0-9AC-FHKNPRTV-Y]{4}$/.test(compact)) {
-    return "eircode"
-  }
+  if (isValidEircode(cleaned)) return "eircode"
+  if (looksLikeEircode(cleaned)) return "invalid-eircode"
 
   if (/\d/.test(cleaned) && cleaned.length >= 5) return "address"
   return "area"
@@ -139,6 +138,20 @@ export function rankPlaceSuggestions(
     })
     .slice(0, limit)
     .map((item) => item.candidate)
+}
+
+export function selectUniqueExactPlaceSuggestion(
+  query: string,
+  suggestions: PprSearchAreaOption[]
+) {
+  const normalisedQuery = normalise(query)
+  const exact = suggestions.filter(
+    (suggestion) =>
+      normalise(suggestion.areaLabel) === normalisedQuery ||
+      normalise(suggestion.areaSlug) === normalisedQuery
+  )
+
+  return exact.length === 1 ? exact[0] : null
 }
 
 export function rankAddressResults(query: string, sales: PprSale[], limit = 6) {

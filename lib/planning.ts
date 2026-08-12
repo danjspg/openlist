@@ -17,6 +17,8 @@ export type PlanningApplication = {
   application_type: string | null
   proposal: string | null
   location: string | null
+  eircode: string | null
+  eircode_prefix?: string | null
   applicant_name: string | null
   agent_name: string | null
   status: string | null
@@ -60,6 +62,9 @@ export type PlanningDashboard = {
   searchResults: PlanningApplication[]
   searchCount: number
   areaStats: PlanningCountStat[]
+  councilActivityStats: PlanningCountStat[]
+  councilActivityPeriodStart: string | null
+  councilActivityPeriodEnd: string | null
   statusStats: PlanningCountStat[]
   typeStats: PlanningCountStat[]
   monthStats: PlanningCountStat[]
@@ -104,9 +109,9 @@ export type PlanningSearchParams = {
 }
 
 const PLANNING_CACHE_REVALIDATE_SECONDS = 60 * 60 * 6
-const PLANNING_AGGREGATE_CACHE_VERSION = "v8-database-rpc"
+const PLANNING_AGGREGATE_CACHE_VERSION = "v10-council-activity-live"
 export const PLANNING_APPLICATION_SELECT =
-  "id,local_authority,local_authority_code,reference,web_reference,application_type,proposal,location,applicant_name,agent_name,status,decision_text,registration_date,valid_date,decision_date,final_grant_date,appeal_lodged_date,appeal_decision_date,dispatch_date,ward,grid_reference,grid_easting,grid_northing,source_url,updated_at"
+  "id,local_authority,local_authority_code,reference,web_reference,application_type,proposal,location,eircode,applicant_name,agent_name,status,decision_text,registration_date,valid_date,decision_date,final_grant_date,appeal_lodged_date,appeal_decision_date,dispatch_date,ward,grid_reference,grid_easting,grid_northing,source_url,updated_at"
 
 export function formatPlanningDate(value: string | null | undefined) {
   if (!value) return "Not recorded"
@@ -157,6 +162,8 @@ export async function getPlanningDashboard(
     filters.q || filters.area || filters.council || filters.status || filters.type
   )
   const hasFacetFilters = Boolean(filters.q || filters.area || filters.status || filters.type)
+  const needsNationalCouncilActivity =
+    !authority && !selectedCouncilCode && !hasApplicationFilters
 
   let recentQuery = supabase
     .from("planning_applications")
@@ -172,7 +179,7 @@ export async function getPlanningDashboard(
   }
 
   const needsNationalCouncilOptions = !authority && aggregateAuthorityCode
-  const [recentResult, overview, nationalOverview, searchResult, filteredOverview] =
+  const [recentResult, overview, nationalOverview, searchResult, filteredOverview, councilActivity] =
     await Promise.all([
       recentQuery,
       getPlanningAggregateSummaryCached(aggregateAuthorityCode ?? "NATIONAL"),
@@ -185,8 +192,14 @@ export async function getPlanningDashboard(
       hasFacetFilters
         ? getFilteredPlanningAggregateSummary(filters, aggregateAuthorityCode)
         : Promise.resolve(null),
+      needsNationalCouncilActivity
+        ? getNationalCouncilActivityCached()
+        : Promise.resolve(null),
     ])
   const filteredSummary = filteredOverview ?? overview
+  const areaStats = needsNationalCouncilActivity
+    ? councilActivity?.stats ?? []
+    : filteredSummary.areaStats
 
   return {
     authority,
@@ -201,7 +214,10 @@ export async function getPlanningDashboard(
     recentApplications: (recentResult.data ?? []) as PlanningApplication[],
     searchResults: searchResult.results,
     searchCount: searchResult.count,
-    areaStats: filteredSummary.areaStats,
+    areaStats,
+    councilActivityStats: councilActivity?.stats ?? [],
+    councilActivityPeriodStart: councilActivity?.periodStart ?? null,
+    councilActivityPeriodEnd: councilActivity?.periodEnd ?? null,
     statusStats: filteredSummary.statusStats,
     typeStats: filteredSummary.typeStats,
     monthStats: filteredSummary.monthStats,
@@ -212,9 +228,36 @@ export async function getPlanningDashboard(
     areaOptions: nationalOverview?.areaOptions ?? overview.areaOptions,
     statusOptions: overview.statusOptions,
     typeOptions: overview.typeOptions,
-    activeArea: filteredSummary.activeArea,
+    activeArea: areaStats[0] ?? null,
   }
 }
+
+type PlanningCouncilActivityWindow = {
+  periodStart: string | null
+  periodEnd: string | null
+  stats: PlanningCountStat[]
+}
+
+const getNationalCouncilActivityCached = unstable_cache(
+  async (): Promise<PlanningCouncilActivityWindow | null> => {
+    const { data, error } = await getServerSupabase().rpc(
+      "openlist_planning_council_activity_12m"
+    )
+    if (error || !data) return null
+
+    const value = data as Partial<PlanningCouncilActivityWindow>
+    return {
+      periodStart: value.periodStart ?? null,
+      periodEnd: value.periodEnd ?? null,
+      stats: (value.stats ?? []).map((stat) => ({
+        label: getPlanningAuthorityByCode(String(stat.label))?.shortName ?? String(stat.label),
+        count: Number(stat.count),
+      })),
+    }
+  },
+  ["planning-council-activity-12m", PLANNING_AGGREGATE_CACHE_VERSION],
+  { revalidate: PLANNING_CACHE_REVALIDATE_SECONDS }
+)
 
 const getPlanningApplicationCached = unstable_cache(async function getPlanningApplicationUncached(
   authorityCode: string,
