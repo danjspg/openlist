@@ -164,8 +164,7 @@ try {
 
   if (newRecords.length === 0) {
     console.log("No brand-new sold-prices rows detected for the current year.")
-    console.log("Refreshing derived sold-prices tables to keep summaries in sync.")
-    await refreshDerivedPprTables()
+    console.log("Derived sold-prices tables are already in sync; skipping their rebuild.")
     logCompletion(0)
     process.exit(0)
   }

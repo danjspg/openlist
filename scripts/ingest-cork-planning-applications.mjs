@@ -1,5 +1,7 @@
 import { createClient } from "@supabase/supabase-js"
 import { formatErrorForLog } from "./ppr-error-format.mjs"
+import { planningEircodeFieldsFromSources } from "../lib/eircode-ingestion.mjs"
+import { filterChangedPlanningRecords } from "../lib/planning-ingestion-diff.mjs"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -165,6 +167,7 @@ function mapApplication(row) {
     application_type: row.applicationType || null,
     proposal: row.proposal || null,
     location: row.location || null,
+    ...planningEircodeFieldsFromSources(row.location),
     applicant_name: row.applicantSurname || null,
     agent_name: row.agentName || null,
     status: row.status || null,
@@ -323,9 +326,18 @@ async function ingestPlanningApplications({ from, to, windowDays = DEFAULT_WINDO
 
   const countBefore = await countExistingApplications(from, to)
   const records = await fetchApplicationRecords({ from, to, windowDays })
+  const { changedRecords, unchangedCount } = await filterChangedPlanningRecords(
+    supabase,
+    records,
+    {
+      authorityCode: LOCAL_AUTHORITY_CODE,
+      from: formatDate(from),
+      to: formatDate(to),
+    }
+  )
   let processed = 0
 
-  for (const batch of chunk(records, 100)) {
+  for (const batch of chunk(changedRecords, 100)) {
     const { error } = await supabase
       .from("planning_applications")
       .upsert(batch, {
@@ -334,7 +346,7 @@ async function ingestPlanningApplications({ from, to, windowDays = DEFAULT_WINDO
 
     if (error) {
       throw new Error(
-        `planning_applications upsert failed after ${processed}/${records.length} rows`,
+        `planning_applications upsert failed after ${processed}/${changedRecords.length} changed rows`,
         { cause: error }
       )
     }
@@ -347,7 +359,7 @@ async function ingestPlanningApplications({ from, to, windowDays = DEFAULT_WINDO
   const importedRows = Math.max(0, countAfter - countBefore)
 
   console.log(
-    `Done. Processed ${records.length} Cork County planning applications, imported ${importedRows} new rows (${countAfter} total in range).`
+    `Done. Read ${records.length} Cork County planning applications, upserted ${processed} changed/new rows, skipped ${unchangedCount} unchanged rows, imported ${importedRows} new rows (${countAfter} total in range).`
   )
 
   return {

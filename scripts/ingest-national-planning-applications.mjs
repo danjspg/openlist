@@ -1,5 +1,7 @@
 import { createClient } from "@supabase/supabase-js"
 import { formatErrorForLog } from "./ppr-error-format.mjs"
+import { planningEircodeFieldsFromSources } from "../lib/eircode-ingestion.mjs"
+import { filterChangedPlanningRecords } from "../lib/planning-ingestion-diff.mjs"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -308,6 +310,10 @@ function mapApplication(row, authority, { storePayload }) {
     application_type: cleanText(row.ApplicationType),
     proposal: cleanText(row.DevelopmentDescription),
     location: cleanText(row.DevelopmentAddress),
+    ...planningEircodeFieldsFromSources(
+      row.DevelopmentPostcode,
+      row.DevelopmentAddress
+    ),
     applicant_name: applicantName(row),
     agent_name: null,
     status: cleanText(row.ApplicationStatus),
@@ -487,8 +493,18 @@ async function ingestNationalPlanningApplications(options) {
       }
     }
 
+    const { changedRecords, unchangedCount } = await filterChangedPlanningRecords(
+      supabase,
+      records,
+      {
+        authorityCode: authority.code,
+        from: formatDate(options.from),
+        to: formatDate(options.to),
+      }
+    )
+
     let processed = 0
-    for (const batch of chunk(records, 100)) {
+    for (const batch of chunk(changedRecords, 100)) {
       const { error } = await supabase
         .from("planning_applications")
         .upsert(batch, {
@@ -497,7 +513,7 @@ async function ingestNationalPlanningApplications(options) {
 
       if (error) {
         throw new Error(
-          `${authority.name} upsert failed after ${processed}/${records.length} rows`,
+          `${authority.name} upsert failed after ${processed}/${changedRecords.length} changed rows`,
           { cause: error }
         )
       }
@@ -505,7 +521,9 @@ async function ingestNationalPlanningApplications(options) {
       processed += batch.length
     }
 
-    console.log(`${authority.name}: upserted ${processed} rows`)
+    console.log(
+      `${authority.name}: upserted ${processed} changed/new rows; skipped ${unchangedCount} unchanged rows`
+    )
   }
 
   console.log(JSON.stringify({ from: formatDate(options.from), to: formatDate(options.to), summary }, null, 2))
