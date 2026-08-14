@@ -12,13 +12,14 @@ const allowInsecureTls = process.env.PPR_ALLOW_INSECURE_TLS === "1"
 
 const args = process.argv.slice(2)
 const shouldIngest = args.includes("--ingest")
+const shouldForce = args.includes("--force")
 const years = args
-  .filter((arg) => arg !== "--ingest")
+  .filter((arg) => arg !== "--ingest" && arg !== "--force")
   .map((arg) => Number(arg))
   .filter((year) => Number.isInteger(year) && year >= 2010 && year <= 2100)
 
 if (years.length === 0) {
-  console.error("Usage: node scripts/download-ppr-csvs.mjs [--ingest] 2026 2025 2024")
+  console.error("Usage: node scripts/download-ppr-csvs.mjs [--force] [--ingest] 2026 2025 2024")
   process.exit(1)
 }
 
@@ -181,7 +182,7 @@ for (const year of years) {
   const filePath = path.join(dataDir, `PPR-${year}.csv`)
   const exists = await fileExists(filePath)
 
-  if (exists) {
+  if (exists && !shouldForce) {
     const size = await fileSize(filePath)
     console.log(`${year}: skipped existing file (${formatMb(size)})`)
 
@@ -192,6 +193,11 @@ for (const year of years) {
 
     summary.push({ year, status: "skipped", filePath, size, error: "" })
     continue
+  }
+
+  if (exists && shouldForce) {
+    await unlink(filePath)
+    console.log(`${year}: removed cached file before forced refresh`)
   }
 
   console.log(`${year}: downloading...`)
@@ -222,4 +228,8 @@ for (const item of summary) {
       : `${formatMb(item.size)} - ${item.filePath}`
 
   console.log(`${item.year}: ${item.status} - ${detail}`)
+}
+
+if (summary.some((item) => item.status === "failed")) {
+  process.exitCode = 1
 }

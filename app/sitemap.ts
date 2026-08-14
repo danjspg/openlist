@@ -6,6 +6,7 @@ import { PPR_MARKETS } from "@/lib/ppr-markets"
 import { getCuratedPprAreaSitemapPaths } from "@/lib/ppr-sold-price-routes"
 
 export const revalidate = 86400
+export const PLANNING_APPLICATION_SITEMAP_LIMIT = 5000
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.openlist.ie"
@@ -51,7 +52,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     url: `${baseUrl}/planning/${authority.slug}`,
   }))
 
-  const planningApplications = await getPlanningSitemapApplications()
+  const planningApplications = await getPlanningSitemapApplications(
+    PLANNING_APPLICATION_SITEMAP_LIMIT
+  )
   const planningApplicationRoutes = planningApplications.flatMap((application) => {
     const authority = getPlanningAuthorityByCode(application.local_authority_code)
     if (!authority) return []

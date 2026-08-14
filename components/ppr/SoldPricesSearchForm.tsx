@@ -12,6 +12,7 @@ const SEARCH_DATE_RANGE_OPTIONS = [
   { value: "last-year", label: "Last 12 months" },
   { value: "last-2-years", label: "Last 2 years" },
   { value: "last-5-years", label: "Last 5 years" },
+  { value: "all", label: "All recorded history" },
 ] as const
 
 type Props = {
@@ -85,7 +86,8 @@ function inferCurrentRange(
   if (
     defaults.dateRange === "last-year" ||
     defaults.dateRange === "last-2-years" ||
-    defaults.dateRange === "last-5-years"
+    defaults.dateRange === "last-5-years" ||
+    defaults.dateRange === "all"
   ) {
     return defaults.dateRange
   }
@@ -271,7 +273,7 @@ export default function SoldPricesSearchForm({
           Choose an area to search recorded sale prices.
         </p>
         <p className="mt-2 text-xs leading-5 text-stone-500">
-          Showing up to 100 recorded sales from the selected date range.
+          Results are paginated in bounded pages from the selected date range.
         </p>
       </div>
 
@@ -390,10 +392,10 @@ export default function SoldPricesSearchForm({
               defaultValue={resolvedDefaults.sort || "newest"}
               className="h-11 w-full rounded-full border border-stone-300 bg-white px-4 text-sm text-stone-900 outline-none transition focus:border-stone-500"
             >
-              <option value="newest">Newest first</option>
-              <option value="oldest">Oldest first</option>
-              <option value="price-high">Price high to low</option>
-              <option value="price-low">Price low to high</option>
+              <option value="newest">Newest sales</option>
+              <option value="oldest">Oldest sales</option>
+              <option value="price-high">Highest price</option>
+              <option value="price-low">Lowest price</option>
             </select>
           </div>
         )}

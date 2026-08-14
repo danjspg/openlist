@@ -56,7 +56,12 @@ export async function PlanningApplicationsView({
   const rawSearchParams = await (searchParams || Promise.resolve({}))
   const filters = normalisePlanningSearchParams(rawSearchParams)
   const hasActiveSearch = Boolean(
-    filters.q || filters.area || filters.council || filters.status || filters.type
+    filters.q ||
+      filters.area ||
+      filters.council ||
+      filters.status ||
+      filters.type ||
+      filters.sort === "oldest"
   )
 
   const dashboard = await getPlanningDashboard(filters, authority ?? null)
@@ -171,7 +176,7 @@ export async function PlanningApplicationsView({
 
           <form
             action={planningPath}
-            className="mt-10 grid gap-3 rounded-2xl border border-stone-300 bg-stone-50 p-4 shadow-sm sm:grid-cols-[minmax(0,1.5fr)_minmax(150px,0.8fr)_minmax(150px,0.8fr)_minmax(150px,0.8fr)_auto] sm:p-5"
+            className="mt-10 grid gap-3 rounded-2xl border border-stone-300 bg-stone-50 p-4 shadow-sm sm:grid-cols-[minmax(0,1.5fr)_repeat(4,minmax(135px,0.7fr))_auto] sm:p-5"
           >
             <input
               id="planning-search"
@@ -200,6 +205,15 @@ export async function PlanningApplicationsView({
               name="type"
               value={filters.type}
               options={dashboard.typeOptions}
+            />
+            <SelectFilter
+              label="Sort by"
+              name="sort"
+              value={filters.sort}
+              options={[
+                { value: "newest", label: "Newest applications" },
+                { value: "oldest", label: "Oldest applications" },
+              ]}
             />
 
             <div className="flex flex-col gap-2 sm:flex-row">
@@ -824,7 +838,7 @@ function SelectFilter({
   label: string
   name: string
   value: string
-  options: string[]
+  options: Array<string | { value: string; label: string }>
 }) {
   return (
     <select
@@ -834,11 +848,13 @@ function SelectFilter({
       className="min-h-12 min-w-0 rounded-md border border-stone-200 bg-white px-3 text-base text-stone-900 outline-none transition focus:border-stone-900"
     >
       <option value="">{label}</option>
-      {options.map((option) => (
-        <option key={option} value={option}>
-          {option}
+      {options.map((option) => {
+        const value = typeof option === "string" ? option : option.value
+        const optionLabel = typeof option === "string" ? option : option.label
+        return <option key={value} value={value}>
+          {optionLabel}
         </option>
-      ))}
+      })}
     </select>
   )
 }

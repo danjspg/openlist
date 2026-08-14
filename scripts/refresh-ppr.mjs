@@ -50,11 +50,15 @@ function logCompletion(rowsProcessed) {
 
 async function runDownload(years) {
   await new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, ["scripts/download-ppr-csvs.mjs", ...years.map(String)], {
-      cwd: repoRoot,
-      env: process.env,
-      stdio: "inherit",
-    })
+    const child = spawn(
+      process.execPath,
+      ["scripts/download-ppr-csvs.mjs", "--force", ...years.map(String)],
+      {
+        cwd: repoRoot,
+        env: process.env,
+        stdio: "inherit",
+      }
+    )
 
     child.on("error", reject)
     child.on("exit", (code) => {
