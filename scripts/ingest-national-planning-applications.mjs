@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js"
 import { formatErrorForLog } from "./ppr-error-format.mjs"
 import { planningEircodeFieldsFromSources } from "../lib/eircode-ingestion.mjs"
 import { filterChangedPlanningRecords } from "../lib/planning-ingestion-diff.mjs"
+import { upsertPlanningBatch } from "./planning-upsert.mjs"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -222,8 +223,8 @@ function parseArgs(argv) {
     days: DEFAULT_DAYS,
     dryRun: false,
     includeCork: false,
-    prune: false,
     storePayload: false,
+    countOnly: false,
     authorities: [],
   }
 
@@ -234,10 +235,10 @@ function parseArgs(argv) {
       options.dryRun = true
     } else if (arg === "--include-cork") {
       options.includeCork = true
-    } else if (arg === "--prune") {
-      options.prune = true
     } else if (arg === "--store-payload") {
       options.storePayload = true
+    } else if (arg === "--count-only") {
+      options.countOnly = true
     } else if (arg === "--from") {
       options.from = parseDateArg(argv[++index])
     } else if (arg === "--to") {
@@ -336,7 +337,7 @@ function mapApplication(row, authority, { storePayload }) {
     pending_amendment: null,
     source_url: cleanText(row.LinkAppDetails),
     source_api_url: FEATURE_LAYER_URL,
-    source_payload: storePayload ? row : null,
+    ...(storePayload ? { source_payload: row } : {}),
     updated_at: new Date().toISOString(),
   }
 }
@@ -418,6 +419,24 @@ async function fetchAuthorityApplications(authority, { from, to }) {
   return rows
 }
 
+async function fetchAuthorityApplicationCount(authority, { from, to }) {
+  const where = [
+    `PlanningAuthority = '${sqlString(authority.sourceName)}'`,
+    `ReceivedDate >= DATE '${formatDate(from)}'`,
+    `ReceivedDate < DATE '${formatDate(addDays(to, 1))}'`,
+  ].join(" AND ")
+  const params = new URLSearchParams({
+    where,
+    returnCountOnly: "true",
+    f: "json",
+  })
+  const data = await fetchJson(
+    `${FEATURE_LAYER_URL}?${params.toString()}`,
+    `${authority.name} source count`
+  )
+  return Number(data.count || 0)
+}
+
 function chunk(items, size) {
   const chunks = []
   for (let index = 0; index < items.length; index += size) {
@@ -465,9 +484,15 @@ async function ingestNationalPlanningApplications(options) {
   console.log(
     `source_payload storage: ${options.storePayload ? "enabled" : "disabled"}`
   )
-  console.log(`old row pruning: ${options.prune ? "enabled" : "disabled"}`)
 
   for (const authority of authorities) {
+    if (options.countOnly) {
+      const rows = await fetchAuthorityApplicationCount(authority, options)
+      summary.push({ authority: authority.name, rows })
+      console.log(`${authority.name}: ${rows} official source rows`)
+      continue
+    }
+
     const sourceRows = await fetchAuthorityApplications(authority, options)
     const mappedRecords = sourceRows
       .map((row) => mapApplication(row, authority, options))
@@ -481,18 +506,6 @@ async function ingestNationalPlanningApplications(options) {
 
     if (options.dryRun || records.length === 0) continue
 
-    if (options.prune) {
-      const { error: pruneError } = await supabase
-        .from("planning_applications")
-        .delete()
-        .eq("local_authority_code", authority.code)
-        .lt("registration_date", formatDate(options.from))
-
-      if (pruneError) {
-        throw new Error(`${authority.name} prune failed`, { cause: pruneError })
-      }
-    }
-
     const { changedRecords, unchangedCount } = await filterChangedPlanningRecords(
       supabase,
       records,
@@ -505,13 +518,9 @@ async function ingestNationalPlanningApplications(options) {
 
     let processed = 0
     for (const batch of chunk(changedRecords, 100)) {
-      const { error } = await supabase
-        .from("planning_applications")
-        .upsert(batch, {
-          onConflict: "local_authority_code,reference",
-        })
-
-      if (error) {
+      try {
+        await upsertPlanningBatch(supabase, batch, authority.name)
+      } catch (error) {
         throw new Error(
           `${authority.name} upsert failed after ${processed}/${changedRecords.length} changed rows`,
           { cause: error }
@@ -539,4 +548,9 @@ if (isDirectRun) {
   })
 }
 
-export { ingestNationalPlanningApplications }
+export {
+  AUTHORITIES,
+  fetchAuthorityApplicationCount,
+  ingestNationalPlanningApplications,
+  parseArgs,
+}

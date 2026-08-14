@@ -44,5 +44,14 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           echo "Starting rolling national planning applications refresh job"
-          node scripts/ingest-national-planning-applications.mjs --prune
+          node scripts/ingest-national-planning-applications.mjs
           echo "Rolling national planning applications refresh job completed"
+
+      - name: Refresh bounded historical planning statuses
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          echo "Starting bounded historical planning status refresh"
+          node scripts/refresh-historical-planning-statuses.mjs
+          echo "Bounded historical planning status refresh completed"

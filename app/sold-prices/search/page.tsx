@@ -20,6 +20,10 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "/sold-prices/search",
   },
+  robots: {
+    index: false,
+    follow: true,
+  },
 }
 
 type SearchParams = {
@@ -66,7 +70,9 @@ export default async function SoldPricesSearchPage({
   const results = scope ? await searchPprSales(filters) : null
   const selectedRange = (filters.dateRange || "last-2-years") as PprDateRangeValue
   const rangeLabel =
-    selectedRange === "last-year"
+    selectedRange === "all"
+      ? "complete recorded history"
+      : selectedRange === "last-year"
       ? "last 12 months"
       : selectedRange === "last-5-years"
         ? "last 5 years"
@@ -121,7 +127,8 @@ export default async function SoldPricesSearchPage({
                     {results
                       ? `Showing ${results.sales.length} of ${results.count} recorded sales from the ${rangeLabel}.`
                       : `Showing recorded sales from the ${rangeLabel}.`}
-                    {results?.sales?.[0]?.date_of_sale
+                    {(!filters.sort || filters.sort === "newest") &&
+                    results?.sales?.[0]?.date_of_sale
                       ? ` Latest sale shown: ${formatPprDate(results.sales[0].date_of_sale)}.`
                       : ""}
                   </p>

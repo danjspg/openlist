@@ -21,10 +21,10 @@ export default function PprSearchSortControl({ params }: Props) {
         onChange={(event) => event.currentTarget.form?.requestSubmit()}
         className="h-11 rounded-full border border-stone-300 bg-white px-4 text-sm text-stone-900 outline-none transition focus:border-stone-500"
       >
-        <option value="newest">Newest first</option>
-        <option value="oldest">Oldest first</option>
-        <option value="price-high">Price high to low</option>
-        <option value="price-low">Price low to high</option>
+        <option value="newest">Newest sales</option>
+        <option value="oldest">Oldest sales</option>
+        <option value="price-high">Highest price</option>
+        <option value="price-low">Lowest price</option>
       </select>
     </form>
   )

@@ -106,6 +106,7 @@ export type PlanningSearchParams = {
   council?: string
   status?: string
   type?: string
+  sort?: string
 }
 
 const PLANNING_CACHE_REVALIDATE_SECONDS = 60 * 60 * 6
@@ -144,6 +145,7 @@ export function normalisePlanningSearchParams(
     council: cleanParam(params.council),
     status: cleanParam(params.status),
     type: cleanParam(params.type),
+    sort: normalisePlanningSort(params.sort),
   }
 }
 
@@ -158,10 +160,12 @@ export async function getPlanningDashboard(
     ? null
     : getAuthorityCodeByOptionLabel(filters.council)
   const aggregateAuthorityCode = authorityCode ?? selectedCouncilCode
-  const hasApplicationFilters = Boolean(
+  const hasResultFilters = Boolean(
     filters.q || filters.area || filters.council || filters.status || filters.type
   )
   const hasFacetFilters = Boolean(filters.q || filters.area || filters.status || filters.type)
+  const hasApplicationFilters = hasResultFilters || filters.sort === "oldest"
+  const shouldLoadFilteredOverview = hasFacetFilters && !filters.q
   const needsNationalCouncilActivity =
     !authority && !selectedCouncilCode && !hasApplicationFilters
 
@@ -189,8 +193,13 @@ export async function getPlanningDashboard(
       hasApplicationFilters
         ? getPlanningSearchResults(filters, authorityCode)
         : Promise.resolve({ results: [] as PlanningApplication[], count: 0 }),
-      hasFacetFilters
-        ? getFilteredPlanningAggregateSummary(filters, aggregateAuthorityCode)
+      shouldLoadFilteredOverview
+        ? getFilteredPlanningAggregateSummary(filters, aggregateAuthorityCode).catch(
+            (error) => {
+              console.warn("Planning filtered aggregation failed; using scoped overview.", error)
+              return null
+            }
+          )
         : Promise.resolve(null),
       needsNationalCouncilActivity
         ? getNationalCouncilActivityCached()
@@ -454,9 +463,10 @@ async function getPlanningSearchResults(
     query = query.eq("application_type", filters.type)
   }
 
+  const ascending = filters.sort === "oldest"
   const { data, count } = await query
-    .order("registration_date", { ascending: false })
-    .order("reference", { ascending: false })
+    .order("registration_date", { ascending, nullsFirst: false })
+    .order("reference", { ascending })
     .limit(25)
 
   return {
@@ -467,6 +477,10 @@ async function getPlanningSearchResults(
 
 function cleanParam(value: string | undefined) {
   return (value ?? "").trim().slice(0, 120)
+}
+
+function normalisePlanningSort(value: string | undefined) {
+  return value === "oldest" ? "oldest" : "newest"
 }
 
 function escapePostgrestLike(value: string) {

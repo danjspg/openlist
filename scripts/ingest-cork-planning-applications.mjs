@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js"
 import { formatErrorForLog } from "./ppr-error-format.mjs"
 import { planningEircodeFieldsFromSources } from "../lib/eircode-ingestion.mjs"
 import { filterChangedPlanningRecords } from "../lib/planning-ingestion-diff.mjs"
+import { upsertPlanningBatch } from "./planning-upsert.mjs"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -13,7 +14,7 @@ const LOCAL_AUTHORITY_CODE = "CORKCOCO"
 const PRODUCT_CODE = "CITIZENPORTAL"
 const SERVICE_CODE = "PA"
 const DEFAULT_WINDOW_DAYS = 7
-const DEFAULT_RANGE_DAYS = Number(process.env.PLANNING_DEFAULT_RANGE_DAYS || 28)
+const DEFAULT_RANGE_DAYS = Number(process.env.PLANNING_DEFAULT_RANGE_DAYS || 90)
 const SEARCH_STATUSES = ["registered", "determined"]
 const API_REQUEST_DELAY_MS = Number(process.env.PLANNING_API_REQUEST_DELAY_MS || 1000)
 const API_MAX_RETRIES = Number(process.env.PLANNING_API_MAX_RETRIES || 5)
@@ -75,36 +76,11 @@ function todayUtc() {
   return to
 }
 
-async function latestImportedRegistrationDate() {
-  const { data, error } = await supabase
-    .from("planning_applications")
-    .select("registration_date")
-    .eq("local_authority_code", LOCAL_AUTHORITY_CODE)
-    .not("registration_date", "is", null)
-    .order("registration_date", { ascending: false })
-    .limit(1)
-
-  if (error) throw error
-
-  const latest = data?.[0]?.registration_date
-  return latest ? parseDateArg(latest) : null
-}
-
 async function defaultDateRange() {
   const to = todayUtc()
-  const latest = await latestImportedRegistrationDate()
-
-  if (latest) {
-    const from = latest > to ? to : latest
-    console.log(
-      `Defaulting planning import range to latest stored registration date ${formatDate(from)} through ${formatDate(to)}.`
-    )
-    return { from, to }
-  }
-
   const from = addDays(to, -DEFAULT_RANGE_DAYS)
   console.log(
-    `No existing Cork planning rows found; defaulting planning import range to ${formatDate(from)} through ${formatDate(to)}.`
+    `Defaulting Cork planning import to the bounded recent window ${formatDate(from)} through ${formatDate(to)}.`
   )
   return { from, to }
 }
@@ -191,7 +167,6 @@ function mapApplication(row) {
       typeof row.pendingAmendment === "boolean" ? row.pendingAmendment : null,
     source_url: applicationDetailUrl(row),
     source_api_url: API_URL,
-    source_payload: row,
     updated_at: new Date().toISOString(),
   }
 }
@@ -338,13 +313,9 @@ async function ingestPlanningApplications({ from, to, windowDays = DEFAULT_WINDO
   let processed = 0
 
   for (const batch of chunk(changedRecords, 100)) {
-    const { error } = await supabase
-      .from("planning_applications")
-      .upsert(batch, {
-        onConflict: "local_authority_code,reference",
-      })
-
-    if (error) {
+    try {
+      await upsertPlanningBatch(supabase, batch, LOCAL_AUTHORITY)
+    } catch (error) {
       throw new Error(
         `planning_applications upsert failed after ${processed}/${changedRecords.length} changed rows`,
         { cause: error }
@@ -399,12 +370,23 @@ const isDirectRun = import.meta.url === `file://${process.argv[1]}`
 if (isDirectRun) {
   const args = process.argv.slice(2)
   const dryRun = args.includes("--dry-run")
-  const positionalArgs = args.filter((arg) => arg !== "--dry-run")
+  const windowDaysIndex = args.indexOf("--window-days")
+  const windowDays =
+    windowDaysIndex >= 0 ? Number(args[windowDaysIndex + 1]) : DEFAULT_WINDOW_DAYS
+  if (!Number.isInteger(windowDays) || windowDays < 1 || windowDays > 366) {
+    throw new Error("--window-days must be an integer between 1 and 366")
+  }
+  const positionalArgs = args.filter(
+    (arg, index) =>
+      arg !== "--dry-run" &&
+      arg !== "--window-days" &&
+      index !== windowDaysIndex + 1
+  )
   const from = parseDateArg(positionalArgs[0])
   const to = parseDateArg(positionalArgs[1])
   const runner = dryRun ? fetchPlanningApplications : ingestPlanningApplications
 
-  runner({ from, to }).catch((error) => {
+  runner({ from, to, windowDays }).catch((error) => {
     console.error(formatErrorForLog(error))
     process.exit(1)
   })

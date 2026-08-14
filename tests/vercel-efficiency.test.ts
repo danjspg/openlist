@@ -82,3 +82,31 @@ test("sitemap timestamps come from planning records rather than build time", asy
   assert.doesNotMatch(sitemap, /const now = new Date\(\)/)
   assert.match(sitemap, /application\.updated_at \|\| application\.registration_date/)
 })
+
+test("planning sitemap remains explicitly capped independently of database size", async () => {
+  const sitemap = await source("app/sitemap.ts")
+
+  assert.match(sitemap, /PLANNING_APPLICATION_SITEMAP_LIMIT = 5000/)
+  assert.match(
+    sitemap,
+    /getPlanningSitemapApplications\(\s*PLANNING_APPLICATION_SITEMAP_LIMIT\s*\)/
+  )
+})
+
+test("historical result sorting remains database-side and bounded", async () => {
+  const [planning, ppr, soldSearch] = await Promise.all([
+    source("lib/planning.ts"),
+    source("lib/ppr.ts"),
+    source("app/sold-prices/search/page.tsx"),
+  ])
+
+  assert.match(planning, /filters\.sort === "oldest"/)
+  assert.match(planning, /\.order\("registration_date", \{ ascending, nullsFirst: false \}\)/)
+  assert.match(planning, /\.limit\(25\)/)
+  assert.match(planning, /shouldLoadFilteredOverview = hasFacetFilters && !filters\.q/)
+  assert.match(planning, /Planning filtered aggregation failed; using scoped overview/)
+  assert.match(ppr, /sort === "price-high"/)
+  assert.match(ppr, /sort === "price-low"/)
+  assert.match(ppr, /filters\.dateRange === "all"/)
+  assert.match(soldSearch, /index: false/)
+})

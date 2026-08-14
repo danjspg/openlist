@@ -9,7 +9,7 @@ export function buildPlanningFilterFields(
 ) {
   const fields: Partial<Record<keyof PlanningSearchParams, string>> = {}
 
-  for (const filterKey of ["q", "area", "council", "status", "type"] as const) {
+  for (const filterKey of ["q", "area", "council", "status", "type", "sort"] as const) {
     const nextValue = filterKey === key ? value : filters[filterKey]
     if (nextValue) fields[filterKey] = nextValue
   }

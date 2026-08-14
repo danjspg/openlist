@@ -148,7 +148,8 @@ export function withDefaultPprSearchFilters(filters: PprSearchFilters = {}) {
     filters.dateTo ||
     filters.dateRange === "last-5-years" ||
     filters.dateRange === "last-2-years" ||
-    filters.dateRange === "last-year"
+    filters.dateRange === "last-year" ||
+    filters.dateRange === "all"
   ) {
     const preset =
       filters.dateRange && !filters.dateFrom && !filters.dateTo
@@ -813,13 +814,23 @@ export async function searchPprSales(filters: PprSearchFilters) {
     .eq("area_slug", scope.areaSlug)
 
   if (sort === "oldest") {
-    query = query.order("date_of_sale", { ascending: true })
+    query = query
+      .order("date_of_sale", { ascending: true })
+      .order("id", { ascending: true })
   } else if (sort === "price-high") {
-    query = query.order("price_eur", { ascending: false })
+    query = query
+      .order("price_eur", { ascending: false })
+      .order("date_of_sale", { ascending: false })
+      .order("id", { ascending: false })
   } else if (sort === "price-low") {
-    query = query.order("price_eur", { ascending: true })
+    query = query
+      .order("price_eur", { ascending: true })
+      .order("date_of_sale", { ascending: false })
+      .order("id", { ascending: false })
   } else {
-    query = query.order("date_of_sale", { ascending: false })
+    query = query
+      .order("date_of_sale", { ascending: false })
+      .order("id", { ascending: false })
   }
 
   const minPrice = numericFilter(resolvedFilters.minPrice)

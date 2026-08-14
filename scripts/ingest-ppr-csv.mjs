@@ -168,6 +168,48 @@ function chunk(items, size) {
   return chunks
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function isRetryableUpsertError(error) {
+  return (
+    ["57014", "57P01", "08000", "08001", "08003", "08006", "53300"].includes(
+      error?.code
+    ) || /fetch failed|timeout|temporar|connection/i.test(error?.message || "")
+  )
+}
+
+async function upsertPprBatch(batch, year, attempt = 1) {
+  const { error } = await supabase
+    .from("ppr_sales")
+    .upsert(batch, { onConflict: "source_row_hash", ignoreDuplicates: true })
+
+  if (!error) return
+
+  if (error.code === "57014" && batch.length > 250) {
+    const middle = Math.ceil(batch.length / 2)
+    console.warn(
+      `${year}: ${batch.length}-row upsert reached the statement timeout; retrying as ${middle} and ${batch.length - middle} rows.`
+    )
+    await upsertPprBatch(batch.slice(0, middle), year)
+    await upsertPprBatch(batch.slice(middle), year)
+    return
+  }
+
+  if (isRetryableUpsertError(error) && attempt < 4) {
+    const delayMs = attempt * 1500
+    console.warn(
+      `${year}: transient upsert failure; retrying ${batch.length} rows in ${delayMs}ms (attempt ${attempt}/3).`
+    )
+    await sleep(delayMs)
+    await upsertPprBatch(batch, year, attempt + 1)
+    return
+  }
+
+  throw error
+}
+
 function dedupeRecordsBySourceHash(records) {
   const seen = new Set()
   const deduped = []
@@ -210,7 +252,8 @@ async function countSalesByYears(years) {
     const { count, error } = await supabase
       .from("ppr_sales")
       .select("id", { count: "exact", head: true })
-      .eq("year", year)
+      .gte("date_of_sale", `${year}-01-01`)
+      .lt("date_of_sale", `${year + 1}-01-01`)
 
     if (error) {
       reliable = false
@@ -256,12 +299,10 @@ async function ingestPprCsv({
     const yearRecords = records.filter((record) => record.year === year)
     let processed = 0
 
-    for (const batch of chunk(yearRecords, 100)) {
-      const { error } = await supabase
-        .from("ppr_sales")
-        .upsert(batch, { onConflict: "source_row_hash", ignoreDuplicates: true })
-
-      if (error) {
+    for (const batch of chunk(yearRecords, 1000)) {
+      try {
+        await upsertPprBatch(batch, year)
+      } catch (error) {
         throw new Error(
           `ppr_sales upsert failed for ${year} after ${processed}/${yearRecords.length} rows`,
           { cause: error }
