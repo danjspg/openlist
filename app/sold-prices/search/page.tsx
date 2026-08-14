@@ -71,12 +71,12 @@ export default async function SoldPricesSearchPage({
   const selectedRange = (filters.dateRange || "last-2-years") as PprDateRangeValue
   const rangeLabel =
     selectedRange === "all"
-      ? "complete recorded history"
+      ? "all recorded history available in OpenList"
       : selectedRange === "last-year"
-      ? "last 12 months"
+      ? "the last 12 months"
       : selectedRange === "last-5-years"
-        ? "last 5 years"
-        : "last 2 years"
+        ? "the last 5 years"
+        : "the last 2 years"
   const scopeCountyLabel = scope ? formatPprCountyDisplayName(scope.county) : ""
 
   return (
@@ -112,7 +112,7 @@ export default async function SoldPricesSearchPage({
                     Pick an area to begin
                   </h2>
                   <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">
-                    Choose an area from the suggestions above to see recent recorded sale prices.
+                    Choose an area from the suggestions above to search recorded sale prices.
                   </p>
                 </>
               ) : (
@@ -125,8 +125,8 @@ export default async function SoldPricesSearchPage({
                   </h2>
                   <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">
                     {results
-                      ? `Showing ${results.sales.length} of ${results.count} recorded sales from the ${rangeLabel}.`
-                      : `Showing recorded sales from the ${rangeLabel}.`}
+                      ? `Showing ${results.sales.length} of ${results.count} recorded sales from ${rangeLabel}.`
+                      : `Showing recorded sales from ${rangeLabel}.`}
                     {(!filters.sort || filters.sort === "newest") &&
                     results?.sales?.[0]?.date_of_sale
                       ? ` Latest sale shown: ${formatPprDate(results.sales[0].date_of_sale)}.`
@@ -163,7 +163,7 @@ export default async function SoldPricesSearchPage({
                   </>
                 ) : (
                   <div className="rounded-[28px] border border-stone-200 bg-white p-8 text-stone-600 shadow-sm">
-                    No recorded sales matched this area within the {rangeLabel}.
+                    No recorded sales matched this area within {rangeLabel}.
                   </div>
                 )}
               </div>

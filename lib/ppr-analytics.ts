@@ -385,8 +385,8 @@ export function getAnalyticsRange(range: PprDateRangeValue = "last-year"): PprAn
       return {
         value: range,
         months: null,
-        label: "all available records",
-        helperText: "Based on all available records.",
+        label: "all recorded history",
+        helperText: "Based on all recorded history available in OpenList.",
       }
     default:
       return { value: "last-year", months: 12, label: "last 12 months" }

@@ -4,8 +4,6 @@ export type PlanningAuthority = {
   code: string
   slug: string
   sourceName: string
-  historyLabel: string
-  isDeepCoverage?: boolean
 }
 
 export const PLANNING_AUTHORITIES = [
@@ -15,8 +13,6 @@ export const PLANNING_AUTHORITIES = [
     code: "CORKCOCO",
     slug: "cork",
     sourceName: "Cork County Council",
-    historyLabel: "three years",
-    isDeepCoverage: true,
   },
   {
     name: "Cork City Council",
@@ -24,7 +20,6 @@ export const PLANNING_AUTHORITIES = [
     code: "CORKCITY",
     slug: "cork-city",
     sourceName: "Cork City Council",
-    historyLabel: "the latest year",
   },
   {
     name: "Dublin City Council",
@@ -32,7 +27,6 @@ export const PLANNING_AUTHORITIES = [
     code: "DUBLINCITY",
     slug: "dublin-city",
     sourceName: "Dublin City Council",
-    historyLabel: "the latest year",
   },
   {
     name: "Fingal County Council",
@@ -40,7 +34,6 @@ export const PLANNING_AUTHORITIES = [
     code: "FINGAL",
     slug: "fingal",
     sourceName: "Fingal County Council",
-    historyLabel: "the latest year",
   },
   {
     name: "South Dublin County Council",
@@ -48,7 +41,6 @@ export const PLANNING_AUTHORITIES = [
     code: "SOUTHDUBLIN",
     slug: "south-dublin",
     sourceName: "South Dublin County Council",
-    historyLabel: "the latest year",
   },
   {
     name: "Dun Laoghaire-Rathdown County Council",
@@ -56,7 +48,6 @@ export const PLANNING_AUTHORITIES = [
     code: "DLR",
     slug: "dun-laoghaire-rathdown",
     sourceName: "Dun Laoghaire Rathdown County Council",
-    historyLabel: "the latest year",
   },
   {
     name: "Kildare County Council",
@@ -64,7 +55,6 @@ export const PLANNING_AUTHORITIES = [
     code: "KILDARE",
     slug: "kildare",
     sourceName: "Kildare County Council",
-    historyLabel: "the latest year",
   },
   {
     name: "Galway County Council",
@@ -72,7 +62,6 @@ export const PLANNING_AUTHORITIES = [
     code: "GALWAYCOCO",
     slug: "galway-county",
     sourceName: "Galway County Council",
-    historyLabel: "the latest year",
   },
   {
     name: "Galway City Council",
@@ -80,7 +69,6 @@ export const PLANNING_AUTHORITIES = [
     code: "GALWAYCITY",
     slug: "galway-city",
     sourceName: "Galway City Council",
-    historyLabel: "the latest year",
   },
   {
     name: "Meath County Council",
@@ -88,7 +76,6 @@ export const PLANNING_AUTHORITIES = [
     code: "MEATH",
     slug: "meath",
     sourceName: "Meath County Council",
-    historyLabel: "the latest year",
   },
   {
     name: "Wicklow County Council",
@@ -96,7 +83,6 @@ export const PLANNING_AUTHORITIES = [
     code: "WICKLOW",
     slug: "wicklow",
     sourceName: "Wicklow County Council",
-    historyLabel: "the latest year",
   },
   {
     name: "Limerick City and County Council",
@@ -104,7 +90,6 @@ export const PLANNING_AUTHORITIES = [
     code: "LIMERICK",
     slug: "limerick",
     sourceName: "Limerick County Council",
-    historyLabel: "the latest year",
   },
   {
     name: "Waterford City and County Council",
@@ -112,7 +97,6 @@ export const PLANNING_AUTHORITIES = [
     code: "WATERFORD",
     slug: "waterford",
     sourceName: "Waterford City and County Council",
-    historyLabel: "the latest year",
   },
   {
     name: "Donegal County Council",
@@ -120,7 +104,6 @@ export const PLANNING_AUTHORITIES = [
     code: "DONEGAL",
     slug: "donegal",
     sourceName: "Donegal County Council",
-    historyLabel: "the latest year",
   },
   {
     name: "Wexford County Council",
@@ -128,7 +111,6 @@ export const PLANNING_AUTHORITIES = [
     code: "WEXFORD",
     slug: "wexford",
     sourceName: "Wexford County Council",
-    historyLabel: "the latest year",
   },
   {
     name: "Tipperary County Council",
@@ -136,7 +118,6 @@ export const PLANNING_AUTHORITIES = [
     code: "TIPPERARY",
     slug: "tipperary",
     sourceName: "Tipperary County Council",
-    historyLabel: "the latest year",
   },
   {
     name: "Kerry County Council",
@@ -144,7 +125,6 @@ export const PLANNING_AUTHORITIES = [
     code: "KERRY",
     slug: "kerry",
     sourceName: "Kerry County Council",
-    historyLabel: "the latest year",
   },
   {
     name: "Mayo County Council",
@@ -152,7 +132,6 @@ export const PLANNING_AUTHORITIES = [
     code: "MAYO",
     slug: "mayo",
     sourceName: "Mayo County Council",
-    historyLabel: "the latest year",
   },
   {
     name: "Clare County Council",
@@ -160,7 +139,6 @@ export const PLANNING_AUTHORITIES = [
     code: "CLARE",
     slug: "clare",
     sourceName: "Clare County Council",
-    historyLabel: "the latest year",
   },
   {
     name: "Louth County Council",
@@ -168,7 +146,6 @@ export const PLANNING_AUTHORITIES = [
     code: "LOUTH",
     slug: "louth",
     sourceName: "Louth County Council",
-    historyLabel: "the latest year",
   },
   {
     name: "Laois County Council",
@@ -176,7 +153,6 @@ export const PLANNING_AUTHORITIES = [
     code: "LAOIS",
     slug: "laois",
     sourceName: "Laois County Council",
-    historyLabel: "the latest year",
   },
   {
     name: "Kilkenny County Council",
@@ -184,7 +160,6 @@ export const PLANNING_AUTHORITIES = [
     code: "KILKENNY",
     slug: "kilkenny",
     sourceName: "Kilkenny County Council",
-    historyLabel: "the latest year",
   },
   {
     name: "Offaly County Council",
@@ -192,7 +167,6 @@ export const PLANNING_AUTHORITIES = [
     code: "OFFALY",
     slug: "offaly",
     sourceName: "Offaly County Council",
-    historyLabel: "the latest year",
   },
   {
     name: "Cavan County Council",
@@ -200,7 +174,6 @@ export const PLANNING_AUTHORITIES = [
     code: "CAVAN",
     slug: "cavan",
     sourceName: "Cavan County Council",
-    historyLabel: "the latest year",
   },
   {
     name: "Roscommon County Council",
@@ -208,7 +181,6 @@ export const PLANNING_AUTHORITIES = [
     code: "ROSCOMMON",
     slug: "roscommon",
     sourceName: "Roscommon County Council",
-    historyLabel: "the latest year",
   },
   {
     name: "Westmeath County Council",
@@ -216,7 +188,6 @@ export const PLANNING_AUTHORITIES = [
     code: "WESTMEATH",
     slug: "westmeath",
     sourceName: "Westmeath County Council",
-    historyLabel: "the latest year",
   },
   {
     name: "Monaghan County Council",
@@ -224,7 +195,6 @@ export const PLANNING_AUTHORITIES = [
     code: "MONAGHAN",
     slug: "monaghan",
     sourceName: "Monaghan County Council",
-    historyLabel: "the latest year",
   },
   {
     name: "Sligo County Council",
@@ -232,7 +202,6 @@ export const PLANNING_AUTHORITIES = [
     code: "SLIGO",
     slug: "sligo",
     sourceName: "Sligo County Council",
-    historyLabel: "the latest year",
   },
   {
     name: "Carlow County Council",
@@ -240,7 +209,6 @@ export const PLANNING_AUTHORITIES = [
     code: "CARLOW",
     slug: "carlow",
     sourceName: "Carlow County Council",
-    historyLabel: "the latest year",
   },
   {
     name: "Longford County Council",
@@ -248,7 +216,6 @@ export const PLANNING_AUTHORITIES = [
     code: "LONGFORD",
     slug: "longford",
     sourceName: "Longford County Council",
-    historyLabel: "the latest year",
   },
   {
     name: "Leitrim County Council",
@@ -256,7 +223,6 @@ export const PLANNING_AUTHORITIES = [
     code: "LEITRIM",
     slug: "leitrim",
     sourceName: "Leitrim County Council",
-    historyLabel: "the latest year",
   },
 ] as const satisfies readonly PlanningAuthority[]
 

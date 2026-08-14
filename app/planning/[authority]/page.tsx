@@ -30,7 +30,7 @@ export async function generateMetadata({
 
   return {
     title: `${authority.shortName} Planning Applications | OpenList`,
-    description: `Search ${authority.historyLabel} of ${authority.name} planning applications by location, reference, development, applicant or status.`,
+    description: `Search available recorded history of ${authority.name} planning applications by location, reference, development, applicant or status.`,
     alternates: {
       canonical: `/planning/${authority.slug}`,
     },

@@ -90,7 +90,7 @@ export const PPR_DATE_RANGE_OPTIONS = [
   { value: "last-year", label: "1 Year", years: 1 },
   { value: "last-3-years", label: "3 Years", years: 3 },
   { value: "last-5-years", label: "5 Years", years: 5 },
-  { value: "all", label: "All Time", years: null },
+  { value: "all", label: "All recorded history", years: null },
 ] as const
 
 export type PprDateRangeValue =

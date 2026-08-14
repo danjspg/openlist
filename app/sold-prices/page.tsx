@@ -294,7 +294,7 @@ export default async function SoldPricesPage({
                 Search by area
               </h2>
               <p className="mt-2 text-sm leading-6 text-stone-600">
-                Search recent recorded sales for a specific county and area.
+                Search recorded sales for a specific area, from recent transactions to the full available history.
               </p>
             </div>
             <div className="flex shrink-0 items-start md:items-end">

@@ -156,7 +156,7 @@ export default async function PlanningApplicationPage({ params }: Props) {
                 </a>
               ) : (
                 <p className="mt-4 text-sm leading-6 text-stone-500">
-                  An official council link is not available for this imported record.
+                  An official council link is not available for this recorded application.
                 </p>
               )}
             </div>

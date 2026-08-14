@@ -19,7 +19,9 @@ export default function PprTimeRangeSelector({
               key={option.value}
               href={buildHref(option.value)}
               title={
-                option.value === "all" ? "Based on all available records" : undefined
+                option.value === "all"
+                  ? "Based on all recorded history available in OpenList"
+                  : undefined
               }
               className={`inline-flex min-w-0 items-center justify-center rounded-full border px-4 py-2 text-sm font-medium transition sm:flex-1 ${
                 active
@@ -33,7 +35,9 @@ export default function PprTimeRangeSelector({
         })}
       </div>
       {currentRange === "all" && (
-        <p className="mt-2 text-xs leading-5 text-stone-500">Based on all available records.</p>
+        <p className="mt-2 text-xs leading-5 text-stone-500">
+          Based on all recorded history available in OpenList.
+        </p>
       )}
     </div>
   )

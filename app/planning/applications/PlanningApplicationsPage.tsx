@@ -4,7 +4,6 @@ import PlanningResultsView, {
   type PlanningResultRecord,
 } from "@/components/planning/PlanningResultsView"
 import {
-  PLANNING_AUTHORITIES,
   getPlanningAuthorityByCode,
   type PlanningAuthority,
 } from "@/lib/planning-authorities"
@@ -32,7 +31,7 @@ export const revalidate = 21600
 export const metadata: Metadata = {
   title: "Search Planning Applications Ireland | OpenList",
   description:
-    "Search Irish planning applications by location, reference, development, applicant or status.",
+    "Search Irish planning applications across available official history by location, reference, development, applicant or status.",
   alternates: {
     canonical: "/planning",
   },
@@ -92,30 +91,36 @@ export async function PlanningApplicationsView({
   })
   const mostCommonType = dashboard.typeStats[0]
   const isCouncilScoped = Boolean(authority || filters.council)
-  const scopedAuthority: PlanningAuthority | null =
-    authority ??
-    (PLANNING_AUTHORITIES.find(
-      (candidate) => candidate.shortName === filters.council
-    ) as PlanningAuthority | undefined) ??
-    null
   const planningPath = authority ? `/planning/${authority.slug}` : "/planning"
   const pageTitle = authority
     ? `${authority.shortName} planning applications`
     : "National planning applications"
   const pageDescription = authority
-    ? `Search ${authority.historyLabel} of ${authority.name} planning applications by location, reference, development, applicant or status.`
-    : "Search current Irish planning applications across local authorities by location, reference, development, applicant or status."
+    ? `Search available recorded history of ${authority.name} planning applications by location, reference, development, applicant or status.`
+    : "Search Irish planning applications across available official history by location, reference, development, applicant or status."
   const latestRegistrationsLabel = authority
     ? `Latest registrations from ${authority.name}.`
-    : "Latest registrations across imported local authorities."
+    : "Latest registrations across available local authorities."
   const latestMonthLabel = dashboard.latestRegistrationMonth
     ? formatPlanningMonth(dashboard.latestRegistrationMonth)
     : "latest month"
-  const areaSubtitle = authority
-    ? `Top ${authority.shortName} localities in the imported ${authority.historyLabel}.`
-    : filters.council
-      ? `Top localities in ${filters.council}.`
-      : "Most active local authorities in the latest 12 months available nationally."
+  const usesNationalComparisonWindow = !authority && !hasActiveSearch
+  const councilComparisonLabel =
+    dashboard.councilActivityPeriodStart && dashboard.councilActivityPeriodEnd
+      ? `Latest 12 months, using the same period nationally: ${formatPlanningDate(dashboard.councilActivityPeriodStart)} to ${formatPlanningDate(dashboard.councilActivityPeriodEnd)}.`
+      : "Latest 12 months, using the same period nationally."
+  const availableHistoryLabel =
+    "Based on available OpenList planning records for this scope."
+  const areaPeriodLabel = usesNationalComparisonWindow
+    ? councilComparisonLabel
+    : availableHistoryLabel
+  const areaSubtitle = usesNationalComparisonWindow
+    ? `Most active local authorities. ${councilComparisonLabel}`
+    : authority
+      ? `Top ${authority.shortName} localities across available recorded history.`
+      : filters.council
+        ? `Top localities in ${filters.council} across available recorded history.`
+        : "Council totals across available recorded history for the selected filters."
   const areaFilterLabel = authority ? "Area" : "Council"
   const areaFilterName = authority ? "area" : "council"
   const areaFilterValue = authority ? filters.area : filters.council
@@ -136,16 +141,12 @@ export async function PlanningApplicationsView({
   const quickCouncilStats = !authority && !hasActiveSearch
     ? dashboard.councilActivityStats.slice(0, 5)
     : []
-  const statsWindowLabel = scopedAuthority?.isDeepCoverage
-    ? `Based on ${scopedAuthority.historyLabel} of imported ${scopedAuthority.shortName} planning data.`
-    : isCouncilScoped
-      ? "Based on the latest 12 months of imported planning data for this council."
-      : dashboard.councilActivityPeriodStart && dashboard.councilActivityPeriodEnd
-        ? `Council comparisons use the same latest-12-month window nationally: ${formatPlanningDate(dashboard.councilActivityPeriodStart)} to ${formatPlanningDate(dashboard.councilActivityPeriodEnd)}.`
-        : "Council comparisons use the same latest-12-month window nationally."
+  const statsWindowLabel = usesNationalComparisonWindow
+    ? `Applications, status mix and application types use available recorded history. Council comparisons use the ${councilComparisonLabel.charAt(0).toLowerCase()}${councilComparisonLabel.slice(1)} Monthly trends use the latest 12 completed registration months; latest-month measures use the latest registration month.`
+    : "Applications, area totals, status mix and application types use available recorded history. Monthly trends use the latest 12 completed registration months; latest-month measures use the latest registration month."
   const datasetNote = authority
-    ? `This view uses public ${authority.name} planning application information imported into OpenList. Linked application documents are not included.`
-    : "This view uses public planning application information imported into OpenList from Irish local-authority sources. Linked application documents are not included."
+    ? `This view uses public ${authority.name} planning application information available in OpenList. Linked application documents are not included.`
+    : "This view uses public planning application information available in OpenList from Irish local-authority sources. Linked application documents are not included."
   const soldPriceCounty = authority
     ? countyForPlanningAuthority(authority.code)
     : null
@@ -299,7 +300,7 @@ export async function PlanningApplicationsView({
             />
             <BarList
               title="Monthly registrations"
-              subtitle="Recent application volume by registration month."
+              subtitle="Latest 12 completed registration months."
               stats={dashboard.monthStats.map((stat) => ({
                 ...stat,
                 label: formatPlanningMonth(stat.label),
@@ -354,14 +355,14 @@ export async function PlanningApplicationsView({
             value={mostCommonType?.label ?? "Not recorded"}
             detail={
               mostCommonType
-                ? `${mostCommonType.count} applications in this import.`
+                ? `${mostCommonType.count} recorded applications across available recorded history.`
                 : "No application types were available."
             }
           />
 
           <BarList
             title="Status mix"
-            subtitle="Current public status labels from the source."
+            subtitle="Current public status labels across available recorded history."
             stats={dashboard.statusStats}
             compact
             filterForStat={(stat) =>
@@ -371,7 +372,7 @@ export async function PlanningApplicationsView({
 
           <BarList
             title="Application types"
-            subtitle="Most frequent application type labels."
+            subtitle="Most frequent application type labels across available recorded history."
             stats={dashboard.typeStats}
             compact
             filterForStat={(stat) =>
@@ -389,18 +390,36 @@ export async function PlanningApplicationsView({
           <p className="mt-2 text-sm leading-6 text-stone-500">{statsWindowLabel}</p>
 
           <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-            <Metric label="Applications" value={dashboard.totalCount} />
+            <Metric
+              label="Applications"
+              value={dashboard.totalCount}
+              detail="Available recorded history."
+            />
             <Metric
               label="Latest registered"
               value={formatPlanningDate(dashboard.latestRegistrationDate)}
+              detail="Latest record in this scope."
             />
             <Metric
               label={isCouncilScoped ? "Most active area" : "Most active council"}
               value={dashboard.activeArea?.label ?? "Not recorded"}
+              detail={areaPeriodLabel}
             />
-            <Metric label="Most common type" value={mostCommonType?.label ?? "Not recorded"} />
-            <Metric label="Latest month apps" value={dashboard.latestMonthCount} />
-            <Metric label="Month change" value={formatSignedNumber(dashboard.latestMonthChange)} />
+            <Metric
+              label="Most common type"
+              value={mostCommonType?.label ?? "Not recorded"}
+              detail="Available recorded history."
+            />
+            <Metric
+              label="Latest month apps"
+              value={dashboard.latestMonthCount}
+              detail="Latest registration month."
+            />
+            <Metric
+              label="Month change"
+              value={formatSignedNumber(dashboard.latestMonthChange)}
+              detail="Against the previous registration month."
+            />
           </div>
 
           <div className="mt-6 grid gap-4 lg:grid-cols-2">
@@ -409,9 +428,20 @@ export async function PlanningApplicationsView({
               title={isCouncilScoped ? "Area overview" : "Council overview"}
               stats={dashboard.areaStats}
               emptyLabel={isCouncilScoped ? "No areas recorded" : "No councils recorded"}
+              periodLabel={areaPeriodLabel}
             />
-            <DistributionPanel title="Status mix" stats={dashboard.statusStats} emptyLabel="No statuses recorded" />
-            <DistributionPanel title="Application types" stats={dashboard.typeStats} emptyLabel="No types recorded" />
+            <DistributionPanel
+              title="Status mix"
+              stats={dashboard.statusStats}
+              emptyLabel="No statuses recorded"
+              periodLabel={availableHistoryLabel}
+            />
+            <DistributionPanel
+              title="Application types"
+              stats={dashboard.typeStats}
+              emptyLabel="No types recorded"
+              periodLabel={availableHistoryLabel}
+            />
           </div>
         </div>
       </section>
@@ -431,7 +461,15 @@ function planningFilterSpec(
   }
 }
 
-function Metric({ label, value }: { label: string; value: string | number }) {
+function Metric({
+  label,
+  value,
+  detail,
+}: {
+  label: string
+  value: string | number
+  detail: string
+}) {
   return (
     <div className="flex min-h-28 flex-col justify-between rounded-lg border border-stone-200 bg-stone-50 p-4">
       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">
@@ -440,6 +478,7 @@ function Metric({ label, value }: { label: string; value: string | number }) {
       <p className="mt-3 min-w-0 break-words text-2xl font-semibold leading-tight tracking-tight text-stone-950 lg:text-xl xl:text-2xl">
         {value}
       </p>
+      <p className="mt-2 text-xs leading-5 text-stone-500">{detail}</p>
     </div>
   )
 }
@@ -448,10 +487,12 @@ function TreemapPanel({
   title,
   stats,
   emptyLabel,
+  periodLabel,
 }: {
   title: string
   stats: PlanningCountStat[]
   emptyLabel: string
+  periodLabel: string
 }) {
   const total = stats.reduce((sum, stat) => sum + stat.count, 0)
   const lead = stats[0]
@@ -468,6 +509,7 @@ function TreemapPanel({
             ? `${lead.label} accounts for ${formatShare(lead.count, total)}`
             : emptyLabel}
         </p>
+        <p className="mt-1 text-xs leading-5 text-stone-500">{periodLabel}</p>
       </div>
 
       {tiles.length > 0 ? (
@@ -633,7 +675,9 @@ function TrendPanel({ stats }: { stats: PlanningCountStat[] }) {
             Monthly trend
           </h3>
           <p className="mt-1 text-sm text-stone-500">
-            {latest ? formatPlanningMonth(latest.label) : "No month data"}
+            {latest
+              ? `Latest 12 completed registration months. Latest shown: ${formatPlanningMonth(latest.label)}.`
+              : "Latest 12 completed registration months. No month data."}
           </p>
         </div>
         <p className="rounded-md bg-stone-100 px-2.5 py-1 text-sm font-semibold text-stone-800">
@@ -747,10 +791,12 @@ function DistributionPanel({
   title,
   stats,
   emptyLabel,
+  periodLabel,
 }: {
   title: string
   stats: PlanningCountStat[]
   emptyLabel: string
+  periodLabel: string
 }) {
   const shownStats = stats.slice(0, 4)
   const total = stats.reduce((sum, stat) => sum + stat.count, 0)
@@ -768,6 +814,7 @@ function DistributionPanel({
             ? `${lead.label} accounts for ${formatShare(lead.count, total)}`
             : emptyLabel}
         </p>
+        <p className="mt-1 text-xs leading-5 text-stone-500">{periodLabel}</p>
       </div>
 
       <div className="mt-5 space-y-3">

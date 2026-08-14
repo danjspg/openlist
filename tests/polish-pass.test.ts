@@ -46,6 +46,50 @@ test("stale sold-price availability notices are removed", async () => {
   assert.doesNotMatch(combined, /sold-prices search.*(?:unavailable|temporary|updated|rebuilt)/i)
 })
 
+test("full-history controls and search copy use the recorded-history model", async () => {
+  const [ppr, analytics, selector, hub, search] = await Promise.all([
+    source("lib/ppr.ts"),
+    source("lib/ppr-analytics.ts"),
+    source("components/ppr/PprTimeRangeSelector.tsx"),
+    source("app/sold-prices/page.tsx"),
+    source("app/sold-prices/search/page.tsx"),
+  ])
+  const combined = [ppr, analytics, selector, hub, search].join("\n")
+
+  assert.match(ppr, /label: "All recorded history"/)
+  assert.match(combined, /Based on all recorded history available in OpenList/)
+  assert.match(
+    hub,
+    /Search recorded sales for a specific area, from recent transactions to the full available history\./
+  )
+  assert.match(
+    search,
+    /Choose an area from the suggestions above to search recorded sale prices\./
+  )
+  assert.doesNotMatch(combined, /All Time|Based on all available records|recent recorded sales/i)
+})
+
+test("planning copy distinguishes available history, comparison, trend and latest-month periods", async () => {
+  const [authorities, planning, authorityPage, detailPage] = await Promise.all([
+    source("lib/planning-authorities.ts"),
+    source("app/planning/applications/PlanningApplicationsPage.tsx"),
+    source("app/planning/[authority]/page.tsx"),
+    source("app/planning/[authority]/[reference]/page.tsx"),
+  ])
+  const combined = [authorities, planning, authorityPage, detailPage].join("\n")
+
+  assert.doesNotMatch(authorities, /historyLabel|isDeepCoverage/)
+  assert.match(planning, /Search Irish planning applications across available official history/)
+  assert.match(authorityPage, /Search available recorded history of/)
+  assert.match(planning, /Latest 12 months, using the same period nationally/)
+  assert.match(planning, /Latest 12 completed registration months/)
+  assert.match(planning, /latest-month measures use the latest registration month/)
+  assert.doesNotMatch(
+    combined,
+    /three years|the latest year|current Irish planning applications|in this import|imported planning|imported local authorities/i
+  )
+})
+
 test("planning details omit absent fields and use the full stored proposal", async () => {
   const detail = await source("app/planning/[authority]/[reference]/page.tsx")
   assert.match(detail, /const fullProposal = proposal\.original \?\? proposal\.display/)
