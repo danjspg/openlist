@@ -18,10 +18,10 @@ import {
 } from "@/lib/planning-presentation"
 import { getPublicSiteUrl } from "@/lib/site-url"
 
-export const revalidate = 21600
+export const revalidate = 604800
 export const dynamicParams = true
 
-// Planning details are generated on demand, then retained as six-hour ISR entries.
+// Planning details are generated on demand, then retained as seven-day ISR entries.
 // Returning no build-time params avoids generating all 44,500 records at deploy time.
 export function generateStaticParams() {
   return []
