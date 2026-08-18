@@ -3,11 +3,17 @@ import { formatErrorForLog } from "./ppr-error-format.mjs"
 import { planningEircodeFieldsFromSources } from "../lib/eircode-ingestion.mjs"
 import { filterChangedPlanningRecords } from "../lib/planning-ingestion-diff.mjs"
 import { upsertPlanningBatch } from "./planning-upsert.mjs"
+import {
+  authoritativeCorkProposal,
+  isLikelyTruncatedCorkSearchProposal,
+  parseCorkCouncilDate,
+} from "../lib/cork-planning-source.mjs"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 const API_URL = "https://planningapi.agileapplications.ie/api/application/search"
+const API_DETAIL_URL = "https://planningapi.agileapplications.ie/api/application"
 const SOURCE_URL = "https://planning.agileapplications.ie/corkcoco/search-applications/"
 const LOCAL_AUTHORITY = "Cork County Council"
 const LOCAL_AUTHORITY_CODE = "CORKCOCO"
@@ -111,13 +117,6 @@ function parseIrishGridReference(value) {
   }
 }
 
-function parseApiDate(value) {
-  if (!value) return null
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return null
-  return formatDate(date)
-}
-
 function normaliseIdArray(value) {
   if (!Array.isArray(value)) return []
   return value.map((item) => Number(item)).filter((item) => Number.isInteger(item))
@@ -148,14 +147,14 @@ function mapApplication(row) {
     agent_name: row.agentName || null,
     status: row.status || null,
     decision_text: row.decisionText || null,
-    registration_date: parseApiDate(row.registrationDate),
-    valid_date: parseApiDate(row.validDate),
-    decision_date: parseApiDate(row.decisionDate),
-    final_grant_date: parseApiDate(row.finalGrantDate),
-    appeal_lodged_date: parseApiDate(row.appealLodgedDate),
-    appeal_decision_date: parseApiDate(row.appealDecisionDate),
-    dispatch_date: parseApiDate(row.dispatchDate),
-    appeal_notify_date: parseApiDate(row.appealNotifyDate),
+    registration_date: parseCorkCouncilDate(row.registrationDate),
+    valid_date: parseCorkCouncilDate(row.validDate),
+    decision_date: parseCorkCouncilDate(row.decisionDate),
+    final_grant_date: parseCorkCouncilDate(row.finalGrantDate),
+    appeal_lodged_date: parseCorkCouncilDate(row.appealLodgedDate),
+    appeal_decision_date: parseCorkCouncilDate(row.appealDecisionDate),
+    dispatch_date: parseCorkCouncilDate(row.dispatchDate),
+    appeal_notify_date: parseCorkCouncilDate(row.appealNotifyDate),
     ward: row.ward || null,
     area_ids: normaliseIdArray(row.areaId),
     ward_ids: normaliseIdArray(row.wardId),
@@ -242,6 +241,62 @@ async function fetchApplicationsWindow({ from, to, status }) {
   return data
 }
 
+async function fetchApplicationDetail(applicationId, reference) {
+  const url = `${API_DETAIL_URL}/${applicationId}`
+  let response
+
+  for (let attempt = 1; attempt <= API_MAX_RETRIES + 1; attempt += 1) {
+    if (API_REQUEST_DELAY_MS > 0) await sleep(API_REQUEST_DELAY_MS)
+    response = await fetch(url, {
+      headers: {
+        "User-Agent": "OpenList planning applications importer",
+        "x-client": LOCAL_AUTHORITY_CODE,
+        "x-product": PRODUCT_CODE,
+        "x-service": SERVICE_CODE,
+      },
+    })
+    if (response.ok) break
+    if (!RETRYABLE_HTTP_STATUSES.has(response.status) || attempt > API_MAX_RETRIES) {
+      throw new Error(
+        `Planning detail API request failed for ${reference}: HTTP ${response.status}`
+      )
+    }
+    await sleep(retryDelayMs(response, attempt))
+  }
+
+  return response.json()
+}
+
+async function enrichChangedApplicationDetails(records) {
+  const enriched = []
+  let detailRequests = 0
+
+  for (const record of records) {
+    if (
+      !Number.isInteger(record.source_application_id) ||
+      !isLikelyTruncatedCorkSearchProposal(record.proposal)
+    ) {
+      enriched.push(record)
+      continue
+    }
+
+    const detail = await fetchApplicationDetail(
+      record.source_application_id,
+      record.reference
+    )
+    detailRequests += 1
+    enriched.push({
+      ...record,
+      proposal: authoritativeCorkProposal(record.proposal, detail.fullProposal),
+    })
+  }
+
+  if (detailRequests > 0) {
+    console.log(`Fetched ${detailRequests} authoritative Cork application details.`)
+  }
+  return enriched
+}
+
 async function countExistingApplications(from, to) {
   const { count, error } = await supabase
     .from("planning_applications")
@@ -310,14 +365,15 @@ async function ingestPlanningApplications({ from, to, windowDays = DEFAULT_WINDO
       to: formatDate(to),
     }
   )
+  const enrichedChangedRecords = await enrichChangedApplicationDetails(changedRecords)
   let processed = 0
 
-  for (const batch of chunk(changedRecords, 100)) {
+  for (const batch of chunk(enrichedChangedRecords, 100)) {
     try {
       await upsertPlanningBatch(supabase, batch, LOCAL_AUTHORITY)
     } catch (error) {
       throw new Error(
-        `planning_applications upsert failed after ${processed}/${changedRecords.length} changed rows`,
+        `planning_applications upsert failed after ${processed}/${enrichedChangedRecords.length} changed rows`,
         { cause: error }
       )
     }

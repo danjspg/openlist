@@ -18,7 +18,10 @@ export default function robots(): MetadataRoute.Robots {
         "/sign-in",
       ],
     },
-    sitemap: `${baseUrl}/sitemap.xml`,
+    sitemap: [
+      `${baseUrl}/sitemap.xml`,
+      `${baseUrl}/sitemaps/planning-notable.xml`,
+    ],
     host: baseUrl,
   }
 }

@@ -5,7 +5,11 @@ import {
   formatPprCurrency,
   formatPprDate,
 } from "@/lib/ppr"
-import { formatPlanningDate, getPlanningApplication } from "@/lib/planning"
+import {
+  formatPlanningDate,
+  getPlanningApplication,
+  getPlanningApplicationEvents,
+} from "@/lib/planning"
 import { getPlanningAuthorityBySlug } from "@/lib/planning-authorities"
 import {
   planningApplicationPath,
@@ -17,12 +21,14 @@ import {
   presentPlanningProposal,
 } from "@/lib/planning-presentation"
 import { getPublicSiteUrl } from "@/lib/site-url"
+import { planningStatusLabel } from "@/lib/planning-status"
+import { PlanningTimeline } from "@/components/PlanningTimeline"
 
 export const revalidate = 21600
 export const dynamicParams = true
 
 // Planning details are generated on demand, then retained as six-hour ISR entries.
-// Returning no build-time params avoids generating all 44,500 records at deploy time.
+// Returning no build-time params avoids generating the full planning corpus at deploy time.
 export function generateStaticParams() {
   return []
 }
@@ -60,12 +66,16 @@ export default async function PlanningApplicationPage({ params }: Props) {
   if (!application) notFound()
   const proposal = presentPlanningProposal(application.proposal)
   const fullProposal = proposal.original ?? proposal.display
-  const currentStatus = meaningfulPlanningValue(application.status)
+  const sourceStatus = meaningfulPlanningValue(application.status)
+  const currentStatus = planningStatusLabel(application.normalized_status)
 
   const canonicalSlug = planningReferenceSlug(application.reference)
   if (resolved.reference !== canonicalSlug) notFound()
 
-  const research = await getPlanningResearchContext(application)
+  const [research, timelineEvents] = await Promise.all([
+    getPlanningResearchContext(application),
+    getPlanningApplicationEvents(application.id),
+  ])
   const canonicalPath = planningApplicationPath(authority, application.reference)
   const jsonLd = {
     "@context": "https://schema.org",
@@ -127,7 +137,7 @@ export default async function PlanningApplicationPage({ params }: Props) {
               </h1>
               {proposal.isLikelyTruncated ? (
                 <p className="mt-3 max-w-3xl text-xs leading-5 text-stone-500">
-                  This proposal is shown exactly as available in OpenList and appears incomplete in the council source.
+                  The proposal text available to OpenList may be incomplete. Check the official application record for full details.
                 </p>
               ) : null}
               <p className="mt-5 max-w-3xl text-lg leading-8 text-stone-600">
@@ -143,6 +153,11 @@ export default async function PlanningApplicationPage({ params }: Props) {
                   <p className="mt-3 text-2xl font-semibold tracking-tight text-stone-950">
                     {currentStatus}
                   </p>
+                  {sourceStatus && sourceStatus !== currentStatus ? (
+                    <p className="mt-2 text-xs leading-5 text-stone-500">
+                      Council status: {sourceStatus}
+                    </p>
+                  ) : null}
                 </>
               ) : null}
               {application.source_url ? (
@@ -178,7 +193,8 @@ export default async function PlanningApplicationPage({ params }: Props) {
               <Detail label="Application type" value={application.application_type} />
               <Detail label="Received / registered" value={formatPlanningDate(application.registration_date)} />
               <Detail label="Valid date" value={formatPlanningDate(application.valid_date)} />
-              <Detail label="Current status" value={application.status} />
+              <Detail label="OpenList status" value={currentStatus} />
+              <Detail label="Council status" value={application.status} />
               <Detail label="Decision" value={application.decision_text} />
               <Detail label="Decision date" value={formatPlanningDate(application.decision_date)} />
               <Detail label="Final grant date" value={formatPlanningDate(application.final_grant_date)} />
@@ -188,6 +204,8 @@ export default async function PlanningApplicationPage({ params }: Props) {
               <Detail label="Grid reference" value={application.grid_reference} />
             </dl>
           </section>
+
+          <PlanningTimeline events={timelineEvents} />
 
           {research.coordinates ? (
             <section className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm">

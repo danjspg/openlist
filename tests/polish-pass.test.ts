@@ -90,6 +90,27 @@ test("planning copy distinguishes available history, comparison, trend and lates
   )
 })
 
+test("public planning copy avoids pipeline terminology and locale-formats counts", async () => {
+  const [planning, results] = await Promise.all([
+    source("app/planning/applications/PlanningApplicationsPage.tsx"),
+    source("components/planning/PlanningResultsView.tsx"),
+  ])
+  const visibleCopy = [planning, results]
+    .join("\n")
+    .split("\n")
+    .filter((line) => !line.trimStart().startsWith("import "))
+    .join("\n")
+
+  assert.doesNotMatch(
+    visibleCopy,
+    /in this import|imported planning|ingestion|records loaded|source payload|dataset row|refresh cohort/i
+  )
+  assert.match(planning, /formatPlanningCount\(dashboard\.searchCount\)/)
+  assert.match(planning, /typeof value === "number" \? formatPlanningCount\(value\) : value/)
+  assert.match(planning, /formatPlanningCount\(stat\.count\)/)
+  assert.match(results, /toLocaleString\("en-IE"\)/)
+})
+
 test("planning details omit absent fields and use the full stored proposal", async () => {
   const detail = await source("app/planning/[authority]/[reference]/page.tsx")
   assert.match(detail, /const fullProposal = proposal\.original \?\? proposal\.display/)

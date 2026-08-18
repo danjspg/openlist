@@ -77,19 +77,25 @@ test("exact place searches load sold prices through indexed area fields", async 
 })
 
 test("sitemap timestamps come from planning records rather than build time", async () => {
-  const sitemap = await source("app/sitemap.ts")
+  const [sitemap, planningSeo] = await Promise.all([
+    source("app/sitemap.ts"),
+    source("lib/planning-seo.ts"),
+  ])
 
   assert.doesNotMatch(sitemap, /const now = new Date\(\)/)
-  assert.match(sitemap, /application\.updated_at \|\| application\.registration_date/)
+  assert.match(planningSeo, /application\.updated_at \|\| application\.registration_date/)
 })
 
 test("planning sitemap remains explicitly capped independently of database size", async () => {
-  const sitemap = await source("app/sitemap.ts")
+  const [sitemap, planningSeo] = await Promise.all([
+    source("app/sitemap.ts"),
+    source("lib/planning-seo.ts"),
+  ])
 
-  assert.match(sitemap, /PLANNING_APPLICATION_SITEMAP_LIMIT = 5000/)
+  assert.match(planningSeo, /RECENT_PLANNING_SITEMAP_LIMIT = 5000/)
   assert.match(
     sitemap,
-    /getPlanningSitemapApplications\(\s*PLANNING_APPLICATION_SITEMAP_LIMIT\s*\)/
+    /getPlanningSitemapApplications\(\s*RECENT_PLANNING_SITEMAP_LIMIT\s*\)/
   )
 })
 

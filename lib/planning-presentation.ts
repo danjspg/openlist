@@ -1,3 +1,5 @@
+import { isLikelyTruncatedCorkSearchProposal } from "@/lib/cork-planning-source.mjs"
+
 export type PlanningProposalPresentation = {
   display: string
   original: string | null
@@ -32,9 +34,6 @@ export function meaningfulPlanningValue(
 const DANGLING_NUMBERED_ITEM = /[,;]\s*(?:and\s+)?\d+\s*[\).:-]\s*[A-Za-z]{1,3}\s*$/i
 const DANGLING_SHORT_CLAUSE = /[,;:]\s+[A-Za-z]{1,2}\s*$/i
 const DANGLING_CONNECTOR = /\b(?:and|or|with|to|for|of|the|including|comprising)\s*$/i
-const OBSERVED_IMPORT_LIMIT_MIN = 79
-const OBSERVED_IMPORT_LIMIT_MAX = 81
-
 export function presentPlanningProposal(
   proposal: string | null | undefined,
   fallback = "Proposal description not recorded"
@@ -51,10 +50,7 @@ export function presentPlanningProposal(
   const connectorMatch = original.length >= 75
     ? original.match(DANGLING_CONNECTOR)
     : null
-  const reachesObservedImportLimit =
-    original.length >= OBSERVED_IMPORT_LIMIT_MIN &&
-    original.length <= OBSERVED_IMPORT_LIMIT_MAX &&
-    !/[.!?)]$/.test(original)
+  const reachesObservedImportLimit = isLikelyTruncatedCorkSearchProposal(original)
   const truncationMatch = numberedMatch || shortClauseMatch || connectorMatch
 
   if (

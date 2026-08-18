@@ -39,3 +39,42 @@ test("planning ingestion writes a record when a displayed field changes", () => 
 
   assert.equal(planningRecordsDiffer(existing, incoming), true)
 })
+
+test("planning ingestion ignores equivalent canonical status wording", () => {
+  const existing = {
+    local_authority: "Kildare County Council",
+    local_authority_code: "KILDARE",
+    reference: "2660419",
+    status: "Decision Notice Issued",
+    decision_text: "Grant Permission",
+  }
+  const incoming = {
+    ...existing,
+    status: "Decision Made",
+    decision_text: "  grant   permission ",
+  }
+
+  assert.equal(planningRecordsDiffer(existing, incoming), false)
+})
+
+test("planning ingestion writes genuinely different canonical statuses", () => {
+  const existing = {
+    local_authority: "Kildare County Council",
+    local_authority_code: "KILDARE",
+    reference: "2660419",
+    status: "New Application",
+  }
+  const incoming = { ...existing, status: "Decision Made" }
+
+  assert.equal(planningRecordsDiffer(existing, incoming), true)
+})
+
+test("a full authoritative proposal is not replaced by its shortened search prefix", () => {
+  const short = "Permission for alterations and extensions to the existing dwelling. The proposed"
+  const existing = {
+    local_authority_code: "CORKCOCO",
+    reference: "26/1595",
+    proposal: `${short} works include a rear extension and associated site works.`,
+  }
+  assert.equal(planningRecordsDiffer(existing, { ...existing, proposal: short }), false)
+})

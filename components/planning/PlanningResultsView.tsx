@@ -42,8 +42,8 @@ export default function PlanningResultsView({
       <div className="flex items-center justify-between gap-4 border-b border-stone-200 py-3">
         <p className="text-sm text-stone-500">
           {mappableApplications.length > 0
-            ? `${mappableApplications.length} of ${applications.length} shown records have usable map coordinates.`
-            : "These records do not include usable map coordinates."}
+            ? `${mappableApplications.length.toLocaleString("en-IE")} of ${applications.length.toLocaleString("en-IE")} applications shown have usable map coordinates.`
+            : "These applications do not include usable map coordinates."}
         </p>
         <div
           className="inline-flex shrink-0 rounded-md border border-stone-200 bg-stone-50 p-1"
@@ -162,7 +162,7 @@ function PlanningMap({ applications }: { applications: PlanningResultRecord[] })
       />
       <p className="mt-3 text-xs leading-5 text-stone-500">
         The map shows only the bounded result set above, not every application in the database.
-        Records without reliable coordinates remain available in the list.
+        Applications without reliable coordinates remain available in the list.
       </p>
     </div>
   )

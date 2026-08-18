@@ -1,12 +1,14 @@
 import type { MetadataRoute } from "next"
 import { getPlanningSitemapApplications } from "@/lib/planning"
-import { PLANNING_AUTHORITIES, getPlanningAuthorityByCode } from "@/lib/planning-authorities"
-import { planningApplicationPath } from "@/lib/property-intelligence"
+import { PLANNING_AUTHORITIES } from "@/lib/planning-authorities"
+import {
+  buildPlanningSitemapEntries,
+  RECENT_PLANNING_SITEMAP_LIMIT,
+} from "@/lib/planning-seo"
 import { PPR_MARKETS } from "@/lib/ppr-markets"
 import { getCuratedPprAreaSitemapPaths } from "@/lib/ppr-sold-price-routes"
 
 export const revalidate = 86400
-export const PLANNING_APPLICATION_SITEMAP_LIMIT = 5000
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.openlist.ie"
@@ -53,17 +55,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }))
 
   const planningApplications = await getPlanningSitemapApplications(
-    PLANNING_APPLICATION_SITEMAP_LIMIT
+    RECENT_PLANNING_SITEMAP_LIMIT
   )
-  const planningApplicationRoutes = planningApplications.flatMap((application) => {
-    const authority = getPlanningAuthorityByCode(application.local_authority_code)
-    if (!authority) return []
-    const sourceModified = application.updated_at || application.registration_date
-    return [{
-      url: `${baseUrl}${planningApplicationPath(authority, application.reference)}`,
-      ...(sourceModified ? { lastModified: new Date(sourceModified) } : {}),
-    }]
-  })
+  const planningApplicationRoutes = buildPlanningSitemapEntries(
+    planningApplications,
+    baseUrl
+  ).map(({ url, lastModified }) => ({ url, ...(lastModified ? { lastModified } : {}) }))
 
   return [
     ...staticRoutes,

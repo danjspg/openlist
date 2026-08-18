@@ -16,14 +16,22 @@
     "ppr:rebuild-summaries": "node scripts/rebuild-ppr-summaries.mjs",
     "ppr:rebuild-analytics": "node scripts/rebuild-ppr-phase1-analytics.mjs",
     "planning:cork:ingest": "node --env-file=.env.local scripts/ingest-cork-planning-applications.mjs",
+    "planning:cork:source:audit": "node --env-file=.env.local scripts/audit-cork-planning-source.mjs",
+    "planning:cork:dates:repair": "node --env-file=.env.local scripts/audit-cork-planning-source.mjs --apply-dates",
+    "planning:cork:proposals:backfill": "node --env-file=.env.local scripts/audit-cork-planning-source.mjs --proposal-limit=50",
     "planning:national:ingest": "node --env-file=.env.local scripts/ingest-national-planning-applications.mjs",
     "planning:status-refresh": "node --env-file=.env.local scripts/refresh-historical-planning-statuses.mjs",
-    "planning:backfill": "node --env-file=.env.local scripts/backfill-planning-history.mjs"
+    "planning:backfill": "node --env-file=.env.local scripts/backfill-planning-history.mjs",
+    "planning:timeline:backfill": "node --env-file=.env.local scripts/backfill-planning-events.mjs",
+    "planning:timeline:report": "node --env-file=.env.local scripts/report-planning-timeline.mjs",
+    "planning:seo:collect": "node --env-file=.env.local --import tsx scripts/collect-planning-seo.ts",
+    "planning:seo:report": "node --env-file=.env.local --import tsx scripts/report-planning-seo.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.103.0",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
+    "google-auth-library": "^10.9.1",
     "leaflet": "^1.9.4",
     "next": "^15.5.15",
     "openai": "^6.34.0",

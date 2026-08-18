@@ -6,6 +6,10 @@ import {
   type PlanningAuthority,
 } from "@/lib/planning-authorities"
 import { planningReferenceFromSlug } from "@/lib/property-intelligence"
+import type { PlanningSitemapApplication } from "@/lib/planning-seo"
+import type { PlanningEvent } from "@/lib/planning-events"
+import type { PlanningStatus } from "@/lib/planning-status"
+import { isCanonicalPlanningStatus } from "@/lib/planning-status"
 import { getServerSupabase } from "@/lib/supabase"
 
 export type PlanningApplication = {
@@ -22,6 +26,7 @@ export type PlanningApplication = {
   applicant_name: string | null
   agent_name: string | null
   status: string | null
+  normalized_status: PlanningStatus
   decision_text: string | null
   registration_date: string | null
   valid_date: string | null
@@ -30,6 +35,7 @@ export type PlanningApplication = {
   appeal_lodged_date: string | null
   appeal_decision_date: string | null
   dispatch_date: string | null
+  appeal_notify_date: string | null
   ward: string | null
   grid_reference: string | null
   grid_easting: number | string | null
@@ -112,7 +118,7 @@ export type PlanningSearchParams = {
 const PLANNING_CACHE_REVALIDATE_SECONDS = 60 * 60 * 6
 const PLANNING_AGGREGATE_CACHE_VERSION = "v10-council-activity-live"
 export const PLANNING_APPLICATION_SELECT =
-  "id,local_authority,local_authority_code,reference,web_reference,application_type,proposal,location,eircode,applicant_name,agent_name,status,decision_text,registration_date,valid_date,decision_date,final_grant_date,appeal_lodged_date,appeal_decision_date,dispatch_date,ward,grid_reference,grid_easting,grid_northing,source_url,updated_at"
+  "id,local_authority,local_authority_code,reference,web_reference,application_type,proposal,location,eircode,applicant_name,agent_name,status,normalized_status,decision_text,registration_date,valid_date,decision_date,final_grant_date,appeal_lodged_date,appeal_decision_date,dispatch_date,appeal_notify_date,ward,grid_reference,grid_easting,grid_northing,source_url,updated_at"
 
 export function formatPlanningDate(value: string | null | undefined) {
   if (!value) return "Not recorded"
@@ -281,7 +287,7 @@ const getPlanningApplicationCached = unstable_cache(async function getPlanningAp
 
   if (error || !data) return null
   return data as PlanningApplication
-}, ["planning-application", "v2"], {
+}, ["planning-application", "v3-timeline"], {
   revalidate: PLANNING_CACHE_REVALIDATE_SECONDS,
 })
 
@@ -294,28 +300,101 @@ export const getPlanningApplication = cache(async function getPlanningApplicatio
   return getPlanningApplicationCached(authority.code, reference)
 })
 
-export async function getPlanningSitemapApplications(limit = 5000) {
-  type SitemapApplication = {
-    local_authority_code: string
-    reference: string
-    registration_date: string | null
-    updated_at: string | null
+const getPlanningApplicationEventsCached = unstable_cache(
+  async function getPlanningApplicationEventsUncached(applicationId: string) {
+    const { data, error } = await getServerSupabase()
+      .from("planning_application_events")
+      .select(
+        "id,application_id,event_type,event_date,detected_at,event_source,source_field,label,old_value,new_value,raw_source_value,provenance,event_key"
+      )
+      .eq("application_id", applicationId)
+      .order("event_date", { ascending: true })
+      .order("detected_at", { ascending: true })
+      .order("event_type", { ascending: true })
+      .order("id", { ascending: true })
+
+    if (error) {
+      console.warn("Planning timeline query failed.", error.message)
+      return []
+    }
+    return (data ?? []) as PlanningEvent[]
+  },
+  ["planning-application-events", "v1"],
+  { revalidate: PLANNING_CACHE_REVALIDATE_SECONDS }
+)
+
+export const getPlanningApplicationEvents = cache(
+  async function getPlanningApplicationEvents(applicationId: string) {
+    return getPlanningApplicationEventsCached(applicationId)
   }
-  const applications: SitemapApplication[] = []
+)
+
+export async function getPlanningSitemapApplications(limit = 5000) {
+  const boundedLimit = Math.max(1, Math.min(limit, 5000))
+  const serverSupabase = getServerSupabase()
+  const selected: PlanningSitemapApplication[] = []
+  let selectionError: { message: string } | null = null
+
+  for (let offset = 0; offset < boundedLimit; offset += 1000) {
+    const { data, error } = await serverSupabase.rpc(
+      "openlist_planning_recent_sitemap",
+      { p_limit: Math.min(1000, boundedLimit - offset), p_offset: offset }
+    )
+    if (error || !data) {
+      selectionError = error
+      break
+    }
+    selected.push(...(data as PlanningSitemapApplication[]))
+    if (data.length < Math.min(1000, boundedLimit - offset)) break
+  }
+
+  if (!selectionError) {
+    return selected
+  }
+
+  console.warn(
+    "Planning sitemap selection RPC unavailable; using deterministic direct-query fallback.",
+    selectionError?.message
+  )
+  const applications: PlanningSitemapApplication[] = []
   const pageSize = 1000
 
-  for (let from = 0; from < limit; from += pageSize) {
-    const to = Math.min(from + pageSize - 1, limit - 1)
-    const { data, error } = await getServerSupabase()
+  for (let from = 0; from < boundedLimit; from += pageSize) {
+    const to = Math.min(from + pageSize - 1, boundedLimit - 1)
+    const { data, error } = await serverSupabase
       .from("planning_applications")
-      .select("local_authority_code,reference,registration_date,updated_at")
-      .order("registration_date", { ascending: false })
+      .select("id,local_authority_code,reference,registration_date,updated_at")
+      .not("registration_date", "is", null)
+      .order("registration_date", { ascending: false, nullsFirst: false })
       .order("reference", { ascending: false })
+      .order("id", { ascending: false })
       .range(from, to)
 
     if (error || !data) break
-    applications.push(...(data as SitemapApplication[]))
+    applications.push(...(data as PlanningSitemapApplication[]))
     if (data.length < pageSize) break
+  }
+
+  return applications
+}
+
+export async function getNotablePlanningSitemapApplications(limit = 5000) {
+  const boundedLimit = Math.max(1, Math.min(limit, 5000))
+  const serverSupabase = getServerSupabase()
+  const applications: PlanningSitemapApplication[] = []
+
+  for (let offset = 0; offset < boundedLimit; offset += 1000) {
+    const pageLimit = Math.min(1000, boundedLimit - offset)
+    const { data, error } = await serverSupabase.rpc(
+      "openlist_planning_notable_sitemap",
+      { p_limit: pageLimit, p_offset: offset }
+    )
+    if (error || !data) {
+      console.warn("Notable planning sitemap selection failed.", error?.message)
+      return []
+    }
+    applications.push(...(data as PlanningSitemapApplication[]))
+    if (data.length < pageLimit) break
   }
 
   return applications
@@ -456,7 +535,9 @@ async function getPlanningSearchResults(
   }
 
   if (filters.status) {
-    query = query.eq("status", filters.status)
+    query = isCanonicalPlanningStatus(filters.status)
+      ? query.eq("normalized_status", filters.status)
+      : query.eq("status", filters.status)
   }
 
   if (filters.type) {

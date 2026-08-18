@@ -15,6 +15,7 @@ import {
   type PlanningCountStat,
   type PlanningSearchParams,
 } from "@/lib/planning"
+import { planningStatusLabel } from "@/lib/planning-status"
 import {
   countyForPlanningAuthority,
   planningApplicationPath,
@@ -73,7 +74,7 @@ export async function PlanningApplicationsView({
       id: application.id,
       reference: application.reference,
       registrationDate: application.registration_date,
-      status: application.status,
+      status: planningStatusLabel(application.normalized_status),
       proposal: presentPlanningProposal(
         application.proposal,
         "No proposal text recorded"
@@ -272,7 +273,7 @@ export async function PlanningApplicationsView({
                 </h2>
                 <p className="mt-1 text-sm text-stone-500">
                   {hasActiveSearch
-                    ? `${dashboard.searchCount} planning applications match the selected filters.`
+                    ? `${formatPlanningCount(dashboard.searchCount)} planning applications match the selected filters.`
                     : latestRegistrationsLabel}
                 </p>
               </div>
@@ -344,7 +345,7 @@ export async function PlanningApplicationsView({
             <div className="mt-4 space-y-4 text-sm leading-6 text-stone-600">
               <p>{datasetNote}</p>
               <p>
-                Records are shown as published by the council source. Always
+                Application information is shown as published by the council. Always
                 check the official application record before making decisions.
               </p>
             </div>
@@ -355,7 +356,7 @@ export async function PlanningApplicationsView({
             value={mostCommonType?.label ?? "Not recorded"}
             detail={
               mostCommonType
-                ? `${mostCommonType.count} recorded applications across available recorded history.`
+                ? `${formatPlanningCount(mostCommonType.count)} planning applications across available recorded history.`
                 : "No application types were available."
             }
           />
@@ -398,7 +399,7 @@ export async function PlanningApplicationsView({
             <Metric
               label="Latest registered"
               value={formatPlanningDate(dashboard.latestRegistrationDate)}
-              detail="Latest record in this scope."
+              detail="Most recent registration in this scope."
             />
             <Metric
               label={isCouncilScoped ? "Most active area" : "Most active council"}
@@ -476,7 +477,7 @@ function Metric({
         {label}
       </p>
       <p className="mt-3 min-w-0 break-words text-2xl font-semibold leading-tight tracking-tight text-stone-950 lg:text-xl xl:text-2xl">
-        {value}
+        {typeof value === "number" ? formatPlanningCount(value) : value}
       </p>
       <p className="mt-2 text-xs leading-5 text-stone-500">{detail}</p>
     </div>
@@ -716,7 +717,7 @@ function TrendPanel({ stats }: { stats: PlanningCountStat[] }) {
                     textAnchor="end"
                     className="fill-stone-400 text-[10px] font-medium"
                   >
-                    {tick.value}
+                    {formatPlanningCount(tick.value)}
                   </text>
                 </g>
               ))}
@@ -941,11 +942,11 @@ function BarList({
                     {...filterForStat(stat)}
                     className="shrink-0 rounded-full border border-stone-200 bg-stone-50 px-2.5 py-1 font-semibold text-stone-950 transition hover:border-stone-400"
                   >
-                    {stat.count}
+                    {formatPlanningCount(stat.count)}
                   </PlanningFilterButton>
                 ) : (
                   <span className="shrink-0 font-semibold text-stone-950">
-                    {stat.count}
+                    {formatPlanningCount(stat.count)}
                   </span>
                 )}
               </div>
@@ -959,7 +960,7 @@ function BarList({
           ))}
         </div>
       ) : (
-        <p className="mt-5 text-sm text-stone-500">No records available yet.</p>
+        <p className="mt-5 text-sm text-stone-500">No planning applications available yet.</p>
       )}
     </div>
   )
@@ -1009,4 +1010,8 @@ function InsightCard({
       <p className="mt-3 text-sm leading-6 text-emerald-50">{detail}</p>
     </div>
   )
+}
+
+function formatPlanningCount(value: number) {
+  return value.toLocaleString("en-IE")
 }
