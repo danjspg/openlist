@@ -138,6 +138,18 @@ test("planning result surfaces use concise, visually clamped proposal titles", a
   assert.match(soldPriceArea, /className="mt-2 line-clamp-3/)
 })
 
+test("planning page remains useful when aggregate statistics time out", async () => {
+  const [planningData, planningPage] = await Promise.all([
+    source("lib/planning.ts"),
+    source("app/planning/applications/PlanningApplicationsPage.tsx"),
+  ])
+
+  assert.match(planningData, /aggregateAvailable: overviewResult !== null/)
+  assert.match(planningData, /Planning dashboard aggregation unavailable; showing recent applications/)
+  assert.match(planningPage, /Planning statistics are temporarily unavailable/)
+  assert.match(planningPage, /Recent applications and search remain available/)
+})
+
 test("Terms page contains the supplied current service wording", async () => {
   const terms = await source("app/terms/page.tsx")
   assert.match(terms, /Last updated: 12 August 2026/)

@@ -236,6 +236,12 @@ export async function PlanningApplicationsView({
             </div>
           </form>
 
+          {!dashboard.aggregateAvailable ? (
+            <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">
+              Planning statistics are temporarily unavailable. Recent applications and search remain available.
+            </p>
+          ) : null}
+
           {quickCouncilStats.length > 0 ? (
             <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
               <span className="mr-1 font-semibold text-stone-500">
@@ -290,7 +296,7 @@ export async function PlanningApplicationsView({
             <PlanningResultsView applications={planningResults} />
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-2">
+          {dashboard.aggregateAvailable ? <div className="grid gap-6 lg:grid-cols-2">
             <BarList
               title={areaStatsTitle}
               subtitle={areaSubtitle}
@@ -307,9 +313,9 @@ export async function PlanningApplicationsView({
                 label: formatPlanningMonth(stat.label),
               }))}
             />
-          </div>
+          </div> : null}
 
-          <div className="grid gap-6 lg:grid-cols-3">
+          {dashboard.aggregateAvailable ? <div className="grid gap-6 lg:grid-cols-3">
             <BarList
               title={latestMonthAreaTitle}
               subtitle={latestMonthAreaSubtitle}
@@ -334,7 +340,7 @@ export async function PlanningApplicationsView({
                 planningFilterSpec(planningPath, filters, "type", stat.label)
               }
             />
-          </div>
+          </div> : null}
         </div>
 
         <aside className="min-w-0 space-y-6">
@@ -351,7 +357,7 @@ export async function PlanningApplicationsView({
             </div>
           </div>
 
-          <InsightCard
+          {dashboard.aggregateAvailable ? <InsightCard
             title="Most common application type"
             value={mostCommonType?.label ?? "Not recorded"}
             detail={
@@ -359,9 +365,9 @@ export async function PlanningApplicationsView({
                 ? `${formatPlanningCount(mostCommonType.count)} planning applications across available recorded history.`
                 : "No application types were available."
             }
-          />
+          /> : null}
 
-          <BarList
+          {dashboard.aggregateAvailable ? <BarList
             title="Status mix"
             subtitle="Current public status labels across available recorded history."
             stats={dashboard.statusStats}
@@ -369,9 +375,9 @@ export async function PlanningApplicationsView({
             filterForStat={(stat) =>
               planningFilterSpec(planningPath, filters, "status", stat.label)
             }
-          />
+          /> : null}
 
-          <BarList
+          {dashboard.aggregateAvailable ? <BarList
             title="Application types"
             subtitle="Most frequent application type labels across available recorded history."
             stats={dashboard.typeStats}
@@ -379,11 +385,11 @@ export async function PlanningApplicationsView({
             filterForStat={(stat) =>
               planningFilterSpec(planningPath, filters, "type", stat.label)
             }
-          />
+          /> : null}
         </aside>
       </section>
 
-      <section className="border-y border-stone-200 bg-white">
+      {dashboard.aggregateAvailable ? <section className="border-y border-stone-200 bg-white">
         <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:py-14">
           <h2 className="text-2xl font-semibold tracking-tight text-stone-950">
             Planning activity and trends
@@ -445,7 +451,7 @@ export async function PlanningApplicationsView({
             />
           </div>
         </div>
-      </section>
+      </section> : null}
     </main>
   )
 }

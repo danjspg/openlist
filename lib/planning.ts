@@ -58,6 +58,7 @@ export type PlanningMapPoint = {
 
 export type PlanningDashboard = {
   authority: PlanningAuthority | null
+  aggregateAvailable: boolean
   totalCount: number
   latestRegistrationDate: string | null
   latestRegistrationMonth: string | null
@@ -189,10 +190,15 @@ export async function getPlanningDashboard(
   }
 
   const needsNationalCouncilOptions = !authority && aggregateAuthorityCode
-  const [recentResult, overview, nationalOverview, searchResult, filteredOverview, councilActivity] =
+  const [recentResult, overviewResult, nationalOverview, searchResult, filteredOverview, councilActivity] =
     await Promise.all([
       recentQuery,
-      getPlanningAggregateSummaryCached(aggregateAuthorityCode ?? "NATIONAL"),
+      getPlanningAggregateSummaryCached(aggregateAuthorityCode ?? "NATIONAL").catch(
+        (error) => {
+          console.warn("Planning dashboard aggregation unavailable; showing recent applications.", error)
+          return null
+        }
+      ),
       needsNationalCouncilOptions
         ? getPlanningAggregateSummaryCached("NATIONAL")
         : Promise.resolve(null),
@@ -211,6 +217,7 @@ export async function getPlanningDashboard(
         ? getNationalCouncilActivityCached()
         : Promise.resolve(null),
     ])
+  const overview = overviewResult ?? emptyPlanningAggregateSummary()
   const filteredSummary = filteredOverview ?? overview
   const areaStats = needsNationalCouncilActivity
     ? councilActivity?.stats ?? []
@@ -218,6 +225,7 @@ export async function getPlanningDashboard(
 
   return {
     authority,
+    aggregateAvailable: overviewResult !== null,
     totalCount: hasApplicationFilters ? filteredSummary.totalCount : overview.totalCount,
     latestRegistrationDate: hasApplicationFilters
       ? filteredSummary.latestRegistrationDate
@@ -244,6 +252,29 @@ export async function getPlanningDashboard(
     statusOptions: overview.statusOptions,
     typeOptions: overview.typeOptions,
     activeArea: areaStats[0] ?? null,
+  }
+}
+
+function emptyPlanningAggregateSummary(): PlanningAggregateSummary {
+  return {
+    totalCount: 0,
+    latestRegistrationDate: null,
+    latestRegistrationMonth: null,
+    latestMonthCount: 0,
+    previousMonthCount: null,
+    latestMonthChange: null,
+    areaStats: [],
+    statusStats: [],
+    typeStats: [],
+    monthStats: [],
+    mapPoints: [],
+    latestMonthAreaStats: [],
+    latestMonthStatusStats: [],
+    latestMonthTypeStats: [],
+    areaOptions: [],
+    statusOptions: [],
+    typeOptions: [],
+    activeArea: null,
   }
 }
 
