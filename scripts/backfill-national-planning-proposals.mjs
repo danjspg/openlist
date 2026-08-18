@@ -51,23 +51,15 @@ async function run(options) {
   }
   const supabase = createClient(supabaseUrl, serviceRoleKey)
   const authority = AUTHORITIES.find((item) => item.code === options.authorityCode)
-  const ceiling = AUTHORITY_PROPOSAL_CEILINGS.get(options.authorityCode)
-  let query = supabase
-    .from("planning_applications")
-    .select("id,reference,proposal,registration_date,source_url")
-    .eq("local_authority_code", options.authorityCode)
-    .like("proposal", "_".repeat(ceiling))
-    .gte("registration_date", options.from)
-    .lte("registration_date", options.to)
-    .order("registration_date", { ascending: true })
-    .order("reference", { ascending: true })
-    .limit(options.limit)
-  if (options.afterDate && options.afterReference) {
-    query = query.or(
-      `registration_date.gt.${options.afterDate},and(registration_date.eq.${options.afterDate},reference.gt.${options.afterReference})`
-    )
-  }
-  const { data: rows, error } = await query
+  const { data: rows, error } = await supabase.rpc(
+    "openlist_planning_proposal_backfill_candidates",
+    {
+      p_authority_code: options.authorityCode,
+      p_limit: options.limit,
+      p_from: options.from,
+      p_to: options.to,
+    }
+  )
   if (error) throw error
   const records = rows || []
   const details = await fetchAgileDetailsByReference(authority, records)
@@ -104,7 +96,6 @@ async function run(options) {
     }
   }
 
-  const last = records.at(-1)
   console.log(JSON.stringify({
     authority: options.authorityCode,
     dryRun: !options.apply,
@@ -112,9 +103,13 @@ async function run(options) {
     detailRecordsFound: details.size,
     repairable: repairs.length,
     updated,
-    nextCursor: last
-      ? { afterDate: last.registration_date, afterReference: last.reference }
-      : null,
+    prioritized: {
+      highValue: records.filter((record) => record.priority === 0).length,
+      recentActive: records.filter((record) => record.priority === 1).length,
+      historical: records.filter((record) => record.priority === 2).length,
+    },
+    cursorIgnored: Boolean(options.afterDate || options.afterReference),
+    nextCursor: null,
   }, null, 2))
 }
 

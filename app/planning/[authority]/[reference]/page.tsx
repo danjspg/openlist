@@ -18,6 +18,7 @@ import {
 import { getPlanningResearchContext } from "@/lib/property-research"
 import {
   meaningfulPlanningValue,
+  decisionDuePresentation,
   planningProposalSummary,
   planningProposalTitle,
   presentPlanningProposal,
@@ -77,6 +78,7 @@ export default async function PlanningApplicationPage({ params }: Props) {
   )
   const sourceStatus = meaningfulPlanningValue(application.status)
   const currentStatus = planningStatusLabel(application.normalized_status)
+  const decisionDue = decisionDuePresentation(application)
 
   const canonicalSlug = planningReferenceSlug(application.reference)
   if (resolved.reference !== canonicalSlug) notFound()
@@ -164,12 +166,26 @@ export default async function PlanningApplicationPage({ params }: Props) {
                   ) : null}
                 </>
               ) : null}
+              {decisionDue ? (
+                <div className={`${currentStatus ? "mt-5 border-t border-stone-200 pt-5" : ""}`}>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">
+                    Decision due
+                  </p>
+                  <time
+                    dateTime={decisionDue.date}
+                    className="mt-2 block text-lg font-semibold tracking-tight text-stone-950"
+                  >
+                    {decisionDue.formattedDate}
+                  </time>
+                  <p className="mt-1 text-sm text-stone-500">{decisionDue.relativeText}</p>
+                </div>
+              ) : null}
               {application.source_url ? (
                 <a
                   href={application.source_url}
                   target="_blank"
                   rel="noreferrer"
-                  className={`${currentStatus ? "mt-5" : ""} inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-stone-950 px-4 text-center text-sm font-semibold text-white transition hover:bg-stone-700`}
+                  className={`${currentStatus || decisionDue ? "mt-5" : ""} inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-stone-950 px-4 text-center text-sm font-semibold text-white transition hover:bg-stone-700`}
                 >
                   View official council application
                 </a>

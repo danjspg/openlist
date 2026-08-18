@@ -78,3 +78,29 @@ test("a full authoritative proposal is not replaced by its shortened search pref
   }
   assert.equal(planningRecordsDiffer(existing, { ...existing, proposal: short }), false)
 })
+
+test("all national lifecycle dates participate in meaningful change detection", () => {
+  const baseline = {
+    local_authority_code: "KILDARE",
+    reference: "2660419",
+    further_information_requested_date: null,
+    further_information_received_date: null,
+    withdrawal_date: null,
+    decision_due_date: "2026-09-14",
+    expiry_date: null,
+    appeal_lodged_date: null,
+    appeal_decision_date: null,
+  }
+  for (const [field, value] of [
+    ["further_information_requested_date", "2026-02-04"],
+    ["further_information_received_date", "2026-02-24"],
+    ["withdrawal_date", "2026-03-03"],
+    ["decision_due_date", "2026-10-12"],
+    ["expiry_date", "2031-04-18"],
+    ["appeal_lodged_date", "2026-05-07"],
+    ["appeal_decision_date", "2026-06-22"],
+  ]) {
+    assert.equal(planningRecordsDiffer(baseline, { ...baseline, [field]: value }), true, field)
+  }
+  assert.equal(planningRecordsDiffer(baseline, { ...baseline }), false)
+})

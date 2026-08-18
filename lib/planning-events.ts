@@ -19,6 +19,7 @@ export type PlanningEventType =
   | "withdrawn"
   | "status_changed"
   | "decision_changed"
+  | "decision_due_changed"
   | "source_date_corrected"
   | "other"
 
@@ -47,7 +48,11 @@ export type PlanningEventApplication = {
   registration_date?: string | null
   valid_date?: string | null
   decision_date?: string | null
+  decision_due_date?: string | null
   final_grant_date?: string | null
+  further_information_requested_date?: string | null
+  further_information_received_date?: string | null
+  withdrawal_date?: string | null
   appeal_lodged_date?: string | null
   appeal_decision_date?: string | null
   dispatch_date?: string | null
@@ -63,12 +68,15 @@ type SourceMilestone = {
 const SOURCE_MILESTONES: SourceMilestone[] = [
   { field: "registration_date", type: "application_received", label: "Application received" },
   { field: "valid_date", type: "application_validated", label: "Application validated" },
+  { field: "further_information_requested_date", type: "further_information_requested", label: "Further information requested" },
+  { field: "further_information_received_date", type: "further_information_received", label: "Further information received" },
   { field: "decision_date", type: "decision_made", label: "Decision made" },
   { field: "dispatch_date", type: "decision_notice_issued", label: "Decision notice issued" },
   { field: "final_grant_date", type: "final_grant", label: "Final grant" },
   { field: "appeal_lodged_date", type: "appeal_lodged", label: "Appeal lodged" },
   { field: "appeal_notify_date", type: "appeal_notification", label: "Appeal notification recorded" },
   { field: "appeal_decision_date", type: "appeal_decided", label: "Appeal decided" },
+  { field: "withdrawal_date", type: "withdrawn", label: "Application withdrawn" },
 ]
 
 const EVENT_ORDER = new Map(
@@ -165,9 +173,12 @@ export function detectObservedPlanningEvents(
   const oldStatus = previous.normalized_status || normalisePlanningStatus(previous.status)
   const newStatus = incoming.normalized_status || normalisePlanningStatus(incoming.status)
   const statusHasSpecificMilestone =
+    (newStatus === "further_information_requested" && specificTypes.has("further_information_requested")) ||
+    (newStatus === "further_information_received" && specificTypes.has("further_information_received")) ||
     (newStatus === "final_grant" && specificTypes.has("final_grant")) ||
     (newStatus === "appeal_decided" && specificTypes.has("appeal_decided")) ||
-    (newStatus === "decision_made" && specificTypes.has("decision_made"))
+    (newStatus === "decision_made" && specificTypes.has("decision_made")) ||
+    (newStatus === "withdrawn" && specificTypes.has("withdrawn"))
   if (oldStatus !== newStatus && !statusHasSpecificMilestone) {
     events.push({
       event_type: newStatus === "withdrawn" ? "withdrawn" : "status_changed",
@@ -208,7 +219,51 @@ export function detectObservedPlanningEvents(
     })
   }
 
+  const oldDecisionDue = previous.decision_due_date
+  const newDecisionDue = incoming.decision_due_date
+  if (
+    validPlanningEventDate(oldDecisionDue) &&
+    oldDecisionDue !== newDecisionDue &&
+    (newDecisionDue === null || newDecisionDue === undefined || validPlanningEventDate(newDecisionDue))
+  ) {
+    events.push({
+      event_type: "decision_due_changed",
+      event_date: eventDate,
+      detected_at: detectedAt,
+      event_source: "openlist_refresh",
+      source_field: "decision_due_date",
+      label: newDecisionDue ? "Decision due date updated" : "Decision due date removed from source",
+      old_value: oldDecisionDue,
+      new_value: newDecisionDue || null,
+      raw_source_value: newDecisionDue || null,
+      provenance: "observed",
+      event_key: `observed:decision_due_date:${oldDecisionDue}:${newDecisionDue || "null"}:${eventDate}`,
+    })
+  }
+
   return sortPlanningEvents(events)
+}
+
+export function suppressRedundantPlanningStatusEvents<T extends PlanningEvent>(events: T[]) {
+  const sourceMilestones = new Set(
+    events
+      .filter((event) => event.source_field && event.event_type !== "status_changed")
+      .map((event) => `${event.event_type}:${event.source_field}`)
+  )
+  const statusToMilestone: Partial<Record<PlanningStatus, PlanningEventType>> = {
+    further_information_requested: "further_information_requested",
+    further_information_received: "further_information_received",
+    appealed: "appeal_lodged",
+    appeal_decided: "appeal_decided",
+    withdrawn: "withdrawn",
+  }
+
+  return events.filter((event) => {
+    if (event.source_field !== "status" || !event.new_value) return true
+    const milestoneType = statusToMilestone[event.new_value as PlanningStatus]
+    if (!milestoneType) return true
+    return ![...sourceMilestones].some((key) => key.startsWith(`${milestoneType}:`))
+  })
 }
 
 export function sortPlanningEvents<T extends PlanningEvent>(events: T[]) {

@@ -31,7 +31,12 @@ export type PlanningApplication = {
   registration_date: string | null
   valid_date: string | null
   decision_date: string | null
+  decision_due_date: string | null
   final_grant_date: string | null
+  expiry_date: string | null
+  further_information_requested_date: string | null
+  further_information_received_date: string | null
+  withdrawal_date: string | null
   appeal_lodged_date: string | null
   appeal_decision_date: string | null
   dispatch_date: string | null
@@ -119,7 +124,7 @@ export type PlanningSearchParams = {
 const PLANNING_CACHE_REVALIDATE_SECONDS = 60 * 60 * 6
 const PLANNING_AGGREGATE_CACHE_VERSION = "v10-council-activity-live"
 export const PLANNING_APPLICATION_SELECT =
-  "id,local_authority,local_authority_code,reference,web_reference,application_type,proposal,location,eircode,applicant_name,agent_name,status,normalized_status,decision_text,registration_date,valid_date,decision_date,final_grant_date,appeal_lodged_date,appeal_decision_date,dispatch_date,appeal_notify_date,ward,grid_reference,grid_easting,grid_northing,source_url,updated_at"
+  "id,local_authority,local_authority_code,reference,web_reference,application_type,proposal,location,eircode,applicant_name,agent_name,status,normalized_status,decision_text,registration_date,valid_date,decision_date,decision_due_date,final_grant_date,expiry_date,further_information_requested_date,further_information_received_date,withdrawal_date,appeal_lodged_date,appeal_decision_date,dispatch_date,appeal_notify_date,ward,grid_reference,grid_easting,grid_northing,source_url,updated_at"
 
 export function formatPlanningDate(value: string | null | undefined) {
   if (!value) return "Not recorded"
@@ -318,7 +323,7 @@ const getPlanningApplicationCached = unstable_cache(async function getPlanningAp
 
   if (error || !data) return null
   return data as PlanningApplication
-}, ["planning-application", "v3-timeline"], {
+}, ["planning-application", "v4-lifecycle"], {
   revalidate: PLANNING_CACHE_REVALIDATE_SECONDS,
 })
 

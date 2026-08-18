@@ -1,4 +1,5 @@
 import { isLikelyTruncatedCorkSearchProposal } from "@/lib/cork-planning-source.mjs"
+import { isTerminalPlanningStatus, type PlanningStatus } from "@/lib/planning-status"
 
 export type PlanningProposalPresentation = {
   display: string
@@ -7,6 +8,61 @@ export type PlanningProposalPresentation = {
 }
 
 const DEFAULT_PROPOSAL_TITLE_MAX_LENGTH = 120
+
+type DecisionDueApplication = {
+  normalized_status: PlanningStatus
+  decision_due_date: string | null
+  decision_date?: string | null
+  final_grant_date?: string | null
+  appeal_decision_date?: string | null
+  withdrawal_date?: string | null
+}
+
+export type DecisionDuePresentation = {
+  date: string
+  formattedDate: string
+  relativeText: string
+}
+
+export function decisionDuePresentation(
+  application: DecisionDueApplication,
+  now = new Date()
+): DecisionDuePresentation | null {
+  const value = application.decision_due_date
+  if (
+    !value ||
+    isTerminalPlanningStatus(application.normalized_status) ||
+    application.normalized_status === "decision_made" ||
+    application.decision_date ||
+    application.final_grant_date ||
+    application.appeal_decision_date ||
+    application.withdrawal_date
+  ) {
+    return null
+  }
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null
+  const due = new Date(`${value}T00:00:00Z`)
+  if (Number.isNaN(due.getTime()) || due.toISOString().slice(0, 10) !== value) return null
+  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+  const difference = Math.round((due.getTime() - today) / 86_400_000)
+  const relativeText = difference === 0
+    ? "today"
+    : difference > 0
+      ? `in ${difference} ${difference === 1 ? "day" : "days"}`
+      : `${Math.abs(difference)} ${difference === -1 ? "day" : "days"} ago`
+
+  return {
+    date: value,
+    formattedDate: new Intl.DateTimeFormat("en-IE", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      timeZone: "UTC",
+    }).format(due),
+    relativeText,
+  }
+}
 
 const UNAVAILABLE_SOURCE_VALUES = new Set([
   "-",

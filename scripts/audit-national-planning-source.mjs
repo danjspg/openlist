@@ -3,6 +3,8 @@ import { writeFile } from "node:fs/promises"
 
 import {
   AUTHORITY_PROPOSAL_CEILINGS,
+  NATIONAL_ARCGIS_DATE_FIELDS_TIME_ZONE,
+  NATIONAL_PLANNING_LIFECYCLE_FIELDS,
   cleanNationalPlanningText,
   parseNationalArcgisDate,
 } from "../lib/national-planning-source.mjs"
@@ -29,6 +31,7 @@ const DATE_SOURCE_FIELDS = new Set([
   "GrantDate",
   "AppealSubmittedDate",
   "AppealDecisionDate",
+  ...Object.values(NATIONAL_PLANNING_LIFECYCLE_FIELDS),
 ])
 
 function parseArgs(argv) {
@@ -87,6 +90,42 @@ async function sourceFieldCoverage(field, { nonEmpty = false } = {}) {
     returnCountOnly: "true",
   })
   return Number(data.count || 0)
+}
+
+async function lifecycleCoverageByAuthority(fields) {
+  const outStatistics = [
+    {
+      statisticType: "count",
+      onStatisticField: "OBJECTID",
+      outStatisticFieldName: "totalRows",
+    },
+    ...fields.map((field) => ({
+      statisticType: "count",
+      onStatisticField: field,
+      outStatisticFieldName: field,
+    })),
+  ]
+  const data = await arcgisQuery({
+    where: "PlanningAuthority <> 'Cork County Council'",
+    outStatistics: JSON.stringify(outStatistics),
+    groupByFieldsForStatistics: "PlanningAuthority",
+    orderByFields: "PlanningAuthority",
+  })
+  return (data.features || []).map(({ attributes = {} }) => {
+    const authority = AUTHORITIES.find(
+      (candidate) => candidate.sourceName === attributes.PlanningAuthority
+    )
+    const totalRows = Number(attributes.totalRows || 0)
+    return {
+      authority: attributes.PlanningAuthority,
+      authorityCode: authority?.code || null,
+      totalRows,
+      fields: Object.fromEntries(fields.map((field) => [field, {
+        nonNull: Number(attributes[field] || 0),
+        null: totalRows - Number(attributes[field] || 0),
+      }])),
+    }
+  })
 }
 
 async function sourceSamples(authority, count) {
@@ -201,20 +240,28 @@ async function audit(options) {
     }
   }).sort((left, right) => right.count - left.count)
   const lifecycleFields = [
-    ["withdrawal", "WithdrawnDate"],
-    ["furtherInformationRequested", "FIRequestDate"],
-    ["furtherInformationReceived", "FIRecDate"],
-    ["appealLodged", "AppealSubmittedDate"],
-    ["appealDecision", "AppealDecisionDate"],
-    ["finalGrant", "GrantDate"],
-    ["decisionDue", "DecisionDueDate"],
-    ["permissionExpiry", "ExpiryDate"],
+    ["withdrawal", NATIONAL_PLANNING_LIFECYCLE_FIELDS.withdrawal_date],
+    ["furtherInformationRequested", NATIONAL_PLANNING_LIFECYCLE_FIELDS.further_information_requested_date],
+    ["furtherInformationReceived", NATIONAL_PLANNING_LIFECYCLE_FIELDS.further_information_received_date],
+    ["appealLodged", NATIONAL_PLANNING_LIFECYCLE_FIELDS.appeal_lodged_date],
+    ["appealDecision", NATIONAL_PLANNING_LIFECYCLE_FIELDS.appeal_decision_date],
+    ["decisionDue", NATIONAL_PLANNING_LIFECYCLE_FIELDS.decision_due_date],
+    ["expiry", NATIONAL_PLANNING_LIFECYCLE_FIELDS.expiry_date],
   ]
+  const lifecycleSourceFields = lifecycleFields.map(([, field]) => field)
+  const lifecycleAuthorityCoverage = await lifecycleCoverageByAuthority(lifecycleSourceFields)
   const lifecycleCoverage = Object.fromEntries(
     await Promise.all(
       lifecycleFields.map(async ([name, field]) => [
         name,
-        { sourceField: field, rows: await sourceFieldCoverage(field) },
+        {
+          sourceField: field,
+          normalizedField: Object.entries(NATIONAL_PLANNING_LIFECYCLE_FIELDS)
+            .find(([, sourceField]) => sourceField === field)?.[0] || null,
+          rows: await sourceFieldCoverage(field),
+          sourceType: metadata.fields?.find((candidate) => candidate.name === field)?.type || null,
+          sourceAlias: metadata.fields?.find((candidate) => candidate.name === field)?.alias || null,
+        },
       ])
     )
   )
@@ -310,6 +357,12 @@ async function audit(options) {
       developmentDescriptionLength:
         metadata.fields?.find((field) => field.name === "DevelopmentDescription")?.length || null,
       lifecycleCoverage,
+      lifecycleAuthorityCoverage,
+      dateEncoding: {
+        wireFormat: "ArcGIS epoch milliseconds",
+        normalizedFormat: "YYYY-MM-DD",
+        timeZone: metadata.dateFieldsTimeReference?.timeZoneIANA || NATIONAL_ARCGIS_DATE_FIELDS_TIME_ZONE,
+      },
     },
     production: { totalRowsExcludingCorkCounty: totalProduction },
     statuses: {

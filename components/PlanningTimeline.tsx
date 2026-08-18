@@ -1,14 +1,15 @@
 import React from "react"
 import {
   resolvePlanningEventDateCorrections,
+  suppressRedundantPlanningStatusEvents,
   type PlanningEvent,
 } from "@/lib/planning-events"
 import { planningStatusLabel, type PlanningStatus } from "@/lib/planning-status"
 
 export function PlanningTimeline({ events }: { events: PlanningEvent[] }) {
-  const visibleEvents = resolvePlanningEventDateCorrections(events).filter(
-    isPublicTimelineEvent
-  )
+  const visibleEvents = suppressRedundantPlanningStatusEvents(
+    resolvePlanningEventDateCorrections(events)
+  ).filter(isPublicTimelineEvent)
   if (visibleEvents.length === 0) return null
 
   return (
@@ -76,6 +77,7 @@ function isPublicTimelineEvent(event: PlanningEvent) {
     "decision_notice_issued",
     "appeal_notification",
     "source_date_corrected",
+    "decision_due_changed",
   ].includes(event.event_type)
 }
 

@@ -207,17 +207,18 @@ if (proposalReference) {
 }
 
 if (proposalLimit > 0) {
-  const candidates = storedRows
-    .filter(
-      (row) =>
-        row.reference > proposalAfter &&
-        Number.isInteger(Number(row.source_application_id)) &&
-        isLikelyTruncatedCorkSearchProposal(row.proposal)
-    )
-    .sort((left, right) => left.reference.localeCompare(right.reference))
-    .slice(0, proposalLimit)
+  const { data: candidates, error: candidateError } = await supabase.rpc(
+    "openlist_planning_proposal_backfill_candidates",
+    {
+      p_authority_code: AUTHORITY_CODE,
+      p_limit: proposalLimit,
+      p_from: `${fromYear}-01-01`,
+      p_to: `${currentYear}-12-31`,
+    }
+  )
+  if (candidateError) throw candidateError
   let updated = 0
-  for (const stored of candidates) {
+  for (const stored of candidates || []) {
     const detail = await fetchJson(
       `${API_DETAIL_URL}/${Number(stored.source_application_id)}`,
       `${stored.reference} detail`
@@ -235,8 +236,14 @@ if (proposalLimit > 0) {
     await sleep(200)
   }
   console.log(JSON.stringify({
-    proposalCandidatesProcessed: candidates.length,
+    proposalCandidatesProcessed: candidates?.length || 0,
     proposalsUpdated: updated,
-    nextProposalAfter: candidates.at(-1)?.reference || proposalAfter || null,
+    prioritized: {
+      highValue: (candidates || []).filter((candidate) => candidate.priority === 0).length,
+      recentActive: (candidates || []).filter((candidate) => candidate.priority === 1).length,
+      historical: (candidates || []).filter((candidate) => candidate.priority === 2).length,
+    },
+    cursorIgnored: Boolean(proposalAfter),
+    nextProposalAfter: null,
   }, null, 2))
 }

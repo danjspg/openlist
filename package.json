@@ -22,6 +22,7 @@
     "planning:national:ingest": "node --env-file=.env.local scripts/ingest-national-planning-applications.mjs",
     "planning:national:source:audit": "node --env-file=.env.local scripts/audit-national-planning-source.mjs",
     "planning:national:proposals:backfill": "node --env-file=.env.local scripts/backfill-national-planning-proposals.mjs",
+    "planning:national:lifecycle:backfill": "node --env-file=.env.local scripts/backfill-national-planning-lifecycle.mjs",
     "planning:national:links:repair": "node --env-file=.env.local scripts/repair-national-planning-links.mjs",
     "planning:status-refresh": "node --env-file=.env.local scripts/refresh-historical-planning-statuses.mjs",
     "planning:backfill": "node --env-file=.env.local scripts/backfill-planning-history.mjs",

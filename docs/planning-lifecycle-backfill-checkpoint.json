@@ -1,0 +1,30 @@
+{
+  "authorityCode": "FINGAL",
+  "afterObjectId": 242861,
+  "completeAuthorities": [
+    "CORKCITY",
+    "DUBLINCITY"
+  ],
+  "batches": 18,
+  "totals": {
+    "sourceRows": 33634,
+    "submitted": 33543,
+    "matched": 33362,
+    "updated": 33346,
+    "eventsInserted": 7984,
+    "applicationsEnriched": 4301,
+    "fieldUpdates": {
+      "withdrawal_date": 317,
+      "decision_due_date": 33149,
+      "further_information_received_date": 3707,
+      "further_information_requested_date": 3960,
+      "expiry_date": 19
+    },
+    "eventUpdates": {
+      "withdrawn": 317,
+      "further_information_received": 3707,
+      "further_information_requested": 3960
+    }
+  },
+  "updatedAt": "2026-08-18T18:07:15.085Z"
+}

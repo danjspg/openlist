@@ -10,6 +10,7 @@ import {
   detectObservedPlanningEvents,
   sortPlanningEvents,
   resolvePlanningEventDateCorrections,
+  suppressRedundantPlanningStatusEvents,
   type PlanningEvent,
 } from "../lib/planning-events"
 import {
@@ -17,6 +18,7 @@ import {
   normalisePlanningStatus,
   planningStatusLabel,
 } from "../lib/planning-status"
+import { decisionDuePresentation } from "../lib/planning-presentation"
 
 test("status normalization covers real Cork and national source values", () => {
   const cases = [
@@ -103,6 +105,28 @@ test("historical reconstruction uses only valid source-backed dates", () => {
   assert.equal(new Set(rich.map((event) => event.event_key)).size, rich.length)
 })
 
+test("FI, withdrawal, and appeal events require authoritative dates", () => {
+  const events = buildReconstructedPlanningEvents({
+    status: "Planning Application Withdrawn",
+    further_information_requested_date: "2026-02-04",
+    further_information_received_date: "2026-02-24",
+    withdrawal_date: "2026-03-03",
+    appeal_lodged_date: "2026-05-07",
+    appeal_decision_date: "2026-06-22",
+  })
+  assert.deepEqual(events.map((event) => event.event_type), [
+    "further_information_requested",
+    "further_information_received",
+    "withdrawn",
+    "appeal_lodged",
+    "appeal_decided",
+  ])
+  assert.deepEqual(
+    buildReconstructedPlanningEvents({ status: "Planning Application Withdrawn" }),
+    []
+  )
+})
+
 test("same-day milestones remain distinct and deterministically ordered", () => {
   const events = buildReconstructedPlanningEvents({
     registration_date: "2026-01-12",
@@ -148,6 +172,81 @@ test("genuine status changes and newly populated milestones are recorded without
   )
   assert.deepEqual(decision.map((event) => event.event_type), ["decision_made"])
   assert.equal(decision[0].provenance, "observed")
+
+  const multipleLifecycleFields = detectObservedPlanningEvents(
+    { status: "New Application" },
+    {
+      status: "Further Information Received",
+      further_information_requested_date: "2026-02-04",
+      further_information_received_date: "2026-02-24",
+    },
+    "2026-02-24T12:00:00Z"
+  )
+  assert.deepEqual(multipleLifecycleFields.map((event) => event.event_type), [
+    "further_information_requested",
+    "further_information_received",
+  ])
+})
+
+test("decision due changes are immutable, normalized, retry-safe, and hidden from the public timeline", () => {
+  const previous = { decision_due_date: "2026-09-14" }
+  const incoming = { decision_due_date: "2026-10-12" }
+  const first = detectObservedPlanningEvents(previous, incoming, "2026-08-18T12:00:00Z")
+  const retry = detectObservedPlanningEvents(previous, incoming, "2026-08-18T12:00:00Z")
+  assert.equal(first.length, 1)
+  assert.equal(first[0].event_type, "decision_due_changed")
+  assert.equal(first[0].old_value, "2026-09-14")
+  assert.equal(first[0].new_value, "2026-10-12")
+  assert.equal(first[0].event_key, retry[0].event_key)
+  assert.deepEqual(
+    detectObservedPlanningEvents(incoming, incoming, "2026-08-19T12:00:00Z"),
+    []
+  )
+  assert.equal(
+    renderToStaticMarkup(React.createElement(PlanningTimeline, { events: first })),
+    ""
+  )
+})
+
+test("current decision due presentation covers future, today, past, and terminal records", () => {
+  const active = {
+    normalized_status: "further_information_received" as const,
+    decision_due_date: "2026-09-14",
+  }
+  assert.deepEqual(decisionDuePresentation(active, new Date("2026-08-18T12:00:00Z")), {
+    date: "2026-09-14",
+    formattedDate: "14 September 2026",
+    relativeText: "in 27 days",
+  })
+  assert.equal(
+    decisionDuePresentation({ ...active, decision_due_date: "2026-08-18" }, new Date("2026-08-18T12:00:00Z"))?.relativeText,
+    "today"
+  )
+  assert.equal(
+    decisionDuePresentation({ ...active, decision_due_date: "2026-08-14" }, new Date("2026-08-18T12:00:00Z"))?.relativeText,
+    "4 days ago"
+  )
+  assert.equal(decisionDuePresentation({ ...active, normalized_status: "finalised" }), null)
+  assert.equal(decisionDuePresentation({ ...active, decision_date: "2026-08-17" }), null)
+})
+
+test("source-backed milestones suppress redundant status-only timeline entries", () => {
+  const sourceEvent = buildReconstructedPlanningEvents({
+    further_information_requested_date: "2026-02-04",
+  })[0]
+  const statusEvent: PlanningEvent = {
+    ...sourceEvent,
+    event_type: "status_changed",
+    event_date: "2026-02-05",
+    source_field: "status",
+    label: "Status changed to Further information requested",
+    new_value: "further_information_requested",
+    event_key: "observed:status:registered:further_information_requested:2026-02-05",
+  }
+  assert.deepEqual(
+    suppressRedundantPlanningStatusEvents([statusEvent, sourceEvent]).map((event) => event.event_type),
+    ["further_information_requested"]
+  )
 })
 
 test("source date corrections and multiple observed events sort consistently", () => {
@@ -211,4 +310,21 @@ test("migration defines immutable deduplicated events and database backfill", as
   assert.match(migration, /on conflict \(application_id,event_key\) do nothing/i)
   assert.doesNotMatch(migration, /max\(id\)/i)
   assert.doesNotMatch(migration, /status.*then.*final_grant_date/i)
+})
+
+test("national lifecycle migration is set-based, retry-safe, and keeps due changes out of reconstructed history", async () => {
+  const migration = await readFile(
+    new URL(
+      "../supabase/migrations/20260818200000_add_national_planning_lifecycle.sql",
+      import.meta.url
+    ),
+    "utf8"
+  )
+  assert.match(migration, /further_information_requested_date date null/i)
+  assert.match(migration, /decision_due_date date null/i)
+  assert.match(migration, /openlist_backfill_national_planning_lifecycle/i)
+  assert.match(migration, /on conflict \(application_id,event_key\) do nothing/i)
+  assert.match(migration, /decision_due_changed/i)
+  assert.match(migration, /old\.decision_due_date is not null/i)
+  assert.doesNotMatch(migration, /create index[^;]+decision_due_date/i)
 })
