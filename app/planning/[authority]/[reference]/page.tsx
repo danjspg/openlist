@@ -24,10 +24,10 @@ import { getPublicSiteUrl } from "@/lib/site-url"
 import { planningStatusLabel } from "@/lib/planning-status"
 import { PlanningTimeline } from "@/components/PlanningTimeline"
 
-export const revalidate = 21600
+export const revalidate = 604800
 export const dynamicParams = true
 
-// Planning details are generated on demand, then retained as six-hour ISR entries.
+// Planning details are generated on demand, then retained as seven-day ISR entries.
 // Returning no build-time params avoids generating the full planning corpus at deploy time.
 export function generateStaticParams() {
   return []
