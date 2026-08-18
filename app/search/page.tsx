@@ -5,7 +5,7 @@ import { areaNameFromSlug, formatPprCurrency, formatPprDate } from "@/lib/ppr"
 import { formatPlanningDate } from "@/lib/planning"
 import { getPlanningAuthorityByCode } from "@/lib/planning-authorities"
 import { planningApplicationPath } from "@/lib/property-intelligence"
-import { presentPlanningProposal } from "@/lib/planning-presentation"
+import { planningProposalTitle } from "@/lib/planning-presentation"
 import {
   searchPropertyIntelligence,
   type UnifiedSearchResults,
@@ -324,7 +324,7 @@ function PlanningRow({
         <p className="font-mono text-sm font-semibold text-emerald-800">{application.reference}</p>
         <p className="text-sm text-stone-500">{formatPlanningDate(application.registration_date)}</p>
       </div>
-      <p className="mt-2 font-semibold leading-6 text-stone-950">{presentPlanningProposal(application.proposal, "Proposal not recorded").display}</p>
+      <p className="mt-2 line-clamp-3 font-semibold leading-6 text-stone-950">{planningProposalTitle(application.proposal, "Proposal not recorded")}</p>
       <p className="mt-1 text-sm leading-6 text-stone-500">{application.location || application.local_authority}</p>
       {distanceKm !== undefined ? <p className="mt-1 text-xs font-medium text-stone-500">{formatDistance(distanceKm)} away</p> : null}
     </Link>

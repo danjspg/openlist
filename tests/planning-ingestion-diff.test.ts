@@ -40,7 +40,7 @@ test("planning ingestion writes a record when a displayed field changes", () => 
   assert.equal(planningRecordsDiffer(existing, incoming), true)
 })
 
-test("planning ingestion ignores equivalent canonical status wording", () => {
+test("planning ingestion retains changed raw status wording within one canonical group", () => {
   const existing = {
     local_authority: "Kildare County Council",
     local_authority_code: "KILDARE",
@@ -54,7 +54,7 @@ test("planning ingestion ignores equivalent canonical status wording", () => {
     decision_text: "  grant   permission ",
   }
 
-  assert.equal(planningRecordsDiffer(existing, incoming), false)
+  assert.equal(planningRecordsDiffer(existing, incoming), true)
 })
 
 test("planning ingestion writes genuinely different canonical statuses", () => {

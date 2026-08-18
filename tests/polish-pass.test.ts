@@ -124,6 +124,20 @@ test("planning details separate a concise heading from the full stored proposal"
   assert.doesNotMatch(detail, /<h1[^>]*>[\s\S]*?\{fullProposal\}[\s\S]*?<\/h1>/)
 })
 
+test("planning result surfaces use concise, visually clamped proposal titles", async () => {
+  const [planningResults, unifiedSearch, soldPriceArea] = await Promise.all([
+    source("components/planning/PlanningResultsView.tsx"),
+    source("app/search/page.tsx"),
+    source("app/sold-prices/[county]/[areaSlug]/page.tsx"),
+  ])
+
+  assert.match(planningResults, /className="line-clamp-3 text-lg/)
+  assert.match(unifiedSearch, /planningProposalTitle\(application\.proposal/)
+  assert.match(unifiedSearch, /className="mt-2 line-clamp-3/)
+  assert.match(soldPriceArea, /planningProposalTitle\(application\.proposal/)
+  assert.match(soldPriceArea, /className="mt-2 line-clamp-3/)
+})
+
 test("Terms page contains the supplied current service wording", async () => {
   const terms = await source("app/terms/page.tsx")
   assert.match(terms, /Last updated: 12 August 2026/)

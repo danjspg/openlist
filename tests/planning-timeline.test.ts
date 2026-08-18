@@ -34,6 +34,8 @@ test("status normalization covers real Cork and national source values", () => {
     ["Officer Allocation", "under_assessment"],
     ["Additional Information Requested", "further_information_requested"],
     ["AI Received", "further_information_received"],
+    ["Application Under Review", "under_assessment"],
+    ["Application archived", "finalised"],
   ] as const
 
   for (const [raw, expected] of cases) {

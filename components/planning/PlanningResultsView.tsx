@@ -191,7 +191,7 @@ function ApplicationsList({ applications }: { applications: PlanningResultRecord
           </div>
 
           <div className="min-w-0">
-            <h3 className="text-lg font-semibold leading-7 tracking-tight text-stone-950">
+            <h3 className="line-clamp-3 text-lg font-semibold leading-7 tracking-tight text-stone-950">
               {application.detailHref ? (
                 <Link className="transition hover:text-emerald-800" href={application.detailHref}>
                   {application.proposal || "No proposal text recorded"}

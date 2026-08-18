@@ -3,12 +3,24 @@ import { formatErrorForLog } from "./ppr-error-format.mjs"
 import { planningEircodeFieldsFromSources } from "../lib/eircode-ingestion.mjs"
 import { filterChangedPlanningRecords } from "../lib/planning-ingestion-diff.mjs"
 import { upsertPlanningBatch } from "./planning-upsert.mjs"
+import {
+  authoritativeNationalProposal,
+  cleanNationalPlanningText,
+  isNationalProposalDetailCandidate,
+  nationalAgileAuthorityConfig,
+  nationalPlanningSourceUrl,
+  parseNationalArcgisDate,
+} from "../lib/national-planning-source.mjs"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 const FEATURE_LAYER_URL =
   "https://services.arcgis.com/NzlPQPKn5QF9v2US/ArcGIS/rest/services/IrishPlanningApplications/FeatureServer/0/query"
+const AGILE_SEARCH_URL = "https://planningapi.agileapplications.ie/api/application/search"
+const AGILE_DETAIL_URL = "https://planningapi.agileapplications.ie/api/application"
+const AGILE_SEARCH_STATUSES = ["registered", "determined"]
+const AGILE_WINDOW_DAYS = 45
 const DEFAULT_DAYS = Number(process.env.PLANNING_NATIONAL_DEFAULT_DAYS || 365)
 const DEFAULT_PAGE_SIZE = 2000
 const DEFAULT_EXCLUDED_CODES = new Set(["CORKCOCO"])
@@ -196,12 +208,8 @@ const OUT_FIELDS = [
   "SiteId",
 ].join(",")
 
-if (!supabaseUrl || !serviceRoleKey) {
-  console.error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY")
-  process.exit(1)
-}
-
-const supabase = createClient(supabaseUrl, serviceRoleKey)
+const supabase =
+  supabaseUrl && serviceRoleKey ? createClient(supabaseUrl, serviceRoleKey) : null
 
 function formatDate(date) {
   return date.toISOString().slice(0, 10)
@@ -277,29 +285,16 @@ function sqlString(value) {
   return String(value).replaceAll("'", "''")
 }
 
-function cleanText(value) {
-  if (value === null || value === undefined) return null
-  const text = String(value).replace(/\s+/g, " ").trim()
-  return text || null
-}
-
-function parseArcgisDate(value) {
-  if (!value) return null
-  const date = new Date(Number(value))
-  if (Number.isNaN(date.getTime())) return null
-  return formatDate(date)
-}
-
 function applicantName(row) {
   return [row.ApplicantForename, row.ApplicantSurname]
-    .map(cleanText)
+    .map(cleanNationalPlanningText)
     .filter(Boolean)
     .join(" ")
     .trim() || null
 }
 
 function mapApplication(row, authority, { storePayload }) {
-  const reference = cleanText(row.ApplicationNumber)
+  const reference = cleanNationalPlanningText(row.ApplicationNumber)
   if (!reference) return null
 
   return {
@@ -308,23 +303,23 @@ function mapApplication(row, authority, { storePayload }) {
     source_application_id: Number.isInteger(row.OBJECTID) ? row.OBJECTID : null,
     reference,
     web_reference: reference,
-    application_type: cleanText(row.ApplicationType),
-    proposal: cleanText(row.DevelopmentDescription),
-    location: cleanText(row.DevelopmentAddress),
+    application_type: cleanNationalPlanningText(row.ApplicationType),
+    proposal: cleanNationalPlanningText(row.DevelopmentDescription),
+    location: cleanNationalPlanningText(row.DevelopmentAddress),
     ...planningEircodeFieldsFromSources(
       row.DevelopmentPostcode,
       row.DevelopmentAddress
     ),
     applicant_name: applicantName(row),
     agent_name: null,
-    status: cleanText(row.ApplicationStatus),
-    decision_text: cleanText(row.Decision),
-    registration_date: parseArcgisDate(row.ReceivedDate),
+    status: cleanNationalPlanningText(row.ApplicationStatus),
+    decision_text: cleanNationalPlanningText(row.Decision),
+    registration_date: parseNationalArcgisDate(row.ReceivedDate),
     valid_date: null,
-    decision_date: parseArcgisDate(row.DecisionDate),
-    final_grant_date: parseArcgisDate(row.GrantDate),
-    appeal_lodged_date: parseArcgisDate(row.AppealSubmittedDate),
-    appeal_decision_date: parseArcgisDate(row.AppealDecisionDate),
+    decision_date: parseNationalArcgisDate(row.DecisionDate),
+    final_grant_date: parseNationalArcgisDate(row.GrantDate),
+    appeal_lodged_date: parseNationalArcgisDate(row.AppealSubmittedDate),
+    appeal_decision_date: parseNationalArcgisDate(row.AppealDecisionDate),
     dispatch_date: null,
     appeal_notify_date: null,
     ward: null,
@@ -335,7 +330,11 @@ function mapApplication(row, authority, { storePayload }) {
     grid_easting: Number.isFinite(row.ITMEasting) ? row.ITMEasting : null,
     grid_northing: Number.isFinite(row.ITMNorthing) ? row.ITMNorthing : null,
     pending_amendment: null,
-    source_url: cleanText(row.LinkAppDetails),
+    source_url: nationalPlanningSourceUrl(
+      authority.code,
+      reference,
+      row.LinkAppDetails
+    ),
     source_api_url: FEATURE_LAYER_URL,
     ...(storePayload ? { source_payload: row } : {}),
     updated_at: new Date().toISOString(),
@@ -346,7 +345,7 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-async function fetchJson(url, label) {
+async function fetchJson(url, label, headers = {}, { allowNotFound = false } = {}) {
   let lastError
 
   for (let attempt = 1; attempt <= MAX_RETRIES + 1; attempt += 1) {
@@ -356,8 +355,11 @@ async function fetchJson(url, label) {
       const response = await fetch(url, {
         headers: {
           "User-Agent": "OpenList national planning importer",
+          ...headers,
         },
       })
+
+      if (allowNotFound && response.status === 404) return null
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`)
@@ -380,6 +382,112 @@ async function fetchJson(url, label) {
   }
 
   throw lastError
+}
+
+function dateWindows(from, to, windowDays = AGILE_WINDOW_DAYS) {
+  const windows = []
+  let cursor = new Date(`${from}T00:00:00Z`)
+  const last = new Date(`${to}T00:00:00Z`)
+
+  while (cursor <= last) {
+    const windowEnd = addDays(cursor, windowDays - 1)
+    if (windowEnd > last) windowEnd.setTime(last.getTime())
+    windows.push({ from: formatDate(cursor), to: formatDate(windowEnd) })
+    cursor = addDays(windowEnd, 1)
+  }
+
+  return windows
+}
+
+async function fetchAgileDetailsByReference(authority, records) {
+  const config = nationalAgileAuthorityConfig(authority.code)
+  const candidates = records.filter((record) =>
+    isNationalProposalDetailCandidate(authority.code, record.proposal)
+  )
+  if (!config || candidates.length === 0) return new Map()
+
+  const datedCandidates = candidates.filter((record) => record.registration_date)
+  if (datedCandidates.length === 0) return new Map()
+  const wantedReferences = new Set(candidates.map((record) => record.reference))
+  const dates = datedCandidates.map((record) => record.registration_date).sort()
+  const searchRowsByReference = new Map()
+  const headers = {
+    "x-client": config.client,
+    "x-product": "CITIZENPORTAL",
+    "x-service": "PA",
+  }
+
+  if (authority.code === "WEXFORD") {
+    for (const record of candidates) {
+      const detailId = String(record.source_url || "").match(/\/application-details\/(\d+)/)?.[1]
+      if (detailId) searchRowsByReference.set(record.reference, { id: Number(detailId) })
+    }
+  }
+
+  const unresolvedReferences = new Set(
+    [...wantedReferences].filter((reference) => !searchRowsByReference.has(reference))
+  )
+  for (const window of unresolvedReferences.size > 0 ? dateWindows(dates[0], dates.at(-1)) : []) {
+    for (const status of AGILE_SEARCH_STATUSES) {
+      const params = new URLSearchParams({
+        registrationDateFrom: `${window.from}T00:00:00Z`,
+        registrationDateTo: `${window.to}T23:59:59Z`,
+        status,
+      })
+      const data = await fetchJson(
+        `${AGILE_SEARCH_URL}?${params.toString()}`,
+        `${authority.name} detail index ${window.from} to ${window.to} ${status}`,
+        headers
+      )
+      for (const row of data.results || []) {
+        const reference = cleanNationalPlanningText(row.reference)
+        if (
+          reference &&
+          unresolvedReferences.has(reference) &&
+          Number.isInteger(row.id) &&
+          !searchRowsByReference.has(reference)
+        ) {
+          searchRowsByReference.set(reference, row)
+        }
+      }
+    }
+  }
+
+  const details = new Map()
+  for (const [reference, searchRow] of searchRowsByReference) {
+    const detail = await fetchJson(
+      `${AGILE_DETAIL_URL}/${searchRow.id}`,
+      `${authority.name} ${reference} detail`,
+      headers,
+      { allowNotFound: true }
+    )
+    if (detail) details.set(reference, detail)
+  }
+  return details
+}
+
+async function enrichChangedNationalRecords(
+  records,
+  authority,
+  fetchDetails = fetchAgileDetailsByReference
+) {
+  if (
+    !records.some((record) =>
+      isNationalProposalDetailCandidate(authority.code, record.proposal)
+    )
+  ) {
+    return records
+  }
+
+  const details = await fetchDetails(authority, records)
+  return records.map((record) => {
+    const detail = details.get(record.reference)
+    if (!detail) return record
+    return {
+      ...record,
+      proposal: authoritativeNationalProposal(record.proposal, detail.fullProposal),
+    }
+  })
 }
 
 async function fetchAuthorityApplications(authority, { from, to }) {
@@ -473,6 +581,9 @@ function selectedAuthorities(options) {
 }
 
 async function ingestNationalPlanningApplications(options) {
+  if (!supabase) {
+    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY")
+  }
   const authorities = selectedAuthorities(options)
   const summary = []
 
@@ -516,13 +627,18 @@ async function ingestNationalPlanningApplications(options) {
       }
     )
 
+    const enrichedChangedRecords = await enrichChangedNationalRecords(
+      changedRecords,
+      authority
+    )
+
     let processed = 0
-    for (const batch of chunk(changedRecords, 100)) {
+    for (const batch of chunk(enrichedChangedRecords, 100)) {
       try {
         await upsertPlanningBatch(supabase, batch, authority.name)
       } catch (error) {
         throw new Error(
-          `${authority.name} upsert failed after ${processed}/${changedRecords.length} changed rows`,
+          `${authority.name} upsert failed after ${processed}/${enrichedChangedRecords.length} changed rows`,
           { cause: error }
         )
       }
@@ -550,6 +666,8 @@ if (isDirectRun) {
 
 export {
   AUTHORITIES,
+  enrichChangedNationalRecords,
+  fetchAgileDetailsByReference,
   fetchAuthorityApplicationCount,
   ingestNationalPlanningApplications,
   parseArgs,

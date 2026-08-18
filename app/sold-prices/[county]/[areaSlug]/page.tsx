@@ -9,6 +9,7 @@ import { formatPlanningDate } from "@/lib/planning"
 import { getPlanningAuthorityByCode } from "@/lib/planning-authorities"
 import { planningApplicationPath } from "@/lib/property-intelligence"
 import { getPlanningApplicationsForSoldPriceArea } from "@/lib/property-research"
+import { planningProposalTitle } from "@/lib/planning-presentation"
 import {
   areaNameFromSlug,
   formatPprCountyDisplayName,
@@ -259,7 +260,7 @@ export default async function PprAreaPage({ params }: Props) {
                     return (
                       <Link key={application.id} href={href} className="block py-5 transition hover:bg-stone-50 sm:px-3">
                         <div className="flex flex-wrap items-baseline justify-between gap-2"><p className="font-mono text-sm font-semibold text-emerald-800">{application.reference}</p><p className="text-sm text-stone-500">{formatPlanningDate(application.registration_date)}</p></div>
-                        <p className="mt-2 font-semibold leading-6 text-stone-900">{application.proposal || "Proposal not recorded"}</p>
+                        <p className="mt-2 line-clamp-3 font-semibold leading-6 text-stone-900">{planningProposalTitle(application.proposal, "Proposal not recorded")}</p>
                         <p className="mt-1 text-sm leading-6 text-stone-500">{application.location || application.local_authority}</p>
                       </Link>
                     )
