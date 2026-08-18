@@ -38,6 +38,14 @@ test("planning aggregation stays in Postgres and returns only compact summaries"
   assert.match(migration, /group by area_label/i)
 })
 
+test("planning dashboard aggregate allows the larger national corpus to finish", async () => {
+  const migration = await source(
+    "supabase/migrations/20260818184500_allow_planning_dashboard_growth.sql"
+  )
+  assert.match(migration, /openlist_planning_dashboard_aggregate/i)
+  assert.match(migration, /statement_timeout\s*=\s*'30s'/i)
+})
+
 test("planning research and sold-area support queries use central caches", async () => {
   const research = await source("lib/property-research.ts")
   const detail = await source("app/planning/[authority]/[reference]/page.tsx")
