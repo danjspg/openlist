@@ -111,13 +111,17 @@ test("public planning copy avoids pipeline terminology and locale-formats counts
   assert.match(results, /toLocaleString\("en-IE"\)/)
 })
 
-test("planning details omit absent fields and use the full stored proposal", async () => {
+test("planning details separate a concise heading from the full stored proposal", async () => {
   const detail = await source("app/planning/[authority]/[reference]/page.tsx")
-  assert.match(detail, /const fullProposal = proposal\.original \?\? proposal\.display/)
-  assert.match(detail, /\{fullProposal\}/)
+  assert.match(detail, /const proposalTitle = planningProposalTitle\(/)
+  assert.match(detail, /\{proposalTitle\}/)
+  assert.match(detail, /Proposal description/)
+  assert.match(detail, /<ProposalDescription[\s\S]*value=\{fullProposal\}/)
+  assert.match(detail, /description: fullProposal/)
   assert.match(detail, /if \(!shownValue\) return null/)
   assert.doesNotMatch(detail, /Not recorded in source/)
-  assert.doesNotMatch(detail, /Proposal as supplied by the council/)
+  assert.match(detail, /<h1[^>]*>[\s\S]*?\{proposalTitle\}[\s\S]*?<\/h1>/)
+  assert.doesNotMatch(detail, /<h1[^>]*>[\s\S]*?\{fullProposal\}[\s\S]*?<\/h1>/)
 })
 
 test("Terms page contains the supplied current service wording", async () => {

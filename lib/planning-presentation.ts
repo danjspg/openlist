@@ -6,6 +6,8 @@ export type PlanningProposalPresentation = {
   isLikelyTruncated: boolean
 }
 
+const DEFAULT_PROPOSAL_TITLE_MAX_LENGTH = 120
+
 const UNAVAILABLE_SOURCE_VALUES = new Set([
   "-",
   "n/a",
@@ -29,6 +31,61 @@ export function meaningfulPlanningValue(
     return null
   }
   return cleaned
+}
+
+export function planningProposalTitle(
+  proposal: string | null | undefined,
+  fallback = "Planning application",
+  maxLength = DEFAULT_PROPOSAL_TITLE_MAX_LENGTH
+) {
+  const text = meaningfulPlanningValue(proposal)
+  if (!text) return fallback
+  return cappedPlanningProposalText(text, maxLength)
+}
+
+export function planningProposalSummary(
+  proposal: string | null | undefined,
+  fallback = "Planning application details",
+  maxLength = 155
+) {
+  const text = meaningfulPlanningValue(proposal)
+  if (!text) return fallback
+  return cappedPlanningProposalText(text, maxLength)
+}
+
+function cappedPlanningProposalText(text: string, requestedMaxLength: number) {
+  const maxLength = Math.max(40, requestedMaxLength)
+  if (text.length <= maxLength) return text
+
+  const firstSentence = text.match(/^.*?[.!?](?=\s|$)/)?.[0]?.trim()
+  if (firstSentence && firstSentence.length <= maxLength) return firstSentence
+
+  const minimumBoundary = Math.min(70, Math.floor(maxLength * 0.55))
+  const candidate = text.slice(0, maxLength + 1)
+  let cutIndex = -1
+  for (const match of candidate.matchAll(/[;:,](?=\s|$)/g)) {
+    if ((match.index ?? -1) >= minimumBoundary) cutIndex = match.index ?? cutIndex
+  }
+
+  if (cutIndex < minimumBoundary) {
+    const conjunctions = [...candidate.matchAll(/\s(?:and|with|including|comprising)\s/gi)]
+    const boundary = conjunctions.findLast(
+      (match) => (match.index ?? -1) >= minimumBoundary
+    )
+    if (boundary?.index !== undefined) cutIndex = boundary.index
+  }
+
+  if (cutIndex < minimumBoundary) {
+    cutIndex = candidate.lastIndexOf(" ", maxLength)
+  }
+
+  const summary = text
+    .slice(0, cutIndex > 0 ? cutIndex : maxLength)
+    .trim()
+    .replace(/[,;:]$/, "")
+    .replace(/[.!?…]+$/, "")
+
+  return summary ? `${summary}…` : text
 }
 
 const DANGLING_NUMBERED_ITEM = /[,;]\s*(?:and\s+)?\d+\s*[\).:-]\s*[A-Za-z]{1,3}\s*$/i

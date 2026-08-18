@@ -21,7 +21,7 @@ import {
   planningApplicationPath,
   planningGridToWgs84,
 } from "@/lib/property-intelligence"
-import { presentPlanningProposal } from "@/lib/planning-presentation"
+import { planningProposalTitle } from "@/lib/planning-presentation"
 import {
   buildPlanningFilterFields,
   type PlanningFilterKey,
@@ -75,10 +75,10 @@ export async function PlanningApplicationsView({
       reference: application.reference,
       registrationDate: application.registration_date,
       status: planningStatusLabel(application.normalized_status),
-      proposal: presentPlanningProposal(
+      proposal: planningProposalTitle(
         application.proposal,
         "No proposal text recorded"
-      ).display,
+      ),
       authority: application.local_authority,
       location: application.location,
       applicant: application.applicant_name,

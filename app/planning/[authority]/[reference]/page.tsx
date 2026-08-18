@@ -18,6 +18,8 @@ import {
 import { getPlanningResearchContext } from "@/lib/property-research"
 import {
   meaningfulPlanningValue,
+  planningProposalSummary,
+  planningProposalTitle,
   presentPlanningProposal,
 } from "@/lib/planning-presentation"
 import { getPublicSiteUrl } from "@/lib/site-url"
@@ -44,15 +46,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const application = await getPlanningApplication(authority, resolved.reference)
   if (!application) return {}
   const canonical = planningApplicationPath(authority, application.reference)
-  const location = application.location || authority.shortName
-  const summary = presentPlanningProposal(
+  const heading = planningProposalTitle(
     application.proposal,
     `Planning application ${application.reference}`
-  ).display
+  )
+  const summary = planningProposalSummary(
+    application.proposal,
+    `View planning application ${application.reference} from ${authority.name}.`
+  )
 
   return {
-    title: `${application.reference} Planning Application, ${location} | OpenList`,
-    description: `${summary.slice(0, 145)}${summary.length > 145 ? "…" : ""} View application status, dates, location and official council source.`,
+    title: `${heading} | ${application.reference} | OpenList`,
+    description: summary,
     alternates: { canonical },
     robots: { index: true, follow: true },
   }
@@ -65,7 +70,11 @@ export default async function PlanningApplicationPage({ params }: Props) {
   const application = await getPlanningApplication(authority, resolved.reference)
   if (!application) notFound()
   const proposal = presentPlanningProposal(application.proposal)
-  const fullProposal = proposal.original ?? proposal.display
+  const fullProposal = meaningfulPlanningValue(application.proposal) ?? proposal.display
+  const proposalTitle = planningProposalTitle(
+    fullProposal,
+    `Planning application ${application.reference}`
+  )
   const sourceStatus = meaningfulPlanningValue(application.status)
   const currentStatus = planningStatusLabel(application.normalized_status)
 
@@ -80,7 +89,7 @@ export default async function PlanningApplicationPage({ params }: Props) {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "WebPage",
-    name: `Planning application ${application.reference}`,
+    name: proposalTitle,
     url: `${getPublicSiteUrl()}${canonicalPath}`,
     description: fullProposal,
     dateModified: application.updated_at || undefined,
@@ -133,13 +142,8 @@ export default async function PlanningApplicationPage({ params }: Props) {
                 Planning application {application.reference}
               </p>
               <h1 className="mt-4 max-w-4xl text-3xl font-semibold leading-tight tracking-tight text-stone-950 sm:text-4xl">
-                {fullProposal}
+                {proposalTitle}
               </h1>
-              {proposal.isLikelyTruncated ? (
-                <p className="mt-3 max-w-3xl text-xs leading-5 text-stone-500">
-                  The proposal text available to OpenList may be incomplete. Check the official application record for full details.
-                </p>
-              ) : null}
               <p className="mt-5 max-w-3xl text-lg leading-8 text-stone-600">
                 {application.location || "The source record does not include a location."}
               </p>
@@ -187,6 +191,10 @@ export default async function PlanningApplicationPage({ params }: Props) {
             <dl className="mt-6 grid gap-x-8 gap-y-6 sm:grid-cols-2">
               <Detail label="Planning reference" value={application.reference} mono />
               <Detail label="Council" value={application.local_authority} />
+              <ProposalDescription
+                value={fullProposal}
+                isLikelyTruncated={proposal.isLikelyTruncated}
+              />
               <Detail label="Location / address" value={application.location} />
               <Detail label="Applicant" value={application.applicant_name} />
               <Detail label="Agent" value={application.agent_name} />
@@ -321,6 +329,30 @@ function Detail({ label, value, mono = false }: { label: string; value: string |
       <dd className={`mt-2 break-words text-sm leading-6 text-stone-900 ${mono ? "font-mono font-semibold" : ""}`}>
         {shownValue}
       </dd>
+    </div>
+  )
+}
+
+function ProposalDescription({
+  value,
+  isLikelyTruncated,
+}: {
+  value: string
+  isLikelyTruncated: boolean
+}) {
+  return (
+    <div className="sm:col-span-2">
+      <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-stone-500">
+        Proposal description
+      </dt>
+      <dd className="mt-2 break-words text-sm leading-7 text-stone-900">
+        {value}
+      </dd>
+      {isLikelyTruncated ? (
+        <p className="mt-2 text-xs leading-5 text-stone-500">
+          The proposal text available to OpenList may be incomplete. Check the official application record for full details.
+        </p>
+      ) : null}
     </div>
   )
 }

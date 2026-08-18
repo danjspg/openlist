@@ -2,8 +2,45 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import {
   meaningfulPlanningValue,
+  planningProposalSummary,
+  planningProposalTitle,
   presentPlanningProposal,
 } from "../lib/planning-presentation"
+
+test("planning headings prefer a concise first complete sentence", () => {
+  const fullProposal =
+    "Permission for alterations and extensions to the existing dwelling. The proposed works comprise a converted garage, rear extension, new porch and detached domestic garage."
+
+  assert.equal(
+    planningProposalTitle(fullProposal),
+    "Permission for alterations and extensions to the existing dwelling."
+  )
+})
+
+test("planning headings cap long single-sentence proposals at a clause boundary", () => {
+  const fullProposal =
+    "Permission for construction of a replacement dwelling with revised access arrangements, installation of a wastewater treatment system and polishing filter, landscaping works and all associated site development works"
+  const heading = planningProposalTitle(fullProposal)
+
+  assert.equal(
+    heading,
+    "Permission for construction of a replacement dwelling with revised access arrangements…"
+  )
+  assert.ok(heading.length <= 120)
+  assert.doesNotMatch(heading, /\s\w{1,3}…$/)
+})
+
+test("planning metadata summaries use the same boundary-safe source-neutral treatment", () => {
+  const proposal =
+    "Retention permission for alterations to an agricultural building including revised elevations and internal layout changes, together with drainage works and landscaping"
+  const summary = planningProposalSummary(proposal, "Fallback", 100)
+
+  assert.equal(
+    summary,
+    "Retention permission for alterations to an agricultural building including revised elevations…"
+  )
+  assert.ok(summary.length <= 100)
+})
 
 test("a dangling numbered proposal is shortened at a defensible clause boundary", () => {
   const original =
