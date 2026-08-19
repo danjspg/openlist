@@ -18,6 +18,39 @@ test("planning headings prefer a concise first complete sentence", () => {
   )
 })
 
+test("planning abbreviations do not create false title sentence boundaries", () => {
+  assert.equal(
+    planningProposalTitle("The works include 2no. modified shipping containers for the site. Further details follow."),
+    "The works include 2no. modified shipping containers for the site."
+  )
+  assert.equal(
+    planningProposalTitle("See application ref. 21/4057 for the related permission. Further details follow."),
+    "See application ref. 21/4057 for the related permission."
+  )
+})
+
+test("genuine prose sentence boundaries remain the title boundary", () => {
+  assert.equal(
+    planningProposalTitle("Permission for alterations to the dwelling. The works include a rear extension."),
+    "Permission for alterations to the dwelling."
+  )
+})
+
+test("Boxd-style retention proposals become concise source-derived titles", () => {
+  const proposal =
+    "The development to be retained consists of (1) the erection of 2no. modified shipping containers for use as a drive-thru coffee kiosk, with ancillary storage and staff facilities; associated signage and site works."
+  const title = planningProposalTitle(proposal)
+
+  assert.equal(
+    title,
+    "Retention: erection of 2no. modified shipping containers for use as a drive-thru coffee kiosk…"
+  )
+  assert.match(title, /drive-thru coffee kiosk/)
+  assert.doesNotMatch(title, /\(1\)/)
+  assert.doesNotMatch(title, /2no\.?…$/)
+  assert.ok(title.length <= 120)
+})
+
 test("planning headings cap long single-sentence proposals at a clause boundary", () => {
   const fullProposal =
     "Permission for construction of a replacement dwelling with revised access arrangements, installation of a wastewater treatment system and polishing filter, landscaping works and all associated site development works"

@@ -101,7 +101,7 @@ export function planningProposalTitle(
 ) {
   const text = meaningfulPlanningValue(proposal)
   if (!text) return fallback
-  return cappedPlanningProposalText(text, maxLength)
+  return cappedPlanningProposalText(titlePresentationText(text), maxLength)
 }
 
 export function planningProposalSummary(
@@ -116,10 +116,9 @@ export function planningProposalSummary(
 
 function cappedPlanningProposalText(text: string, requestedMaxLength: number) {
   const maxLength = Math.max(40, requestedMaxLength)
-  if (text.length <= maxLength) return text
-
-  const firstSentence = text.match(/^.*?[.!?](?=\s|$)/)?.[0]?.trim()
+  const firstSentence = firstCompletePlanningSentence(text)
   if (firstSentence && firstSentence.length <= maxLength) return firstSentence
+  if (text.length <= maxLength) return text
 
   const minimumBoundary = Math.min(70, Math.floor(maxLength * 0.55))
   const candidate = text.slice(0, maxLength + 1)
@@ -147,6 +146,28 @@ function cappedPlanningProposalText(text: string, requestedMaxLength: number) {
     .replace(/[.!?…]+$/, "")
 
   return summary ? `${summary}…` : text
+}
+
+const RETENTION_FRAMING = /^the\s+development\s+to\s+be\s+retained\s+consists\s+of\s*(?:(?:\(\s*1\s*\)|1\s*[).:-])\s*)?(?:the\s+)?/i
+const PLANNING_ABBREVIATION = /^(?:\d+\s*)?(?:no|nos|ref)\.$/i
+
+function titlePresentationText(text: string) {
+  const retentionMatch = text.match(RETENTION_FRAMING)
+  if (!retentionMatch) return text
+
+  const firstItem = text.slice(retentionMatch[0].length).trim()
+  if (!firstItem) return text
+  return `Retention: ${firstItem.charAt(0).toLocaleLowerCase("en-IE")}${firstItem.slice(1)}`
+}
+
+function firstCompletePlanningSentence(text: string) {
+  for (const match of text.matchAll(/[.!?](?=\s|$)/g)) {
+    const end = (match.index ?? -1) + 1
+    const sentence = text.slice(0, end).trim()
+    const finalToken = sentence.split(/\s+/).at(-1) ?? ""
+    if (!PLANNING_ABBREVIATION.test(finalToken)) return sentence
+  }
+  return null
 }
 
 const DANGLING_NUMBERED_ITEM = /[,;]\s*(?:and\s+)?\d+\s*[\).:-]\s*[A-Za-z]{1,3}\s*$/i
