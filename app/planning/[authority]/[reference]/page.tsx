@@ -18,6 +18,7 @@ import {
 import { getPlanningResearchContext } from "@/lib/property-research"
 import {
   meaningfulPlanningValue,
+  councilStatusPresentation,
   decisionDuePresentation,
   planningProposalSummary,
   planningProposalTitle,
@@ -79,9 +80,11 @@ export default async function PlanningApplicationPage({ params }: Props) {
     fullProposal,
     `Planning application ${application.reference}`
   )
-  const sourceStatus = meaningfulPlanningValue(application.status)
+  const councilStatus = councilStatusPresentation(application.status, application.normalized_status)
   const currentStatus = planningStatusLabel(application.normalized_status)
+  const decision = meaningfulPlanningValue(application.decision_text)
   const decisionDue = decisionDuePresentation(application)
+  const hasCardDetails = Boolean(councilStatus || decision || decisionDue)
 
   const canonicalSlug = planningReferenceSlug(application.reference)
   if (resolved.reference !== canonicalSlug) notFound()
@@ -162,15 +165,25 @@ export default async function PlanningApplicationPage({ params }: Props) {
                   <p className="mt-3 text-2xl font-semibold tracking-tight text-stone-950">
                     {currentStatus}
                   </p>
-                  {sourceStatus && sourceStatus !== currentStatus ? (
+                  {councilStatus ? (
                     <p className="mt-2 text-xs leading-5 text-stone-500">
-                      Council status: {sourceStatus}
+                      Council status: {councilStatus}
                     </p>
                   ) : null}
                 </>
               ) : null}
-              {decisionDue ? (
+              {decision ? (
                 <div className={`${currentStatus ? "mt-5 border-t border-stone-200 pt-5" : ""}`}>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">
+                    Decision
+                  </p>
+                  <p className="mt-2 text-lg font-semibold tracking-tight text-stone-950">
+                    {decision}
+                  </p>
+                </div>
+              ) : null}
+              {decisionDue ? (
+                <div className={`${currentStatus || decision ? "mt-5 border-t border-stone-200 pt-5" : ""}`}>
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">
                     Decision due
                   </p>
@@ -188,7 +201,7 @@ export default async function PlanningApplicationPage({ params }: Props) {
                   href={application.source_url}
                   target="_blank"
                   rel="noreferrer"
-                  className={`${currentStatus || decisionDue ? "mt-5" : ""} inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-stone-950 px-4 text-center text-sm font-semibold text-white transition hover:bg-stone-700`}
+                  className={`${currentStatus || hasCardDetails ? "mt-5" : ""} inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-stone-950 px-4 text-center text-sm font-semibold text-white transition hover:bg-stone-700`}
                 >
                   View official council application
                 </a>
@@ -220,8 +233,7 @@ export default async function PlanningApplicationPage({ params }: Props) {
               <Detail label="Application type" value={application.application_type} />
               <Detail label="Received / registered" value={formatPlanningDate(application.registration_date)} />
               <Detail label="Valid date" value={formatPlanningDate(application.valid_date)} />
-              <Detail label="OpenList status" value={currentStatus} />
-              <Detail label="Council status" value={application.status} />
+              {councilStatus ? <Detail label="Council status" value={councilStatus} /> : null}
               <Detail label="Decision" value={application.decision_text} />
               <Detail label="Decision date" value={formatPlanningDate(application.decision_date)} />
               <Detail label="Final grant date" value={formatPlanningDate(application.final_grant_date)} />

@@ -1,5 +1,9 @@
 import { isLikelyTruncatedCorkSearchProposal } from "@/lib/cork-planning-source.mjs"
-import { isTerminalPlanningStatus, type PlanningStatus } from "@/lib/planning-status"
+import {
+  isTerminalPlanningStatus,
+  normalisePlanningStatus,
+  type PlanningStatus,
+} from "@/lib/planning-status"
 
 export type PlanningProposalPresentation = {
   display: string
@@ -76,6 +80,18 @@ export function meaningfulPlanningValue(
     return null
   }
   return cleaned
+}
+
+export function councilStatusPresentation(
+  rawStatus: string | null | undefined,
+  normalizedStatus: PlanningStatus
+) {
+  const value = meaningfulPlanningValue(rawStatus)
+  if (!value) return null
+  if (normalizedStatus !== "unknown" && normalisePlanningStatus(value) === normalizedStatus) {
+    return null
+  }
+  return value
 }
 
 export function planningProposalTitle(

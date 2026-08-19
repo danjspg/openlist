@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import {
+  councilStatusPresentation,
   meaningfulPlanningValue,
   planningProposalSummary,
   planningProposalTitle,
@@ -91,4 +92,21 @@ test("optional planning values omit source absence markers", () => {
     assert.equal(meaningfulPlanningValue(value), null)
   }
   assert.equal(meaningfulPlanningValue("  Conditional  "), "Conditional")
+})
+
+test("council status is suppressed when it normalizes to the displayed lifecycle", () => {
+  assert.equal(councilStatusPresentation("Decision Made", "decision_made"), null)
+  assert.equal(councilStatusPresentation("Decision Issued", "decision_made"), null)
+  assert.equal(councilStatusPresentation(" New Application ", "registered"), null)
+})
+
+test("council status remains available when it adds source information", () => {
+  assert.equal(councilStatusPresentation("Withdrawn", "registered"), "Withdrawn")
+  assert.equal(councilStatusPresentation("Council-specific wording", "unknown"), "Council-specific wording")
+})
+
+test("decision outcome remains separate from lifecycle presentation", () => {
+  assert.equal(councilStatusPresentation("Decision Made", "decision_made"), null)
+  assert.equal(meaningfulPlanningValue("Refused"), "Refused")
+  assert.equal(meaningfulPlanningValue("N/A"), null)
 })
