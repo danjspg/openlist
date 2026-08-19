@@ -13,6 +13,8 @@ jobs:
   collect:
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    env:
+      GOOGLE_SEARCH_CONSOLE_SERVICE_ACCOUNT_JSON_BASE64: ${{ secrets.GOOGLE_SEARCH_CONSOLE_SERVICE_ACCOUNT_JSON_BASE64 }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -21,15 +23,14 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Collect Search Console planning measurements
-        if: ${{ secrets.GOOGLE_SEARCH_CONSOLE_SERVICE_ACCOUNT_JSON_BASE64 != '' }}
+        if: ${{ env.GOOGLE_SEARCH_CONSOLE_SERVICE_ACCOUNT_JSON_BASE64 != '' }}
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           NEXT_PUBLIC_SITE_URL: https://www.openlist.ie
           GOOGLE_SEARCH_CONSOLE_SITE_URL: ${{ secrets.GOOGLE_SEARCH_CONSOLE_SITE_URL }}
-          GOOGLE_SEARCH_CONSOLE_SERVICE_ACCOUNT_JSON_BASE64: ${{ secrets.GOOGLE_SEARCH_CONSOLE_SERVICE_ACCOUNT_JSON_BASE64 }}
           PLANNING_SEO_INSPECTION_LIMIT: "200"
         run: npm run planning:seo:collect
       - name: Explain skipped collection
-        if: ${{ secrets.GOOGLE_SEARCH_CONSOLE_SERVICE_ACCOUNT_JSON_BASE64 == '' }}
+        if: ${{ env.GOOGLE_SEARCH_CONSOLE_SERVICE_ACCOUNT_JSON_BASE64 == '' }}
         run: echo "Planning SEO collection skipped because Search Console credentials are not configured."
