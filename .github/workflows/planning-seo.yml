@@ -31,6 +31,28 @@ jobs:
           GOOGLE_SEARCH_CONSOLE_SITE_URL: ${{ secrets.GOOGLE_SEARCH_CONSOLE_SITE_URL }}
           PLANNING_SEO_INSPECTION_LIMIT: "200"
         run: node --import tsx scripts/collect-planning-seo.ts
+      - name: Generate planning SEO report
+        if: ${{ env.GOOGLE_SEARCH_CONSOLE_SERVICE_ACCOUNT_JSON_BASE64 != '' }}
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          node --import tsx scripts/report-planning-seo.ts | tee planning-seo-report.txt
+          {
+            echo "## Planning SEO report"
+            echo
+            echo '```text'
+            cat planning-seo-report.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload planning SEO report
+        if: ${{ env.GOOGLE_SEARCH_CONSOLE_SERVICE_ACCOUNT_JSON_BASE64 != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: planning-seo-report
+          path: planning-seo-report.txt
+          retention-days: 30
+          if-no-files-found: error
       - name: Explain skipped collection
         if: ${{ env.GOOGLE_SEARCH_CONSOLE_SERVICE_ACCOUNT_JSON_BASE64 == '' }}
         run: echo "Planning SEO collection skipped because Search Console credentials are not configured."
