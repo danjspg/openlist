@@ -5,6 +5,10 @@ on:
     - cron: "20 6 * * *"
   workflow_dispatch:
 
+permissions:
+  contents: read
+  issues: write
+
 concurrency:
   group: planning-seo-measurement
   cancel-in-progress: false
@@ -45,6 +49,21 @@ jobs:
             cat planning-seo-report.txt
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish latest report to GitHub issue
+        if: ${{ env.GOOGLE_SEARCH_CONSOLE_SERVICE_ACCOUNT_JSON_BASE64 != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo "This issue is maintained automatically by the \`Planning SEO measurement\` workflow."
+            echo
+            echo "Last successful publication: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+            echo
+            echo '```text'
+            cat planning-seo-report.txt
+            echo '```'
+          } > planning-seo-issue.md
+          gh issue edit 10 --repo "$GITHUB_REPOSITORY" --body-file planning-seo-issue.md
       - name: Upload planning SEO report
         if: ${{ env.GOOGLE_SEARCH_CONSOLE_SERVICE_ACCOUNT_JSON_BASE64 != '' }}
         uses: actions/upload-artifact@v4
