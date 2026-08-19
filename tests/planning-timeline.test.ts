@@ -19,6 +19,7 @@ import {
   planningStatusLabel,
 } from "../lib/planning-status"
 import { decisionDuePresentation } from "../lib/planning-presentation"
+import { relativeDecisionDueText } from "../components/DecisionDueRelativeText"
 
 test("status normalization covers real Cork and national source values", () => {
   const cases = [
@@ -208,22 +209,22 @@ test("decision due changes are immutable, normalized, retry-safe, and hidden fro
   )
 })
 
-test("current decision due presentation covers future, today, past, and terminal records", () => {
+test("decision due absolute date is server-rendered and relative text is client-calculated", () => {
   const active = {
     normalized_status: "further_information_received" as const,
     decision_due_date: "2026-09-14",
   }
-  assert.deepEqual(decisionDuePresentation(active, new Date("2026-08-18T12:00:00Z")), {
+  assert.deepEqual(decisionDuePresentation(active), {
     date: "2026-09-14",
     formattedDate: "14 September 2026",
-    relativeText: "in 27 days",
   })
+  assert.equal(relativeDecisionDueText("2026-09-14", new Date("2026-08-18T12:00:00Z")), "in 27 days")
   assert.equal(
-    decisionDuePresentation({ ...active, decision_due_date: "2026-08-18" }, new Date("2026-08-18T12:00:00Z"))?.relativeText,
+    relativeDecisionDueText("2026-08-18", new Date("2026-08-18T12:00:00Z")),
     "today"
   )
   assert.equal(
-    decisionDuePresentation({ ...active, decision_due_date: "2026-08-14" }, new Date("2026-08-18T12:00:00Z"))?.relativeText,
+    relativeDecisionDueText("2026-08-14", new Date("2026-08-18T12:00:00Z")),
     "4 days ago"
   )
   assert.equal(decisionDuePresentation({ ...active, normalized_status: "finalised" }), null)

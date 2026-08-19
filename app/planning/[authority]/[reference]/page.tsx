@@ -26,11 +26,14 @@ import {
 import { getPublicSiteUrl } from "@/lib/site-url"
 import { planningStatusLabel } from "@/lib/planning-status"
 import { PlanningTimeline } from "@/components/PlanningTimeline"
+import { DecisionDueRelativeText } from "@/components/DecisionDueRelativeText"
 
-export const revalidate = 604800
+// Detail pages are generated on first visit and refreshed only by the bounded
+// planning revalidation worker after their underlying record changes.
+export const revalidate = false
 export const dynamicParams = true
 
-// Planning details are generated on demand, then retained as seven-day ISR entries.
+// Planning details are generated on demand, then retained until on-demand invalidation.
 // Returning no build-time params avoids generating the full planning corpus at deploy time.
 export function generateStaticParams() {
   return []
@@ -177,7 +180,7 @@ export default async function PlanningApplicationPage({ params }: Props) {
                   >
                     {decisionDue.formattedDate}
                   </time>
-                  <p className="mt-1 text-sm text-stone-500">{decisionDue.relativeText}</p>
+                  <DecisionDueRelativeText date={decisionDue.date} />
                 </div>
               ) : null}
               {application.source_url ? (

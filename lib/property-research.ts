@@ -42,8 +42,11 @@ export type EircodePlanningFallback = {
 const NEARBY_SALE_SELECT =
   "id,date_of_sale,address_raw,address_normalised,locality,county,eircode,eircode_prefix,price_eur,property_description_raw,is_new_dwelling,vat_exclusive,source_url,area_slug,lat,lng"
 
-const PLANNING_RESEARCH_REVALIDATE_SECONDS = 60 * 60 * 6
-const PPR_AREA_CANDIDATE_REVALIDATE_SECONDS = 60 * 60 * 24
+// Detail-page context is refreshed only with its planning record. This accepts
+// slightly stale nearby sales until a future targeted PPR invalidation exists.
+const PLANNING_RESEARCH_REVALIDATE = false
+const PPR_AREA_CANDIDATE_REVALIDATE = false
+const SOLD_PRICE_PLANNING_RESEARCH_REVALIDATE_SECONDS = 60 * 60 * 6
 const PLANNING_RESEARCH_CACHE_VERSION = "v2"
 
 export async function getPlanningResearchContext(
@@ -65,7 +68,7 @@ const getPlanningResearchContextCached = unstable_cache(
   return { location, coordinates, nearbySales }
   },
   ["planning-research-context", PLANNING_RESEARCH_CACHE_VERSION],
-  { revalidate: PLANNING_RESEARCH_REVALIDATE_SECONDS }
+  { revalidate: PLANNING_RESEARCH_REVALIDATE }
 )
 
 async function findNearbySales(
@@ -74,13 +77,14 @@ async function findNearbySales(
   const supabase = getServerSupabase()
 
   if (location.eircode) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("ppr_sales")
       .select(NEARBY_SALE_SELECT)
       .eq("eircode", location.eircode)
       .order("date_of_sale", { ascending: false })
       .limit(6)
 
+    if (error) throw new Error(`Nearby sold-price query failed: ${error.message}`)
     if (data?.length) {
       return (data as PprSale[]).map((sale) => ({
         ...sale,
@@ -91,7 +95,7 @@ async function findNearbySales(
   }
 
   if (location.county && location.areaSlug) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("ppr_sales")
       .select(NEARBY_SALE_SELECT)
       .eq("county", location.county)
@@ -99,6 +103,7 @@ async function findNearbySales(
       .order("date_of_sale", { ascending: false })
       .limit(6)
 
+    if (error) throw new Error(`Nearby sold-price query failed: ${error.message}`)
     return ((data ?? []) as PprSale[]).map((sale) => ({
       ...sale,
       distanceKm: null,
@@ -110,7 +115,7 @@ async function findNearbySales(
 }
 
 const getPprAreaCandidatesForCountyCached = unstable_cache(async function getPprAreaCandidatesForCounty(county: string) {
-  const { data } = await getServerSupabase()
+  const { data, error } = await getServerSupabase()
     .from("ppr_area_stats")
     .select("county,area_slug,sales_count,last_sale_date")
     .eq("county", county)
@@ -118,6 +123,7 @@ const getPprAreaCandidatesForCountyCached = unstable_cache(async function getPpr
     .order("sales_count", { ascending: false })
     .limit(800)
 
+  if (error) throw new Error(`PPR area candidate query failed: ${error.message}`)
   return (data ?? []).flatMap((row) => {
     if (!row.county || !row.area_slug) return []
     return [{
@@ -129,7 +135,7 @@ const getPprAreaCandidatesForCountyCached = unstable_cache(async function getPpr
     } satisfies PprSearchAreaOption]
   })
 }, ["planning-ppr-area-candidates", PLANNING_RESEARCH_CACHE_VERSION], {
-  revalidate: PPR_AREA_CANDIDATE_REVALIDATE_SECONDS,
+  revalidate: PPR_AREA_CANDIDATE_REVALIDATE,
 })
 
 export async function getPprAreaCandidatesForCounty(county: string) {
@@ -345,7 +351,7 @@ const getPlanningApplicationsForSoldPriceAreaCached = unstable_cache(async funct
 
   return (data ?? []) as PlanningApplication[]
 }, ["planning-applications-for-sold-price-area", PLANNING_RESEARCH_CACHE_VERSION], {
-  revalidate: PLANNING_RESEARCH_REVALIDATE_SECONDS,
+  revalidate: SOLD_PRICE_PLANNING_RESEARCH_REVALIDATE_SECONDS,
 })
 
 function escapePostgrestLike(value: string) {

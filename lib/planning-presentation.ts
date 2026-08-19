@@ -21,12 +21,10 @@ type DecisionDueApplication = {
 export type DecisionDuePresentation = {
   date: string
   formattedDate: string
-  relativeText: string
 }
 
 export function decisionDuePresentation(
-  application: DecisionDueApplication,
-  now = new Date()
+  application: DecisionDueApplication
 ): DecisionDuePresentation | null {
   const value = application.decision_due_date
   if (
@@ -44,14 +42,6 @@ export function decisionDuePresentation(
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null
   const due = new Date(`${value}T00:00:00Z`)
   if (Number.isNaN(due.getTime()) || due.toISOString().slice(0, 10) !== value) return null
-  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
-  const difference = Math.round((due.getTime() - today) / 86_400_000)
-  const relativeText = difference === 0
-    ? "today"
-    : difference > 0
-      ? `in ${difference} ${difference === 1 ? "day" : "days"}`
-      : `${Math.abs(difference)} ${difference === -1 ? "day" : "days"} ago`
-
   return {
     date: value,
     formattedDate: new Intl.DateTimeFormat("en-IE", {
@@ -60,7 +50,6 @@ export function decisionDuePresentation(
       year: "numeric",
       timeZone: "UTC",
     }).format(due),
-    relativeText,
   }
 }
 

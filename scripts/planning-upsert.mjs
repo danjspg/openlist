@@ -18,7 +18,10 @@ export async function upsertPlanningBatch(
 ) {
   const { error } = await supabase
     .from("planning_applications")
-    .upsert(batch, { onConflict: "local_authority_code,reference" })
+    .upsert(
+      batch.map((record) => ({ ...record, revalidation_pending: true })),
+      { onConflict: "local_authority_code,reference" }
+    )
 
   if (!error) {
     // Issue #4 can enqueue these exact authority/reference pairs for
