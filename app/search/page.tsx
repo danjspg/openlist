@@ -42,6 +42,10 @@ export default async function SearchPage({
       }
   const resultCount =
     results.places.length + results.addresses.length + results.planningApplications.length
+  const hasPlaces = results.places.length > 0
+  const hasAddresses = results.addresses.length > 0
+  const hasPlanning = results.planningApplications.length > 0
+  const hasResults = resultCount > 0
   const isEircodeSearch = results.intent === "eircode"
   const isInvalidEircode = results.intent === "invalid-eircode"
   const resultLabel = results.eircode ?? query
@@ -87,27 +91,40 @@ export default async function SearchPage({
           ) : (
             <div>
               <p className="text-sm text-stone-500">
-                {resultCount} result{resultCount === 1 ? "" : "s"} shown for “{query}”
+                {resultCount} result{resultCount === 1 ? "" : "s"} for “{query}”
               </p>
-              <div className="mt-6 space-y-8">
-                <ResultSection title="Places" empty="No matching places found.">
-                  {results.places.map((place) => (
-                    <Link key={`${place.county}-${place.areaSlug}`} href={`/sold-prices/${place.county.toLowerCase()}/${place.areaSlug}`} className="block border-t border-stone-200 px-1 py-4 transition hover:bg-stone-50 sm:px-3">
-                      <p className="font-semibold text-stone-950">{place.areaLabel}, {place.county}</p>
-                      <p className="mt-1 text-sm text-stone-500">{place.salesCount.toLocaleString("en-IE")} recorded sales · Research this area</p>
-                    </Link>
-                  ))}
-                </ResultSection>
-                <ResultSection
-                  title={results.intent === "area" ? "Recent sold prices" : "Properties / addresses"}
-                  empty={results.intent === "area" ? "No sold-price records were found for this exact area." : "No matching property addresses found."}
-                >
-                  {results.addresses.map((sale) => <SaleRow key={sale.id} sale={sale} />)}
-                </ResultSection>
-                <ResultSection title="Planning applications" empty="No matching planning applications found.">
-                  {results.planningApplications.map((application) => <PlanningRow key={application.id} application={application} />)}
-                </ResultSection>
-              </div>
+              {hasResults ? (
+                <div className="mt-6 space-y-8">
+                  {hasPlaces ? (
+                    <ResultSection title="Places" empty="No matching places found.">
+                      {results.places.map((place) => (
+                        <Link key={`${place.county}-${place.areaSlug}`} href={`/sold-prices/${place.county.toLowerCase()}/${place.areaSlug}`} className="block border-t border-stone-200 px-1 py-4 transition hover:bg-stone-50 sm:px-3">
+                          <p className="font-semibold text-stone-950">{place.areaLabel}, {place.county}</p>
+                          <p className="mt-1 text-sm text-stone-500">{place.salesCount.toLocaleString("en-IE")} recorded sales · Research this area</p>
+                        </Link>
+                      ))}
+                    </ResultSection>
+                  ) : null}
+                  {hasAddresses ? (
+                    <ResultSection
+                      title={results.intent === "area" ? "Recent sold prices" : "Properties / addresses"}
+                      empty={results.intent === "area" ? "No sold-price records were found for this exact area." : "No matching property addresses found."}
+                    >
+                      {results.addresses.map((sale) => <SaleRow key={sale.id} sale={sale} />)}
+                    </ResultSection>
+                  ) : null}
+                  {hasPlanning ? (
+                    <ResultSection title="Planning applications" empty="No matching planning applications found.">
+                      {results.planningApplications.map((application) => <PlanningRow key={application.id} application={application} />)}
+                    </ResultSection>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="mt-6 rounded-2xl border border-stone-200 bg-white px-5 py-5 text-sm leading-6 text-stone-600 shadow-sm sm:px-6">
+                  <p className="font-semibold text-stone-950">No results found for “{query}”</p>
+                  <p className="mt-1">Try an address, area, Eircode, planning reference, applicant or proposal keyword.</p>
+                </div>
+              )}
             </div>
           )
         )}
