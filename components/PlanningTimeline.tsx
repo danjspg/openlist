@@ -1,15 +1,12 @@
 import React from "react"
 import {
-  resolvePlanningEventDateCorrections,
-  suppressRedundantPlanningStatusEvents,
+  preparePublicPlanningTimelineEvents,
   type PlanningEvent,
 } from "@/lib/planning-events"
 import { planningStatusLabel, type PlanningStatus } from "@/lib/planning-status"
 
 export function PlanningTimeline({ events }: { events: PlanningEvent[] }) {
-  const visibleEvents = suppressRedundantPlanningStatusEvents(
-    resolvePlanningEventDateCorrections(events)
-  ).filter(isPublicTimelineEvent)
+  const visibleEvents = preparePublicPlanningTimelineEvents(events)
   if (visibleEvents.length === 0) return null
 
   return (
@@ -29,7 +26,6 @@ export function PlanningTimeline({ events }: { events: PlanningEvent[] }) {
 
       <ol className="mt-6 space-y-0">
         {visibleEvents.map((event, index) => {
-          const isLatest = index === visibleEvents.length - 1
           const isImportant = isImportantOutcome(event)
           const detail = eventDetail(event)
           return (
@@ -43,7 +39,7 @@ export function PlanningTimeline({ events }: { events: PlanningEvent[] }) {
               <span
                 aria-hidden="true"
                 className={`relative mt-1.5 h-[17px] w-[17px] rounded-full border-4 border-white ring-1 ${
-                  isLatest || isImportant
+                  isImportant
                     ? "bg-emerald-700 ring-emerald-700"
                     : "bg-stone-300 ring-stone-300"
                 }`}
@@ -54,12 +50,16 @@ export function PlanningTimeline({ events }: { events: PlanningEvent[] }) {
                 </p>
                 <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-5 text-stone-500">
                   <time dateTime={event.event_date}>{formatEventDate(event.event_date)}</time>
-                  <span aria-hidden="true">·</span>
-                  <span>
-                    {event.provenance === "observed"
-                      ? "Observed by OpenList"
-                      : "Council record"}
-                  </span>
+                  {!isSourceBackedEvent(event) ? (
+                    <>
+                      <span aria-hidden="true">·</span>
+                      <span>
+                        {event.provenance === "observed"
+                          ? "Observed by OpenList"
+                          : "Council record"}
+                      </span>
+                    </>
+                  ) : null}
                   {detail ? <span>· {detail}</span> : null}
                 </div>
               </div>
@@ -71,14 +71,10 @@ export function PlanningTimeline({ events }: { events: PlanningEvent[] }) {
   )
 }
 
-function isPublicTimelineEvent(event: PlanningEvent) {
-  return ![
-    "application_validated",
-    "decision_notice_issued",
-    "appeal_notification",
-    "source_date_corrected",
-    "decision_due_changed",
-  ].includes(event.event_type)
+function isSourceBackedEvent(event: PlanningEvent) {
+  return Boolean(event.source_field) &&
+    event.event_type !== "status_changed" &&
+    event.event_type !== "decision_changed"
 }
 
 function isImportantOutcome(event: PlanningEvent) {
@@ -94,6 +90,9 @@ function isImportantOutcome(event: PlanningEvent) {
 function eventDetail(event: PlanningEvent) {
   if (event.event_type === "status_changed" && event.old_value) {
     return `Previously ${planningStatusLabel(event.old_value as PlanningStatus)}`
+  }
+  if (event.event_type === "decision_changed" && event.old_value) {
+    return `Previously ${event.old_value}`
   }
   if (
     event.event_type === "source_date_corrected" &&

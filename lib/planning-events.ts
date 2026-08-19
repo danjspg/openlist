@@ -83,6 +83,36 @@ const EVENT_ORDER = new Map(
   SOURCE_MILESTONES.map((milestone, index) => [milestone.type, index])
 )
 
+const PUBLIC_HIDDEN_EVENT_TYPES = new Set<PlanningEventType>([
+  "application_validated",
+  "decision_notice_issued",
+  "appeal_notification",
+  "source_date_corrected",
+  "decision_due_changed",
+])
+
+const STATUS_TO_MILESTONE: Partial<Record<PlanningStatus, PlanningEventType>> = {
+  registered: "application_received",
+  further_information_requested: "further_information_requested",
+  further_information_received: "further_information_received",
+  decision_made: "decision_made",
+  final_grant: "final_grant",
+  appealed: "appeal_lodged",
+  appeal_decided: "appeal_decided",
+  withdrawn: "withdrawn",
+}
+
+const UNAVAILABLE_EVENT_VALUES = new Set([
+  "-", "n/a", "na", "none", "null", "not applicable", "not available",
+  "not recorded", "not supplied", "undefined", "unknown",
+])
+
+function canonicalPlanningStatus(value: unknown): PlanningStatus {
+  const raw = String(value ?? "")
+  if (Object.hasOwn(STATUS_TO_MILESTONE, raw)) return raw as PlanningStatus
+  return normalisePlanningStatus(value)
+}
+
 export function validPlanningEventDate(value: unknown): value is string {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
   const date = new Date(`${value}T00:00:00Z`)
@@ -246,24 +276,61 @@ export function detectObservedPlanningEvents(
 
 export function suppressRedundantPlanningStatusEvents<T extends PlanningEvent>(events: T[]) {
   const sourceMilestones = new Set(
-    events
-      .filter((event) => event.source_field && event.event_type !== "status_changed")
-      .map((event) => `${event.event_type}:${event.source_field}`)
+    events.filter(isSourceBackedPlanningMilestone).map((event) => event.event_type)
   )
-  const statusToMilestone: Partial<Record<PlanningStatus, PlanningEventType>> = {
-    further_information_requested: "further_information_requested",
-    further_information_received: "further_information_received",
-    appealed: "appeal_lodged",
-    appeal_decided: "appeal_decided",
-    withdrawn: "withdrawn",
-  }
 
   return events.filter((event) => {
     if (event.source_field !== "status" || !event.new_value) return true
-    const milestoneType = statusToMilestone[event.new_value as PlanningStatus]
+    const milestoneType = STATUS_TO_MILESTONE[canonicalPlanningStatus(event.new_value)]
     if (!milestoneType) return true
-    return ![...sourceMilestones].some((key) => key.startsWith(`${milestoneType}:`))
+    return !sourceMilestones.has(milestoneType)
   })
+}
+
+function isSourceBackedPlanningMilestone(event: PlanningEvent) {
+  return event.source_field !== null &&
+    event.event_type !== "status_changed" &&
+    event.event_type !== "decision_changed" &&
+    !PUBLIC_HIDDEN_EVENT_TYPES.has(event.event_type)
+}
+
+function meaningfulEventValue(value: unknown) {
+  const text = cleanText(value)
+  if (!text || UNAVAILABLE_EVENT_VALUES.has(text.toLowerCase())) return null
+  return text
+}
+
+function foldDecisionOutcomeEnrichment<T extends PlanningEvent>(events: T[]) {
+  const decisionMilestone = events.find(
+    (event) => event.event_type === "decision_made" && isSourceBackedPlanningMilestone(event)
+  )
+  if (!decisionMilestone) return events
+
+  const enrichment = events.find(
+    (event) =>
+      event.event_type === "decision_changed" &&
+      !meaningfulEventValue(event.old_value) &&
+      meaningfulEventValue(event.new_value)
+  )
+  return events.filter((event) => {
+    if (event.event_type !== "decision_changed") return true
+    return Boolean(meaningfulEventValue(event.old_value) || !meaningfulEventValue(event.new_value))
+  }).map((event) => {
+    if (event.event_key === decisionMilestone.event_key && enrichment) {
+      return {
+        ...decisionMilestone,
+        label: `Decision: ${meaningfulEventValue(enrichment.new_value)}`,
+      }
+    }
+    return event
+  })
+}
+
+export function preparePublicPlanningTimelineEvents<T extends PlanningEvent>(events: T[]) {
+  const corrected = resolvePlanningEventDateCorrections(events)
+  const withoutStatusNoise = suppressRedundantPlanningStatusEvents(corrected)
+  const visible = withoutStatusNoise.filter((event) => !PUBLIC_HIDDEN_EVENT_TYPES.has(event.event_type))
+  return sortPlanningEvents(foldDecisionOutcomeEnrichment(visible))
 }
 
 export function sortPlanningEvents<T extends PlanningEvent>(events: T[]) {

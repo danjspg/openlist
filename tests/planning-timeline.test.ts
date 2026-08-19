@@ -11,6 +11,8 @@ import {
   sortPlanningEvents,
   resolvePlanningEventDateCorrections,
   suppressRedundantPlanningStatusEvents,
+  preparePublicPlanningTimelineEvents,
+  type PlanningEventType,
   type PlanningEvent,
 } from "../lib/planning-events"
 import {
@@ -250,6 +252,116 @@ test("source-backed milestones suppress redundant status-only timeline entries",
   )
 })
 
+function observedEvent(overrides: Partial<PlanningEvent>): PlanningEvent {
+  return {
+    event_type: "status_changed",
+    event_date: "2026-08-19",
+    detected_at: "2026-08-19T12:00:00Z",
+    event_source: "openlist_refresh",
+    source_field: "status",
+    label: "Status changed",
+    old_value: null,
+    new_value: null,
+    raw_source_value: null,
+    provenance: "observed",
+    event_key: "observed:test",
+    ...overrides,
+  }
+}
+
+test("Boxd-style observations project to the dated decision outcome only", () => {
+  const received = buildReconstructedPlanningEvents({ registration_date: "2026-06-19" })[0]
+  const decision = buildReconstructedPlanningEvents({ decision_date: "2026-08-13" })[0]
+  const enrichment = observedEvent({
+    event_type: "decision_changed",
+    source_field: "decision_text",
+    label: "Decision updated: Refused",
+    new_value: "Refused",
+    event_key: "observed:decision:blank:refused:2026-08-19",
+  })
+  const status = observedEvent({
+    label: "Status changed to Decision Made",
+    old_value: "registered",
+    new_value: "decision_made",
+    event_key: "observed:status:registered:decision_made:2026-08-19",
+  })
+  const projected = preparePublicPlanningTimelineEvents([received, decision, enrichment, status])
+  assert.deepEqual(projected.map((event) => [event.label, event.event_date]), [
+    ["Application received", "2026-06-19"],
+    ["Decision: Refused", "2026-08-13"],
+  ])
+  assert.doesNotMatch(renderToStaticMarkup(React.createElement(PlanningTimeline, { events: [received, decision, enrichment, status] })), /Observed by OpenList/)
+  assert.equal(decision.label, "Decision made")
+})
+
+test("dated lifecycle milestones suppress matching status observations", () => {
+  const cases: Array<[PlanningEventType, string, string]> = [
+    ["application_received", "registered", "application_received"],
+    ["further_information_requested", "further_information_requested", "further_information_requested"],
+    ["further_information_received", "further_information_received", "further_information_received"],
+    ["decision_made", "decision_made", "decision_made"],
+    ["final_grant", "final_grant", "final_grant"],
+    ["appeal_lodged", "appealed", "appeal_lodged"],
+    ["appeal_decided", "appeal_decided", "appeal_decided"],
+    ["withdrawn", "withdrawn", "withdrawn"],
+  ]
+  for (const [type, status, expected] of cases) {
+    const source = buildReconstructedPlanningEvents({
+      registration_date: type === "application_received" ? "2026-01-01" : null,
+      further_information_requested_date: type === "further_information_requested" ? "2026-01-01" : null,
+      further_information_received_date: type === "further_information_received" ? "2026-01-01" : null,
+      decision_date: type === "decision_made" ? "2026-01-01" : null,
+      final_grant_date: type === "final_grant" ? "2026-01-01" : null,
+      appeal_lodged_date: type === "appeal_lodged" ? "2026-01-01" : null,
+      appeal_decision_date: type === "appeal_decided" ? "2026-01-01" : null,
+      withdrawal_date: type === "withdrawn" ? "2026-01-01" : null,
+    }).find((event) => event.event_type === expected)
+    const statusEvent = observedEvent({ new_value: status })
+    assert.deepEqual(preparePublicPlanningTimelineEvents([source!, statusEvent]).map((event) => event.event_type), [expected])
+  }
+})
+
+test("observation-only under-assessment remains public", () => {
+  const event = observedEvent({
+    label: "Status changed to Under assessment",
+    new_value: "under_assessment",
+  })
+  assert.deepEqual(preparePublicPlanningTimelineEvents([event]), [event])
+})
+
+test("blank decision enrichment folds, but genuine decision changes remain visible", () => {
+  const decision = buildReconstructedPlanningEvents({ decision_date: "2026-08-13" })[0]
+  const blankToRefused = observedEvent({
+    event_type: "decision_changed",
+    source_field: "decision_text",
+    label: "Decision updated: Refused",
+    new_value: "Refused",
+    event_key: "enrichment",
+  })
+  assert.deepEqual(preparePublicPlanningTimelineEvents([decision, blankToRefused]).map((event) => event.label), ["Decision: Refused"])
+  const genuine = { ...blankToRefused, old_value: "Grant permission", event_key: "genuine" }
+  const projected = preparePublicPlanningTimelineEvents([decision, genuine])
+  assert.equal(projected[1].label, "Decision updated: Refused")
+  assert.equal(projected[1].old_value, "Grant permission")
+})
+
+test("source-backed observed milestones use council history metadata and technical events stay hidden", () => {
+  const source = { ...buildReconstructedPlanningEvents({ decision_date: "2026-08-13" })[0], provenance: "observed" as const }
+  const html = renderToStaticMarkup(React.createElement(PlanningTimeline, { events: [source] }))
+  assert.doesNotMatch(html, /Observed by OpenList/)
+  assert.doesNotMatch(html, /Council record/)
+  const due = observedEvent({ event_type: "decision_due_changed", source_field: "decision_due_date" })
+  assert.deepEqual(preparePublicPlanningTimelineEvents([due]), [])
+})
+
+test("public projection does not mutate stored events", () => {
+  const decision = buildReconstructedPlanningEvents({ decision_date: "2026-08-13" })[0]
+  const enrichment = observedEvent({ event_type: "decision_changed", source_field: "decision_text", new_value: "Refused" })
+  const before = structuredClone([decision, enrichment])
+  preparePublicPlanningTimelineEvents([decision, enrichment])
+  assert.deepEqual([decision, enrichment], before)
+})
+
 test("source date corrections and multiple observed events sort consistently", () => {
   const events = detectObservedPlanningEvents(
     { status: "Decision Made", decision_date: "2026-08-10", decision_text: "Refused" },
@@ -287,7 +399,7 @@ test("timeline hides empty state and labels provenance accessibly", () => {
     React.createElement(PlanningTimeline, { events: sortPlanningEvents([observed, event]) })
   )
   assert.match(html, /Planning timeline/)
-  assert.match(html, /Council record/)
+  assert.doesNotMatch(html, /Council record/)
   assert.match(html, /Observed by OpenList/)
   assert.match(html, /Previously Decision made/)
   assert.match(html, /<ol/)
