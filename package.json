@@ -19,6 +19,7 @@
     "planning:cork:source:audit": "node --env-file=.env.local scripts/audit-cork-planning-source.mjs",
     "planning:cork:dates:repair": "node --env-file=.env.local scripts/audit-cork-planning-source.mjs --apply-dates",
     "planning:cork:proposals:backfill": "node --env-file=.env.local scripts/audit-cork-planning-source.mjs --proposal-limit=50",
+    "planning:cork:decision-due:enrich": "node --env-file=.env.local scripts/enrich-cork-planning-decision-due.mjs",
     "planning:national:ingest": "node --env-file=.env.local scripts/ingest-national-planning-applications.mjs",
     "planning:national:source:audit": "node --env-file=.env.local scripts/audit-national-planning-source.mjs",
     "planning:national:proposals:backfill": "node --env-file=.env.local scripts/backfill-national-planning-proposals.mjs",

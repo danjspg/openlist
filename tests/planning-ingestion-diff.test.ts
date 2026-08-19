@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 
 import {
+  filterChangedPlanningRecords,
   normaliseComparable,
   planningRecordsDiffer,
 } from "../lib/planning-ingestion-diff.mjs"
@@ -103,4 +104,41 @@ test("all national lifecycle dates participate in meaningful change detection", 
     assert.equal(planningRecordsDiffer(baseline, { ...baseline, [field]: value }), true, field)
   }
   assert.equal(planningRecordsDiffer(baseline, { ...baseline }), false)
+})
+
+test("Cork search absence preserves an existing detail-only decision due field", async () => {
+  const existing = {
+    local_authority_code: "CORKCOCO",
+    reference: "26/1595",
+    decision_due_date: "2026-09-10",
+    status: "Further Information Received",
+  }
+  const incoming = {
+    local_authority_code: existing.local_authority_code,
+    reference: existing.reference,
+    status: existing.status,
+  }
+  const supabase = {
+    from() { return this },
+    select() { return this },
+    eq() { return this },
+    order() { return this },
+    range() { return Promise.resolve({ data: [existing], error: null }) },
+  }
+
+  assert.equal(
+    planningRecordsDiffer(existing, incoming, { preserveUnobservedFields: ["decision_due_date"] }),
+    false
+  )
+  const unchanged = await filterChangedPlanningRecords(supabase, [incoming], {
+    authorityCode: "CORKCOCO",
+    preserveUnobservedFields: ["decision_due_date"],
+  })
+  assert.equal(unchanged.changedRecords.length, 0)
+
+  const changed = await filterChangedPlanningRecords(supabase, [{ ...incoming, proposal: "Changed" }], {
+    authorityCode: "CORKCOCO",
+    preserveUnobservedFields: ["decision_due_date"],
+  })
+  assert.equal(changed.changedRecords[0].decision_due_date, "2026-09-10")
 })

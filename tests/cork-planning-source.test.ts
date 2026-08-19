@@ -31,10 +31,35 @@ test("Cork Decision Due preparation uses the distinct detail field without addin
   )
 
   assert.match(importer, /decision_due_date: parseCorkCouncilDate\(row\.decisionDueDate\)/)
-  assert.match(importer, /parseCorkCouncilDate\(detail\.decisionDueDate\) \|\| record\.decision_due_date/)
+  assert.match(importer, /function decisionDueFromDetail\(detail, existingValue\)/)
+  assert.match(importer, /detail\.decisionDueDate === null\) return null/)
+  assert.match(importer, /detail\.decisionDueDate === undefined\) return existingValue/)
+  assert.match(importer, /parseCorkCouncilDate\(detail\.decisionDueDate\) \|\| existingValue/)
   assert.match(
     importer,
     /!isLikelyTruncatedCorkSearchProposal\(record\.proposal\)[\s\S]*?continue[\s\S]*?fetchApplicationDetail\(/
   )
   assert.doesNotMatch(importer, /decision_due_date\s*:\s*parseCorkCouncilDate\(row\.decisionDate\)/)
+  assert.match(importer, /preserveUnobservedFields: \["decision_due_date"\]/)
+  assert.match(importer, /ACTIVE_CORK_DETAIL_STATUSES/)
+  assert.match(importer, /shouldRefreshCorkDecisionDue\(record\)/)
+  assert.match(importer, /Object\.hasOwn\(detail, "decisionDueDate"\)/)
+})
+
+test("Cork detail-only enrichment is bounded, dry-run by default, and race-safe", async () => {
+  const script = await readFile(
+    new URL("../scripts/enrich-cork-planning-decision-due.mjs", import.meta.url),
+    "utf8"
+  )
+  assert.match(script, /const DEFAULT_LIMIT = 10/)
+  assert.match(script, /const MAX_LIMIT = 50/)
+  assert.match(script, /--reference/)
+  assert.match(script, /--before-reference/)
+  assert.match(script, /const apply = args\.includes\("--apply"\)/)
+  assert.match(script, /\.is\("decision_due_date", null\)/)
+  assert.match(script, /\.eq\("local_authority_code", AUTHORITY_CODE\)/)
+  assert.match(script, /revalidation_pending: true/)
+  assert.match(script, /\.is\("decision_due_date", null\)[\s\S]*?\.select\("id"\)/)
+  assert.match(script, /ENOTFOUND|EAI_AGAIN/)
+  assert.doesNotMatch(script, /count\s*:\s*"exact"|head:\s*true/)
 })

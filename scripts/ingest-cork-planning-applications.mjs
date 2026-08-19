@@ -4,6 +4,10 @@ import { planningEircodeFieldsFromSources } from "../lib/eircode-ingestion.mjs"
 import { filterChangedPlanningRecords } from "../lib/planning-ingestion-diff.mjs"
 import { upsertPlanningBatch } from "./planning-upsert.mjs"
 import {
+  isTerminalPlanningStatus,
+  normalisePlanningStatus,
+} from "../lib/planning-status.mjs"
+import {
   authoritativeCorkProposal,
   isLikelyTruncatedCorkSearchProposal,
   parseCorkCouncilDate,
@@ -132,6 +136,9 @@ function applicationDetailUrl(row) {
 
 function mapApplication(row) {
   const grid = parseIrishGridReference(row.gridReference)
+  const decisionDue = row.decisionDueDate !== undefined
+    ? { decision_due_date: parseCorkCouncilDate(row.decisionDueDate) }
+    : {}
 
   return {
     local_authority: LOCAL_AUTHORITY,
@@ -150,7 +157,7 @@ function mapApplication(row) {
     registration_date: parseCorkCouncilDate(row.registrationDate),
     valid_date: parseCorkCouncilDate(row.validDate),
     decision_date: parseCorkCouncilDate(row.decisionDate),
-    decision_due_date: parseCorkCouncilDate(row.decisionDueDate),
+    ...decisionDue,
     final_grant_date: parseCorkCouncilDate(row.finalGrantDate),
     appeal_lodged_date: parseCorkCouncilDate(row.appealLodgedDate),
     appeal_decision_date: parseCorkCouncilDate(row.appealDecisionDate),
@@ -168,6 +175,40 @@ function mapApplication(row) {
     source_url: applicationDetailUrl(row),
     source_api_url: API_URL,
     updated_at: new Date().toISOString(),
+  }
+}
+
+const ACTIVE_CORK_DETAIL_STATUSES = new Set([
+  "pre_validation",
+  "registered",
+  "under_assessment",
+  "further_information_requested",
+  "further_information_received",
+])
+
+function shouldRefreshCorkDecisionDue(record) {
+  if (
+    record.decision_date ||
+    record.final_grant_date ||
+    record.appeal_decision_date ||
+    record.withdrawal_date
+  ) return false
+
+  const normalizedStatus = normalisePlanningStatus(record.normalized_status || record.status)
+  return !isTerminalPlanningStatus(normalizedStatus) && ACTIVE_CORK_DETAIL_STATUSES.has(normalizedStatus)
+}
+
+function decisionDueFromDetail(detail, existingValue) {
+  if (!Object.hasOwn(detail, "decisionDueDate") || detail.decisionDueDate === undefined) return existingValue
+  if (detail.decisionDueDate === null) return null
+  return parseCorkCouncilDate(detail.decisionDueDate) || existingValue
+}
+
+function mergeCorkApplicationDetail(record, detail) {
+  return {
+    ...record,
+    proposal: authoritativeCorkProposal(record.proposal, detail.fullProposal),
+    decision_due_date: decisionDueFromDetail(detail, record.decision_due_date),
   }
 }
 
@@ -275,7 +316,8 @@ async function enrichChangedApplicationDetails(records) {
   for (const record of records) {
     if (
       !Number.isInteger(record.source_application_id) ||
-      !isLikelyTruncatedCorkSearchProposal(record.proposal)
+      (!isLikelyTruncatedCorkSearchProposal(record.proposal) &&
+        !shouldRefreshCorkDecisionDue(record))
     ) {
       enriched.push(record)
       continue
@@ -286,12 +328,7 @@ async function enrichChangedApplicationDetails(records) {
       record.reference
     )
     detailRequests += 1
-    enriched.push({
-      ...record,
-      proposal: authoritativeCorkProposal(record.proposal, detail.fullProposal),
-      decision_due_date:
-        parseCorkCouncilDate(detail.decisionDueDate) || record.decision_due_date || null,
-    })
+    enriched.push(mergeCorkApplicationDetail(record, detail))
   }
 
   if (detailRequests > 0) {
@@ -366,6 +403,7 @@ async function ingestPlanningApplications({ from, to, windowDays = DEFAULT_WINDO
       authorityCode: LOCAL_AUTHORITY_CODE,
       from: formatDate(from),
       to: formatDate(to),
+      preserveUnobservedFields: ["decision_due_date"],
     }
   )
   const enrichedChangedRecords = await enrichChangedApplicationDetails(changedRecords)
