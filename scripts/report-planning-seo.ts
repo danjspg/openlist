@@ -1,5 +1,10 @@
 import { createClient } from "@supabase/supabase-js"
 
+import {
+  createGoogleSearchConsoleClient,
+  readGoogleSearchConsoleConfig,
+  SearchAnalyticsRow,
+} from "../lib/google-search-console"
 import { getPlanningAuthorityByCode } from "../lib/planning-authorities"
 import { planningApplicationPath } from "../lib/property-intelligence"
 
@@ -16,6 +21,13 @@ type PerformanceSummary = {
   ctr: number | null
   position: number | null
   days: number
+}
+
+type PagePerformance = {
+  page: string
+  clicks: number
+  impressions: number
+  position: number | null
 }
 
 const dateOnly = (date: Date) => date.toISOString().slice(0, 10)
@@ -56,6 +68,70 @@ const summarizePerformance = (
   }
 }
 
+const searchAnalyticsPerformanceRows = (rows: SearchAnalyticsRow[]): PerformanceRow[] =>
+  rows.flatMap((row) => {
+    const dataDate = row.keys?.[0]
+    if (!dataDate) return []
+    return [
+      {
+        data_date: dataDate,
+        clicks: Number(row.clicks || 0),
+        impressions: Number(row.impressions || 0),
+        position: Number(row.position || 0),
+      },
+    ]
+  })
+
+const topPages = (
+  rows: SearchAnalyticsRow[],
+  startDate: string,
+  endDate: string,
+  limit = 10
+): PagePerformance[] => {
+  const pages = new Map<
+    string,
+    { clicks: number; impressions: number; weightedPosition: number }
+  >()
+
+  for (const row of rows) {
+    const dataDate = row.keys?.[0]
+    const page = row.keys?.[1]
+    if (!dataDate || !page || dataDate < startDate || dataDate > endDate) continue
+    const clicks = Number(row.clicks || 0)
+    const impressions = Number(row.impressions || 0)
+    const position = Number(row.position || 0)
+    const current = pages.get(page) || {
+      clicks: 0,
+      impressions: 0,
+      weightedPosition: 0,
+    }
+    current.clicks += clicks
+    current.impressions += impressions
+    current.weightedPosition += position * impressions
+    pages.set(page, current)
+  }
+
+  return [...pages.entries()]
+    .map(([page, value]) => ({
+      page,
+      clicks: value.clicks,
+      impressions: value.impressions,
+      position:
+        value.impressions > 0 ? value.weightedPosition / value.impressions : null,
+    }))
+    .sort((a, b) => b.clicks - a.clicks || b.impressions - a.impressions)
+    .slice(0, limit)
+}
+
+const displayPath = (page: string) => {
+  try {
+    const url = new URL(page)
+    return `${url.pathname}${url.search}`
+  } catch {
+    return page
+  }
+}
+
 const formatPercent = (value: number | null) =>
   value === null ? "n/a" : `${(value * 100).toFixed(2)}%`
 
@@ -69,6 +145,47 @@ const formatPositionChange = (current: number | null, previous: number | null) =
   if (current === null || previous === null) return "n/a"
   const improvement = previous - current
   return `${improvement >= 0 ? "+" : ""}${improvement.toFixed(2)} positions`
+}
+
+function printTrendBlock(
+  label: string,
+  latestDate: string,
+  rows: PerformanceRow[]
+) {
+  const current7Start = addDays(latestDate, -6)
+  const previous7End = addDays(current7Start, -1)
+  const previous7Start = addDays(previous7End, -6)
+  const current28Start = addDays(latestDate, -27)
+  const previous28End = addDays(current28Start, -1)
+  const previous28Start = addDays(previous28End, -27)
+
+  const current7 = summarizePerformance(rows, current7Start, latestDate)
+  const previous7 = summarizePerformance(rows, previous7Start, previous7End)
+  const current28 = summarizePerformance(rows, current28Start, latestDate)
+  const previous28 = summarizePerformance(rows, previous28Start, previous28End)
+
+  console.log(`${label} search performance trends:`)
+  console.log(`- Latest Search Console data date: ${latestDate}`)
+  console.log(
+    `- Last 7 days (${current7.days} collected days): ${current7.clicks} clicks, ${current7.impressions} impressions, CTR ${formatPercent(current7.ctr)}, avg position ${current7.position?.toFixed(2) ?? "n/a"}`
+  )
+  console.log(
+    `- Previous 7 days (${previous7.days} collected days): ${previous7.clicks} clicks, ${previous7.impressions} impressions, CTR ${formatPercent(previous7.ctr)}, avg position ${previous7.position?.toFixed(2) ?? "n/a"}`
+  )
+  console.log(
+    `- 7-day change: clicks ${formatChange(current7.clicks, previous7.clicks)}, impressions ${formatChange(current7.impressions, previous7.impressions)}, CTR ${formatChange(current7.ctr, previous7.ctr)}, avg position ${formatPositionChange(current7.position, previous7.position)}`
+  )
+  console.log(
+    `- Last 28 days (${current28.days} collected days): ${current28.clicks} clicks, ${current28.impressions} impressions, CTR ${formatPercent(current28.ctr)}, avg position ${current28.position?.toFixed(2) ?? "n/a"}`
+  )
+  console.log(
+    `- Previous 28 days (${previous28.days} collected days): ${previous28.clicks} clicks, ${previous28.impressions} impressions, CTR ${formatPercent(previous28.ctr)}, avg position ${previous28.position?.toFixed(2) ?? "n/a"}`
+  )
+  console.log(
+    `- 28-day change: clicks ${formatChange(current28.clicks, previous28.clicks)}, impressions ${formatChange(current28.impressions, previous28.impressions)}, CTR ${formatChange(current28.ctr, previous28.ctr)}, avg position ${formatPositionChange(current28.position, previous28.position)}`
+  )
+
+  return { current28Start }
 }
 
 async function main() {
@@ -92,8 +209,9 @@ async function main() {
   const percentage = (value: number, denominator: number) =>
     denominator > 0 ? `${((value / denominator) * 100).toFixed(1)}%` : "n/a"
 
-  console.log("Planning SEO measurement")
+  console.log("OpenList SEO measurement")
   console.log(`Captured: ${report.capturedAt}`)
+  console.log("Planning")
   console.log(`Planning records: ${report.totalPlanningRecords}`)
   console.log(
     `Sitemaps: ${report.recentSitemapUrls} recent + ${report.notableSitemapUrls} notable`
@@ -147,40 +265,39 @@ async function main() {
       if (!rows || rows.length < pageSize) break
     }
 
-    const current7Start = addDays(latestDate, -6)
-    const previous7End = addDays(current7Start, -1)
-    const previous7Start = addDays(previous7End, -6)
-    const current28Start = addDays(latestDate, -27)
-    const previous28End = addDays(current28Start, -1)
-    const previous28Start = addDays(previous28End, -27)
+    printTrendBlock("Planning", latestDate, history)
 
-    const current7 = summarizePerformance(history, current7Start, latestDate)
-    const previous7 = summarizePerformance(history, previous7Start, previous7End)
-    const current28 = summarizePerformance(history, current28Start, latestDate)
-    const previous28 = summarizePerformance(history, previous28Start, previous28End)
+    const searchConsole = createGoogleSearchConsoleClient(
+      readGoogleSearchConsoleConfig()
+    )
+    const soldRows = await searchConsole.querySoldPricesPerformance(
+      historyStart,
+      latestDate
+    )
+    const soldPerformanceRows = searchAnalyticsPerformanceRows(soldRows)
+    const { current28Start } = printTrendBlock(
+      "Sold Prices",
+      latestDate,
+      soldPerformanceRows
+    )
 
-    console.log("Search performance trends:")
-    console.log(`- Latest Search Console data date: ${latestDate}`)
+    const soldTopPages = topPages(soldRows, current28Start, latestDate)
+    if (soldTopPages.length > 0) {
+      console.log("Top Sold Prices pages, last 28 days:")
+      for (const page of soldTopPages) {
+        console.log(
+          `- ${displayPath(page.page)}: ${page.clicks} clicks, ${page.impressions} impressions, avg position ${page.position?.toFixed(2) ?? "n/a"}`
+        )
+      }
+    } else {
+      console.log("Top Sold Prices pages, last 28 days: no Search Console rows")
+    }
     console.log(
-      `- Last 7 days (${current7.days} collected days): ${current7.clicks} clicks, ${current7.impressions} impressions, CTR ${formatPercent(current7.ctr)}, avg position ${current7.position?.toFixed(2) ?? "n/a"}`
-    )
-    console.log(
-      `- Previous 7 days (${previous7.days} collected days): ${previous7.clicks} clicks, ${previous7.impressions} impressions, CTR ${formatPercent(previous7.ctr)}, avg position ${previous7.position?.toFixed(2) ?? "n/a"}`
-    )
-    console.log(
-      `- 7-day change: clicks ${formatChange(current7.clicks, previous7.clicks)}, impressions ${formatChange(current7.impressions, previous7.impressions)}, CTR ${formatChange(current7.ctr, previous7.ctr)}, avg position ${formatPositionChange(current7.position, previous7.position)}`
-    )
-    console.log(
-      `- Last 28 days (${current28.days} collected days): ${current28.clicks} clicks, ${current28.impressions} impressions, CTR ${formatPercent(current28.ctr)}, avg position ${current28.position?.toFixed(2) ?? "n/a"}`
-    )
-    console.log(
-      `- Previous 28 days (${previous28.days} collected days): ${previous28.clicks} clicks, ${previous28.impressions} impressions, CTR ${formatPercent(previous28.ctr)}, avg position ${previous28.position?.toFixed(2) ?? "n/a"}`
-    )
-    console.log(
-      `- 28-day change: clicks ${formatChange(current28.clicks, previous28.clicks)}, impressions ${formatChange(current28.impressions, previous28.impressions)}, CTR ${formatChange(current28.ctr, previous28.ctr)}, avg position ${formatPositionChange(current28.position, previous28.position)}`
+      "Sold Prices performance is read directly from Search Console; daily report snapshots are retained on issue #10. URL Inspection quota remains reserved for Planning."
     )
   } else {
-    console.log("Search performance trends: no stored Search Console performance rows yet")
+    console.log("Planning search performance trends: no stored Search Console performance rows yet")
+    console.log("Sold Prices search performance trends: waiting for a Planning data-date anchor")
   }
 
   const notablePages = Number(report.notableCohortPages || 0)
@@ -220,16 +337,16 @@ async function main() {
     )
   }
 
-  const topPages = (report.topPlanningPages || []) as Array<{
+  const planningTopPages = (report.topPlanningPages || []) as Array<{
     local_authority_code: string
     reference: string
     clicks: number
     impressions: number
     is_notable: boolean
   }>
-  if (topPages.length > 0) {
+  if (planningTopPages.length > 0) {
     console.log("Top planning pages:")
-    for (const page of topPages) {
+    for (const page of planningTopPages) {
       const authority = getPlanningAuthorityByCode(page.local_authority_code)
       const path = authority
         ? planningApplicationPath(authority, page.reference)
