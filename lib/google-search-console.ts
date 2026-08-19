@@ -76,6 +76,50 @@ export function createGoogleSearchConsoleClient(
   })
   const encodedSiteUrl = encodeURIComponent(config.siteUrl)
 
+  async function queryPathPerformance(
+    startDate: string,
+    endDate: string,
+    pathContains: string
+  ) {
+    const rows: SearchAnalyticsRow[] = []
+    const rowLimit = 25_000
+
+    // Search Console caps page/date exports at 50,000 rows per search type.
+    for (const startRow of [0, rowLimit]) {
+      const client = await auth.getClient()
+      const response = await client.request<SearchAnalyticsResponse>({
+        url: `https://www.googleapis.com/webmasters/v3/sites/${encodedSiteUrl}/searchAnalytics/query`,
+        method: "POST",
+        data: {
+          startDate,
+          endDate,
+          dimensions: ["date", "page"],
+          dimensionFilterGroups: [
+            {
+              filters: [
+                {
+                  dimension: "page",
+                  operator: "contains",
+                  expression: pathContains,
+                },
+              ],
+            },
+          ],
+          type: "web",
+          dataState: "final",
+          aggregationType: "byPage",
+          rowLimit,
+          startRow,
+        },
+      })
+      const page = response.data.rows || []
+      rows.push(...page)
+      if (page.length < rowLimit) break
+    }
+
+    return rows
+  }
+
   return {
     async listSitemaps() {
       const client = await auth.getClient()
@@ -85,44 +129,14 @@ export function createGoogleSearchConsoleClient(
       return response.data.sitemap || []
     },
 
+    queryPathPerformance,
+
     async queryPlanningPerformance(dataDate: string) {
-      const rows: SearchAnalyticsRow[] = []
-      const rowLimit = 25_000
+      return queryPathPerformance(dataDate, dataDate, "/planning/")
+    },
 
-      // Search Console caps page/date exports at 50,000 rows per day/search type.
-      for (const startRow of [0, rowLimit]) {
-        const client = await auth.getClient()
-        const response = await client.request<SearchAnalyticsResponse>({
-          url: `https://www.googleapis.com/webmasters/v3/sites/${encodedSiteUrl}/searchAnalytics/query`,
-          method: "POST",
-          data: {
-            startDate: dataDate,
-            endDate: dataDate,
-            dimensions: ["date", "page"],
-            dimensionFilterGroups: [
-              {
-                filters: [
-                  {
-                    dimension: "page",
-                    operator: "contains",
-                    expression: "/planning/",
-                  },
-                ],
-              },
-            ],
-            type: "web",
-            dataState: "final",
-            aggregationType: "byPage",
-            rowLimit,
-            startRow,
-          },
-        })
-        const page = response.data.rows || []
-        rows.push(...page)
-        if (page.length < rowLimit) break
-      }
-
-      return rows
+    async querySoldPricesPerformance(startDate: string, endDate: string) {
+      return queryPathPerformance(startDate, endDate, "/sold-prices/")
     },
 
     async inspectUrl<T = unknown>(inspectionUrl: string) {
