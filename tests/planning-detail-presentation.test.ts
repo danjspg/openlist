@@ -14,4 +14,7 @@ test("planning detail summary keeps decision outcome distinct and preserves deci
   assert.match(page, /\{councilStatus \? <Detail label="Council status"/)
   assert.doesNotMatch(page, /Detail label="OpenList status"/)
   assert.match(page, /<DecisionDueRelativeText date=\{decisionDue\.date\} \/>/)
+  assert.match(page, /Council record currently gives this as the decision due date\./)
+  assert.match(page, /Future issue #8 CTA placement/)
+  assert.doesNotMatch(page, /Email me when a decision is made/)
 })

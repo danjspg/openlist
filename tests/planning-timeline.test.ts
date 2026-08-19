@@ -321,15 +321,16 @@ test("dated lifecycle milestones suppress matching status observations", () => {
   }
 })
 
-test("observation-only under-assessment remains public", () => {
+test("observation-only status changes are hidden without changing the current status", () => {
   const event = observedEvent({
-    label: "Status changed to Under assessment",
-    new_value: "under_assessment",
+    label: "Status changed to Further information received",
+    new_value: "further_information_received",
   })
-  assert.deepEqual(preparePublicPlanningTimelineEvents([event]), [event])
+  assert.deepEqual(preparePublicPlanningTimelineEvents([event]), [])
+  assert.equal(normalisePlanningStatus(event.new_value), "further_information_received")
 })
 
-test("blank decision enrichment folds, but genuine decision changes remain visible", () => {
+test("blank decision enrichment folds, but observation-only decision changes remain hidden", () => {
   const decision = buildReconstructedPlanningEvents({ decision_date: "2026-08-13" })[0]
   const blankToRefused = observedEvent({
     event_type: "decision_changed",
@@ -341,8 +342,7 @@ test("blank decision enrichment folds, but genuine decision changes remain visib
   assert.deepEqual(preparePublicPlanningTimelineEvents([decision, blankToRefused]).map((event) => event.label), ["Decision: Refused"])
   const genuine = { ...blankToRefused, old_value: "Grant permission", event_key: "genuine" }
   const projected = preparePublicPlanningTimelineEvents([decision, genuine])
-  assert.equal(projected[1].label, "Decision updated: Refused")
-  assert.equal(projected[1].old_value, "Grant permission")
+  assert.deepEqual(projected.map((event) => event.label), ["Decision made"])
 })
 
 test("source-backed observed milestones use council history metadata and technical events stay hidden", () => {
@@ -399,9 +399,8 @@ test("timeline hides empty state and labels provenance accessibly", () => {
     React.createElement(PlanningTimeline, { events: sortPlanningEvents([observed, event]) })
   )
   assert.match(html, /Planning timeline/)
-  assert.doesNotMatch(html, /Council record/)
-  assert.match(html, /Observed by OpenList/)
-  assert.match(html, /Previously Decision made/)
+  assert.doesNotMatch(html, /Council record|Observed by OpenList|Previously Decision made/)
+  assert.match(html, /Key dated milestones from the planning record\./)
   assert.match(html, /<ol/)
   assert.match(html, /<time dateTime="2026-01-12"/)
 })

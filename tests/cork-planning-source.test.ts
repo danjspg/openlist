@@ -1,4 +1,5 @@
 import assert from "node:assert/strict"
+import { readFile } from "node:fs/promises"
 import test from "node:test"
 import {
   authoritativeCorkProposal,
@@ -21,4 +22,19 @@ test("the Cork detail proposal supersedes its shortened search representation", 
   assert.equal(isLikelyTruncatedCorkSearchProposal(short), true)
   assert.equal(authoritativeCorkProposal(short, full), full)
   assert.equal(authoritativeCorkProposal(short, null), short)
+})
+
+test("Cork Decision Due preparation uses the distinct detail field without adding requests", async () => {
+  const importer = await readFile(
+    new URL("../scripts/ingest-cork-planning-applications.mjs", import.meta.url),
+    "utf8"
+  )
+
+  assert.match(importer, /decision_due_date: parseCorkCouncilDate\(row\.decisionDueDate\)/)
+  assert.match(importer, /parseCorkCouncilDate\(detail\.decisionDueDate\) \|\| record\.decision_due_date/)
+  assert.match(
+    importer,
+    /!isLikelyTruncatedCorkSearchProposal\(record\.proposal\)[\s\S]*?continue[\s\S]*?fetchApplicationDetail\(/
+  )
+  assert.doesNotMatch(importer, /decision_due_date\s*:\s*parseCorkCouncilDate\(row\.decisionDate\)/)
 })

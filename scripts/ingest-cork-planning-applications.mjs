@@ -150,6 +150,7 @@ function mapApplication(row) {
     registration_date: parseCorkCouncilDate(row.registrationDate),
     valid_date: parseCorkCouncilDate(row.validDate),
     decision_date: parseCorkCouncilDate(row.decisionDate),
+    decision_due_date: parseCorkCouncilDate(row.decisionDueDate),
     final_grant_date: parseCorkCouncilDate(row.finalGrantDate),
     appeal_lodged_date: parseCorkCouncilDate(row.appealLodgedDate),
     appeal_decision_date: parseCorkCouncilDate(row.appealDecisionDate),
@@ -288,6 +289,8 @@ async function enrichChangedApplicationDetails(records) {
     enriched.push({
       ...record,
       proposal: authoritativeCorkProposal(record.proposal, detail.fullProposal),
+      decision_due_date:
+        parseCorkCouncilDate(detail.decisionDueDate) || record.decision_due_date || null,
     })
   }
 

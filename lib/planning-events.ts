@@ -89,6 +89,8 @@ const PUBLIC_HIDDEN_EVENT_TYPES = new Set<PlanningEventType>([
   "appeal_notification",
   "source_date_corrected",
   "decision_due_changed",
+  "status_changed",
+  "decision_changed",
 ])
 
 const STATUS_TO_MILESTONE: Partial<Record<PlanningStatus, PlanningEventType>> = {
@@ -329,8 +331,8 @@ function foldDecisionOutcomeEnrichment<T extends PlanningEvent>(events: T[]) {
 export function preparePublicPlanningTimelineEvents<T extends PlanningEvent>(events: T[]) {
   const corrected = resolvePlanningEventDateCorrections(events)
   const withoutStatusNoise = suppressRedundantPlanningStatusEvents(corrected)
-  const visible = withoutStatusNoise.filter((event) => !PUBLIC_HIDDEN_EVENT_TYPES.has(event.event_type))
-  return sortPlanningEvents(foldDecisionOutcomeEnrichment(visible))
+  const folded = foldDecisionOutcomeEnrichment(withoutStatusNoise)
+  return sortPlanningEvents(folded.filter((event) => !PUBLIC_HIDDEN_EVENT_TYPES.has(event.event_type)))
 }
 
 export function sortPlanningEvents<T extends PlanningEvent>(events: T[]) {

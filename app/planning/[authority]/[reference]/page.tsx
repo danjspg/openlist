@@ -194,6 +194,10 @@ export default async function PlanningApplicationPage({ params }: Props) {
                     {decisionDue.formattedDate}
                   </time>
                   <DecisionDueRelativeText date={decisionDue.date} />
+                  <p className="mt-2 text-xs leading-5 text-stone-500">
+                    Council record currently gives this as the decision due date.
+                  </p>
+                  {/* Future issue #8 CTA placement: directly beneath Decision Due and above the council link. */}
                 </div>
               ) : null}
               {application.source_url ? (
