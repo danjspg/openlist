@@ -136,7 +136,7 @@ export function createGoogleSearchConsoleClient(
     },
 
     async querySoldPricesPerformance(startDate: string, endDate: string) {
-      return queryPathPerformance(startDate, endDate, "/sold-prices/")
+      return queryPathPerformance(startDate, endDate, "/sold-prices")
     },
 
     async inspectUrl<T = unknown>(inspectionUrl: string) {
