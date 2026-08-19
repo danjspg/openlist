@@ -9,8 +9,16 @@ import {
   parseNationalArcgisDate,
 } from "../lib/national-planning-source.mjs"
 import {
+  AGILE_REQUEST_DELAY_MS,
+  NATIONAL_DETAIL_BUDGET,
+  NATIONAL_DETAIL_BUDGET_MAX,
+  NATIONAL_UPSERT_BATCH_SIZE,
+  fetchAgileDetailsByReference,
+  fetchAgileJson,
   enrichChangedNationalRecords,
   mapApplication,
+  retryAfterMs,
+  sortDetailCandidates,
 } from "../scripts/ingest-national-planning-applications.mjs"
 import { applyLifecycleBatch } from "../scripts/backfill-national-planning-lifecycle.mjs"
 
@@ -92,6 +100,80 @@ test("a missing optional detail record preserves the source proposal", async () 
   assert.equal(enriched[0].proposal, source)
 })
 
+test("normal detail enrichment is bounded, newest-first, and reports deferred records", async () => {
+  const records = [
+    { reference: "older", registration_date: "2026-01-01", proposal: "x".repeat(80), source_url: "https://x/application-details/1" },
+    { reference: "newer-b", registration_date: "2026-02-01", proposal: "x".repeat(80), source_url: "https://x/application-details/2" },
+    { reference: "newer-a", registration_date: "2026-02-01", proposal: "x".repeat(80), source_url: "https://x/application-details/3" },
+  ]
+  assert.deepEqual(sortDetailCandidates(records).map((record) => record.reference), ["newer-a", "newer-b", "older"])
+  const details = await fetchAgileDetailsByReference(
+    { code: "WEXFORD", name: "Wexford County Council" }, records,
+    { failureMode: "best-effort", budget: 1, request: async () => null }
+  )
+  assert.equal(details.detailReport.detailCandidates, 3)
+  assert.equal(details.detailReport.detailBudget, 1)
+  assert.equal(details.detailReport.detailAttempted, 1)
+  assert.equal(details.detailReport.detailDeferred, 2)
+  assert.equal(details.detailReport.detailCircuitBroken, false)
+  assert.equal(NATIONAL_DETAIL_BUDGET, 25)
+  assert.equal(NATIONAL_DETAIL_BUDGET_MAX, 100)
+})
+
+test("persistent optional Agile failure stops an authority locally while preserving prior details", async () => {
+  const records = [
+    { reference: "first", registration_date: "2026-02-02", proposal: "x".repeat(80), source_url: "https://x/application-details/1" },
+    { reference: "second", registration_date: "2026-02-01", proposal: "x".repeat(80), source_url: "https://x/application-details/2" },
+  ]
+  let requests = 0
+  const details = await fetchAgileDetailsByReference(
+    { code: "WEXFORD", name: "Wexford County Council" }, records,
+    {
+      failureMode: "best-effort",
+      request: async () => {
+        requests += 1
+        if (requests === 1) return { fullProposal: "Full first proposal" }
+        const error: Error & { status?: number } = new Error("HTTP 429")
+        error.status = 429
+        throw error
+      },
+    }
+  )
+  assert.equal(requests, 2)
+  assert.equal(details.get("first")?.fullProposal, "Full first proposal")
+  assert.equal(details.has("second"), false)
+  assert.equal(details.detailReport.detailCircuitBroken, true)
+})
+
+test("Retry-After parsing supports seconds and HTTP dates without slowing ArcGIS", () => {
+  assert.equal(retryAfterMs("7", 0), 7000)
+  assert.equal(retryAfterMs("Thu, 01 Jan 1970 00:00:10 GMT", 0), 10000)
+  assert.equal(AGILE_REQUEST_DELAY_MS, 1000)
+})
+
+test("Agile requests honor Retry-After before a bounded retry", async () => {
+  const delays: number[] = []
+  let calls = 0
+  const data = await fetchAgileJson("https://example.test", "test", {}, {
+    sleepFn: async (ms: number) => { delays.push(ms) },
+    fetchImpl: async () => {
+      calls += 1
+      if (calls === 1) return {
+        ok: false, status: 429,
+        headers: { get: () => "7" },
+      }
+      return { ok: true, json: async () => ({ ok: true }) }
+    },
+  })
+  assert.deepEqual(data, { ok: true })
+  assert.equal(calls, 2)
+  assert.ok(delays.includes(7000))
+})
+
+test("national writes start gently while preserving bounded adaptive upserts", () => {
+  assert.equal(NATIONAL_UPSERT_BATCH_SIZE, 50)
+})
+
 test("national bulk rows map every confirmed lifecycle date without council detail calls", () => {
   const application = mapApplication({
     OBJECTID: 42,
@@ -158,6 +240,8 @@ test("proposal backfills prioritize value without increasing their request bound
   assert.match(corkBackfill, /openlist_planning_proposal_backfill_candidates/)
   assert.match(corkBackfill, /await sleep\(200\)/)
   assert.match(nationalImporter, /PLANNING_NATIONAL_REQUEST_DELAY_MS \|\| 250/)
+  assert.match(nationalImporter, /boundedEnvNumber\("PLANNING_AGILE_REQUEST_DELAY_MS", 1000, 0\)/)
+  assert.match(nationalBackfill, /failureMode: "strict"/)
 })
 
 test("lifecycle backfill adaptively splits a timed-out database batch", async () => {

@@ -4,6 +4,7 @@ import test from "node:test"
 import {
   filterChangedPlanningRecords,
   normaliseComparable,
+  planningRecordChangedFields,
   planningRecordsDiffer,
 } from "../lib/planning-ingestion-diff.mjs"
 
@@ -39,6 +40,20 @@ test("planning ingestion writes a record when a displayed field changes", () => 
   }
 
   assert.equal(planningRecordsDiffer(existing, incoming), true)
+  assert.deepEqual(planningRecordChangedFields(existing, incoming), ["proposal"])
+})
+
+test("change diagnostics use the same comparison semantics and expose no values", async () => {
+  const existing = { local_authority_code: "DUBLINCITY", reference: "26/1", applicant_name: "Private Name", status: "Registered" }
+  const incoming = { ...existing, status: "Decision Made" }
+  const supabase = {
+    from() { return this }, select() { return this }, eq() { return this }, order() { return this },
+    range() { return Promise.resolve({ data: [existing], error: null }) },
+  }
+  const result = await filterChangedPlanningRecords(supabase, [incoming], { authorityCode: "DUBLINCITY" })
+  assert.deepEqual(result.changeFieldCounts, { status: 1 })
+  assert.deepEqual(result.changedSample, [{ reference: "26/1", fields: ["status"] }])
+  assert.equal(JSON.stringify(result.changedSample).includes("Private Name"), false)
 })
 
 test("planning ingestion retains changed raw status wording within one canonical group", () => {

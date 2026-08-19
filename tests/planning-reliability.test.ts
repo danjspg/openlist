@@ -60,6 +60,8 @@ test("revalidation worker is exact-path, bounded, race-safe, and leaves failures
   assert.match(route, /revalidatePath/)
   assert.doesNotMatch(worker, /revalidatePath\("\/planning/)
   assert.match(workflow, /drain-planning-revalidation\.mjs/)
+  assert.match(workflow, /name: Revalidate changed planning detail pages\s+if: \$\{\{ always\(\) \}\}/)
+  assert.doesNotMatch(workflow, /name: Refresh bounded historical planning statuses\s+if: \$\{\{ always\(\) \}\}/)
   assert.match(drain, /maxBatches = 20/)
   assert.match(drain, /result\.failures > 0/)
 })

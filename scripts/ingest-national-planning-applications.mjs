@@ -26,6 +26,17 @@ const DEFAULT_PAGE_SIZE = 2000
 const DEFAULT_EXCLUDED_CODES = new Set(["CORKCOCO"])
 const REQUEST_DELAY_MS = Number(process.env.PLANNING_NATIONAL_REQUEST_DELAY_MS || 250)
 const MAX_RETRIES = Number(process.env.PLANNING_NATIONAL_MAX_RETRIES || 4)
+function boundedEnvNumber(name, fallback, minimum, maximum = Infinity) {
+  const value = Number(process.env[name] || fallback)
+  return Number.isFinite(value) ? Math.min(maximum, Math.max(minimum, value)) : fallback
+}
+
+const AGILE_REQUEST_DELAY_MS = boundedEnvNumber("PLANNING_AGILE_REQUEST_DELAY_MS", 1000, 0)
+const NATIONAL_DETAIL_BUDGET_MAX = 100
+const NATIONAL_DETAIL_BUDGET = boundedEnvNumber("PLANNING_NATIONAL_DETAIL_BUDGET", 25, 0, NATIONAL_DETAIL_BUDGET_MAX)
+const NATIONAL_UPSERT_BATCH_SIZE = boundedEnvNumber("PLANNING_NATIONAL_UPSERT_BATCH_SIZE", 50, 10, 100)
+const NATIONAL_UPSERT_DELAY_MS = boundedEnvNumber("PLANNING_NATIONAL_UPSERT_DELAY_MS", 150, 0)
+const AGILE_RETRYABLE_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504])
 
 const AUTHORITIES = [
   {
@@ -394,6 +405,62 @@ async function fetchJson(url, label, headers = {}, { allowNotFound = false } = {
   throw lastError
 }
 
+function retryAfterMs(value, now = Date.now()) {
+  if (!value) return null
+  if (/^\d+$/.test(value.trim())) return Number(value.trim()) * 1000
+  const retryAt = Date.parse(value)
+  return Number.isNaN(retryAt) ? null : Math.max(0, retryAt - now)
+}
+
+class AgileRequestError extends Error {
+  constructor(status, message) {
+    super(message)
+    this.name = "AgileRequestError"
+    this.status = status
+  }
+}
+
+/** @param {string} url @param {string} label @param {Record<string, string>} headers @param {{ allowNotFound?: boolean, fetchImpl?: Function, sleepFn?: Function }} [options] */
+async function fetchAgileJson(
+  url,
+  label,
+  headers = {},
+  { allowNotFound = false, fetchImpl = fetch, sleepFn = sleep } = {}
+) {
+  let lastError
+
+  for (let attempt = 1; attempt <= MAX_RETRIES + 1; attempt += 1) {
+    if (AGILE_REQUEST_DELAY_MS > 0) await sleepFn(AGILE_REQUEST_DELAY_MS)
+    try {
+      const response = await fetchImpl(url, {
+        headers: { "User-Agent": "OpenList national planning importer", ...headers },
+      })
+      if (allowNotFound && response.status === 404) return null
+      if (!response.ok) {
+        const error = new AgileRequestError(response.status, `HTTP ${response.status}`)
+        if (!AGILE_RETRYABLE_STATUSES.has(response.status)) throw error
+        const retryAfter = retryAfterMs(response.headers.get("retry-after"))
+        error.retryAfterMs = retryAfter
+        throw error
+      }
+      const data = await response.json()
+      if (data.error) throw new Error(data.error.message || JSON.stringify(data.error))
+      return data
+    } catch (error) {
+      lastError = error
+      const retryable = !(error instanceof AgileRequestError) || AGILE_RETRYABLE_STATUSES.has(error.status)
+      if (attempt <= MAX_RETRIES && retryable) {
+        const delayMs = error.retryAfterMs ?? attempt * 1500
+        console.warn(`${label}: ${error.message}; retrying in ${delayMs}ms`)
+        await sleepFn(delayMs)
+      } else {
+        break
+      }
+    }
+  }
+  throw lastError
+}
+
 function dateWindows(from, to, windowDays = AGILE_WINDOW_DAYS) {
   const windows = []
   let cursor = new Date(`${from}T00:00:00Z`)
@@ -409,15 +476,45 @@ function dateWindows(from, to, windowDays = AGILE_WINDOW_DAYS) {
   return windows
 }
 
-async function fetchAgileDetailsByReference(authority, records) {
+function sortDetailCandidates(records) {
+  return [...records].sort((left, right) =>
+    String(right.registration_date || "").localeCompare(String(left.registration_date || "")) ||
+    String(left.reference || "").localeCompare(String(right.reference || ""))
+  )
+}
+
+/**
+ * @param {{ code: string, name: string }} authority
+ * @param {Record<string, any>[]} records
+ * @param {{ failureMode?: "best-effort" | "strict", budget?: number, request?: Function }} [options]
+ * @returns {Promise<Map<string, any> & { detailReport: Record<string, any> }>}
+ */
+async function fetchAgileDetailsByReference(
+  authority,
+  records,
+  { failureMode = "strict", budget, request = fetchAgileJson } = {}
+) {
   const config = nationalAgileAuthorityConfig(authority.code)
-  const candidates = records.filter((record) =>
+  const detailCandidates = records.filter((record) =>
     isNationalProposalDetailCandidate(authority.code, record.proposal)
   )
-  if (!config || candidates.length === 0) return new Map()
+  const candidates = budget === undefined
+    ? detailCandidates
+    : sortDetailCandidates(detailCandidates).slice(0, budget)
+  const report = {
+    detailCandidates: detailCandidates.length,
+    detailBudget: budget ?? null,
+    detailAttempted: candidates.length,
+    detailSucceeded: 0,
+    detailDeferred: Math.max(0, detailCandidates.length - candidates.length),
+    detailCircuitBroken: false,
+  }
+  const details = new Map()
+  Object.defineProperty(details, "detailReport", { value: report })
+  if (!config || candidates.length === 0) return details
 
   const datedCandidates = candidates.filter((record) => record.registration_date)
-  if (datedCandidates.length === 0) return new Map()
+  if (datedCandidates.length === 0) return details
   const wantedReferences = new Set(candidates.map((record) => record.reference))
   const dates = datedCandidates.map((record) => record.registration_date).sort()
   const searchRowsByReference = new Map()
@@ -437,49 +534,42 @@ async function fetchAgileDetailsByReference(authority, records) {
   const unresolvedReferences = new Set(
     [...wantedReferences].filter((reference) => !searchRowsByReference.has(reference))
   )
-  for (const window of unresolvedReferences.size > 0 ? dateWindows(dates[0], dates.at(-1)) : []) {
-    for (const status of AGILE_SEARCH_STATUSES) {
-      const params = new URLSearchParams({
-        registrationDateFrom: `${window.from}T00:00:00Z`,
-        registrationDateTo: `${window.to}T23:59:59Z`,
-        status,
-      })
-      const data = await fetchJson(
-        `${AGILE_SEARCH_URL}?${params.toString()}`,
-        `${authority.name} detail index ${window.from} to ${window.to} ${status}`,
-        headers
-      )
-      for (const row of data.results || []) {
-        const reference = cleanNationalPlanningText(row.reference)
-        if (
-          reference &&
-          unresolvedReferences.has(reference) &&
-          Number.isInteger(row.id) &&
-          !searchRowsByReference.has(reference)
-        ) {
-          searchRowsByReference.set(reference, row)
+  try {
+    for (const window of unresolvedReferences.size > 0 ? dateWindows(dates[0], dates.at(-1)) : []) {
+      for (const status of AGILE_SEARCH_STATUSES) {
+        const params = new URLSearchParams({
+          registrationDateFrom: `${window.from}T00:00:00Z`, registrationDateTo: `${window.to}T23:59:59Z`, status,
+        })
+        const data = await request(`${AGILE_SEARCH_URL}?${params.toString()}`, `${authority.name} detail index ${window.from} to ${window.to} ${status}`, headers)
+        for (const row of data.results || []) {
+          const reference = cleanNationalPlanningText(row.reference)
+          if (reference && unresolvedReferences.has(reference) && Number.isInteger(row.id) && !searchRowsByReference.has(reference)) {
+            searchRowsByReference.set(reference, row)
+          }
         }
       }
     }
-  }
 
-  const details = new Map()
-  for (const [reference, searchRow] of searchRowsByReference) {
-    const detail = await fetchJson(
-      `${AGILE_DETAIL_URL}/${searchRow.id}`,
-      `${authority.name} ${reference} detail`,
-      headers,
-      { allowNotFound: true }
-    )
-    if (detail) details.set(reference, detail)
+    for (const [reference, searchRow] of searchRowsByReference) {
+      const detail = await request(`${AGILE_DETAIL_URL}/${searchRow.id}`, `${authority.name} ${reference} detail`, headers, { allowNotFound: true })
+      if (detail) details.set(reference, detail)
+    }
+  } catch (error) {
+    if (failureMode !== "best-effort") throw error
+    report.detailCircuitBroken = true
+    const reason = error instanceof AgileRequestError && error.status === 429 ? "persistent HTTP 429" : "request failure"
+    console.warn(`${authority.name}: optional Agile detail enrichment suspended after ${reason}; continuing with ArcGIS records.`)
   }
+  report.detailSucceeded = details.size
   return details
 }
 
+/** @param {Record<string, any>[]} records @param {{ code: string, name: string }} authority @param {(authority: any, records: any[], options?: any) => Promise<Map<string, any>>} [fetchDetails] @param {any} [detailOptions] */
 async function enrichChangedNationalRecords(
   records,
   authority,
-  fetchDetails = fetchAgileDetailsByReference
+  fetchDetails = fetchAgileDetailsByReference,
+  detailOptions = { failureMode: "best-effort", budget: NATIONAL_DETAIL_BUDGET }
 ) {
   if (
     !records.some((record) =>
@@ -489,8 +579,8 @@ async function enrichChangedNationalRecords(
     return records
   }
 
-  const details = await fetchDetails(authority, records)
-  return records.map((record) => {
+  const details = await fetchDetails(authority, records, detailOptions)
+  const enriched = records.map((record) => {
     const detail = details.get(record.reference)
     if (!detail) return record
     return {
@@ -498,6 +588,8 @@ async function enrichChangedNationalRecords(
       proposal: authoritativeNationalProposal(record.proposal, detail.fullProposal),
     }
   })
+  Object.defineProperty(enriched, "detailReport", { value: details.detailReport || null })
+  return enriched
 }
 
 async function fetchAuthorityApplications(authority, { from, to }) {
@@ -614,7 +706,12 @@ async function ingestNationalPlanningApplications(options) {
       continue
     }
 
-    const sourceRows = await fetchAuthorityApplications(authority, options)
+    let sourceRows
+    try {
+      sourceRows = await fetchAuthorityApplications(authority, options)
+    } catch (error) {
+      throw new Error(`${authority.name}: ArcGIS fetch failed`, { cause: error })
+    }
     const mappedRecords = sourceRows
       .map((row) => mapApplication(row, authority, options))
       .filter(Boolean)
@@ -627,23 +724,21 @@ async function ingestNationalPlanningApplications(options) {
 
     if (options.dryRun || records.length === 0) continue
 
-    const { changedRecords, unchangedCount } = await filterChangedPlanningRecords(
-      supabase,
-      records,
-      {
-        authorityCode: authority.code,
-        from: formatDate(options.from),
-        to: formatDate(options.to),
-      }
-    )
+    let changedRecords, unchangedCount, changeFieldCounts, changedSample
+    try {
+      ({ changedRecords, unchangedCount, changeFieldCounts, changedSample } = await filterChangedPlanningRecords(
+        supabase, records, { authorityCode: authority.code, from: formatDate(options.from), to: formatDate(options.to) }
+      ))
+    } catch (error) {
+      throw new Error(`${authority.name}: change detection failed`, { cause: error })
+    }
 
-    const enrichedChangedRecords = await enrichChangedNationalRecords(
-      changedRecords,
-      authority
-    )
+    const enrichedChangedRecords = await enrichChangedNationalRecords(changedRecords, authority)
+    console.log(`${authority.name}: change fields ${JSON.stringify(changeFieldCounts)}; sample ${JSON.stringify(changedSample)}`)
+    console.log(`${authority.name}: detail ${JSON.stringify(enrichedChangedRecords.detailReport)}`)
 
     let processed = 0
-    for (const batch of chunk(enrichedChangedRecords, 100)) {
+    for (const batch of chunk(enrichedChangedRecords, NATIONAL_UPSERT_BATCH_SIZE)) {
       try {
         await upsertPlanningBatch(supabase, batch, authority.name)
       } catch (error) {
@@ -654,6 +749,7 @@ async function ingestNationalPlanningApplications(options) {
       }
 
       processed += batch.length
+      if (NATIONAL_UPSERT_DELAY_MS > 0 && processed < enrichedChangedRecords.length) await sleep(NATIONAL_UPSERT_DELAY_MS)
     }
 
     console.log(
@@ -678,8 +774,16 @@ export {
   AUTHORITIES,
   enrichChangedNationalRecords,
   fetchAgileDetailsByReference,
+  fetchAgileJson,
   fetchAuthorityApplicationCount,
   ingestNationalPlanningApplications,
   mapApplication,
   parseArgs,
+  retryAfterMs,
+  sortDetailCandidates,
+  AGILE_REQUEST_DELAY_MS,
+  NATIONAL_DETAIL_BUDGET,
+  NATIONAL_DETAIL_BUDGET_MAX,
+  NATIONAL_UPSERT_BATCH_SIZE,
+  NATIONAL_UPSERT_DELAY_MS,
 }

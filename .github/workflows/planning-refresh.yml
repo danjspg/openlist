@@ -48,6 +48,7 @@ jobs:
           echo "Rolling national planning applications refresh job completed"
 
       - name: Revalidate changed planning detail pages
+        if: ${{ always() }}
         env:
           PLANNING_REVALIDATION_URL: ${{ secrets.PLANNING_REVALIDATION_URL }}
           PLANNING_REVALIDATION_SECRET: ${{ secrets.PLANNING_REVALIDATION_SECRET }}

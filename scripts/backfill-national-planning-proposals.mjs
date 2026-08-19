@@ -62,7 +62,9 @@ async function run(options) {
   )
   if (error) throw error
   const records = rows || []
-  const details = await fetchAgileDetailsByReference(authority, records)
+  // Backfills are explicit work, so retain strict failure visibility while sharing
+  // the importer's polite pacing and bounded retry behaviour.
+  const details = await fetchAgileDetailsByReference(authority, records, { failureMode: "strict" })
   const repairs = records.flatMap((record) => {
     const detail = details.get(record.reference)
     const proposal = authoritativeNationalProposal(record.proposal, detail?.fullProposal)
