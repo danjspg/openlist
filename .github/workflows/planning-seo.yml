@@ -30,7 +30,7 @@ jobs:
           NEXT_PUBLIC_SITE_URL: https://www.openlist.ie
           GOOGLE_SEARCH_CONSOLE_SITE_URL: ${{ secrets.GOOGLE_SEARCH_CONSOLE_SITE_URL }}
           PLANNING_SEO_INSPECTION_LIMIT: "200"
-        run: npm run planning:seo:collect
+        run: node --import tsx scripts/collect-planning-seo.ts
       - name: Explain skipped collection
         if: ${{ env.GOOGLE_SEARCH_CONSOLE_SERVICE_ACCOUNT_JSON_BASE64 == '' }}
         run: echo "Planning SEO collection skipped because Search Console credentials are not configured."
