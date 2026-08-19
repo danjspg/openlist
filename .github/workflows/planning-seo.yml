@@ -54,16 +54,26 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          published_at="$(date -u '+%Y-%m-%d %H:%M:%S UTC')"
           {
             echo "This issue is maintained automatically by the \`Planning SEO measurement\` workflow."
             echo
-            echo "Last successful publication: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+            echo "Last successful publication: $published_at"
             echo
             echo '```text'
             cat planning-seo-report.txt
             echo '```'
           } > planning-seo-issue.md
           gh issue edit 10 --repo "$GITHUB_REPOSITORY" --body-file planning-seo-issue.md
+
+          {
+            echo "Daily snapshot: $published_at"
+            echo
+            echo '```text'
+            cat planning-seo-report.txt
+            echo '```'
+          } > planning-seo-comment.md
+          gh issue comment 10 --repo "$GITHUB_REPOSITORY" --body-file planning-seo-comment.md
       - name: Upload planning SEO report
         if: ${{ env.GOOGLE_SEARCH_CONSOLE_SERVICE_ACCOUNT_JSON_BASE64 != '' }}
         uses: actions/upload-artifact@v4
