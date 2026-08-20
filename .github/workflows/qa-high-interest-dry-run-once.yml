@@ -18,18 +18,24 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
       - name: Dispatch Planning SEO workflow
-        run: gh workflow run planning-seo.yml --repo "$GITHUB_REPOSITORY" --ref main
-      - name: Find dispatched run
+        id: dispatch
+        run: |
+          started="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+          echo "started=$started" >> "$GITHUB_OUTPUT"
+          gh workflow run planning-seo.yml --repo "$GITHUB_REPOSITORY" --ref main
+      - name: Find this dispatched run
         id: find
+        env:
+          STARTED: ${{ steps.dispatch.outputs.started }}
         run: |
           run_id=""
-          for attempt in $(seq 1 20); do
-            run_id=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow planning-seo.yml --event workflow_dispatch --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+          for attempt in $(seq 1 30); do
+            run_id=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow planning-seo.yml --event workflow_dispatch --limit 10 --json databaseId,createdAt --jq ".[] | select(.createdAt >= \"$STARTED\") | .databaseId" | head -n 1)
             if [ -n "$run_id" ]; then break; fi
             sleep 3
           done
           if [ -z "$run_id" ]; then
-            echo "Could not find dispatched Planning SEO run" >&2
+            echo "Could not find a Planning SEO workflow_dispatch run created at or after $STARTED" >&2
             exit 1
           fi
           echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
@@ -47,8 +53,8 @@ jobs:
           RUN_ID: ${{ steps.find.outputs.run_id }}
         run: |
           if [ -z "$RUN_ID" ]; then
-            gh issue comment 10 --repo "$GITHUB_REPOSITORY" --body "Post-QA Planning SEO dispatch failed before a run ID was found."
+            gh issue comment 10 --repo "$GITHUB_REPOSITORY" --body "Post-QA Planning SEO dispatch failed before a new run ID was found."
             exit 0
           fi
-          result=$(gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY" --json status,conclusion,url,createdAt,updatedAt --jq '"Post-QA full Planning SEO workflow: " + .status + "/" + (.conclusion // "pending") + " — " + .url')
+          result=$(gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY" --json status,conclusion,url,createdAt,headSha --jq '"Verified post-QA Planning SEO workflow: " + .status + "/" + (.conclusion // "pending") + " | created " + .createdAt + " | head " + .headSha + " | " + .url')
           gh issue comment 10 --repo "$GITHUB_REPOSITORY" --body "$result"
