@@ -66,12 +66,14 @@ async function queryVercelAnalytics<T>(
 export async function countVercelVisits(
   config: VercelAnalyticsConfig,
   since: Date,
-  until: Date
+  until: Date,
+  filter?: string
 ): Promise<VercelAnalyticsCount> {
   const params = new URLSearchParams({
     since: since.toISOString(),
     until: until.toISOString(),
   })
+  if (filter) params.set("filter", filter)
   const response = await queryVercelAnalytics<CountResponse>(config, "count", params)
   return {
     pageviews: Number(response.data?.pageviews || 0),
@@ -83,7 +85,8 @@ export async function topVercelPaths(
   config: VercelAnalyticsConfig,
   since: Date,
   until: Date,
-  limit = 100
+  limit = 100,
+  filter?: string
 ): Promise<VercelAnalyticsPathRow[]> {
   const params = new URLSearchParams({
     since: since.toISOString(),
@@ -91,6 +94,7 @@ export async function topVercelPaths(
     by: "requestPath",
     limit: String(Math.min(Math.max(limit, 1), 100)),
   })
+  if (filter) params.set("filter", filter)
   const response = await queryVercelAnalytics<AggregateResponse>(
     config,
     "aggregate",
