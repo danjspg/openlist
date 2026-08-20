@@ -46,9 +46,10 @@ test("buildActivePlanningRefreshRanges merges contiguous active months per autho
   ])
 })
 
-test("future-dated candidates are ignored", () => {
+test("future and undated candidates are ignored by date-range fallback planning", () => {
   const candidates: ActivePlanningRefreshCandidate[] = [
     { id: "1", local_authority_code: "MEATH", registration_date: "2026-09-01", normalized_status: "registered" },
+    { id: "2", local_authority_code: "MEATH", registration_date: null, normalized_status: "registered" },
   ]
   assert.deepEqual(buildActivePlanningRefreshRanges(candidates, "2026-08-20"), [])
 })
