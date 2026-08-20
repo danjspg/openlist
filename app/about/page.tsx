@@ -2,9 +2,9 @@ import type { Metadata } from "next"
 import Image from "next/image"
 
 export const metadata: Metadata = {
-  title: "About OpenList | Property Intelligence Ireland",
+  title: "About OpenList | Planning & Property Research Ireland",
   description:
-    "Learn how OpenList connects Irish sold prices, planning applications and location context for property research.",
+    "Learn how OpenList makes Irish planning applications and sold-price data easier to search, connect and understand.",
   alternates: {
     canonical: "/about",
   },
@@ -31,11 +31,11 @@ export default function AboutPage() {
           </h1>
 
           <p className="mx-auto mt-5 max-w-3xl text-base leading-7 text-slate-600 sm:text-lg sm:leading-8">
-            OpenList helps people understand property in Ireland.
+            OpenList helps people understand planning, property and development in Ireland.
           </p>
 
           <p className="mx-auto mt-3 max-w-3xl text-sm leading-6 text-slate-600 sm:text-base sm:leading-7">
-            Search sold prices and planning applications, then move between both datasets to understand places and development activity in context.
+            Search planning applications across Ireland, explore proposed and changing development, and use sold-price data to understand the surrounding property context.
           </p>
         </div>
 
@@ -45,27 +45,21 @@ export default function AboutPage() {
               <p>You can use OpenList to:</p>
 
               <ul className="list-disc space-y-3 pl-5">
+                <li>Search planning applications and explore local development activity</li>
                 <li>Research public sold-price data and local market activity</li>
-                <li>Search planning applications and explore development activity</li>
-                <li>Move between planning activity and local sold-price context</li>
+                <li>Move between planning applications and sold-price context to understand a property or area</li>
               </ul>
 
               <p>
-                Sold-price information is based on public Irish Residential
-                Property Price Register data. Planning information is based on
-                publicly available sources and is provided for information
-                purposes only.
+                Planning information is based on publicly available Irish local-authority sources. Sold-price information is based on public Irish Residential Property Price Register data.
               </p>
 
               <p>
-                OpenList provides property intelligence and a secondary personal viewing utility. We
-                are not an estate agent, auctioneer, valuer, broker or legal
-                adviser.
+                OpenList is a property research service focused on planning activity, sold-price data and local context. We are not an estate agent, auctioneer, valuer, broker or legal adviser.
               </p>
 
               <p>
-                The aim is simple: make public property information easier to search,
-                connect and understand without overstating what the source data proves.
+                The aim is simple: make public planning and property information easier to find, understand and connect without overstating what the source data proves.
               </p>
             </div>
           </div>
@@ -76,9 +70,9 @@ export default function AboutPage() {
                 With OpenList you can
               </p>
               <ul className="mt-5 list-disc space-y-3 pl-5 text-base leading-7 text-slate-700">
-                <li>research sold prices</li>
                 <li>search planning applications</li>
-                <li>connect local planning and sold-price context</li>
+                <li>research sold prices</li>
+                <li>connect planning and local property context</li>
               </ul>
             </div>
 
@@ -87,7 +81,7 @@ export default function AboutPage() {
                 Platform role
               </p>
               <div className="mt-4 space-y-4 text-base leading-7 text-slate-600">
-                <p>OpenList provides property research context from sold-price and planning data. Viewings remains available as an optional signed-in account utility.</p>
+                <p>OpenList helps people research planning activity and public property data in Ireland.</p>
                 <p>OpenList is not an estate agent, auctioneer, valuer, broker or legal adviser.</p>
               </div>
             </div>
@@ -106,21 +100,21 @@ export default function AboutPage() {
           </h2>
           <div className="mt-5 grid gap-6 text-sm leading-6 text-slate-600 md:grid-cols-2">
             <div>
-              <h3 className="font-semibold text-slate-900">Sold prices</h3>
-              <p className="mt-2">
-                Sold-price records come from Ireland&apos;s public Residential Property Price Register. OpenList standardises the records for search, local pages and market comparisons without changing the published sale price or sale date.
-              </p>
-              <p className="mt-3">
-                The freshness indicator shows the latest sale date currently present in OpenList. It is a useful coverage signal, but the Property Price Register remains the authoritative source.
-              </p>
-            </div>
-            <div>
               <h3 className="font-semibold text-slate-900">Planning applications</h3>
               <p className="mt-2">
                 Planning records come from public Irish local-authority sources. OpenList connects those records, normalises status information where possible and presents source-backed lifecycle events and local property context.
               </p>
               <p className="mt-3">
                 Planning freshness is scoped to the council when you are viewing a council or application page. The date shown is the latest registration date currently present in that OpenList scope. Always check the linked council record before relying on an application for a decision.
+              </p>
+            </div>
+            <div>
+              <h3 className="font-semibold text-slate-900">Sold prices</h3>
+              <p className="mt-2">
+                Sold-price records come from Ireland&apos;s public Residential Property Price Register. OpenList standardises the records for search, local pages and market comparisons without changing the published sale price or sale date.
+              </p>
+              <p className="mt-3">
+                The freshness indicator shows the latest sale date currently present in OpenList. It is a useful coverage signal, but the Property Price Register remains the authoritative source.
               </p>
             </div>
           </div>
@@ -131,7 +125,7 @@ export default function AboutPage() {
             Important
           </p>
           <p className="mt-4 max-w-4xl text-base leading-7 text-slate-600">
-            Sold-price information is based on public Irish Residential Property Price Register data. Planning information is based on publicly available sources and is provided for information purposes only. Users should independently verify relevant property information before making decisions.
+            Planning information is based on publicly available sources and is provided for information purposes only. Sold-price information is based on public Irish Residential Property Price Register data. Users should independently verify relevant property information before making decisions.
           </p>
         </div>
       </section>
