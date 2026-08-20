@@ -64,7 +64,10 @@ function addressVariantKey(option: PprSearchAreaOption) {
 
 export function classifyUnifiedSearchIntent(query: string): UnifiedSearchIntent {
   const cleaned = query.trim().replace(/\s+/g, " ")
-  if (/^\d{1,4}\s*[\/-]\s*[A-Z0-9-]{1,12}$/i.test(cleaned)) {
+  if (
+    /^\d{1,4}\s*[\/-]\s*[A-Z0-9-]{1,12}$/i.test(cleaned) ||
+    /^\d{5,10}$/.test(cleaned)
+  ) {
     return "planning-reference"
   }
 
