@@ -40,7 +40,7 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: npm run planning:qa:high-interest -- --output artifacts/high-interest-planning-qa.json
+        run: node --import tsx scripts/audit-high-interest-planning.mts --output artifacts/high-interest-planning-qa.json
       - name: Generate OpenList SEO report
         if: ${{ env.GOOGLE_SEARCH_CONSOLE_SERVICE_ACCOUNT_JSON_BASE64 != '' }}
         env:
