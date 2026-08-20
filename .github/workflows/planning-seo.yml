@@ -4,6 +4,9 @@ on:
   schedule:
     - cron: "20 6 * * *"
   workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/planning-seo.yml"
 
 permissions:
   contents: read
