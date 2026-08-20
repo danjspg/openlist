@@ -6,6 +6,11 @@ on:
     # around 21:54, so run the following morning rather than before the source update.
     - cron: "0 6 * * 4"
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/ppr-refresh.yml"
 
 permissions:
   contents: read
