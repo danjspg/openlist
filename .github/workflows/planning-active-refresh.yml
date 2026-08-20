@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  issues: write
 
 concurrency:
   group: planning-active-refresh
@@ -52,3 +53,10 @@ jobs:
           PLANNING_REVALIDATION_URL: ${{ secrets.PLANNING_REVALIDATION_URL }}
           PLANNING_REVALIDATION_SECRET: ${{ secrets.PLANNING_REVALIDATION_SECRET }}
         run: node scripts/drain-planning-revalidation.mjs
+
+      - name: Report active refresh failure
+        if: ${{ failure() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue comment 10 --repo "$GITHUB_REPOSITORY" --body "Active Planning refresh failed on $(date -u '+%Y-%m-%d %H:%M UTC'). The workflow still attempted to drain the revalidation queue. Review run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
