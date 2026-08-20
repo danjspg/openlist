@@ -1,4 +1,4 @@
-name: One-off report post-QA Planning SEO run
+name: One-off clean up post-QA Planning SEO runs
 
 on:
   push:
@@ -6,19 +6,25 @@ on:
       - ".github/workflows/qa-high-interest-dry-run-once.yml"
 
 permissions:
-  actions: read
+  actions: write
   contents: read
   issues: write
 
 jobs:
-  report:
+  cleanup:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
+      - name: Cancel known duplicate run if still active
+        run: |
+          state=$(gh run view 32410321188 --repo "$GITHUB_REPOSITORY" --json status --jq '.status')
+          if [ "$state" = "in_progress" ] || [ "$state" = "queued" ] || [ "$state" = "waiting" ]; then
+            gh run cancel 32410321188 --repo "$GITHUB_REPOSITORY"
+          fi
       - name: Report recent Planning SEO workflow_dispatch runs
         run: |
-          runs=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow planning-seo.yml --event workflow_dispatch --limit 10 --json databaseId,createdAt,headSha,status,conclusion,url --jq '[.[] | select(.createdAt >= "2026-08-20T19:44:00Z")]')
-          node -e 'const r=JSON.parse(process.argv[1]); const lines=["Post-QA Planning SEO run lookup:",""]; if(!r.length){lines.push("No workflow_dispatch run found since 2026-08-20T19:44:00Z.")} else {for(const x of r) lines.push(`- run ${x.databaseId}: ${x.status}/${x.conclusion||"pending"} | ${x.createdAt} | head ${x.headSha} | ${x.url}`)}; require("fs").writeFileSync("run-lookup.md",lines.join("\n")+"\n")' "$runs"
+          runs=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow planning-seo.yml --event workflow_dispatch --limit 10 --json databaseId,createdAt,headSha,status,conclusion,url --jq '[.[] | select(.createdAt >= "2026-08-20T19:40:00Z")]')
+          node -e 'const r=JSON.parse(process.argv[1]); const lines=["Post-QA Planning SEO cleanup / run lookup:",""]; for(const x of r) lines.push(`- run ${x.databaseId}: ${x.status}/${x.conclusion||"pending"} | ${x.createdAt} | head ${x.headSha} | ${x.url}`); require("fs").writeFileSync("run-lookup.md",lines.join("\n")+"\n")' "$runs"
           gh issue comment 10 --repo "$GITHUB_REPOSITORY" --body-file run-lookup.md
