@@ -1,0 +1,51 @@
+name: One-off high-interest planning QA dry-run
+
+on:
+  push:
+    paths:
+      - ".github/workflows/qa-high-interest-dry-run-once.yml"
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Run high-interest QA dry-run
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: npm run planning:qa:high-interest -- --dry-run --output artifacts/high-interest-planning-qa.json
+      - name: Publish dry-run result to issue 10
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node <<'NODE'
+          const fs = require('fs')
+          const report = JSON.parse(fs.readFileSync('artifacts/high-interest-planning-qa.json', 'utf8'))
+          const lines = []
+          lines.push(`One-off high-interest Planning QA dry-run: ${report.generatedAt}`)
+          lines.push('')
+          lines.push(`**${report.checked} checked: ${report.pass} PASS, ${report.repairable} REPAIRABLE, ${report.warn} WARN, ${report.fail} FAIL**`)
+          lines.push('')
+          lines.push('| Authority | Reference | Outcome | Repairs / warnings / failures |')
+          lines.push('|---|---|---|---|')
+          for (const r of report.results) {
+            const notes = []
+            if (r.repairs?.length) notes.push(`repairs: ${r.repairs.map(x => `${x.field} ${x.current ?? 'null'} → ${x.source}`).join('; ')}`)
+            if (r.warnings?.length) notes.push(`warnings: ${r.warnings.join('; ')}`)
+            if (r.failures?.length) notes.push(`failures: ${r.failures.join('; ')}`)
+            lines.push(`| ${r.authority} | ${r.reference.replaceAll('|','\\|')} | ${r.outcome} | ${(notes.join(' / ') || 'clean').replaceAll('|','\\|')} |`)
+          }
+          fs.writeFileSync('qa-dry-run-comment.md', lines.join('\n') + '\n')
+          NODE
+          gh issue comment 10 --repo "$GITHUB_REPOSITORY" --body-file qa-dry-run-comment.md
