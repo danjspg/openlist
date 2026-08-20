@@ -1,9 +1,8 @@
 name: Verify traffic-driven Planning QA once
 
 on:
-  push:
-    paths:
-      - ".github/workflows/verify-traffic-planning-qa-once.yml"
+  issue_comment:
+    types: [created]
 
 permissions:
   contents: read
@@ -15,6 +14,7 @@ concurrency:
 
 jobs:
   verify:
+    if: ${{ github.event.issue.number == 10 && github.event.comment.body == 'run-expanded-traffic-planning-qa-once' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
