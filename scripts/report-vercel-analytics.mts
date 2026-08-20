@@ -51,11 +51,13 @@ async function main() {
       ])
 
     const topPlanningApplications = planningPaths
-      .filter((row) => row.requestPath.includes("/ref-"))
+      .filter((row) => row.requestPath !== "Others" && row.requestPath.includes("/ref-"))
       .sort((a, b) => b.visitors - a.visitors || b.pageviews - a.pageviews)
       .slice(0, 10)
     const topSoldPrices = soldPaths
-      .filter((row) => row.requestPath !== "/sold-prices")
+      .filter(
+        (row) => row.requestPath !== "Others" && row.requestPath !== "/sold-prices"
+      )
       .sort((a, b) => b.visitors - a.visitors || b.pageviews - a.pageviews)
       .slice(0, 10)
 
