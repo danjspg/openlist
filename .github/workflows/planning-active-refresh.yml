@@ -47,6 +47,12 @@ jobs:
           PLANNING_API_REQUEST_DELAY_MS: "1000"
         run: node --import tsx scripts/refresh-cork-active-details.mts
 
+      - name: Audit active Planning titles and descriptions
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node --import tsx scripts/audit-active-planning-presentation.mts
+
       - name: Revalidate changed Planning detail pages
         if: ${{ always() }}
         env:
