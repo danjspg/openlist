@@ -5,6 +5,7 @@ import Image from "next/image"
 import Link from "next/link"
 import AccountFooterLink from "@/components/AccountFooterLink"
 import AuthStateProvider from "@/components/AuthStateProvider"
+import DataFreshnessBanner from "@/components/DataFreshnessBanner"
 import Nav from "@/components/Nav"
 import "leaflet/dist/leaflet.css"
 import "./globals.css"
@@ -67,6 +68,8 @@ export default function RootLayout({
             </div>
           </div>
           </header>
+
+          <DataFreshnessBanner />
 
           {children}
 
