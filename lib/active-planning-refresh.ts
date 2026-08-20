@@ -13,7 +13,7 @@ export const RECENT_UNKNOWN_FOLLOW_UP_DAYS = 365
 export type ActivePlanningRefreshCandidate = {
   id: string
   local_authority_code: string
-  registration_date: string
+  registration_date: string | null
   normalized_status: string
 }
 
