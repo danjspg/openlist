@@ -1,130 +1,385 @@
 import { createClient } from "@supabase/supabase-js"
-
-import { getPlanningAuthorityByCode } from "../lib/planning-authorities"
-import { planningApplicationPath } from "../lib/property-intelligence"
 import { readFile } from "node:fs/promises"
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-if (!supabaseUrl || !serviceRoleKey) {
-  throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY")
+import {
+  createGoogleSearchConsoleClient,
+  readGoogleSearchConsoleConfig,
+  SearchAnalyticsRow,
+} from "../lib/google-search-console"
+import { getPlanningAuthorityByCode } from "../lib/planning-authorities"
+import { planningApplicationPath } from "../lib/property-intelligence"
+
+type PerformanceRow = {
+  data_date: string
+  clicks: number | string
+  impressions: number | string
+  position: number | string
 }
 
-const supabase = createClient(supabaseUrl, serviceRoleKey, {
-  auth: { persistSession: false, autoRefreshToken: false },
-})
-const { data, error } = await supabase.rpc("openlist_planning_seo_report")
-if (error) throw error
-
-const report = data as Record<string, unknown>
-const inspected = Number(report.sampledUrlsInspected || 0)
-const indexed = Number(report.indexed || 0)
-const left = Number(report.recentUrlsLeftObserved || 0)
-const leftBeforeIndexed = Number(report.recentUrlsLeftBeforeIndexedInspection || 0)
-const percentage = (value: number, denominator: number) =>
-  denominator > 0 ? `${((value / denominator) * 100).toFixed(1)}%` : "n/a"
-
-console.log("Planning SEO measurement")
-console.log(`Captured: ${report.capturedAt}`)
-console.log(`Planning records: ${report.totalPlanningRecords}`)
-console.log(
-  `Sitemaps: ${report.recentSitemapUrls} recent + ${report.notableSitemapUrls} notable`
-)
-console.log(
-  `Latest inspection sample: ${inspected}; ${report.indexed} indexed (${percentage(
-    indexed,
-    inspected
-  )}), ${report.crawled} crawled, ${report.discoveredNotIndexed} discovered/not indexed, ${report.unknownInspected} unknown`
-)
-console.log(`Membership URLs not yet inspected: ${report.notInspected}`)
-console.log(
-  `Median observed days from first sitemap observation to first indexed inspection: ${
-    report.medianObservedDaysToIndexedInspection ?? "n/a"
-  }`
-)
-console.log(
-  `Recent URLs observed leaving before an indexed inspection: ${leftBeforeIndexed}/${left} (${percentage(
-    leftBeforeIndexed,
-    left
-  )})`
-)
-console.log(
-  `Search performance collected: ${report.planningClicks} clicks, ${report.planningImpressions} impressions; ${report.notablePagesWithTraffic} notable pages with impressions`
-)
-
-const notablePages = Number(report.notableCohortPages || 0)
-const recentPages = Number(report.recentCohortPages || 0)
-const perPage = (value: unknown, pages: number) =>
-  pages > 0 ? (Number(value || 0) / pages).toFixed(2) : "n/a"
-console.log(
-  `Current-cohort traffic density: notable ${perPage(
-    report.notableCohortImpressions,
-    notablePages
-  )} impressions/page and ${perPage(
-    report.notableCohortClicks,
-    notablePages
-  )} clicks/page (${notablePages} pages); recent ${perPage(
-    report.recentCohortImpressions,
-    recentPages
-  )} impressions/page and ${perPage(
-    report.recentCohortClicks,
-    recentPages
-  )} clicks/page (${recentPages} pages)`
-)
-
-const qaFileIndex = process.argv.indexOf("--qa-file")
-if (qaFileIndex >= 0 && process.argv[qaFileIndex + 1]) {
-  const qa = JSON.parse(await readFile(process.argv[qaFileIndex + 1], "utf8")) as {
-    checked: number; pass: number; repaired: number; warn: number; unresolvedFailures: number
-    results: Array<{ authority: string; reference: string; path: string; outcome: string; clicks: number; impressions: number; repairedFields?: string[]; warnings?: string[]; failures?: string[]; sourceEvidence: string; action?: string | null }>
-  }
-  console.log("High-interest Planning QA:")
-  console.log(`- Checked: ${qa.checked}`)
-  console.log(`- Pass: ${qa.pass}`)
-  console.log(`- Repaired: ${qa.repaired}`)
-  console.log(`- Warn: ${qa.warn}`)
-  console.log(`- Unresolved failures: ${qa.unresolvedFailures}`)
-  for (const result of qa.results.filter((row) => row.outcome !== "PASS")) {
-    const detail = [...(result.repairedFields || []), ...(result.warnings || []), ...(result.failures || [])].join("; ") || result.action || result.sourceEvidence
-    console.log(`- ${result.authority} ${result.reference}: ${result.outcome} — ${detail} (${result.clicks} clicks, ${result.impressions} impressions; ${result.path})`)
-  }
-}
-
-const sitemapObservations = (report.sitemapObservations || []) as Array<{
-  sitemap_path: string
-  submitted: number | null
-  is_pending: boolean | null
-  errors: number | null
-  warnings: number | null
-}>
-for (const sitemap of sitemapObservations) {
-  console.log(
-    `Search Console sitemap ${sitemap.sitemap_path}: ${
-      sitemap.submitted ?? "unknown"
-    } submitted, ${sitemap.errors ?? 0} errors, ${sitemap.warnings ?? 0} warnings${
-      sitemap.is_pending ? ", pending" : ""
-    }`
-  )
-}
-
-const topPages = (report.topPlanningPages || []) as Array<{
-  local_authority_code: string
-  reference: string
+type PerformanceSummary = {
   clicks: number
   impressions: number
-  is_notable: boolean
-}>
-if (topPages.length > 0) {
-  console.log("Top planning pages:")
-  for (const page of topPages) {
-    const authority = getPlanningAuthorityByCode(page.local_authority_code)
-    const path = authority
-      ? planningApplicationPath(authority, page.reference)
-      : `${page.local_authority_code}/${page.reference}`
+  ctr: number | null
+  position: number | null
+  days: number
+}
+
+type PagePerformance = {
+  page: string
+  clicks: number
+  impressions: number
+  position: number | null
+}
+
+const dateOnly = (date: Date) => date.toISOString().slice(0, 10)
+
+const addDays = (isoDate: string, delta: number) => {
+  const date = new Date(`${isoDate}T00:00:00Z`)
+  date.setUTCDate(date.getUTCDate() + delta)
+  return dateOnly(date)
+}
+
+const summarizePerformance = (
+  rows: PerformanceRow[],
+  startDate: string,
+  endDate: string
+): PerformanceSummary => {
+  let clicks = 0
+  let impressions = 0
+  let weightedPosition = 0
+  const dates = new Set<string>()
+
+  for (const row of rows) {
+    if (row.data_date < startDate || row.data_date > endDate) continue
+    const rowClicks = Number(row.clicks || 0)
+    const rowImpressions = Number(row.impressions || 0)
+    const rowPosition = Number(row.position || 0)
+    clicks += rowClicks
+    impressions += rowImpressions
+    weightedPosition += rowPosition * rowImpressions
+    dates.add(row.data_date)
+  }
+
+  return {
+    clicks,
+    impressions,
+    ctr: impressions > 0 ? clicks / impressions : null,
+    position: impressions > 0 ? weightedPosition / impressions : null,
+    days: dates.size,
+  }
+}
+
+const searchAnalyticsPerformanceRows = (rows: SearchAnalyticsRow[]): PerformanceRow[] =>
+  rows.flatMap((row) => {
+    const dataDate = row.keys?.[0]
+    if (!dataDate) return []
+    return [
+      {
+        data_date: dataDate,
+        clicks: Number(row.clicks || 0),
+        impressions: Number(row.impressions || 0),
+        position: Number(row.position || 0),
+      },
+    ]
+  })
+
+const topPages = (
+  rows: SearchAnalyticsRow[],
+  startDate: string,
+  endDate: string,
+  limit = 10
+): PagePerformance[] => {
+  const pages = new Map<
+    string,
+    { clicks: number; impressions: number; weightedPosition: number }
+  >()
+
+  for (const row of rows) {
+    const dataDate = row.keys?.[0]
+    const page = row.keys?.[1]
+    if (!dataDate || !page || dataDate < startDate || dataDate > endDate) continue
+    const clicks = Number(row.clicks || 0)
+    const impressions = Number(row.impressions || 0)
+    const position = Number(row.position || 0)
+    const current = pages.get(page) || {
+      clicks: 0,
+      impressions: 0,
+      weightedPosition: 0,
+    }
+    current.clicks += clicks
+    current.impressions += impressions
+    current.weightedPosition += position * impressions
+    pages.set(page, current)
+  }
+
+  return [...pages.entries()]
+    .map(([page, value]) => ({
+      page,
+      clicks: value.clicks,
+      impressions: value.impressions,
+      position:
+        value.impressions > 0 ? value.weightedPosition / value.impressions : null,
+    }))
+    .sort((a, b) => b.clicks - a.clicks || b.impressions - a.impressions)
+    .slice(0, limit)
+}
+
+const displayPath = (page: string) => {
+  try {
+    const url = new URL(page)
+    return `${url.pathname}${url.search}`
+  } catch {
+    return page
+  }
+}
+
+const formatPercent = (value: number | null) =>
+  value === null ? "n/a" : `${(value * 100).toFixed(2)}%`
+
+const formatChange = (current: number | null, previous: number | null) => {
+  if (current === null || previous === null || previous === 0) return "n/a"
+  const change = ((current - previous) / previous) * 100
+  return `${change >= 0 ? "+" : ""}${change.toFixed(1)}%`
+}
+
+const formatPositionChange = (current: number | null, previous: number | null) => {
+  if (current === null || previous === null) return "n/a"
+  const improvement = previous - current
+  return `${improvement >= 0 ? "+" : ""}${improvement.toFixed(2)} positions`
+}
+
+function printTrendBlock(
+  label: string,
+  latestDate: string,
+  rows: PerformanceRow[]
+) {
+  const current7Start = addDays(latestDate, -6)
+  const previous7End = addDays(current7Start, -1)
+  const previous7Start = addDays(previous7End, -6)
+  const current28Start = addDays(latestDate, -27)
+  const previous28End = addDays(current28Start, -1)
+  const previous28Start = addDays(previous28End, -27)
+
+  const current7 = summarizePerformance(rows, current7Start, latestDate)
+  const previous7 = summarizePerformance(rows, previous7Start, previous7End)
+  const current28 = summarizePerformance(rows, current28Start, latestDate)
+  const previous28 = summarizePerformance(rows, previous28Start, previous28End)
+
+  console.log(`${label} search performance trends:`)
+  console.log(`- Latest Search Console data date: ${latestDate}`)
+  console.log(
+    `- Last 7 days (${current7.days} collected days): ${current7.clicks} clicks, ${current7.impressions} impressions, CTR ${formatPercent(current7.ctr)}, avg position ${current7.position?.toFixed(2) ?? "n/a"}`
+  )
+  console.log(
+    `- Previous 7 days (${previous7.days} collected days): ${previous7.clicks} clicks, ${previous7.impressions} impressions, CTR ${formatPercent(previous7.ctr)}, avg position ${previous7.position?.toFixed(2) ?? "n/a"}`
+  )
+  console.log(
+    `- 7-day change: clicks ${formatChange(current7.clicks, previous7.clicks)}, impressions ${formatChange(current7.impressions, previous7.impressions)}, CTR ${formatChange(current7.ctr, previous7.ctr)}, avg position ${formatPositionChange(current7.position, previous7.position)}`
+  )
+  console.log(
+    `- Last 28 days (${current28.days} collected days): ${current28.clicks} clicks, ${current28.impressions} impressions, CTR ${formatPercent(current28.ctr)}, avg position ${current28.position?.toFixed(2) ?? "n/a"}`
+  )
+  console.log(
+    `- Previous 28 days (${previous28.days} collected days): ${previous28.clicks} clicks, ${previous28.impressions} impressions, CTR ${formatPercent(previous28.ctr)}, avg position ${previous28.position?.toFixed(2) ?? "n/a"}`
+  )
+  console.log(
+    `- 28-day change: clicks ${formatChange(current28.clicks, previous28.clicks)}, impressions ${formatChange(current28.impressions, previous28.impressions)}, CTR ${formatChange(current28.ctr, previous28.ctr)}, avg position ${formatPositionChange(current28.position, previous28.position)}`
+  )
+
+  return { current28Start }
+}
+
+async function main() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY")
+  }
+
+  const supabase = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
+  const { data, error } = await supabase.rpc("openlist_planning_seo_report")
+  if (error) throw error
+
+  const report = data as Record<string, unknown>
+  const inspected = Number(report.sampledUrlsInspected || 0)
+  const indexed = Number(report.indexed || 0)
+  const left = Number(report.recentUrlsLeftObserved || 0)
+  const leftBeforeIndexed = Number(report.recentUrlsLeftBeforeIndexedInspection || 0)
+  const percentage = (value: number, denominator: number) =>
+    denominator > 0 ? `${((value / denominator) * 100).toFixed(1)}%` : "n/a"
+
+  console.log("OpenList SEO measurement")
+  console.log(`Captured: ${report.capturedAt}`)
+  console.log("Planning")
+  console.log(`Planning records: ${report.totalPlanningRecords}`)
+  console.log(
+    `Sitemaps: ${report.recentSitemapUrls} recent + ${report.notableSitemapUrls} notable`
+  )
+  console.log(
+    `Latest inspection sample: ${inspected}; ${report.indexed} indexed (${percentage(
+      indexed,
+      inspected
+    )}), ${report.crawled} crawled, ${report.discoveredNotIndexed} discovered/not indexed, ${report.unknownInspected} unknown`
+  )
+  console.log(`Membership URLs not yet inspected: ${report.notInspected}`)
+  console.log(
+    `Median observed days from first sitemap observation to first indexed inspection: ${
+      report.medianObservedDaysToIndexedInspection ?? "n/a"
+    }`
+  )
+  console.log(
+    `Recent URLs observed leaving before an indexed inspection: ${leftBeforeIndexed}/${left} (${percentage(
+      leftBeforeIndexed,
+      left
+    )})`
+  )
+  console.log(
+    `Search performance collected: ${report.planningClicks} clicks, ${report.planningImpressions} impressions; ${report.notablePagesWithTraffic} notable pages with impressions`
+  )
+
+  const { data: latestPerformance, error: latestPerformanceError } = await supabase
+    .from("planning_seo_search_performance")
+    .select("data_date")
+    .order("data_date", { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (latestPerformanceError) throw latestPerformanceError
+
+  if (latestPerformance?.data_date) {
+    const latestDate = String(latestPerformance.data_date)
+    const historyStart = addDays(latestDate, -55)
+    const history: PerformanceRow[] = []
+    const pageSize = 1000
+
+    for (let offset = 0; ; offset += pageSize) {
+      const { data: rows, error: rowsError } = await supabase
+        .from("planning_seo_search_performance")
+        .select("data_date,clicks,impressions,position")
+        .gte("data_date", historyStart)
+        .lte("data_date", latestDate)
+        .order("data_date", { ascending: true })
+        .range(offset, offset + pageSize - 1)
+      if (rowsError) throw rowsError
+      history.push(...((rows || []) as PerformanceRow[]))
+      if (!rows || rows.length < pageSize) break
+    }
+
+    printTrendBlock("Planning", latestDate, history)
+
+    const searchConsole = createGoogleSearchConsoleClient(
+      readGoogleSearchConsoleConfig()
+    )
+    const soldRows = await searchConsole.querySoldPricesPerformance(
+      historyStart,
+      latestDate
+    )
+    const soldPerformanceRows = searchAnalyticsPerformanceRows(soldRows)
+    const { current28Start } = printTrendBlock(
+      "Sold Prices",
+      latestDate,
+      soldPerformanceRows
+    )
+
+    const soldTopPages = topPages(soldRows, current28Start, latestDate)
+    if (soldTopPages.length > 0) {
+      console.log("Top Sold Prices pages, last 28 days:")
+      for (const page of soldTopPages) {
+        console.log(
+          `- ${displayPath(page.page)}: ${page.clicks} clicks, ${page.impressions} impressions, avg position ${page.position?.toFixed(2) ?? "n/a"}`
+        )
+      }
+    } else {
+      console.log("Top Sold Prices pages, last 28 days: no Search Console rows")
+    }
     console.log(
-      `- ${path}: ${page.clicks} clicks, ${page.impressions} impressions${
-        page.is_notable ? " [notable]" : ""
+      "Sold Prices performance is read directly from Search Console; daily report snapshots are retained on issue #10. URL Inspection quota remains reserved for Planning."
+    )
+  } else {
+    console.log("Planning search performance trends: no stored Search Console performance rows yet")
+    console.log("Sold Prices search performance trends: waiting for a Planning data-date anchor")
+  }
+
+  const notablePages = Number(report.notableCohortPages || 0)
+  const recentPages = Number(report.recentCohortPages || 0)
+  const perPage = (value: unknown, pages: number) =>
+    pages > 0 ? (Number(value || 0) / pages).toFixed(2) : "n/a"
+  console.log(
+    `Current-cohort traffic density: notable ${perPage(
+      report.notableCohortImpressions,
+      notablePages
+    )} impressions/page and ${perPage(
+      report.notableCohortClicks,
+      notablePages
+    )} clicks/page (${notablePages} pages); recent ${perPage(
+      report.recentCohortImpressions,
+      recentPages
+    )} impressions/page and ${perPage(
+      report.recentCohortClicks,
+      recentPages
+    )} clicks/page (${recentPages} pages)`
+  )
+
+  const qaFileIndex = process.argv.indexOf("--qa-file")
+  if (qaFileIndex >= 0 && process.argv[qaFileIndex + 1]) {
+    const qa = JSON.parse(await readFile(process.argv[qaFileIndex + 1], "utf8")) as {
+      checked: number; pass: number; repaired: number; warn: number; unresolvedFailures: number
+      results: Array<{ authority: string; reference: string; path: string; outcome: string; clicks: number; impressions: number; repairedFields?: string[]; warnings?: string[]; failures?: string[]; sourceEvidence: string; action?: string | null }>
+    }
+    console.log("High-interest Planning QA:")
+    console.log(`- Checked: ${qa.checked}`)
+    console.log(`- Pass: ${qa.pass}`)
+    console.log(`- Repaired: ${qa.repaired}`)
+    console.log(`- Warn: ${qa.warn}`)
+    console.log(`- Unresolved failures: ${qa.unresolvedFailures}`)
+    for (const result of qa.results.filter((row) => row.outcome !== "PASS")) {
+      const detail = [...(result.repairedFields || []), ...(result.warnings || []), ...(result.failures || [])].join("; ") || result.action || result.sourceEvidence
+      console.log(`- ${result.authority} ${result.reference}: ${result.outcome} — ${detail} (${result.clicks} clicks, ${result.impressions} impressions; ${result.path})`)
+    }
+  }
+
+  const sitemapObservations = (report.sitemapObservations || []) as Array<{
+    sitemap_path: string
+    submitted: number | null
+    is_pending: boolean | null
+    errors: number | null
+    warnings: number | null
+  }>
+  for (const sitemap of sitemapObservations) {
+    console.log(
+      `Search Console sitemap ${sitemap.sitemap_path}: ${
+        sitemap.submitted ?? "unknown"
+      } submitted, ${sitemap.errors ?? 0} errors, ${sitemap.warnings ?? 0} warnings${
+        sitemap.is_pending ? ", pending" : ""
       }`
     )
   }
+
+  const planningTopPages = (report.topPlanningPages || []) as Array<{
+    local_authority_code: string
+    reference: string
+    clicks: number
+    impressions: number
+    is_notable: boolean
+  }>
+  if (planningTopPages.length > 0) {
+    console.log("Top planning pages:")
+    for (const page of planningTopPages) {
+      const authority = getPlanningAuthorityByCode(page.local_authority_code)
+      const path = authority
+        ? planningApplicationPath(authority, page.reference)
+        : `${page.local_authority_code}/${page.reference}`
+      console.log(
+        `- ${path}: ${page.clicks} clicks, ${page.impressions} impressions${
+          page.is_notable ? " [notable]" : ""
+        }`
+      )
+    }
+  }
 }
+
+main().catch((error) => {
+  console.error(error)
+  process.exitCode = 1
+})

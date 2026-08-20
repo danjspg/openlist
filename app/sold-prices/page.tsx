@@ -6,6 +6,7 @@ import {
   buildPprDatasetDescription,
   formatPprCountyDisplayName,
   formatPprCurrency,
+  formatPprDate,
   getPprDatasetSummary,
   getPprQuickAreas,
   type PprDateRangeValue,
@@ -47,7 +48,8 @@ export default async function SoldPricesPage({
     await (searchParams || Promise.resolve({}))
   const selectedRange = (resolvedSearchParams.dateRange || "last-year") as PprDateRangeValue
   const analyticsRange = getAnalyticsRange(selectedRange)
-  const [quickAreas, monthlyActivity, homepageStats, nationalSnapshot, allTimeSnapshot] = await Promise.all([
+  const [datasetSummary, quickAreas, monthlyActivity, homepageStats, nationalSnapshot, allTimeSnapshot] = await Promise.all([
+    getPprDatasetSummary(),
     getPprQuickAreas(),
     getNationalActivitySnapshot(),
     getHomepageSoldPriceStats(),
@@ -149,7 +151,8 @@ export default async function SoldPricesPage({
               comparison pages built from recorded Property Price Register transactions.
             </p>
             <p className="mt-3 text-sm text-stone-600">
-              Based on publicly available Property Price Register data.
+              {datasetSummary.latestSaleDate ? `Latest recorded sale: ${formatPprDate(datasetSummary.latestSaleDate)} · ` : ""}
+              Source: Property Price Register
             </p>
           </div>
         </div>

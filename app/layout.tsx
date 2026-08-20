@@ -113,6 +113,9 @@ export default function RootLayout({
                   <Link href="/about" className="transition hover:text-stone-900">
                     About OpenList
                   </Link>
+                  <Link href="/about#data-methodology" className="transition hover:text-stone-900">
+                    Data methodology
+                  </Link>
                   <Link href="/terms" className="transition hover:text-stone-900">
                     Terms
                   </Link>

@@ -236,14 +236,21 @@ async function collectInspections(cohorts: {
   console.log(`URL inspection results ${dryRun ? "selected" : "stored"}: ${stored}`)
 }
 
-const cohorts = await loadSitemapCohorts()
-await collectSitemaps()
-await collectPerformance()
-await collectInspections(cohorts)
-if (promoteNotable) {
-  const promoted = dryRun
-    ? 0
-    : await rpc<number>("openlist_promote_planning_seo_notable")
-  console.log(`Notable applications promoted: ${promoted}`)
+async function main() {
+  const cohorts = await loadSitemapCohorts()
+  await collectSitemaps()
+  await collectPerformance()
+  await collectInspections(cohorts)
+  if (promoteNotable) {
+    const promoted = dryRun
+      ? 0
+      : await rpc<number>("openlist_promote_planning_seo_notable")
+    console.log(`Notable applications promoted: ${promoted}`)
+  }
+  console.log(`Planning SEO collection complete${dryRun ? " (dry run)" : ""}`)
 }
-console.log(`Planning SEO collection complete${dryRun ? " (dry run)" : ""}`)
+
+main().catch((error) => {
+  console.error(error)
+  process.exitCode = 1
+})

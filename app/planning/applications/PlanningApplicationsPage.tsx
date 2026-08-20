@@ -166,6 +166,9 @@ export async function PlanningApplicationsView({
             <p className="mt-5 max-w-3xl text-lg leading-8 text-stone-600">
               {pageDescription}
             </p>
+            <p className="mt-3 text-sm text-stone-600">
+              Latest registered application: {formatPlanningDate(dashboard.latestRegistrationDate)} · Source: {authority?.name ?? "Irish local authorities"}
+            </p>
             {soldPriceCounty ? (
               <Link
                 href={`/sold-prices/${soldPriceCounty.toLowerCase()}`}

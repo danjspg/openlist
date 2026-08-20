@@ -2,8 +2,15 @@ name: Refresh Sold Prices Data
 
 on:
   schedule:
-    - cron: "0 14 * * 3"
+    # The Property Price Register has recently refreshed on Wednesday evenings
+    # around 21:54, so run the following morning rather than before the source update.
+    - cron: "0 6 * * 4"
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/ppr-refresh.yml"
 
 permissions:
   contents: read
