@@ -101,7 +101,8 @@ export function planningProposalTitle(
 ) {
   const text = meaningfulPlanningValue(proposal)
   if (!text) return fallback
-  return cappedPlanningProposalText(titlePresentationText(text), maxLength)
+  const safeText = presentPlanningProposal(text, fallback).display
+  return cappedPlanningProposalText(titlePresentationText(safeText), maxLength)
 }
 
 export function planningProposalSummary(
@@ -111,7 +112,8 @@ export function planningProposalSummary(
 ) {
   const text = meaningfulPlanningValue(proposal)
   if (!text) return fallback
-  return cappedPlanningProposalText(text, maxLength)
+  const safeText = presentPlanningProposal(text, fallback).display
+  return cappedPlanningProposalText(safeText, maxLength)
 }
 
 function cappedPlanningProposalText(text: string, requestedMaxLength: number) {
