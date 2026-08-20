@@ -6,8 +6,8 @@ import SignOutButton from "@/components/SignOutButton"
 import { useAuthState } from "@/components/AuthStateProvider"
 
 const navItems = [
-  { href: "/sold-prices", label: "Sold prices" },
   { href: "/planning", label: "Planning" },
+  { href: "/sold-prices", label: "Sold prices" },
   { href: "/search", label: "Search" },
   { href: "/about", label: "About" },
 ]
