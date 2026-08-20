@@ -94,6 +94,38 @@ export default function AboutPage() {
           </div>
         </div>
 
+        <div
+          id="data-methodology"
+          className="mt-8 scroll-mt-40 rounded-[28px] border border-slate-200 bg-slate-50 p-8 shadow-sm"
+        >
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
+            How the data works
+          </p>
+          <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-900">
+            Public sources, made easier to search and compare
+          </h2>
+          <div className="mt-5 grid gap-6 text-sm leading-6 text-slate-600 md:grid-cols-2">
+            <div>
+              <h3 className="font-semibold text-slate-900">Sold prices</h3>
+              <p className="mt-2">
+                Sold-price records come from Ireland&apos;s public Residential Property Price Register. OpenList standardises the records for search, local pages and market comparisons without changing the published sale price or sale date.
+              </p>
+              <p className="mt-3">
+                The freshness indicator shows the latest sale date currently present in OpenList. It is a useful coverage signal, but the Property Price Register remains the authoritative source.
+              </p>
+            </div>
+            <div>
+              <h3 className="font-semibold text-slate-900">Planning applications</h3>
+              <p className="mt-2">
+                Planning records come from public Irish local-authority sources. OpenList connects those records, normalises status information where possible and presents source-backed lifecycle events and local property context.
+              </p>
+              <p className="mt-3">
+                Planning freshness is scoped to the council when you are viewing a council or application page. The date shown is the latest registration date currently present in that OpenList scope. Always check the linked council record before relying on an application for a decision.
+              </p>
+            </div>
+          </div>
+        </div>
+
         <div className="mt-8 rounded-[28px] border border-slate-200 bg-white p-8 shadow-sm">
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
             Important
