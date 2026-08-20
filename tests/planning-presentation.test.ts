@@ -76,6 +76,17 @@ test("planning metadata summaries use the same boundary-safe source-neutral trea
   assert.ok(summary.length <= 100)
 })
 
+test("short source-truncated proposals are sanitized before title and summary length caps", () => {
+  const original =
+    "Permission for construction of two storey dwelling house, detached domestic gara"
+  const safe = "Permission for construction of two storey dwelling house…"
+
+  assert.equal(planningProposalTitle(original), safe)
+  assert.equal(planningProposalSummary(original), safe)
+  assert.doesNotMatch(planningProposalTitle(original), /\bgara$/i)
+  assert.doesNotMatch(planningProposalSummary(original), /\bgara$/i)
+})
+
 test("a dangling numbered proposal is shortened at a defensible clause boundary", () => {
   const original =
     "Permission for: 1) Demolition of existing attached garage on the west side, 2) P"
