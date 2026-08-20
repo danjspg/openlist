@@ -48,8 +48,6 @@ export function timelineProblems(
 ) {
   const problems: string[] = []
   const registration = fields.registration_date
-  const terminal = [fields.final_grant_date, fields.withdrawal_date, fields.appeal_decision_date]
-    .filter(Boolean) as string[]
   for (const [field, value] of Object.entries(fields)) {
     if (value && registration && field !== "registration_date" && value < registration) {
       problems.push(`${field} precedes registration`)
@@ -61,7 +59,6 @@ export function timelineProblems(
     }
     if (registration && event.event_date < registration) problems.push(`${event.event_type} event precedes registration`)
   }
-  if (terminal.length > 1) problems.push("multiple terminal lifecycle dates are recorded")
   return [...new Set(problems)]
 }
 

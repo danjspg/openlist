@@ -63,3 +63,11 @@ test("the database cohort is detail-only, recent, and capped", () => {
   assert.match(migration, /order by sum\(s\.clicks\) desc, sum\(s\.impressions\) desc/i)
   assert.match(migration, /limit greatest\(1, least\(coalesce\(p_limit, 20\), 20\)\)/i)
 })
+
+test("Cork detail repairs remain limited to its established decision-due enrichment", () => {
+  const script = readFileSync("scripts/audit-high-interest-planning.mts", "utf8")
+  assert.match(script, /registration_date: null, valid_date: null, decision_due_date: "decisionDueDate"/)
+  assert.match(script, /decision_date: null/)
+  // The detail's raw status is deliberately not used for repairs.
+  assert.doesNotMatch(script, /return \{ category: "cork_agile_detail"[^\n]*status:/)
+})

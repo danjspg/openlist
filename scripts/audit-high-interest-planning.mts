@@ -30,10 +30,13 @@ const NATIONAL_FIELD_MAP: Record<LifecycleField, string | null> = {
   appeal_lodged_date: "AppealSubmittedDate", appeal_decision_date: "AppealDecisionDate", expiry_date: "ExpiryDate",
 }
 const CORK_FIELD_MAP: Record<LifecycleField, string | null> = {
-  registration_date: "registrationDate", valid_date: "validDate", decision_due_date: "decisionDueDate",
-  further_information_requested_date: null, further_information_received_date: null, decision_date: "decisionDate",
-  final_grant_date: "finalGrantDate", withdrawal_date: null, appeal_lodged_date: "appealLodgedDate",
-  appeal_decision_date: "appealDecisionDate", expiry_date: null,
+  // Cork detail enrichment is intentionally limited to the field already used
+  // by ingest-cork-planning-applications. Other detail properties have not
+  // been established as lifecycle semantics, so are never inferred here.
+  registration_date: null, valid_date: null, decision_due_date: "decisionDueDate",
+  further_information_requested_date: null, further_information_received_date: null, decision_date: null,
+  final_grant_date: null, withdrawal_date: null, appeal_lodged_date: null,
+  appeal_decision_date: null, expiry_date: null,
 }
 
 type Stored = Record<string, unknown> & {
@@ -67,7 +70,7 @@ async function loadSource(row: Stored): Promise<Source> {
       const sourceField = CORK_FIELD_MAP[field]
       if (sourceField && Object.hasOwn(detail, sourceField) && detail[sourceField] !== undefined) dates[field] = parseCorkCouncilDate(detail[sourceField])
     }
-    return { category: "cork_agile_detail", proposal: authoritativeCorkProposal(row.proposal, detail.fullProposal), status: typeof detail.status === "string" ? detail.status : undefined, dates }
+    return { category: "cork_agile_detail", proposal: authoritativeCorkProposal(row.proposal, detail.fullProposal), dates }
   }
   const authority = getPlanningAuthorityByCode(row.local_authority_code)
   if (!authority) throw new Error("Unknown authority code")
