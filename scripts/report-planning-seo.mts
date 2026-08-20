@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js"
 
 import { getPlanningAuthorityByCode } from "../lib/planning-authorities"
 import { planningApplicationPath } from "../lib/property-intelligence"
+import { readFile } from "node:fs/promises"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -70,6 +71,24 @@ console.log(
     recentPages
   )} clicks/page (${recentPages} pages)`
 )
+
+const qaFileIndex = process.argv.indexOf("--qa-file")
+if (qaFileIndex >= 0 && process.argv[qaFileIndex + 1]) {
+  const qa = JSON.parse(await readFile(process.argv[qaFileIndex + 1], "utf8")) as {
+    checked: number; pass: number; repaired: number; warn: number; unresolvedFailures: number
+    results: Array<{ authority: string; reference: string; path: string; outcome: string; clicks: number; impressions: number; repairedFields?: string[]; warnings?: string[]; failures?: string[]; sourceEvidence: string; action?: string | null }>
+  }
+  console.log("High-interest Planning QA:")
+  console.log(`- Checked: ${qa.checked}`)
+  console.log(`- Pass: ${qa.pass}`)
+  console.log(`- Repaired: ${qa.repaired}`)
+  console.log(`- Warn: ${qa.warn}`)
+  console.log(`- Unresolved failures: ${qa.unresolvedFailures}`)
+  for (const result of qa.results.filter((row) => row.outcome !== "PASS")) {
+    const detail = [...(result.repairedFields || []), ...(result.warnings || []), ...(result.failures || [])].join("; ") || result.action || result.sourceEvidence
+    console.log(`- ${result.authority} ${result.reference}: ${result.outcome} — ${detail} (${result.clicks} clicks, ${result.impressions} impressions; ${result.path})`)
+  }
+}
 
 const sitemapObservations = (report.sitemapObservations || []) as Array<{
   sitemap_path: string

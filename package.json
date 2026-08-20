@@ -29,8 +29,9 @@
     "planning:backfill": "node --env-file=.env.local scripts/backfill-planning-history.mjs",
     "planning:timeline:backfill": "node --env-file=.env.local scripts/backfill-planning-events.mjs",
     "planning:timeline:report": "node --env-file=.env.local scripts/report-planning-timeline.mjs",
-    "planning:seo:collect": "node --env-file=.env.local --import tsx scripts/collect-planning-seo.ts",
-    "planning:seo:report": "node --env-file=.env.local --import tsx scripts/report-planning-seo.ts"
+    "planning:seo:collect": "node --env-file=.env.local --import tsx scripts/collect-planning-seo.mts",
+    "planning:seo:report": "node --env-file=.env.local --import tsx scripts/report-planning-seo.mts",
+    "planning:qa:high-interest": "node --env-file=.env.local --import tsx scripts/audit-high-interest-planning.mts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.103.0",

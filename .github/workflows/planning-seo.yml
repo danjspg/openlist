@@ -5,6 +5,10 @@ on:
     - cron: "20 6 * * *"
   workflow_dispatch:
 
+permissions:
+  contents: read
+  issues: write
+
 concurrency:
   group: planning-seo-measurement
   cancel-in-progress: false
@@ -30,6 +34,38 @@ jobs:
           GOOGLE_SEARCH_CONSOLE_SERVICE_ACCOUNT_JSON_BASE64: ${{ secrets.GOOGLE_SEARCH_CONSOLE_SERVICE_ACCOUNT_JSON_BASE64 }}
           PLANNING_SEO_INSPECTION_LIMIT: "200"
         run: npm run planning:seo:collect
+      - name: Audit high-interest planning pages
+        if: ${{ secrets.GOOGLE_SEARCH_CONSOLE_SERVICE_ACCOUNT_JSON_BASE64 != '' }}
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: npm run planning:qa:high-interest -- --output artifacts/high-interest-planning-qa.json
+      - name: Build latest Planning SEO report
+        if: ${{ secrets.GOOGLE_SEARCH_CONSOLE_SERVICE_ACCOUNT_JSON_BASE64 != '' }}
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: npm run planning:seo:report -- --qa-file artifacts/high-interest-planning-qa.json | tee artifacts/planning-seo-report.txt
+      - name: Publish latest report to issue #10
+        if: ${{ secrets.GOOGLE_SEARCH_CONSOLE_SERVICE_ACCOUNT_JSON_BASE64 != '' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs')
+            const report = fs.readFileSync('artifacts/planning-seo-report.txt', 'utf8')
+            const body = `<!-- openlist-planning-seo-latest -->\n## Latest Planning SEO report\n\n\`\`\`text\n${report.slice(-60000)}\n\`\`\``
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner, repo: context.repo.repo, issue_number: 10, per_page: 100
+            })
+            const latest = comments.find(comment => comment.body?.includes('<!-- openlist-planning-seo-latest -->'))
+            if (latest) await github.rest.issues.updateComment({ owner: context.repo.owner, repo: context.repo.repo, comment_id: latest.id, body })
+            else await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: 10, body })
+      - name: Upload Planning SEO snapshot
+        if: ${{ always() && hashFiles('artifacts/**') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: planning-seo-${{ github.run_id }}
+          path: artifacts/
       - name: Explain skipped collection
         if: ${{ secrets.GOOGLE_SEARCH_CONSOLE_SERVICE_ACCOUNT_JSON_BASE64 == '' }}
         run: echo "Planning SEO collection skipped because Search Console credentials are not configured."
