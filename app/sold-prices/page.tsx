@@ -151,7 +151,7 @@ export default async function SoldPricesPage({
               comparison pages built from recorded Property Price Register transactions.
             </p>
             <p className="mt-3 text-sm text-stone-600">
-              {datasetSummary.latestSaleDate ? `Data current to ${formatPprDate(datasetSummary.latestSaleDate)} · ` : ""}
+              {datasetSummary.latestSaleDate ? `Latest recorded sale: ${formatPprDate(datasetSummary.latestSaleDate)} · ` : ""}
               Source: Property Price Register
             </p>
           </div>
