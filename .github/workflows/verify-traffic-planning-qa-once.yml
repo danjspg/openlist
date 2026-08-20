@@ -1,0 +1,79 @@
+name: Verify traffic-driven Planning QA once
+
+on:
+  push:
+    paths:
+      - ".github/workflows/verify-traffic-planning-qa-once.yml"
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Focused QA tests
+        run: node --import tsx --test tests/high-interest-planning-qa.test.ts
+      - name: Run expanded traffic-driven Planning QA
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: prj_B0Xv1saCD6kpikTddQIz7CIbsTVG
+          VERCEL_TEAM_ID: team_ETMDWzXyHeT4h44JaGEATZDn
+          PLANNING_TRAFFIC_QA_BATCH_SIZE: "25"
+          PLANNING_QA_SEARCH_EXPOSURE_LIMIT: "20"
+        run: node --import tsx scripts/audit-high-interest-planning.mts --output artifacts/traffic-planning-qa.json
+      - name: Revalidate repaired Planning pages
+        env:
+          PLANNING_REVALIDATION_URL: ${{ secrets.PLANNING_REVALIDATION_URL }}
+          PLANNING_REVALIDATION_SECRET: ${{ secrets.PLANNING_REVALIDATION_SECRET }}
+        run: node scripts/drain-planning-revalidation.mjs
+      - name: Publish verification summary
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node - <<'NODE'
+          const fs = require('fs')
+          const qa = JSON.parse(fs.readFileSync('artifacts/traffic-planning-qa.json', 'utf8'))
+          const lines = [
+            'Expanded traffic-driven Planning QA verification:',
+            '',
+            '```text',
+            `Traffic-bearing candidates: ${qa.trafficCandidates}`,
+            `Supplementary zero-click Search exposure candidates: ${qa.searchExposureCandidates}`,
+            `Vercel detail paths discovered: ${qa.vercelPathsDiscovered}`,
+            `Vercel expansion beyond top 100 used: ${qa.vercelExpandedBeyondTop100}`,
+            `Vercel daily partitions still truncated: ${qa.vercelTruncatedDailyPartitions}`,
+            `Vercel error: ${qa.vercelError ?? 'none'}`,
+            `Checked: ${qa.checked}`,
+            `Pass: ${qa.pass}`,
+            `Repaired: ${qa.repaired}`,
+            `Warn: ${qa.warn}`,
+            `Fail: ${qa.fail}`,
+            '```',
+          ]
+          const repairs = qa.results.filter((row) => row.outcome === 'REPAIRED')
+          if (repairs.length) {
+            lines.push('', 'Repairs:')
+            for (const row of repairs.slice(0, 30)) lines.push(`- ${row.authority} ${row.reference}: ${(row.repairedFields || []).join(', ')} (${row.path})`)
+            if (repairs.length > 30) lines.push(`- ...and ${repairs.length - 30} more`)
+          }
+          const failures = qa.results.filter((row) => row.outcome === 'FAIL')
+          if (failures.length) {
+            lines.push('', 'Failures:')
+            for (const row of failures.slice(0, 20)) lines.push(`- ${row.authority} ${row.reference}: ${(row.failures || []).join('; ')} (${row.path})`)
+          }
+          fs.writeFileSync('traffic-qa-comment.md', `${lines.join('\n')}\n`)
+          NODE
+          gh issue comment 10 --repo "$GITHUB_REPOSITORY" --body-file traffic-qa-comment.md
