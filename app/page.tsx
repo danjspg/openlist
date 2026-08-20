@@ -61,7 +61,7 @@ export default async function HomePage() {
             </p>
 
             <h1 className="mt-4 max-w-3xl text-4xl font-semibold tracking-tight text-stone-900 sm:mt-5 sm:text-5xl md:text-[3.5rem] md:leading-[1.05]">
-              Sold prices and planning, in one place
+              Planning &amp; Sold Prices Across Ireland
             </h1>
 
             <p className="mt-5 max-w-[36rem] text-base leading-7 text-stone-600 sm:mt-6 sm:text-lg sm:leading-8">
