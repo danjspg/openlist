@@ -9,6 +9,10 @@ permissions:
   contents: read
   issues: write
 
+concurrency:
+  group: verify-traffic-driven-planning-qa
+  cancel-in-progress: true
+
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -20,6 +24,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Mark verification started
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh issue comment 10 --repo "$GITHUB_REPOSITORY" --body "Expanded traffic-driven Planning QA verification started for commit $GITHUB_SHA."
       - name: Typecheck
         run: npm run typecheck
       - name: Focused QA tests
@@ -40,6 +48,7 @@ jobs:
           PLANNING_REVALIDATION_SECRET: ${{ secrets.PLANNING_REVALIDATION_SECRET }}
         run: node scripts/drain-planning-revalidation.mjs
       - name: Publish verification summary
+        if: ${{ success() }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -77,3 +86,8 @@ jobs:
           fs.writeFileSync('traffic-qa-comment.md', `${lines.join('\n')}\n`)
           NODE
           gh issue comment 10 --repo "$GITHUB_REPOSITORY" --body-file traffic-qa-comment.md
+      - name: Publish verification failure marker
+        if: ${{ failure() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh issue comment 10 --repo "$GITHUB_REPOSITORY" --body "Expanded traffic-driven Planning QA verification failed for commit $GITHUB_SHA. See the workflow run for the failing step before retrying."
