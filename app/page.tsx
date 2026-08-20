@@ -12,7 +12,7 @@ import { formatPlanningDate } from "@/lib/planning"
 import { getHomepagePlanningSummary } from "@/lib/homepage-data"
 
 export const metadata: Metadata = {
-  title: "OpenList | Property Intelligence for Ireland",
+  title: "Planning Applications & Sold Prices Ireland | OpenList",
   description:
     "Search Irish sold prices and planning applications. Check recorded property sales, local market trends and development activity across Ireland.",
   alternates: {
@@ -81,42 +81,24 @@ export default async function HomePage() {
 
             <div className="mt-8 flex flex-wrap gap-3 sm:mt-9 sm:gap-4">
               <Link
-                href="/sold-prices"
+                href="/planning"
                 className="rounded-full bg-stone-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-stone-700 sm:px-6"
               >
-                Search sold prices
+                Search planning
               </Link>
               <Link
-                href="/planning"
+                href="/sold-prices"
                 className="rounded-full border border-stone-300 px-5 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900 sm:px-6"
               >
-                Search planning
+                Search sold prices
               </Link>
             </div>
 
             <div className="mt-7 grid gap-3 sm:grid-cols-2 lg:mt-8">
-              <article className="rounded-2xl border border-stone-200 bg-white/85 px-4 py-4 shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
-                  Sold prices
-                </p>
-                <h2 className="mt-2 text-base font-semibold tracking-tight text-stone-900">
-                  See what homes actually sold for
-                </h2>
-                <p className="mt-1.5 text-sm leading-5 text-stone-600">
-                  Search Property Price Register transactions, compare areas and explore local market trends.
-                </p>
-                <p className="mt-3 text-xs leading-5 text-stone-500">
-                  {numberFormat.format(datasetSummary.salesCount)} recorded sales
-                  {datasetSummary.latestSaleDate
-                    ? ` · latest recorded sale ${formatPprDate(datasetSummary.latestSaleDate)}`
-                    : ""}
-                </p>
-                <p className="text-xs leading-5 text-stone-400">
-                  Source: Property Price Register
-                </p>
-              </article>
-
-              <article className="rounded-2xl border border-stone-200 bg-white/85 px-4 py-4 shadow-sm">
+              <Link
+                href="/planning"
+                className="group rounded-2xl border border-stone-200 bg-white/85 px-4 py-4 shadow-sm transition hover:-translate-y-0.5 hover:border-stone-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300"
+              >
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
                   Planning applications
                 </p>
@@ -137,7 +119,37 @@ export default async function HomePage() {
                 <p className="text-xs leading-5 text-stone-400">
                   Source: Irish local authorities
                 </p>
-              </article>
+                <p className="mt-3 text-sm font-semibold text-stone-800">
+                  Search planning <span aria-hidden="true" className="transition group-hover:translate-x-0.5">→</span>
+                </p>
+              </Link>
+
+              <Link
+                href="/sold-prices"
+                className="group rounded-2xl border border-stone-200 bg-white/85 px-4 py-4 shadow-sm transition hover:-translate-y-0.5 hover:border-stone-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300"
+              >
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
+                  Sold prices
+                </p>
+                <h2 className="mt-2 text-base font-semibold tracking-tight text-stone-900">
+                  See what homes actually sold for
+                </h2>
+                <p className="mt-1.5 text-sm leading-5 text-stone-600">
+                  Search Property Price Register transactions, compare areas and explore local market trends.
+                </p>
+                <p className="mt-3 text-xs leading-5 text-stone-500">
+                  {numberFormat.format(datasetSummary.salesCount)} recorded sales
+                  {datasetSummary.latestSaleDate
+                    ? ` · latest recorded sale ${formatPprDate(datasetSummary.latestSaleDate)}`
+                    : ""}
+                </p>
+                <p className="text-xs leading-5 text-stone-400">
+                  Source: Property Price Register
+                </p>
+                <p className="mt-3 text-sm font-semibold text-stone-800">
+                  Search sold prices <span aria-hidden="true" className="transition group-hover:translate-x-0.5">→</span>
+                </p>
+              </Link>
             </div>
           </div>
 
