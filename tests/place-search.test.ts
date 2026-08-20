@@ -78,6 +78,8 @@ test("an unambiguous exact place can safely scope recent sold prices", () => {
 
 test("search intent distinguishes references, Eircodes, addresses and areas", () => {
   assert.equal(classifyUnifiedSearchIntent("26/1638"), "planning-reference")
+  assert.equal(classifyUnifiedSearchIntent("2661214"), "planning-reference")
+  assert.equal(classifyUnifiedSearchIntent("26101"), "planning-reference")
   assert.equal(classifyUnifiedSearchIntent("T45 PX70"), "eircode")
   assert.equal(classifyUnifiedSearchIntent("D6W F2H3"), "eircode")
   assert.equal(classifyUnifiedSearchIntent("A65 O4E2"), "invalid-eircode")
