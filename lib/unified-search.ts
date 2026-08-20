@@ -195,7 +195,7 @@ const searchPropertyIntelligenceCached = unstable_cache(
     dataUnavailable: false,
   }
   },
-  ["unified-property-search", "v11-exact-place-sales"],
+  ["unified-property-search", "v12-numeric-planning-references"],
   { revalidate: 60 * 60 }
 )
 
