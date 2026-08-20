@@ -12,6 +12,7 @@ import {
   formatPlanningMonth,
   getPlanningDashboard,
   normalisePlanningSearchParams,
+  type PlanningApplication,
   type PlanningCountStat,
   type PlanningSearchParams,
 } from "@/lib/planning"
@@ -84,6 +85,7 @@ export async function PlanningApplicationsView({
       applicant: application.applicant_name,
       applicationType: application.application_type,
       decision: application.decision_text,
+      latestEvent: latestPlanningLifecycleEvent(application),
       detailHref: resultAuthority
         ? planningApplicationPath(resultAuthority, application.reference)
         : null,
@@ -1023,4 +1025,50 @@ function InsightCard({
 
 function formatPlanningCount(value: number) {
   return value.toLocaleString("en-IE")
+}
+
+function latestPlanningLifecycleEvent(
+  application: PlanningApplication
+): PlanningResultRecord["latestEvent"] {
+  type LifecycleEvent = NonNullable<PlanningResultRecord["latestEvent"]>
+
+  const events: Array<LifecycleEvent | null> = [
+    application.appeal_decision_date
+      ? { label: "Appeal decision", date: application.appeal_decision_date, detail: null }
+      : null,
+    application.final_grant_date
+      ? { label: "Final grant", date: application.final_grant_date, detail: null }
+      : null,
+    application.withdrawal_date
+      ? { label: "Withdrawn", date: application.withdrawal_date, detail: null }
+      : null,
+    application.decision_date
+      ? {
+          label: "Decision",
+          date: application.decision_date,
+          detail: application.decision_text,
+        }
+      : null,
+    application.appeal_lodged_date
+      ? { label: "Appeal lodged", date: application.appeal_lodged_date, detail: null }
+      : null,
+    application.further_information_received_date
+      ? {
+          label: "Further information received",
+          date: application.further_information_received_date,
+          detail: null,
+        }
+      : null,
+    application.further_information_requested_date
+      ? {
+          label: "Further information requested",
+          date: application.further_information_requested_date,
+          detail: null,
+        }
+      : null,
+  ]
+
+  return events
+    .filter((event): event is LifecycleEvent => event !== null)
+    .sort((left, right) => right.date.localeCompare(left.date))[0] ?? null
 }
