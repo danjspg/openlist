@@ -10,6 +10,7 @@ import {
   type ViewingRow,
 } from "@/lib/viewings"
 import { updateViewing } from "../../actions"
+import PrivacyReference from "@/components/PrivacyReference"
 
 export const metadata: Metadata = {
   title: "Update Viewing | OpenList",
@@ -309,6 +310,9 @@ export default async function EditViewingPage({
                   Cancel
                 </Link>
               </div>
+              <PrivacyReference>
+                By updating a viewing, you agree that OpenList may use the email addresses and notification choices you provide to send the viewing communications you request. See our
+              </PrivacyReference>
             </form>
           )}
         </div>

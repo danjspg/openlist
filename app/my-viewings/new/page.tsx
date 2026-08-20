@@ -9,6 +9,7 @@ import {
   type ViewingRow,
 } from "@/lib/viewings"
 import { createViewing } from "../actions"
+import PrivacyReference from "@/components/PrivacyReference"
 
 export const metadata: Metadata = {
   title: "New Viewing | OpenList",
@@ -318,6 +319,9 @@ export default async function NewViewingPage({
                 Cancel
               </Link>
             </div>
+            <PrivacyReference>
+              By creating a viewing, you agree that OpenList may use the email addresses and notification choices you provide to send the viewing communications you request. See our
+            </PrivacyReference>
           </form>
         </div>
       </section>

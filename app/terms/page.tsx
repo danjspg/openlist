@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import Link from "next/link"
 
 export const metadata: Metadata = {
   title: "Terms of Service | OpenList",
@@ -170,7 +171,7 @@ export default function TermsPage() {
             </TermsSection>
 
             <TermsSection title="11. Privacy">
-              <p>OpenList processes personal data in accordance with applicable data-protection law.</p>
+              <p>OpenList processes personal data in accordance with applicable data-protection law. See the <Link href="/privacy" className="font-medium text-slate-700 underline underline-offset-4 transition hover:text-slate-950">Privacy Notice</Link>.</p>
             </TermsSection>
 
             <TermsSection title="12. Changes to These Terms">

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { getAuthCallbackUrl, getSafeRedirectPath } from "@/lib/site-url"
 import { supabase } from "@/lib/supabase"
+import PrivacyReference from "@/components/PrivacyReference"
 
 export default function AuthEmailForm({
   redirectTo,
@@ -80,6 +81,9 @@ export default function AuthEmailForm({
       <p className="mt-2 text-xs text-stone-500">
         We&apos;ll email you a secure sign-in link. If you don&apos;t have an account yet, one will be created for you.
       </p>
+      <div className="mt-2">
+        <PrivacyReference />
+      </div>
 
       {process.env.NODE_ENV !== "production" && redirectUrl && (
         <p className="mt-3 break-words rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-xs leading-5 text-stone-500">
