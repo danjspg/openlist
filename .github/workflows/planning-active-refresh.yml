@@ -1,0 +1,47 @@
+name: Refresh Active Planning Applications
+
+on:
+  schedule:
+    - cron: "5 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: planning-active-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh-active:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test active refresh range planning
+        run: node --import tsx --test tests/active-planning-refresh.test.ts
+
+      - name: Refresh active Planning applications
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          PLANNING_ACTIVE_REFRESH_RANGE_DELAY_MS: "500"
+        run: node --import tsx scripts/refresh-active-planning-applications.mts
+
+      - name: Revalidate changed Planning detail pages
+        if: ${{ always() }}
+        env:
+          PLANNING_REVALIDATION_URL: ${{ secrets.PLANNING_REVALIDATION_URL }}
+          PLANNING_REVALIDATION_SECRET: ${{ secrets.PLANNING_REVALIDATION_SECRET }}
+        run: node scripts/drain-planning-revalidation.mjs
