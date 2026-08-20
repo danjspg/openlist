@@ -106,7 +106,7 @@ export default async function HomePage() {
                   Search Property Price Register transactions, compare areas and explore local market trends.
                 </p>
                 <p className="mt-3 text-xs leading-5 text-stone-500">
-                  {numberFormat.format(datasetSummary.totalSales)} recorded sales
+                  {numberFormat.format(datasetSummary.salesCount)} recorded sales
                   {datasetSummary.latestSaleDate
                     ? ` · latest recorded sale ${formatPprDate(datasetSummary.latestSaleDate)}`
                     : ""}
