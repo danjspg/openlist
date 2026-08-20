@@ -1,4 +1,4 @@
-name: One-off high-interest planning QA dry-run
+name: One-off dispatch Planning SEO after QA gate
 
 on:
   push:
@@ -6,64 +6,49 @@ on:
       - ".github/workflows/qa-high-interest-dry-run-once.yml"
 
 permissions:
+  actions: write
   contents: read
   issues: write
 
 jobs:
-  qa:
+  dispatch:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 35
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - name: Run high-interest QA dry-run
-        id: qa
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      - name: Dispatch Planning SEO workflow
+        run: gh workflow run planning-seo.yml --repo "$GITHUB_REPOSITORY" --ref main
+      - name: Find dispatched run
+        id: find
+        run: |
+          run_id=""
+          for attempt in $(seq 1 20); do
+            run_id=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow planning-seo.yml --event workflow_dispatch --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+            if [ -n "$run_id" ]; then break; fi
+            sleep 3
+          done
+          if [ -z "$run_id" ]; then
+            echo "Could not find dispatched Planning SEO run" >&2
+            exit 1
+          fi
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+      - name: Wait for Planning SEO workflow
+        id: wait
         run: |
           set +e
-          node --import tsx scripts/audit-high-interest-planning.mts --dry-run --output artifacts/high-interest-planning-qa.json 2>&1 | tee qa-dry-run.log
-          code=${PIPESTATUS[0]}
-          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          gh run watch "${{ steps.find.outputs.run_id }}" --repo "$GITHUB_REPOSITORY" --exit-status
+          code=$?
+          echo "watch_exit=$code" >> "$GITHUB_OUTPUT"
           exit 0
-      - name: Publish dry-run result to issue 10
+      - name: Publish workflow result to issue 10
         if: always()
         env:
-          GH_TOKEN: ${{ github.token }}
-          QA_EXIT_CODE: ${{ steps.qa.outputs.exit_code }}
+          RUN_ID: ${{ steps.find.outputs.run_id }}
         run: |
-          node <<'NODE'
-          const fs = require('fs')
-          const lines = []
-          if (fs.existsSync('artifacts/high-interest-planning-qa.json')) {
-            const report = JSON.parse(fs.readFileSync('artifacts/high-interest-planning-qa.json', 'utf8'))
-            lines.push(`One-off high-interest Planning QA dry-run: ${report.generatedAt}`)
-            lines.push('')
-            lines.push(`**${report.checked} checked: ${report.pass} PASS, ${report.repairable} REPAIRABLE, ${report.warn} WARN, ${report.fail} FAIL**`)
-            lines.push('')
-            lines.push('| Authority | Reference | Outcome | Repairs / warnings / failures |')
-            lines.push('|---|---|---|---|')
-            for (const r of report.results) {
-              const notes = []
-              if (r.repairs?.length) notes.push(`repairs: ${r.repairs.map(x => `${x.field} ${x.current ?? 'null'} → ${x.source}`).join('; ')}`)
-              if (r.warnings?.length) notes.push(`warnings: ${r.warnings.join('; ')}`)
-              if (r.failures?.length) notes.push(`failures: ${r.failures.join('; ')}`)
-              lines.push(`| ${r.authority} | ${r.reference.replaceAll('|','\\|')} | ${r.outcome} | ${(notes.join(' / ') || 'clean').replaceAll('|','\\|')} |`)
-            }
-          } else {
-            lines.push('One-off high-interest Planning QA dry-run failed before producing an artifact.')
-            lines.push('')
-            lines.push(`Exit code: ${process.env.QA_EXIT_CODE || 'unknown'}`)
-            if (fs.existsSync('qa-dry-run.log')) {
-              const tail = fs.readFileSync('qa-dry-run.log', 'utf8').split('\n').slice(-80).join('\n')
-              lines.push('', '```text', tail, '```')
-            }
-          }
-          fs.writeFileSync('qa-dry-run-comment.md', lines.join('\n') + '\n')
-          NODE
-          gh issue comment 10 --repo "$GITHUB_REPOSITORY" --body-file qa-dry-run-comment.md
+          if [ -z "$RUN_ID" ]; then
+            gh issue comment 10 --repo "$GITHUB_REPOSITORY" --body "Post-QA Planning SEO dispatch failed before a run ID was found."
+            exit 0
+          fi
+          result=$(gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY" --json status,conclusion,url,createdAt,updatedAt --jq '"Post-QA full Planning SEO workflow: " + .status + "/" + (.conclusion // "pending") + " — " + .url')
+          gh issue comment 10 --repo "$GITHUB_REPOSITORY" --body "$result"
