@@ -57,7 +57,6 @@ export function timelineProblems(
     if (event.event_type === "decision_made" && event.source_field === "decision_due_date") {
       problems.push("decision due date created a Decision made event")
     }
-    if (registration && event.event_date < registration) problems.push(`${event.event_type} event precedes registration`)
   }
   return [...new Set(problems)]
 }

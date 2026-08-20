@@ -43,12 +43,22 @@ test("ambiguous proposal differences remain warnings rather than speculative rep
   assert.equal(classifyHighInterestQa({ warnings: ["authoritative proposal differs without an unambiguous fuller replacement"] }), "WARN")
 })
 
-test("timeline QA catches impossible dates and decision events sourced from targets", () => {
+test("timeline QA catches impossible lifecycle dates and decision events sourced from targets", () => {
   const problems = timelineProblems(
-    { registration_date: "2026-03-10", decision_due_date: "2026-04-10", decision_date: null },
+    { registration_date: "2026-03-10", decision_due_date: "2026-04-10", decision_date: null, valid_date: "2026-03-01" },
     [{ event_type: "decision_made", event_date: "2026-04-10", source_field: "decision_due_date" }]
   )
-  assert.deepEqual(problems, ["decision due date created a Decision made event"])
+  assert.deepEqual(problems, ["valid_date precedes registration", "decision due date created a Decision made event"])
+})
+
+test("immutable historical events do not become contradictions after a source-date correction", () => {
+  assert.deepEqual(
+    timelineProblems(
+      { registration_date: "2026-03-10" },
+      [{ event_type: "application_received", event_date: "2026-03-01", source_field: "registration_date" }]
+    ),
+    []
+  )
 })
 
 test("one source failure is contained to its application", () => {
