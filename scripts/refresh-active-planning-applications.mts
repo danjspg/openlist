@@ -12,6 +12,16 @@ import {
   subtractUtcDays,
   type ActivePlanningRefreshCandidate,
 } from "../lib/active-planning-refresh"
+import {
+  PLANNING_COMPARISON_FIELDS,
+  planningRecordChangedFields,
+} from "../lib/planning-ingestion-diff.mjs"
+import {
+  AUTHORITIES,
+  enrichChangedNationalRecords,
+  mapApplication,
+} from "./ingest-national-planning-applications.mjs"
+import { upsertPlanningBatch } from "./planning-upsert.mjs"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -24,12 +34,31 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
 })
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const pageSize = 1000
+const nationalBatchSize = 150
 const corkAuthorityCode = "CORKCOCO"
+const nationalFeatureUrl =
+  "https://services.arcgis.com/NzlPQPKn5QF9v2US/ArcGIS/rest/services/IrishPlanningApplications/FeatureServer/0/query"
 const rangeDelayMs = Math.max(
   0,
   Number(process.env.PLANNING_ACTIVE_REFRESH_RANGE_DELAY_MS || 500)
 )
 const dryRun = process.argv.includes("--dry-run")
+
+const preserveWhenSourceNull = [
+  "registration_date",
+  "valid_date",
+  "decision_due_date",
+  "further_information_requested_date",
+  "further_information_received_date",
+  "decision_date",
+  "final_grant_date",
+  "withdrawal_date",
+  "appeal_lodged_date",
+  "appeal_decision_date",
+  "expiry_date",
+  "dispatch_date",
+  "appeal_notify_date",
+]
 
 function todayUtc() {
   return new Date().toISOString().slice(0, 10)
@@ -39,9 +68,19 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-type CandidateRow = ActivePlanningRefreshCandidate & {
-  decision_date: string | null
+function chunks<T>(items: T[], size: number) {
+  const result: T[][] = []
+  for (let index = 0; index < items.length; index += size) {
+    result.push(items.slice(index, index + size))
+  }
+  return result
 }
+
+type CandidateRow = ActivePlanningRefreshCandidate & Record<string, any>
+
+const candidateSelect = Array.from(
+  new Set(["id", "normalized_status", ...PLANNING_COMPARISON_FIELDS])
+).join(",")
 
 async function fetchPagedCandidates(
   label: string,
@@ -51,8 +90,7 @@ async function fetchPagedCandidates(
   for (let offset = 0; ; offset += pageSize) {
     let query = supabase
       .from("planning_applications")
-      .select("id,local_authority_code,registration_date,normalized_status,decision_date")
-      .not("registration_date", "is", null)
+      .select(candidateSelect)
       .order("id", { ascending: true })
       .range(offset, offset + pageSize - 1)
     query = configure(query)
@@ -62,17 +100,6 @@ async function fetchPagedCandidates(
     if (!data || data.length < pageSize) break
   }
   return rows
-}
-
-async function countMissingRegistrationDates() {
-  const statuses = [...DAILY_ACTIVE_PLANNING_STATUSES, "decision_made"]
-  const { count, error } = await supabase
-    .from("planning_applications")
-    .select("id", { count: "exact", head: true })
-    .in("normalized_status", statuses)
-    .is("registration_date", null)
-  if (error) throw error
-  return count || 0
 }
 
 async function loadCandidates(today: string) {
@@ -107,6 +134,138 @@ async function loadCandidates(today: string) {
     decisionCutoff,
     unknownCutoff,
   }
+}
+
+function preserveKnownSourceHistory(existing: CandidateRow, incoming: Record<string, any>) {
+  const result = { ...incoming }
+  for (const field of preserveWhenSourceNull) {
+    if ((result[field] === null || result[field] === undefined) && existing[field]) {
+      result[field] = existing[field]
+    }
+  }
+
+  const currentProposal = String(existing.proposal || "").trim().replace(/\s+/g, " ")
+  const incomingProposal = String(result.proposal || "").trim().replace(/\s+/g, " ")
+  if (
+    currentProposal &&
+    incomingProposal &&
+    currentProposal.length > incomingProposal.length &&
+    currentProposal.startsWith(incomingProposal)
+  ) {
+    result.proposal = existing.proposal
+  }
+  return result
+}
+
+async function fetchNationalFeatures(sourceIds: number[]) {
+  const params = new URLSearchParams({
+    where: `OBJECTID IN (${sourceIds.join(",")})`,
+    outFields: "*",
+    returnGeometry: "false",
+    f: "json",
+    resultRecordCount: String(sourceIds.length),
+  })
+  let lastError: Error | null = null
+
+  for (let attempt = 1; attempt <= 4; attempt += 1) {
+    try {
+      const response = await fetch(`${nationalFeatureUrl}?${params.toString()}`, {
+        headers: { "User-Agent": "OpenList daily active planning refresh" },
+      })
+      if (response.ok) {
+        const data = await response.json()
+        if (data.error) throw new Error(data.error.message || JSON.stringify(data.error))
+        return (data.features || []).map((feature: any) => feature.attributes || {})
+      }
+      lastError = new Error(`ArcGIS active refresh: HTTP ${response.status}`)
+      if (![408, 425, 429, 500, 502, 503, 504].includes(response.status)) break
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error))
+    }
+    await sleep(attempt * 750)
+  }
+  throw lastError || new Error("ArcGIS active refresh failed")
+}
+
+async function refreshNationalExact(candidates: CandidateRow[]) {
+  const authorityByCode = new Map(AUTHORITIES.map((authority: any) => [authority.code, authority]))
+  const candidatesByAuthority = new Map<string, CandidateRow[]>()
+  const fallback: CandidateRow[] = []
+
+  for (const candidate of candidates) {
+    if (candidate.local_authority_code === corkAuthorityCode) {
+      fallback.push(candidate)
+      continue
+    }
+    const sourceId = Number(candidate.source_application_id)
+    if (!Number.isInteger(sourceId) || !authorityByCode.has(candidate.local_authority_code)) {
+      fallback.push(candidate)
+      continue
+    }
+    const rows = candidatesByAuthority.get(candidate.local_authority_code) || []
+    rows.push(candidate)
+    candidatesByAuthority.set(candidate.local_authority_code, rows)
+  }
+
+  let checked = 0
+  let changed = 0
+  const changeFieldCounts: Record<string, number> = {}
+
+  for (const [authorityCode, authorityCandidates] of Array.from(candidatesByAuthority.entries()).sort()) {
+    const authority: any = authorityByCode.get(authorityCode)
+    console.log(
+      `${authorityCode}: exact authoritative refresh for ${authorityCandidates.length} active/follow-up applications.`
+    )
+
+    for (const batch of chunks(authorityCandidates, nationalBatchSize)) {
+      const sourceIds = batch.map((row) => Number(row.source_application_id))
+      const sourceRows = await fetchNationalFeatures(sourceIds)
+      const sourceIdsReturned = new Set(sourceRows.map((row: any) => Number(row.OBJECTID)))
+      const missing = batch.filter(
+        (candidate) => !sourceIdsReturned.has(Number(candidate.source_application_id))
+      )
+      fallback.push(...missing)
+
+      let mapped = sourceRows
+        .map((row: any) => mapApplication(row, authority, { storePayload: false }))
+        .filter(Boolean)
+      mapped = await enrichChangedNationalRecords(mapped, authority, undefined, {
+        failureMode: "best-effort",
+        budget: 100,
+      })
+      const incomingByReference = new Map(
+        mapped.map((record: any) => [record.reference, record])
+      )
+      const changedRecords: Record<string, any>[] = []
+
+      for (const candidate of batch) {
+        const incoming = incomingByReference.get(candidate.reference)
+        if (!incoming) continue
+        checked += 1
+        const safeIncoming = preserveKnownSourceHistory(candidate, incoming)
+        const fields = planningRecordChangedFields(candidate, safeIncoming)
+        if (fields.length === 0) continue
+        changed += 1
+        for (const field of fields) {
+          changeFieldCounts[field] = (changeFieldCounts[field] || 0) + 1
+        }
+        console.log(`${authorityCode} ${candidate.reference}: ${fields.join(", ")}`)
+        changedRecords.push(safeIncoming)
+      }
+
+      if (!dryRun) {
+        for (const writeBatch of chunks(changedRecords, 50)) {
+          await upsertPlanningBatch(
+            supabase,
+            writeBatch,
+            `${authorityCode} active exact refresh`
+          )
+        }
+      }
+    }
+  }
+
+  return { checked, changed, changeFieldCounts, fallback }
 }
 
 async function runChild(args: string[]) {
@@ -158,18 +317,27 @@ async function refreshRange(
 async function main() {
   const today = todayUtc()
   const cohort = await loadCandidates(today)
-  const missingRegistrationDates = await countMissingRegistrationDates()
-  const ranges = buildActivePlanningRefreshRanges(cohort.candidates, today)
+  const exact = await refreshNationalExact(cohort.candidates)
+  const fallbackById = new Map(exact.fallback.map((row) => [row.id, row]))
+  const fallbackCandidates = Array.from(fallbackById.values())
+  const ranges = buildActivePlanningRefreshRanges(fallbackCandidates, today)
+  const untargetable = fallbackCandidates.filter((row) => !row.registration_date)
 
   console.log(
-    `Daily active Planning refresh ${dryRun ? "dry run" : "run"}: ${cohort.candidates.length} unique candidates across ${ranges.length} authority/date ranges.`
+    `Daily active Planning refresh ${dryRun ? "dry run" : "run"}: ${cohort.candidates.length} unique candidates.`
   )
   console.log(
     `Cohort composition: ${cohort.activeCount} live-status rows; ${cohort.recentDecisionCount} decision-made follow-up rows since ${cohort.decisionCutoff}; ${cohort.recentUnknownCount} recent unclassified rows since ${cohort.unknownCutoff}.`
   )
-  if (missingRegistrationDates > 0) {
+  console.log(
+    `National exact refresh: ${exact.checked} checked, ${exact.changed} changed; fallback/date-range cohort ${fallbackCandidates.length} across ${ranges.length} authority/date ranges.`
+  )
+  if (Object.keys(exact.changeFieldCounts).length > 0) {
+    console.log(`National exact changed fields: ${JSON.stringify(exact.changeFieldCounts)}`)
+  }
+  if (untargetable.length > 0) {
     console.warn(
-      `${missingRegistrationDates} active/follow-up rows have no registration date and cannot be targeted by the source date-range refresh.`
+      `${untargetable.length} fallback rows have no registration date and could not be refreshed by a source date range.`
     )
   }
 
@@ -182,7 +350,7 @@ async function main() {
   }
 
   console.log(
-    `Daily active Planning refresh completed: ${cohort.candidates.length} candidates represented by ${ranges.length} source refresh ranges.`
+    `Daily active Planning refresh completed: ${cohort.candidates.length} candidates; ${exact.checked} exact national checks; ${ranges.length} fallback/source ranges.`
   )
 }
 
