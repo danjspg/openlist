@@ -1,0 +1,40 @@
+name: Verify Vercel Analytics once
+
+on:
+  push:
+    paths:
+      - ".github/workflows/verify-vercel-analytics-once.yml"
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Query Vercel Web Analytics
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: prj_B0Xv1saCD6kpikTddQIz7CIbsTVG
+          VERCEL_TEAM_ID: team_ETMDWzXyHeT4h44JaGEATZDn
+        run: node --import tsx scripts/report-vercel-analytics.mts | tee vercel-analytics-check.txt
+      - name: Publish verification result
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo "One-off Vercel Web Analytics verification:"
+            echo
+            echo '```text'
+            cat vercel-analytics-check.txt
+            echo '```'
+          } > vercel-analytics-check.md
+          gh issue comment 10 --repo "$GITHUB_REPOSITORY" --body-file vercel-analytics-check.md
