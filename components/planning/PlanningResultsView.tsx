@@ -4,6 +4,12 @@ import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
 import type { Map as LeafletMap } from "leaflet"
 
+export type PlanningResultLifecycleEvent = {
+  label: string
+  date: string
+  detail: string | null
+}
+
 export type PlanningResultRecord = {
   id: string
   reference: string
@@ -15,6 +21,7 @@ export type PlanningResultRecord = {
   applicant: string | null
   applicationType: string | null
   decision: string | null
+  latestEvent: PlanningResultLifecycleEvent | null
   detailHref: string | null
   coordinates: { lat: number; lng: number } | null
 }
@@ -181,7 +188,7 @@ function ApplicationsList({ applications }: { applications: PlanningResultRecord
               {application.reference}
             </p>
             <p className="mt-2 text-sm text-stone-500">
-              {formatDate(application.registrationDate)}
+              Registered {formatDate(application.registrationDate)}
             </p>
             {application.status ? (
               <p className="mt-3 inline-flex rounded-full border border-stone-200 px-3 py-1 text-xs font-semibold text-stone-600">
@@ -191,6 +198,18 @@ function ApplicationsList({ applications }: { applications: PlanningResultRecord
           </div>
 
           <div className="min-w-0">
+            {application.latestEvent ? (
+              <div className="mb-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-800">
+                  {application.latestEvent.label} · {formatDate(application.latestEvent.date)}
+                </p>
+                {application.latestEvent.detail ? (
+                  <p className="mt-1 text-sm font-semibold text-emerald-950">
+                    {application.latestEvent.detail}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
             <h3 className="line-clamp-3 text-lg font-semibold leading-7 tracking-tight text-stone-950">
               {application.detailHref ? (
                 <Link className="transition hover:text-emerald-800" href={application.detailHref}>
@@ -211,7 +230,9 @@ function ApplicationsList({ applications }: { applications: PlanningResultRecord
               {application.applicationType ? (
                 <span>Application type: {application.applicationType}</span>
               ) : null}
-              {application.decision ? <span>Decision: {application.decision}</span> : null}
+              {application.decision && application.latestEvent?.label !== "Decision" ? (
+                <span>Decision: {application.decision}</span>
+              ) : null}
             </div>
             {application.detailHref ? (
               <Link
