@@ -16,7 +16,7 @@ concurrency:
 jobs:
   collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 45
     env:
       GOOGLE_SEARCH_CONSOLE_SERVICE_ACCOUNT_JSON_BASE64: ${{ secrets.GOOGLE_SEARCH_CONSOLE_SERVICE_ACCOUNT_JSON_BASE64 }}
     steps:
@@ -35,12 +35,23 @@ jobs:
           GOOGLE_SEARCH_CONSOLE_SITE_URL: ${{ secrets.GOOGLE_SEARCH_CONSOLE_SITE_URL }}
           PLANNING_SEO_INSPECTION_LIMIT: "200"
         run: node --import tsx scripts/collect-planning-seo.mts
-      - name: Audit high-interest Planning pages
+      - name: Audit traffic-bearing Planning pages
         if: ${{ env.GOOGLE_SEARCH_CONSOLE_SERVICE_ACCOUNT_JSON_BASE64 != '' }}
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: prj_B0Xv1saCD6kpikTddQIz7CIbsTVG
+          VERCEL_TEAM_ID: team_ETMDWzXyHeT4h44JaGEATZDn
+          PLANNING_TRAFFIC_QA_BATCH_SIZE: "25"
+          PLANNING_QA_SEARCH_EXPOSURE_LIMIT: "20"
         run: node --import tsx scripts/audit-high-interest-planning.mts --output artifacts/high-interest-planning-qa.json
+      - name: Revalidate QA-repaired Planning pages
+        if: ${{ env.GOOGLE_SEARCH_CONSOLE_SERVICE_ACCOUNT_JSON_BASE64 != '' }}
+        env:
+          PLANNING_REVALIDATION_URL: ${{ secrets.PLANNING_REVALIDATION_URL }}
+          PLANNING_REVALIDATION_SECRET: ${{ secrets.PLANNING_REVALIDATION_SECRET }}
+        run: node scripts/drain-planning-revalidation.mjs
       - name: Generate OpenList SEO report
         if: ${{ env.GOOGLE_SEARCH_CONSOLE_SERVICE_ACCOUNT_JSON_BASE64 != '' }}
         env:
