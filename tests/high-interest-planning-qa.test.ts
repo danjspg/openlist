@@ -81,3 +81,18 @@ test("Cork detail repairs remain limited to its established decision-due enrichm
   // The detail's raw status is deliberately not used for repairs.
   assert.doesNotMatch(script, /return \{ category: "cork_agile_detail"[^\n]*status:/)
 })
+
+test("QA contains source failures but exposes write failures as failures", () => {
+  const script = readFileSync("scripts/audit-high-interest-planning.mts", "utf8")
+  assert.match(script, /source = await loadSource\(row\)[\s\S]*?source unavailable:/)
+  assert.match(script, /outcome: "FAIL"[\s\S]*?QA \$\{dryRun \? "transformation" : "database\/write"\} failure/)
+  assert.match(script, /if \(value === null\)[\s\S]*?not cleared automatically/)
+})
+
+test("status updates use the existing database normalisation trigger", () => {
+  const migration = readFileSync("supabase/migrations/20260818160000_add_planning_timeline_events.sql", "utf8")
+  const script = readFileSync("scripts/audit-high-interest-planning.mts", "utf8")
+  assert.match(migration, /new\.normalized_status := public\.openlist_normalize_planning_status\(new\.status\)/)
+  assert.match(migration, /before insert or update of status/)
+  assert.match(script, /changes\.status = source\.status/)
+})

@@ -44,7 +44,8 @@ type Stored = Record<string, unknown> & {
   proposal: string | null; status: string | null; normalized_status: string
 }
 type StoredEvent = { application_id: string; event_type: string; event_date: string; source_field: string | null }
-type Result = { authority: string; reference: string; path: string; clicks: number; impressions: number; outcome: "PASS" | "REPAIRED" | "WARN" | "FAIL"; warnings?: string[]; failures?: string[]; repairedFields?: string[]; action?: string | null; sourceEvidence: string }
+type Repair = { field: string; current: string | null; source: string; classification: "missing enrichment" | "stale/incorrect value" | "fuller proposal" }
+type Result = { authority: string; reference: string; path: string; clicks: number; impressions: number; outcome: "PASS" | "REPAIRED" | "WARN" | "FAIL"; warnings?: string[]; failures?: string[]; repairedFields?: string[]; repairs?: Repair[]; action?: string | null; sourceEvidence: string }
 type Source = { category: string; proposal?: string | null; status?: string | null; dates: Partial<Record<LifecycleField, string | null>> }
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 async function fetchJson(url: string, label: string, headers: Record<string, string> = {}) {
@@ -111,26 +112,50 @@ for (const candidate of cohort) {
   const warnings = [...proposalPresentationProblems(row.proposal)]
   const lifecycle = Object.fromEntries(LIFECYCLE_DATE_FIELDS.map((field) => [field, typeof row[field] === "string" ? row[field] : null])) as Partial<Record<LifecycleField, string | null>>
   const failures = timelineProblems(lifecycle, eventsById.get(row.id) || [])
-  const changes: Record<string, unknown> = {}
+  let source: Source
   try {
-    const source = await loadSource(row)
-    if (source.status !== undefined && source.status !== null && String(row.status || "").replace(/\s+/g, " ").trim() !== source.status.replace(/\s+/g, " ").trim()) changes.status = source.status
+    source = await loadSource(row)
+  } catch (error) {
+    results.push({ ...base, outcome: classifyHighInterestQa({ warnings: [...warnings, `source unavailable: ${error instanceof Error ? error.message : String(error)}`], failures }), warnings: [...warnings, `source unavailable: ${error instanceof Error ? error.message : String(error)}`], failures, sourceEvidence: "source/network failure" })
+    continue
+  }
+
+  const changes: Record<string, string> = {}
+  const repairs: Repair[] = []
+  try {
+    if (source.status !== undefined && source.status !== null && String(row.status || "").replace(/\s+/g, " ").trim() !== source.status.replace(/\s+/g, " ").trim()) {
+      changes.status = source.status
+      repairs.push({ field: "status", current: String(row.status || "") || null, source: source.status, classification: "stale/incorrect value" })
+    }
     if (source.proposal && source.proposal !== row.proposal) {
       const current = String(row.proposal || "").trim()
-      if (!current || (source.proposal.length > current.length && source.proposal.startsWith(current))) changes.proposal = source.proposal
+      if (!current || (source.proposal.length > current.length && source.proposal.startsWith(current))) {
+        changes.proposal = source.proposal
+        repairs.push({ field: "proposal", current: current || null, source: source.proposal, classification: current ? "fuller proposal" : "missing enrichment" })
+      }
       else warnings.push("authoritative proposal differs without an unambiguous fuller replacement")
     }
-    for (const [field, value] of Object.entries(source.dates)) if ((row[field] || null) !== value) changes[field] = value
+    for (const [field, value] of Object.entries(source.dates)) {
+      const current = typeof row[field] === "string" ? row[field] : null
+      if (current === value) continue
+      if (value === null) {
+        if (current) warnings.push(`${field} is absent from the current authoritative source; not cleared automatically`)
+        continue
+      }
+      changes[field] = value
+      repairs.push({ field, current, source: value, classification: current ? "stale/incorrect value" : "missing enrichment" })
+    }
     if (Object.keys(changes).length) {
       if (!dryRun) {
         const { error } = await supabase.from("planning_applications").update({ ...changes, updated_at: new Date().toISOString(), revalidation_pending: true }).eq("id", row.id)
         if (error) throw error
       }
     }
-    results.push({ ...base, outcome: classifyHighInterestQa({ repaired: Object.keys(changes).length > 0, warnings, failures }), warnings, failures, repairedFields: Object.keys(changes), action: Object.keys(changes).length ? (dryRun ? "would repair through narrow lifecycle update and revalidation queue" : "repaired through narrow lifecycle update and revalidation queue") : null, sourceEvidence: source.category })
   } catch (error) {
-    results.push({ ...base, outcome: classifyHighInterestQa({ warnings: [...warnings, `source unavailable: ${error instanceof Error ? error.message : String(error)}`], failures }), warnings: [...warnings, `source unavailable: ${error instanceof Error ? error.message : String(error)}`], failures, sourceEvidence: "source/network failure" })
+    results.push({ ...base, outcome: "FAIL", warnings, failures: [...failures, `QA ${dryRun ? "transformation" : "database/write"} failure: ${error instanceof Error ? error.message : String(error)}`], sourceEvidence: source.category })
+    continue
   }
+  results.push({ ...base, outcome: classifyHighInterestQa({ repaired: repairs.length > 0, warnings, failures }), warnings, failures, repairedFields: repairs.map((repair) => repair.field), repairs, action: repairs.length ? (dryRun ? "would repair through narrow lifecycle update and revalidation queue" : "repaired through narrow lifecycle update and revalidation queue") : null, sourceEvidence: source.category })
   await sleep(200)
 }
 const counts = Object.fromEntries(["PASS", "REPAIRED", "WARN", "FAIL"].map(outcome => [outcome.toLowerCase(), results.filter(result => result.outcome === outcome).length]))
