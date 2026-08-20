@@ -25,6 +25,7 @@
     "planning:national:proposals:backfill": "node --env-file=.env.local scripts/backfill-national-planning-proposals.mjs",
     "planning:national:lifecycle:backfill": "node --env-file=.env.local scripts/backfill-national-planning-lifecycle.mjs",
     "planning:national:links:repair": "node --env-file=.env.local scripts/repair-national-planning-links.mjs",
+    "planning:active-refresh": "node --env-file=.env.local --import tsx scripts/refresh-active-planning-applications.mts && node --env-file=.env.local --import tsx scripts/refresh-cork-active-details.mts",
     "planning:status-refresh": "node --env-file=.env.local scripts/refresh-historical-planning-statuses.mjs",
     "planning:backfill": "node --env-file=.env.local scripts/backfill-planning-history.mjs",
     "planning:timeline:backfill": "node --env-file=.env.local scripts/backfill-planning-events.mjs",
