@@ -45,7 +45,7 @@ type Stored = Record<string, unknown> & {
 }
 type StoredEvent = { application_id: string; event_type: string; event_date: string; source_field: string | null }
 type Repair = { field: string; current: string | null; source: string; classification: "missing enrichment" | "stale/incorrect value" | "fuller proposal" }
-type Result = { authority: string; reference: string; path: string; clicks: number; impressions: number; outcome: "PASS" | "REPAIRED" | "WARN" | "FAIL"; warnings?: string[]; failures?: string[]; repairedFields?: string[]; repairs?: Repair[]; action?: string | null; sourceEvidence: string }
+type Result = { authority: string; reference: string; path: string; clicks: number; impressions: number; outcome: "PASS" | "REPAIRABLE" | "REPAIRED" | "WARN" | "FAIL"; warnings?: string[]; failures?: string[]; repairedFields?: string[]; repairs?: Repair[]; action?: string | null; sourceEvidence: string }
 type Source = { category: string; proposal?: string | null; status?: string | null; dates: Partial<Record<LifecycleField, string | null>> }
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 async function fetchJson(url: string, label: string, headers: Record<string, string> = {}) {
@@ -155,10 +155,17 @@ for (const candidate of cohort) {
     results.push({ ...base, outcome: "FAIL", warnings, failures: [...failures, `QA ${dryRun ? "transformation" : "database/write"} failure: ${error instanceof Error ? error.message : String(error)}`], sourceEvidence: source.category })
     continue
   }
-  results.push({ ...base, outcome: classifyHighInterestQa({ repaired: repairs.length > 0, warnings, failures }), warnings, failures, repairedFields: repairs.map((repair) => repair.field), repairs, action: repairs.length ? (dryRun ? "would repair through narrow lifecycle update and revalidation queue" : "repaired through narrow lifecycle update and revalidation queue") : null, sourceEvidence: source.category })
+  const classified = classifyHighInterestQa({ repaired: repairs.length > 0, warnings, failures })
+  results.push({ ...base, outcome: dryRun && classified === "REPAIRED" ? "REPAIRABLE" : classified, warnings, failures, repairedFields: repairs.map((repair) => repair.field), repairs, action: repairs.length ? (dryRun ? "would repair through narrow lifecycle update and revalidation queue" : "repaired through narrow lifecycle update and revalidation queue") : null, sourceEvidence: source.category })
   await sleep(200)
 }
-const counts = Object.fromEntries(["PASS", "REPAIRED", "WARN", "FAIL"].map(outcome => [outcome.toLowerCase(), results.filter(result => result.outcome === outcome).length]))
+const counts = {
+  pass: results.filter((result) => result.outcome === "PASS").length,
+  repaired: results.filter((result) => result.outcome === "REPAIRED" || result.outcome === "REPAIRABLE").length,
+  repairable: results.filter((result) => result.outcome === "REPAIRABLE").length,
+  warn: results.filter((result) => result.outcome === "WARN").length,
+  fail: results.filter((result) => result.outcome === "FAIL").length,
+}
 const report = { generatedAt: new Date().toISOString(), dryRun, windowDays, limit, checked: results.length, ...counts, unresolvedFailures: counts.fail, results }
 await import("node:fs/promises").then(({ mkdir, writeFile }) => mkdir(output.split("/").slice(0, -1).join("/") || ".", { recursive: true }).then(() => writeFile(output, `${JSON.stringify(report, null, 2)}\n`)))
 console.log(JSON.stringify(report, null, 2))

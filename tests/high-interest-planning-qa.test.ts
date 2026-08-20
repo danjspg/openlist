@@ -89,6 +89,11 @@ test("QA contains source failures but exposes write failures as failures", () =>
   assert.match(script, /if \(value === null\)[\s\S]*?not cleared automatically/)
 })
 
+test("dry-run labels repairs as repairable without changing write-run labels", () => {
+  const script = readFileSync("scripts/audit-high-interest-planning.mts", "utf8")
+  assert.match(script, /dryRun && classified === "REPAIRED" \? "REPAIRABLE" : classified/)
+})
+
 test("status updates use the existing database normalisation trigger", () => {
   const migration = readFileSync("supabase/migrations/20260818160000_add_planning_timeline_events.sql", "utf8")
   const script = readFileSync("scripts/audit-high-interest-planning.mts", "utf8")
