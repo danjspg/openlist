@@ -4,9 +4,20 @@ import {
   type PlanningEvent,
 } from "@/lib/planning-events"
 
-export function PlanningTimeline({ events }: { events: PlanningEvent[] }) {
+type DecisionDueMilestone = {
+  date: string
+  formattedDate: string
+}
+
+export function PlanningTimeline({
+  events,
+  decisionDue,
+}: {
+  events: PlanningEvent[]
+  decisionDue?: DecisionDueMilestone | null
+}) {
   const visibleEvents = preparePublicPlanningTimelineEvents(events)
-  if (visibleEvents.length === 0) return null
+  if (visibleEvents.length === 0 && !decisionDue) return null
 
   return (
     <section
@@ -24,16 +35,14 @@ export function PlanningTimeline({ events }: { events: PlanningEvent[] }) {
       </p>
 
       <ol className="mt-6 space-y-0">
-        {visibleEvents.map((event, index) => {
+        {visibleEvents.map((event) => {
           const isImportant = isImportantOutcome(event)
           return (
-            <li key={event.id || event.event_key} className="relative grid grid-cols-[18px_minmax(0,1fr)] gap-3 pb-5 last:pb-0">
-              {index < visibleEvents.length - 1 ? (
-                <span
-                  aria-hidden="true"
-                  className="absolute left-[8px] top-4 h-[calc(100%-2px)] w-px bg-stone-200"
-                />
-              ) : null}
+            <li key={event.id || event.event_key} className="relative grid grid-cols-[18px_minmax(0,1fr)] gap-3 pb-5">
+              <span
+                aria-hidden="true"
+                className="absolute left-[8px] top-4 h-[calc(100%-2px)] w-px bg-stone-200"
+              />
               <span
                 aria-hidden="true"
                 className={`relative mt-1.5 h-[17px] w-[17px] rounded-full border-4 border-white ring-1 ${
@@ -53,6 +62,32 @@ export function PlanningTimeline({ events }: { events: PlanningEvent[] }) {
             </li>
           )
         })}
+
+        {decisionDue ? (
+          <li className="relative grid grid-cols-[18px_minmax(0,1fr)] gap-3">
+            <span
+              aria-hidden="true"
+              className="relative mt-1.5 h-[17px] w-[17px] rounded-full border-4 border-white bg-white ring-2 ring-emerald-700"
+            />
+            <div className="min-w-0 rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="font-semibold leading-6 text-stone-950">Decision due</p>
+                <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-emerald-800 ring-1 ring-emerald-200">
+                  Target date
+                </span>
+              </div>
+              <time
+                dateTime={decisionDue.date}
+                className="mt-1 block text-sm font-semibold text-emerald-900"
+              >
+                {decisionDue.formattedDate}
+              </time>
+              <p className="mt-1 text-xs leading-5 text-stone-600">
+                Current decision target recorded by the council.
+              </p>
+            </div>
+          </li>
+        ) : null}
       </ol>
     </section>
   )
