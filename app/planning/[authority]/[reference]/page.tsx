@@ -144,7 +144,7 @@ export default async function PlanningApplicationPage({ params }: Props) {
             <span className="font-medium text-stone-800">{application.reference}</span>
           </nav>
 
-          <div className="mt-8 grid gap-7 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
+          <div className="mt-8 grid gap-7 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
             <div>
               <p className="font-mono text-sm font-semibold uppercase tracking-[0.16em] text-emerald-800">
                 Planning application {application.reference}
@@ -248,7 +248,7 @@ export default async function PlanningApplicationPage({ params }: Props) {
             </dl>
           </section>
 
-          <PlanningTimeline events={timelineEvents} />
+          <PlanningTimeline events={timelineEvents} decisionDue={decisionDue} />
 
           {research.coordinates ? (
             <section className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm">
