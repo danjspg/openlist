@@ -1,39 +1,50 @@
 import { NextResponse } from "next/server"
+import { getPprDatasetSummary } from "@/lib/ppr"
+import { getPlanningAuthorityBySlug } from "@/lib/planning-authorities"
 import { getServerSupabase } from "@/lib/supabase"
 
 export const revalidate = 21600
 
-export async function GET() {
-  const supabase = getServerSupabase()
+type PlanningAggregatePayload = {
+  totalCount?: number | string | null
+  latestRegistrationDate?: string | null
+}
 
-  const [planningResult, soldPricesResult] = await Promise.all([
-    supabase
-      .from("planning_applications")
-      .select("registration_date")
-      .not("registration_date", "is", null)
-      .order("registration_date", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-    supabase
-      .from("ppr_sales")
-      .select("date_of_sale")
-      .not("date_of_sale", "is", null)
-      .order("date_of_sale", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
+export async function GET(request: Request) {
+  const supabase = getServerSupabase()
+  const url = new URL(request.url)
+  const authoritySlug = url.searchParams.get("authority")?.trim() || null
+  const authority = authoritySlug ? getPlanningAuthorityBySlug(authoritySlug) : null
+
+  const [planningResult, soldPriceSummary] = await Promise.all([
+    supabase.rpc("openlist_planning_dashboard_aggregate", {
+      p_authority_code: authority?.code ?? null,
+      p_q: null,
+      p_area: null,
+      p_status: null,
+      p_application_type: null,
+    }),
+    getPprDatasetSummary().catch((error) => {
+      console.warn("Could not load sold-price dataset summary", error)
+      return null
+    }),
   ])
 
   if (planningResult.error) {
     console.warn("Could not load planning data freshness", planningResult.error)
   }
-  if (soldPricesResult.error) {
-    console.warn("Could not load sold-price data freshness", soldPricesResult.error)
-  }
+
+  const planning = planningResult.data as PlanningAggregatePayload | null
+  const planningCount = Number(planning?.totalCount ?? 0)
 
   return NextResponse.json(
     {
-      planning: planningResult.data?.registration_date ?? null,
-      soldPrices: soldPricesResult.data?.date_of_sale ?? null,
+      planning: planning?.latestRegistrationDate ?? null,
+      planningCount: Number.isFinite(planningCount) && planningCount > 0 ? planningCount : null,
+      planningAuthority: authority?.shortName ?? null,
+      soldPrices: soldPriceSummary?.latestSaleDate ?? null,
+      soldPriceCount: soldPriceSummary?.salesCount ?? null,
+      soldPriceStartYear: soldPriceSummary?.startYear ?? null,
     },
     {
       headers: {
