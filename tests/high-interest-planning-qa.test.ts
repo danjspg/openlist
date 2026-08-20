@@ -10,7 +10,7 @@ import {
 } from "../lib/high-interest-planning-qa"
 import { parsePlanningDetailUrl } from "../lib/planning-seo"
 
-test("high-interest cohort ranks clicks before impressions and remains bounded", () => {
+test("legacy high-interest ranking still ranks clicks before impressions", () => {
   const ranked = rankHighInterestCandidates([
     { application_id: "a", local_authority_code: "DLR", reference: "A", clicks: 2, impressions: 1 },
     { application_id: "b", local_authority_code: "DLR", reference: "B", clicks: 2, impressions: 8 },
@@ -22,6 +22,13 @@ test("high-interest cohort ranks clicks before impressions and remains bounded",
 test("generic planning URLs cannot enter the QA cohort", () => {
   assert.equal(parsePlanningDetailUrl("https://www.openlist.ie/planning"), null)
   assert.equal(parsePlanningDetailUrl("https://www.openlist.ie/planning/cork-county"), null)
+})
+
+test("Vercel planning detail paths resolve to authoritative application identities", () => {
+  assert.deepEqual(
+    parsePlanningDetailUrl("https://www.openlist.ie/planning/galway-county/ref-MjY2MTIxNA"),
+    { localAuthorityCode: "GALWAYCOCO", reference: "2661214" }
+  )
 })
 
 test("presentation checks identify missing or unsound derived page copy", () => {
@@ -63,15 +70,43 @@ test("immutable historical events do not become contradictions after a source-da
 
 test("one source failure is contained to its application", () => {
   const script = readFileSync("scripts/audit-high-interest-planning.mts", "utf8")
-  assert.match(script, /for \(const candidate of cohort\)[\s\S]*?try \{[\s\S]*?await loadSource\(row\)[\s\S]*?\} catch \(error\)[\s\S]*?results\.push/)
+  assert.match(script, /for \(const candidate of batch\)[\s\S]*?try \{[\s\S]*?await loadSource\(row\)[\s\S]*?\} catch \(error\)[\s\S]*?results\.push/)
   assert.match(script, /source\/network failure/)
 })
 
-test("the database cohort is detail-only, recent, and capped", () => {
-  const migration = readFileSync("supabase/migrations/20260820090000_add_high_interest_planning_qa_candidates.sql", "utf8")
-  assert.match(migration, /planning_seo_search_performance/)
-  assert.match(migration, /order by sum\(s\.clicks\) desc, sum\(s\.impressions\) desc/i)
-  assert.match(migration, /limit greatest\(1, least\(coalesce\(p_limit, 20\), 20\)\)/i)
+test("traffic-bearing QA is no longer capped at twenty applications", () => {
+  const script = readFileSync("scripts/audit-high-interest-planning.mts", "utf8")
+  assert.doesNotMatch(script, /PLANNING_HIGH_INTEREST_QA_LIMIT/)
+  assert.doesNotMatch(script, /openlist_high_interest_planning_qa_candidates/)
+  assert.match(script, /current\.clicks \+= Number\(row\.clicks \|\| 0\)/)
+  assert.match(script, /filter\(\(\[, value\]\) => value\.clicks > 0\)/)
+  assert.match(script, /for \(let offset = 0; offset < cohort\.length; offset \+= batchSize\)/)
+})
+
+test("Vercel visitor traffic is a first-class QA candidate source", () => {
+  const script = readFileSync("scripts/audit-high-interest-planning.mts", "utf8")
+  assert.match(script, /readVercelAnalyticsConfig/)
+  assert.match(script, /topVercelPaths/)
+  assert.match(script, /vercel-web-analytics/)
+  assert.match(script, /startswith\(requestPath, '\/planning\/'\)/)
+  assert.match(script, /vercelExpandedBeyondTop100/)
+  assert.match(script, /truncatedPartitions/)
+})
+
+test("zero-click Search Console exposure remains a small supplementary QA lane", () => {
+  const script = readFileSync("scripts/audit-high-interest-planning.mts", "utf8")
+  assert.match(script, /PLANNING_QA_SEARCH_EXPOSURE_LIMIT \|\| 20/)
+  assert.match(script, /value\.clicks === 0 && value\.impressions > 0/)
+  assert.match(script, /search-console-exposure/)
+})
+
+test("the daily workflow feeds Vercel traffic into QA and revalidates repairs", () => {
+  const workflow = readFileSync(".github/workflows/planning-seo.yml", "utf8")
+  assert.match(workflow, /Audit traffic-bearing Planning pages/)
+  assert.match(workflow, /VERCEL_TOKEN: \$\{\{ secrets\.VERCEL_TOKEN \}\}/)
+  assert.match(workflow, /PLANNING_TRAFFIC_QA_BATCH_SIZE: "25"/)
+  assert.match(workflow, /Revalidate QA-repaired Planning pages/)
+  assert.match(workflow, /drain-planning-revalidation\.mjs/)
 })
 
 test("Cork detail repairs remain limited to its established decision-due enrichment", () => {
