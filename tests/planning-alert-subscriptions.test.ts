@@ -43,15 +43,24 @@ test("planning alert actions retain explicit intent and avoid duplicate subscrip
 })
 
 test("planning detail presents a primary alert action and a secondary council action", async () => {
-  const [page, cta, myAlerts] = await Promise.all([
+  const [page, layout, cta, myAlerts] = await Promise.all([
     source("app/planning/[authority]/[reference]/page.tsx"),
+    source("app/planning/[authority]/[reference]/layout.tsx"),
     source("components/PlanningAlertActions.tsx"),
     source("app/my-alerts/page.tsx"),
   ])
 
   assert.match(page, /<PlanningAlertActions/)
   assert.match(page, /<PlanningTimeline/)
+  assert.match(page, /data-planning-lifecycle-card/)
+  assert.match(page, /data-planning-detail-header/)
+  assert.match(page, /data-planning-lifecycle-status/)
+  assert.match(page, /data-planning-lifecycle-decision/)
+  assert.match(page, /data-planning-lifecycle-decision-item/)
+  assert.match(layout, /\[data-planning-lifecycle-actions\]/)
+  assert.doesNotMatch(layout, /\> div/)
   assert.match(cta, /Get email updates/)
+  assert.match(cta, /data-planning-lifecycle-actions/)
   assert.match(cta, /bg-emerald-700/)
   assert.match(cta, /View official council application/)
   assert.match(cta, /border border-stone-300 bg-white/)

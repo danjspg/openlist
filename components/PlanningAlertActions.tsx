@@ -91,7 +91,7 @@ export function PlanningAlertActions({ applicationId, returnPath, councilUrl }: 
   }
 
   return (
-    <div className="mt-5">
+    <div data-planning-lifecycle-actions className="mt-5">
       {subscription?.enabled ? (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
           <p className="text-sm font-semibold text-emerald-900">Email updates are on</p>

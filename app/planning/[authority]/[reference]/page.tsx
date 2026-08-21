@@ -144,7 +144,7 @@ export default async function PlanningApplicationPage({ params }: Props) {
             <span className="font-medium text-stone-800">{application.reference}</span>
           </nav>
 
-          <div className="mt-8 grid gap-7 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+          <div data-planning-detail-header className="mt-8 grid gap-7 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
             <div>
               <p className="font-mono text-sm font-semibold uppercase tracking-[0.16em] text-emerald-800">
                 Planning application {application.reference}
@@ -158,9 +158,9 @@ export default async function PlanningApplicationPage({ params }: Props) {
             </div>
 
             {currentStatus || application.source_url ? (
-            <div className="rounded-2xl border border-stone-200 bg-stone-50 p-5">
+            <div data-planning-lifecycle-card className="rounded-2xl border border-stone-200 bg-stone-50 p-5">
               {currentStatus ? (
-                <>
+                <div data-planning-lifecycle-status>
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">Current status</p>
                   <p className="mt-3 text-2xl font-semibold tracking-tight text-stone-950">
                     {currentStatus}
@@ -170,20 +170,22 @@ export default async function PlanningApplicationPage({ params }: Props) {
                       Council status: {councilStatus}
                     </p>
                   ) : null}
-                </>
+                </div>
               ) : null}
-              {decision ? (
-                <div className={`${currentStatus ? "mt-5 border-t border-stone-200 pt-5" : ""}`}>
+              {decision || decisionDue ? (
+                <div data-planning-lifecycle-decision>
+                  {decision ? (
+                    <div data-planning-lifecycle-decision-item className={`${currentStatus ? "mt-5 border-t border-stone-200 pt-5" : ""}`}>
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">
                     Decision
                   </p>
                   <p className="mt-2 text-lg font-semibold tracking-tight text-stone-950">
                     {decision}
                   </p>
-                </div>
-              ) : null}
-              {decisionDue ? (
-                <div className={`${currentStatus || decision ? "mt-5 border-t border-stone-200 pt-5" : ""}`}>
+                    </div>
+                  ) : null}
+                  {decisionDue ? (
+                    <div data-planning-lifecycle-decision-item className={`${currentStatus || decision ? "mt-5 border-t border-stone-200 pt-5" : ""}`}>
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">
                     Decision due
                   </p>
@@ -197,6 +199,8 @@ export default async function PlanningApplicationPage({ params }: Props) {
                   <p className="mt-2 text-xs leading-5 text-stone-500">
                     Council record currently gives this as the decision due date.
                   </p>
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
               <PlanningAlertActions
