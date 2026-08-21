@@ -17,7 +17,7 @@ type Props = {
 }
 
 const alertButtonClass =
-  "group inline-flex min-h-14 w-full items-center justify-center gap-2.5 whitespace-nowrap rounded-xl border border-emerald-800/20 bg-gradient-to-b from-emerald-600 to-emerald-700 px-5 text-center text-sm font-semibold text-white shadow-sm shadow-emerald-950/10 ring-1 ring-inset ring-white/10 transition duration-200 hover:-translate-y-0.5 hover:from-emerald-500 hover:to-emerald-700 hover:shadow-md hover:shadow-emerald-950/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 active:translate-y-0 active:shadow-sm disabled:pointer-events-none disabled:opacity-60 sm:w-auto sm:min-w-[190px]"
+  "group inline-flex min-h-14 w-full items-center justify-center gap-2.5 whitespace-nowrap rounded-xl border border-emerald-800/20 bg-gradient-to-b from-emerald-600 to-emerald-700 px-4 text-center text-sm font-semibold text-white shadow-sm shadow-emerald-950/10 ring-1 ring-inset ring-white/10 transition duration-200 hover:-translate-y-0.5 hover:from-emerald-500 hover:to-emerald-700 hover:shadow-md hover:shadow-emerald-950/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 active:translate-y-0 active:shadow-sm disabled:pointer-events-none disabled:opacity-60 sm:min-h-12 sm:w-auto"
 
 function MailSparkIcon() {
   return (
@@ -36,9 +36,6 @@ function AlertButtonContents() {
     <>
       <MailSparkIcon />
       <span className="leading-tight">Get email updates</span>
-      <svg viewBox="0 0 20 20" fill="none" className="size-4 shrink-0 opacity-75 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:opacity-100" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <path d="m7.5 5 5 5-5 5" />
-      </svg>
     </>
   )
 }
@@ -64,7 +61,7 @@ function CouncilOnlyAction({ councilUrl }: { councilUrl: string | null }) {
           rel="noreferrer"
           className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-stone-300 bg-white px-4 text-center text-sm font-semibold text-stone-700 transition hover:border-stone-500 hover:text-stone-950"
         >
-          View council record
+          Council record
         </a>
       ) : (
         <p className="text-sm leading-6 text-stone-500">
@@ -175,7 +172,7 @@ function EnabledPlanningAlertActions({ applicationId, returnPath, councilUrl }: 
               You&apos;re signed in. Confirm to start updates for this application.
             </p>
           ) : null}
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-end sm:gap-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-nowrap sm:items-center sm:justify-end sm:gap-2">
             {isAuthenticated ? (
               <form action={handleEnable} className="w-full sm:w-auto">
                 <input type="hidden" name="applicationId" value={applicationId} />
@@ -190,8 +187,8 @@ function EnabledPlanningAlertActions({ applicationId, returnPath, councilUrl }: 
               </Link>
             )}
             {councilUrl ? (
-              <a href={councilUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-14 w-full items-center justify-center whitespace-nowrap rounded-xl border border-stone-300 bg-white px-5 text-center text-sm font-semibold text-stone-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-stone-400 hover:text-stone-950 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-400 focus-visible:ring-offset-2 active:translate-y-0 active:shadow-sm sm:w-auto sm:min-w-[190px]">
-                View council record
+              <a href={councilUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-14 w-full items-center justify-center whitespace-nowrap rounded-xl border border-stone-300 bg-white px-4 text-center text-sm font-semibold text-stone-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-stone-400 hover:text-stone-950 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-400 focus-visible:ring-offset-2 active:translate-y-0 active:shadow-sm sm:min-h-12 sm:w-auto">
+                Council record
               </a>
             ) : null}
           </div>
@@ -200,7 +197,7 @@ function EnabledPlanningAlertActions({ applicationId, returnPath, councilUrl }: 
 
       {subscription?.enabled && councilUrl ? (
         <a href={councilUrl} target="_blank" rel="noreferrer" className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-stone-300 bg-white px-4 text-center text-sm font-semibold text-stone-700 transition hover:border-stone-500 hover:text-stone-950">
-          View council record
+          Council record
         </a>
       ) : !subscription?.enabled && !councilUrl ? (
         <p className="mt-4 text-sm leading-6 text-stone-500">
