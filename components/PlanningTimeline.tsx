@@ -20,6 +20,10 @@ export function PlanningTimeline({
   const visibleEvents = preparePublicPlanningTimelineEvents(events)
   if (visibleEvents.length === 0 && !decisionDue) return null
   const hasConstructionInformation = visibleEvents.some(isConstructionPlanningEvent)
+  const hasPlanningOutcome = visibleEvents.some(isPlanningOutcomeEvent)
+  const firstConstructionEventKey = hasConstructionInformation && !hasPlanningOutcome
+    ? visibleEvents.find(isConstructionPlanningEvent)?.event_key ?? null
+    : null
 
   return (
     <section
@@ -41,32 +45,53 @@ export function PlanningTimeline({
       <ol className="mt-6 space-y-0">
         {visibleEvents.map((event) => {
           const isImportant = isImportantOutcome(event)
+          const showPlanningGap = event.event_key === firstConstructionEventKey
           return (
-            <li key={event.id || event.event_key} className="relative grid grid-cols-[18px_minmax(0,1fr)] gap-3 pb-5">
-              <span
-                aria-hidden="true"
-                className="absolute left-[8px] top-4 h-[calc(100%-2px)] w-px bg-stone-200"
-              />
-              <span
-                aria-hidden="true"
-                className={`relative mt-1.5 h-[17px] w-[17px] rounded-full border-4 border-white ring-1 ${
-                  isImportant
-                    ? "bg-emerald-700 ring-emerald-700"
-                    : "bg-stone-300 ring-stone-300"
-                }`}
-              />
-              <div className="min-w-0">
-                <p className={`${isImportant ? "font-semibold text-stone-950" : "font-medium text-stone-900"} leading-6`}>
-                  {event.label}
-                </p>
-                <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-5 text-stone-500">
-                  <time dateTime={event.event_date}>{formatEventDate(event.event_date)}</time>
-                  {isConstructionPlanningEvent(event) ? (
-                    <span>Official NBCO/BCMS data</span>
-                  ) : null}
+            <React.Fragment key={event.id || event.event_key}>
+              {showPlanningGap ? (
+                <li className="relative grid grid-cols-[18px_minmax(0,1fr)] gap-3 pb-5">
+                  <span
+                    aria-hidden="true"
+                    className="absolute left-[8px] top-4 h-[calc(100%-2px)] w-px bg-stone-200"
+                  />
+                  <span
+                    aria-hidden="true"
+                    className="relative mt-1.5 h-[17px] w-[17px] rounded-full border-4 border-white bg-white ring-1 ring-stone-300"
+                  />
+                  <div className="min-w-0 rounded-xl border border-stone-200 bg-stone-50 px-4 py-3">
+                    <p className="font-medium leading-6 text-stone-900">Planning outcome not available in OpenList</p>
+                    <p className="mt-1 text-xs leading-5 text-stone-600">
+                      OpenList&apos;s planning record does not contain a dated decision or grant milestone. Later official building-control records show construction activity.
+                    </p>
+                  </div>
+                </li>
+              ) : null}
+              <li className="relative grid grid-cols-[18px_minmax(0,1fr)] gap-3 pb-5">
+                <span
+                  aria-hidden="true"
+                  className="absolute left-[8px] top-4 h-[calc(100%-2px)] w-px bg-stone-200"
+                />
+                <span
+                  aria-hidden="true"
+                  className={`relative mt-1.5 h-[17px] w-[17px] rounded-full border-4 border-white ring-1 ${
+                    isImportant
+                      ? "bg-emerald-700 ring-emerald-700"
+                      : "bg-stone-300 ring-stone-300"
+                  }`}
+                />
+                <div className="min-w-0">
+                  <p className={`${isImportant ? "font-semibold text-stone-950" : "font-medium text-stone-900"} leading-6`}>
+                    {event.label}
+                  </p>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-5 text-stone-500">
+                    <time dateTime={event.event_date}>{formatEventDate(event.event_date)}</time>
+                    {isConstructionPlanningEvent(event) ? (
+                      <span>Official NBCO/BCMS data</span>
+                    ) : null}
+                  </div>
                 </div>
-              </div>
-            </li>
+              </li>
+            </React.Fragment>
           )
         })}
 
@@ -104,6 +129,15 @@ function isImportantOutcome(event: PlanningEvent) {
   return [
     "decision_made",
     "decision_changed",
+    "final_grant",
+    "appeal_decided",
+    "withdrawn",
+  ].includes(event.event_type)
+}
+
+function isPlanningOutcomeEvent(event: PlanningEvent) {
+  return [
+    "decision_made",
     "final_grant",
     "appeal_decided",
     "withdrawn",

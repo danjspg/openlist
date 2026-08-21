@@ -18,3 +18,20 @@ test("timeline changes its heading and attributes construction records only when
   assert.match(html, /Planning and construction timeline/)
   assert.match(html, /Official NBCO\/BCMS data/)
 })
+
+test("timeline explains construction when the planning outcome is missing", () => {
+  const planning = buildReconstructedPlanningEvents({ registration_date: "2024-01-01" })
+  const construction = [{ event_type: "works_commenced" as const, event_date: "2024-05-01", detected_at: "2026-08-21T00:00:00Z", event_source: "nbco_bcms_open_data", source_field: "CN_Commencement_Date", label: "Works commenced", old_value: null, new_value: "2024-05-01", raw_source_value: "CN1", provenance: "reconstructed" as const, event_key: "bcms:1" }]
+  const html = renderToStaticMarkup(React.createElement(PlanningTimeline, { events: [...planning, ...construction] }))
+  assert.match(html, /Planning outcome not available in OpenList/)
+  assert.match(html, /Later official building-control records show construction activity/)
+  assert.ok(html.indexOf("Planning outcome not available in OpenList") < html.indexOf("Works commenced"))
+
+  const completePlanning = buildReconstructedPlanningEvents({
+    registration_date: "2024-01-01",
+    decision_date: "2024-03-01",
+    decision_text: "GRANT PERMISSION",
+  })
+  const completeHtml = renderToStaticMarkup(React.createElement(PlanningTimeline, { events: [...completePlanning, ...construction] }))
+  assert.doesNotMatch(completeHtml, /Planning outcome not available in OpenList/)
+})
