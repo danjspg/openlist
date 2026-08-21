@@ -1,0 +1,20 @@
+import assert from "node:assert/strict"
+import test from "node:test"
+import React from "react"
+import { renderToStaticMarkup } from "react-dom/server"
+import { PlanningTimeline } from "../components/PlanningTimeline"
+import { completionCertificateLabel } from "../lib/building-control"
+import { buildReconstructedPlanningEvents } from "../lib/planning-events"
+
+test("partial completion wording never claims a whole development completed", () => {
+  assert.equal(completionCertificateLabel(3), "Completion certificate validated (3 units)")
+})
+
+test("timeline changes its heading and attributes construction records only when present", () => {
+  const planning = buildReconstructedPlanningEvents({ registration_date: "2024-01-01" })
+  assert.match(renderToStaticMarkup(React.createElement(PlanningTimeline, { events: planning })), /Planning timeline/)
+  const construction = [{ event_type: "works_commenced" as const, event_date: "2024-05-01", detected_at: "2026-08-21T00:00:00Z", event_source: "nbco_bcms_open_data", source_field: "CN_Commencement_Date", label: "Works commenced", old_value: null, new_value: "2024-05-01", raw_source_value: "CN1", provenance: "reconstructed" as const, event_key: "bcms:1" }]
+  const html = renderToStaticMarkup(React.createElement(PlanningTimeline, { events: [...planning, ...construction] }))
+  assert.match(html, /Planning and construction timeline/)
+  assert.match(html, /Official NBCO\/BCMS data/)
+})
