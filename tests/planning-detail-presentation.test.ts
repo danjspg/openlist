@@ -19,3 +19,13 @@ test("planning detail summary keeps decision outcome distinct and preserves deci
   assert.match(page, /<PlanningTimeline/)
   assert.doesNotMatch(page, /Email me when a decision is made/)
 })
+
+test("planning detail metadata prioritises the application location in search titles", async () => {
+  const page = await readFile(
+    new URL("../app/planning/[authority]/[reference]/page.tsx", import.meta.url),
+    "utf8"
+  )
+
+  assert.ok(page.includes("const locationTitle = meaningfulPlanningValue(application.location)"))
+  assert.ok(page.includes("title: `${locationTitle ?? heading} | ${application.reference} | OpenList`"))
+})
