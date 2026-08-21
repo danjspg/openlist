@@ -5,6 +5,9 @@ import { planningApplicationPath } from "@/lib/property-intelligence"
 import { getResendClient } from "@/lib/resend"
 import { getPublicSiteUrl } from "@/lib/site-url"
 
+const authoritativeSourceDisclaimer =
+  "OpenList helps you follow this application. The relevant local authority remains the authoritative source for the planning record."
+
 export type PlanningAlertEmailDelivery = {
   delivery_id: string
   subscription_id: string
@@ -67,6 +70,7 @@ export function renderPlanningAlertEmail(delivery: PlanningAlertEmailDelivery) {
     delivery.proposal ? `Proposal: ${delivery.proposal}` : "",
     `View application: ${applicationUrl}`,
     `Stop these updates: ${unsubscribeUrl}`,
+    authoritativeSourceDisclaimer,
     "This is a free service email you requested from OpenList, not a marketing email.",
   ].filter(Boolean).join("\n\n")
 
@@ -91,6 +95,7 @@ export function renderPlanningAlertEmail(delivery: PlanningAlertEmailDelivery) {
             <a href="${applicationUrl}" style="display:inline-block; padding:13px 18px; border-radius:10px; background:#047857; color:#ffffff; font-size:14px; font-weight:700; text-decoration:none;">View planning application</a>
           </div>
           <div style="padding:18px 28px; border-top:1px solid #e7e5e4; font-size:12px; line-height:1.7; color:#78716c;">
+            <div style="margin-bottom:8px;">${authoritativeSourceDisclaimer}</div>
             This is a free service email you requested from OpenList, not a marketing email.
             <a href="${unsubscribeUrl}" style="color:#57534e; text-decoration:underline;">Stop updates for this application</a>.
           </div>

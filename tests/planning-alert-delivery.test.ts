@@ -140,6 +140,10 @@ test("one event renders one transactional email with deterministic idempotency",
     assert.match(email.text, /not a marketing email/)
     assert.match(email.unsubscribeUrl, /\/planning-alerts\/unsubscribe\?token=/)
     assert.doesNotMatch(email.html, /<img|tracking/i)
+    const authoritativeSourceDisclaimer =
+      "OpenList helps you follow this application. The relevant local authority remains the authoritative source for the planning record."
+    assert.ok(email.html.includes(authoritativeSourceDisclaimer))
+    assert.ok(email.text.includes(authoritativeSourceDisclaimer))
     assert.equal(planningAlertEventTitle("decision_made", "ignored"), "A decision has been recorded")
   } finally {
     if (previousSecret === undefined) delete process.env.PLANNING_ALERT_UNSUBSCRIBE_SECRET
