@@ -153,7 +153,7 @@ export default async function HomePage() {
               />
             </div>
 
-            <div className="relative hidden h-36 overflow-hidden rounded-3xl bg-white shadow-sm sm:col-span-2 sm:block sm:h-48 lg:h-52">
+            <div className="relative hidden h-36 overflow-hidden rounded-3xl bg-white shadow-sm sm:col-span-2 sm:block sm:h-48 lg:h-60">
               <Image
                 src={homepageImages.plannedDevelopment.src}
                 alt={homepageImages.plannedDevelopment.alt}
