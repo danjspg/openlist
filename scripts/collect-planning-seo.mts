@@ -140,6 +140,7 @@ async function collectPerformance() {
   if (skipPerformance) return
   for (const dataDate of dateRange()) {
     const rows = await searchConsole.queryPlanningPerformance(dataDate)
+    const soldRows = await searchConsole.querySoldPricesPerformance(dataDate, dataDate)
     const planningRows = rows.flatMap((row) => {
       const parsed = parsePlanningDetailUrl(row.keys?.[1] || "")
       if (!parsed) return []
@@ -164,6 +165,22 @@ async function collectPerformance() {
     console.log(
       `Search performance ${dataDate}: ${rows.length} API rows, ${planningRows.length} planning detail rows, ${affected} stored`
     )
+    const localityRows = [...rows, ...soldRows].flatMap((row) => {
+      const page = row.keys?.[1]
+      if (!page) return []
+      try {
+        const pathname = new URL(page).pathname.replace(/\/$/, "")
+        const isSold = /^\/sold-prices\/[^/]+\/[^/]+$/.test(pathname)
+        const isPlanning = /^\/planning\/[^/]+\/areas\/[^/]+$/.test(pathname)
+        return isSold || isPlanning ? [{ canonical_path: pathname, data_date: row.keys?.[0] || dataDate, clicks: Number(row.clicks || 0), impressions: Number(row.impressions || 0), ctr: Number(row.ctr || 0), position: Number(row.position || 0), collected_at: new Date().toISOString() }] : []
+      } catch { return [] }
+    })
+    if (!dryRun && localityRows.length) {
+      const { error } = await supabase.from("locality_seo_search_performance").upsert(localityRows, { onConflict: "canonical_path,data_date" })
+      if (error) throw error
+      await supabase.from("locality_seo_memberships").update({ first_impression_at: new Date().toISOString() }).in("canonical_path", localityRows.filter((row) => row.impressions > 0).map((row) => row.canonical_path)).is("first_impression_at", null)
+    }
+    console.log(`Locality Search Console rows ${dataDate}: ${localityRows.length}`)
   }
 }
 
@@ -237,6 +254,7 @@ async function collectInspections(cohorts: {
 }
 
 async function main() {
+  if (!dryRun) await rpc("openlist_refresh_locality_seo_cohorts")
   const cohorts = await loadSitemapCohorts()
   await collectSitemaps()
   await collectPerformance()

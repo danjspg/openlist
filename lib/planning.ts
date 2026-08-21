@@ -11,6 +11,7 @@ import type { PlanningEvent } from "@/lib/planning-events"
 import type { PlanningStatus } from "@/lib/planning-status"
 import { isCanonicalPlanningStatus } from "@/lib/planning-status"
 import { getServerSupabase } from "@/lib/supabase"
+import { areaSlug } from "@/lib/ppr"
 
 export type PlanningApplication = {
   id: string
@@ -259,6 +260,17 @@ export async function getPlanningDashboard(
     typeOptions: overview.typeOptions,
     activeArea: areaStats[0] ?? null,
   }
+}
+
+export async function getPlanningLocalityDashboard(
+  authority: PlanningAuthority,
+  localitySlug: string
+) {
+  const overview = await getPlanningDashboard({}, authority)
+  const locality = overview.areaOptions.find((label) => areaSlug(label) === localitySlug)
+  if (!locality) return null
+  const dashboard = await getPlanningDashboard({ area: locality }, authority)
+  return dashboard.totalCount >= 8 ? { locality, dashboard } : null
 }
 
 function emptyPlanningAggregateSummary(): PlanningAggregateSummary {
