@@ -1,6 +1,7 @@
 import React from "react"
 import {
   preparePublicPlanningTimelineEvents,
+  isConstructionPlanningEvent,
   type PlanningEvent,
 } from "@/lib/planning-events"
 
@@ -18,6 +19,7 @@ export function PlanningTimeline({
 }) {
   const visibleEvents = preparePublicPlanningTimelineEvents(events)
   if (visibleEvents.length === 0 && !decisionDue) return null
+  const hasConstructionInformation = visibleEvents.some(isConstructionPlanningEvent)
 
   return (
     <section
@@ -28,10 +30,12 @@ export function PlanningTimeline({
         id="planning-timeline-heading"
         className="text-2xl font-semibold tracking-tight text-stone-950"
       >
-        Planning timeline
+        {hasConstructionInformation ? "Planning and construction timeline" : "Planning timeline"}
       </h2>
       <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">
-        Key dated milestones from the planning record.
+        {hasConstructionInformation
+          ? "Key dated milestones from planning and official building-control records."
+          : "Key dated milestones from the planning record."}
       </p>
 
       <ol className="mt-6 space-y-0">
@@ -57,6 +61,9 @@ export function PlanningTimeline({
                 </p>
                 <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-5 text-stone-500">
                   <time dateTime={event.event_date}>{formatEventDate(event.event_date)}</time>
+                  {isConstructionPlanningEvent(event) ? (
+                    <span>Official NBCO/BCMS data</span>
+                  ) : null}
                 </div>
               </div>
             </li>

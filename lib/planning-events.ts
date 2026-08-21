@@ -21,6 +21,8 @@ export type PlanningEventType =
   | "decision_changed"
   | "decision_due_changed"
   | "source_date_corrected"
+  | "works_commenced"
+  | "completion_certificate_validated"
   | "other"
 
 export type PlanningEventProvenance = "reconstructed" | "observed"
@@ -80,8 +82,16 @@ const SOURCE_MILESTONES: SourceMilestone[] = [
 ]
 
 const EVENT_ORDER = new Map(
-  SOURCE_MILESTONES.map((milestone, index) => [milestone.type, index])
+  [
+    ...SOURCE_MILESTONES.map((milestone, index) => [milestone.type, index] as const),
+    ["works_commenced", 20] as const,
+    ["completion_certificate_validated", 21] as const,
+  ]
 )
+
+export function isConstructionPlanningEvent(event: Pick<PlanningEvent, "event_type">) {
+  return event.event_type === "works_commenced" || event.event_type === "completion_certificate_validated"
+}
 
 const PUBLIC_HIDDEN_EVENT_TYPES = new Set<PlanningEventType>([
   "application_validated",
