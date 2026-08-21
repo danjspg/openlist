@@ -21,6 +21,8 @@ export default function robots(): MetadataRoute.Robots {
     sitemap: [
       `${baseUrl}/sitemap.xml`,
       `${baseUrl}/sitemaps/planning-notable.xml`,
+      `${baseUrl}/sitemaps/sold-prices-localities.xml`,
+      `${baseUrl}/sitemaps/planning-localities.xml`,
     ],
     host: baseUrl,
   }

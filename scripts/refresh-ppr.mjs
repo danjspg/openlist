@@ -190,6 +190,10 @@ try {
 
   await refreshDerivedPprTables()
 
+  const { error: localityCohortError } = await supabase.rpc("openlist_refresh_locality_seo_cohorts")
+  if (localityCohortError) throw localityCohortError
+  console.log("Locality SEO cohort refreshed.")
+
   console.log(
     `Sold-prices refresh complete. Current-year source checked, ${result.insertedRows} new rows imported, ${result.processedRows} new rows processed.`
   )
