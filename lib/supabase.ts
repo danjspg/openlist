@@ -23,6 +23,19 @@ export function getServerSupabase() {
   )
 }
 
+export function getServiceRoleSupabase() {
+  if (!isConfiguredSupabaseKey(supabaseServiceRoleKey)) {
+    throw new Error("SUPABASE_SERVICE_ROLE_KEY is required for this server operation")
+  }
+
+  return createClient(supabaseUrl, supabaseServiceRoleKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  })
+}
+
 function isConfiguredSupabaseKey(value: string | undefined): value is string {
   // Vercel preview environments may intentionally carry a short placeholder
   // instead of a service-role secret. Public OpenList reads can safely use the
