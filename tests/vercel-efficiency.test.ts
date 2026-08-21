@@ -21,7 +21,7 @@ test("public root rendering does not read auth cookies", async () => {
   assert.match(sessionRoute, /getCurrentUser/)
   assert.match(sessionRoute, /private, no-store/)
   assert.match(privateViewings, /requireUser/)
-  assert.match(sessionRoute, /from\("viewings"\)[\s\S]*\.eq\("user_id", user\.id\)[\s\S]*\.limit\(1\)/)
+  assert.match(sessionRoute, /from\("viewings"\)[\s\S]*\.eq\("owner_user_id", user\.id\)[\s\S]*\.limit\(1\)/)
   assert.match(sessionRoute, /hasViewings/)
   assert.match(nav, /const \{ isAuthenticated, hasViewings \} = useAuthState\(\)/)
   assert.match(nav, /shouldShowMyViewings\(isAuthenticated, hasViewings\)/)

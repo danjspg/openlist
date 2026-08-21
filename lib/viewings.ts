@@ -197,3 +197,15 @@ export function getViewingStatusLabel(status: ViewingStatus) {
   if (status === "completed") return "Completed"
   return "Scheduled"
 }
+
+export function canCancelViewing(
+  status: ViewingStatus,
+  viewingStartsAt: string | Date,
+  now = Date.now()
+) {
+  const startsAt = viewingStartsAt instanceof Date
+    ? viewingStartsAt.getTime()
+    : new Date(viewingStartsAt).getTime()
+
+  return status === "scheduled" && Number.isFinite(startsAt) && startsAt > now
+}

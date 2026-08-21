@@ -4,6 +4,7 @@ import { redirect } from "next/navigation"
 import { getServerSupabase } from "@/lib/supabase"
 import { requireUser } from "@/lib/auth"
 import {
+  canCancelViewing,
   formatViewingDateTime,
   getCurrentTimeMs,
   getViewingStatusLabel,
@@ -25,7 +26,9 @@ function statusClasses(status: ViewingRow["status"]) {
   return "bg-stone-100 text-stone-700 ring-stone-200"
 }
 
-function ViewingCard({ viewing }: { viewing: ViewingRow }) {
+function ViewingCard({ viewing, now }: { viewing: ViewingRow; now: number }) {
+  const canCancel = canCancelViewing(viewing.status, viewing.viewing_starts_at, now)
+
   return (
     <article className="rounded-[24px] border border-stone-200 bg-white p-5 shadow-sm sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -85,7 +88,7 @@ function ViewingCard({ viewing }: { viewing: ViewingRow }) {
           Create similar
         </Link>
 
-        {viewing.status === "scheduled" && (
+        {canCancel && (
           <form action={cancelViewing}>
             <input type="hidden" name="id" value={viewing.id} />
             <button
@@ -184,7 +187,7 @@ export default async function MyViewingsPage({
               {upcoming.length > 0 ? (
                 <div className="space-y-4">
                   {upcoming.map((viewing) => (
-                    <ViewingCard key={viewing.id} viewing={viewing} />
+                    <ViewingCard key={viewing.id} viewing={viewing} now={now} />
                   ))}
                 </div>
               ) : (
@@ -205,7 +208,7 @@ export default async function MyViewingsPage({
               {past.length > 0 ? (
                 <div className="space-y-4">
                   {past.map((viewing) => (
-                    <ViewingCard key={viewing.id} viewing={viewing} />
+                    <ViewingCard key={viewing.id} viewing={viewing} now={now} />
                   ))}
                 </div>
               ) : (

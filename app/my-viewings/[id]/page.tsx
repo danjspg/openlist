@@ -4,7 +4,9 @@ import { notFound, redirect } from "next/navigation"
 import { getServerSupabase } from "@/lib/supabase"
 import { requireUser } from "@/lib/auth"
 import {
+  canCancelViewing,
   formatViewingDateTime,
+  getCurrentTimeMs,
   getGoogleMapsUrl,
   getViewingStatusLabel,
   type ViewingRow,
@@ -61,6 +63,8 @@ export default async function ViewingDetailsPage({
   }
 
   const viewing = data as ViewingRow
+  const now = await getCurrentTimeMs()
+  const canCancel = canCancelViewing(viewing.status, viewing.viewing_starts_at, now)
 
   return (
     <main className="min-h-screen bg-stone-50">
@@ -164,15 +168,17 @@ export default async function ViewingDetailsPage({
                 >
                   Update viewing
                 </Link>
-                <form action={cancelViewing}>
-                  <input type="hidden" name="id" value={viewing.id} />
-                  <button
-                    type="submit"
-                    className="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-5 py-3 text-sm font-medium text-red-700 transition hover:border-red-300 hover:bg-red-100"
-                  >
-                    Cancel viewing
-                  </button>
-                </form>
+                {canCancel && (
+                  <form action={cancelViewing}>
+                    <input type="hidden" name="id" value={viewing.id} />
+                    <button
+                      type="submit"
+                      className="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-5 py-3 text-sm font-medium text-red-700 transition hover:border-red-300 hover:bg-red-100"
+                    >
+                      Cancel viewing
+                    </button>
+                  </form>
+                )}
               </>
             )}
             <Link

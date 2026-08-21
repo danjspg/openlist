@@ -12,6 +12,7 @@ import {
 import {
   formatEircode,
   isValidEircode,
+  canCancelViewing,
   parseDublinViewingDateTime,
   type ViewingRow,
 } from "@/lib/viewings"
@@ -115,14 +116,21 @@ export async function cancelViewing(formData: FormData) {
     redirect(`/my-viewings/${id}?cancelled=1`)
   }
 
+  const cancellationStartedAt = new Date()
+
+  if (!canCancelViewing(existing.status, existing.viewing_starts_at, cancellationStartedAt.getTime())) {
+    throw new Error("Past viewings cannot be cancelled.")
+  }
+
   const { data, error } = await supabase
     .from("viewings")
     .update({
       status: "cancelled",
-      cancelled_at: new Date().toISOString(),
+      cancelled_at: cancellationStartedAt.toISOString(),
     })
     .eq("id", id)
     .eq("owner_user_id", currentUser.id)
+    .gt("viewing_starts_at", cancellationStartedAt.toISOString())
     .select("*")
     .single()
 

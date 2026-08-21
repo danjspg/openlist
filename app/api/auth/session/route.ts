@@ -10,7 +10,7 @@ export async function GET() {
           await getServerSupabase()
             .from("viewings")
             .select("id")
-            .eq("user_id", user.id)
+            .eq("owner_user_id", user.id)
             .limit(1)
             .maybeSingle()
         ).data
