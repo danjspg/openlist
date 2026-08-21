@@ -100,9 +100,11 @@ export function planningProposalTitle(
   maxLength = DEFAULT_PROPOSAL_TITLE_MAX_LENGTH
 ) {
   const text = meaningfulPlanningValue(proposal)
-  if (!text) return fallback
+  if (!text) return capitaliseFirstPlanningTitleLetter(fallback)
   const safeText = presentPlanningProposal(text, fallback).display
-  return cappedPlanningProposalText(titlePresentationText(safeText), maxLength)
+  return capitaliseFirstPlanningTitleLetter(
+    cappedPlanningProposalText(titlePresentationText(safeText), maxLength)
+  )
 }
 
 export function planningProposalSummary(
@@ -160,6 +162,13 @@ function titlePresentationText(text: string) {
   const firstItem = text.slice(retentionMatch[0].length).trim()
   if (!firstItem) return text
   return `Retention: ${firstItem.charAt(0).toLocaleLowerCase("en-IE")}${firstItem.slice(1)}`
+}
+
+function capitaliseFirstPlanningTitleLetter(text: string) {
+  const firstLetterIndex = text.search(/[A-Za-z]/)
+  if (firstLetterIndex < 0) return text
+
+  return `${text.slice(0, firstLetterIndex)}${text.charAt(firstLetterIndex).toLocaleUpperCase("en-IE")}${text.slice(firstLetterIndex + 1)}`
 }
 
 function firstCompletePlanningSentence(text: string) {
