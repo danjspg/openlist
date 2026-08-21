@@ -18,6 +18,17 @@ test("planning headings prefer a concise first complete sentence", () => {
   )
 })
 
+test("planning headings always capitalize their first letter", () => {
+  assert.equal(
+    planningProposalTitle("to retain indefinitely existing dog boarding kennels and a storage shed"),
+    "To retain indefinitely existing dog boarding kennels and a storage shed"
+  )
+  assert.equal(
+    planningProposalTitle("(to retain) an existing storage shed"),
+    "(To retain) an existing storage shed"
+  )
+})
+
 test("planning abbreviations do not create false title sentence boundaries", () => {
   assert.equal(
     planningProposalTitle("The works include 2no. modified shipping containers for the site. Further details follow."),
