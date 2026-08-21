@@ -15,7 +15,36 @@ type Props = {
   councilUrl: string | null
 }
 
-export function PlanningAlertActions({ applicationId, returnPath, councilUrl }: Props) {
+export function PlanningAlertActions(props: Props) {
+  if (process.env.NEXT_PUBLIC_PLANNING_EMAIL_ALERTS_ENABLED !== "true") {
+    return <CouncilOnlyAction councilUrl={props.councilUrl} />
+  }
+
+  return <EnabledPlanningAlertActions {...props} />
+}
+
+function CouncilOnlyAction({ councilUrl }: { councilUrl: string | null }) {
+  return (
+    <div data-planning-lifecycle-actions className="mt-5">
+      {councilUrl ? (
+        <a
+          href={councilUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-stone-300 bg-white px-4 text-center text-sm font-semibold text-stone-700 transition hover:border-stone-500 hover:text-stone-950"
+        >
+          View official council application
+        </a>
+      ) : (
+        <p className="text-sm leading-6 text-stone-500">
+          An official council link is not available for this recorded application.
+        </p>
+      )}
+    </div>
+  )
+}
+
+function EnabledPlanningAlertActions({ applicationId, returnPath, councilUrl }: Props) {
   const { isAuthenticated, isResolved } = useAuthState()
   const [subscription, setSubscription] = useState<PlanningAlertSubscription | null>(null)
   const [error, setError] = useState("")
