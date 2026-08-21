@@ -1,10 +1,23 @@
 import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import test from "node:test"
+import { shouldShowPlanningAlertControls } from "@/lib/planning-alert-visibility"
 
 async function source(path: string) {
   return readFile(new URL(`../${path}`, import.meta.url), "utf8")
 }
+
+test("planning alert canary hides controls for signed-out or unresolved users when public rollout is off", () => {
+  assert.equal(shouldShowPlanningAlertControls(false, false, true), false)
+  assert.equal(shouldShowPlanningAlertControls(false, false, false), false)
+  assert.equal(shouldShowPlanningAlertControls(false, true, false), false)
+})
+
+test("planning alert canary shows controls for resolved signed-in users and public rollout", () => {
+  assert.equal(shouldShowPlanningAlertControls(false, true, true), true)
+  assert.equal(shouldShowPlanningAlertControls(true, false, false), true)
+  assert.equal(shouldShowPlanningAlertControls(true, true, true), true)
+})
 
 test("planning alert migration protects one subscription per user and application", async () => {
   const migration = await source("supabase/migrations/20260821085929_planning_alert_subscriptions.sql")

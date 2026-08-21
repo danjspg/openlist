@@ -162,7 +162,7 @@ test("scheduled endpoint remains gated while the public feature is off", async (
   assert.match(workflow, /cron: "\*\/15 \* \* \* \*"/)
   assert.match(workflow, /PLANNING_ALERT_DELIVERY_SECRET/)
   assert.match(endpoint, /planningAlertDeliveryIsEnabled/)
-  assert.match(cta, /NEXT_PUBLIC_PLANNING_EMAIL_ALERTS_ENABLED !== "true"/)
+  assert.match(cta, /shouldShowPlanningAlertControls\(publicAlertsEnabled, isAuthenticated, isResolved\)/)
 
   const previous = process.env.PLANNING_ALERT_DELIVERY_ENABLED
   delete process.env.PLANNING_ALERT_DELIVERY_ENABLED

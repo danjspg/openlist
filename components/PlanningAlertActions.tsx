@@ -8,6 +8,7 @@ import {
   disablePlanningAlert,
   enablePlanningAlert,
 } from "@/app/my-alerts/actions"
+import { shouldShowPlanningAlertControls } from "@/lib/planning-alert-visibility"
 
 type Props = {
   applicationId: string
@@ -43,7 +44,10 @@ function AlertButtonContents() {
 }
 
 export function PlanningAlertActions(props: Props) {
-  if (process.env.NEXT_PUBLIC_PLANNING_EMAIL_ALERTS_ENABLED !== "true") {
+  const { isAuthenticated, isResolved } = useAuthState()
+  const publicAlertsEnabled = process.env.NEXT_PUBLIC_PLANNING_EMAIL_ALERTS_ENABLED === "true"
+
+  if (!shouldShowPlanningAlertControls(publicAlertsEnabled, isAuthenticated, isResolved)) {
     return <CouncilOnlyAction councilUrl={props.councilUrl} />
   }
 
