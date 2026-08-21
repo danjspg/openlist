@@ -61,7 +61,7 @@ test("planning detail presents a primary alert action and a secondary council ac
   assert.doesNotMatch(layout, /\> div/)
   assert.match(cta, /Get email updates/)
   assert.match(cta, /data-planning-lifecycle-actions/)
-  assert.match(cta, /bg-emerald-700/)
+  assert.match(cta, /bg-gradient-to-b from-emerald-600 to-emerald-700/)
   assert.match(cta, /View official council application/)
   assert.match(cta, /border border-stone-300 bg-white/)
   assert.match(cta, /min-h-11 w-full/)

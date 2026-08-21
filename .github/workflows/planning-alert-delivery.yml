@@ -1,0 +1,33 @@
+name: Deliver Planning email alerts
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: planning-alert-delivery
+  cancel-in-progress: false
+
+jobs:
+  deliver:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PLANNING_ALERT_DELIVERY_URL: ${{ secrets.PLANNING_ALERT_DELIVERY_URL }}
+      PLANNING_ALERT_DELIVERY_SECRET: ${{ secrets.PLANNING_ALERT_DELIVERY_SECRET }}
+    steps:
+      - name: Run bounded Planning alert delivery
+        shell: bash
+        run: |
+          if [[ -z "$PLANNING_ALERT_DELIVERY_URL" || -z "$PLANNING_ALERT_DELIVERY_SECRET" ]]; then
+            echo "Planning alert delivery is not configured; leaving the worker off."
+            exit 0
+          fi
+          curl --fail-with-body --silent --show-error \
+            --request POST \
+            --header "Authorization: Bearer $PLANNING_ALERT_DELIVERY_SECRET" \
+            "${PLANNING_ALERT_DELIVERY_URL%/}/api/internal/planning-alert-delivery"

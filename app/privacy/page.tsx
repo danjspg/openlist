@@ -16,7 +16,7 @@ export default function PrivacyPage() {
           <h1 className="text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
             Privacy Notice
           </h1>
-          <p className="mt-3 text-sm text-slate-500">Last updated: 20 August 2026</p>
+          <p className="mt-3 text-sm text-slate-500">Last updated: 21 August 2026</p>
         </div>
 
         <div className="mt-8 rounded-[28px] border border-slate-200 bg-white p-8 shadow-sm">
@@ -31,7 +31,7 @@ export default function PrivacyPage() {
               <p>OpenList obtains information from publicly available official sources, including local-authority planning records, national public planning datasets and Ireland&apos;s Residential Property Price Register.</p>
               <p>Planning records may include applicant names, agents or representatives, application addresses or locations, reference numbers, development descriptions, application dates, decisions, statuses and other planning metadata supplied by the public authority. OpenList principally republishes and organises planning metadata; it does not deliberately collect sensitive information from planning application documents.</p>
               <h3 className="font-semibold text-slate-900">Account, alerts and viewing-planner information</h3>
-              <p>When you sign in, request planning email updates or use the Viewing Planner, OpenList may process your email address, authentication and account identifiers, the planning applications you choose to follow, whether an alert is enabled, viewing locations and times, contact details you enter for viewers or property contacts, notification choices, notes, and operational information needed to provide those services.</p>
+              <p>When you sign in, request planning email updates or use the Viewing Planner, OpenList may process your email address, authentication and account identifiers, the planning applications you choose to follow, whether an alert is enabled, planning-alert delivery status and provider message identifiers, viewing locations and times, contact details you enter for viewers or property contacts, notification choices, notes, and operational information needed to provide those services.</p>
               <h3 className="font-semibold text-slate-900">Technical and usage information</h3>
               <p>OpenList and its infrastructure providers may process IP or request data, browser or device information, timestamps, authentication and security events, error or diagnostic information, and aggregate website analytics or performance information.</p>
             </PrivacySection>
@@ -41,7 +41,7 @@ export default function PrivacyPage() {
               <p>OpenList relies on legitimate interests under Article 6(1)(f) GDPR to process public planning information. Its legitimate interest is making official planning and property information easier to find, search, understand, compare, research and monitor.</p>
               <p>In doing so, OpenList considers the public nature and purpose of the source records, the nature of the information, reasonable expectations of individuals, the value of accessible planning information, possible impact on individuals and data minimisation. Information being public does not by itself mean it is not personal data.</p>
               <h3 className="font-semibold text-slate-900">Accounts, planning alerts and viewing communications</h3>
-              <p>OpenList uses account and authentication information to provide the sign-in and account service you request, and to administer that service. It uses saved planning subscriptions to send the planning update emails you request, and viewing contact details and notification choices to send confirmations, updates, cancellations and reminders selected by the user. These are service communications, not permission for unrelated marketing.</p>
+              <p>OpenList uses account and authentication information to provide the sign-in and account service you request, and to administer that service. It uses saved planning subscriptions and delivery records to send and operate the planning update emails you request, and viewing contact details and notification choices to send confirmations, updates, cancellations and reminders selected by the user. These are service communications, not permission for unrelated marketing.</p>
               <h3 className="font-semibold text-slate-900">Security, legal obligations and claims</h3>
               <p>OpenList also relies on legitimate interests in security, abuse and fraud prevention, and service reliability. It may process or retain information where necessary to comply with legal or regulatory obligations, or to establish, exercise or defend legal claims.</p>
             </PrivacySection>
@@ -67,11 +67,12 @@ export default function PrivacyPage() {
 
             <PrivacySection title="8. Retention">
               <p>Planning records form part of a historical public planning record and can remain useful for property and planning research over long periods. Continued processing may be reviewed where a particular privacy issue is raised.</p>
-              <p>Account information is retained while needed to operate the account, with limited additional retention where needed for security, legal or operational reasons. Planning-alert subscriptions and viewing-planner information are retained while needed for the active service and are subject to normal deletion and backup processes. You can stop a planning alert from My alerts, or delete the alert there. Logs and technical data are retained only for periods appropriate to their operational or security purpose.</p>
+              <p>Account information is retained while needed to operate the account, with limited additional retention where needed for security, legal or operational reasons. Planning-alert subscriptions, associated delivery records and viewing-planner information are retained while needed for the active service and are subject to normal deletion and backup processes. You can stop a planning alert from My alerts or from the signed unsubscribe link in a planning update email, without signing in, and you can delete the alert from My alerts. Logs and technical data are retained only for periods appropriate to their operational or security purpose.</p>
             </PrivacySection>
 
             <PrivacySection title="9. Cookies, analytics and performance">
               <p>OpenList uses Vercel Web Analytics and Speed Insights to understand aggregate website use and performance. OpenList does not describe these tools as completely anonymous. If OpenList introduces non-essential tracking that requires consent, it will request consent where required.</p>
+              <p>OpenList does not use open or click tracking in planning update emails.</p>
             </PrivacySection>
 
             <PrivacySection title="10. Your rights">

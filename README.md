@@ -49,3 +49,23 @@ OPENLIST_ADMIN_SESSION_SECRET=long-random-secret
 ```
 
 Visit `/admin/access` to start an admin session for feature controls.
+
+## Planning email alert delivery
+
+Planning alert delivery is off unless both rollout gates are deliberately configured. Keep these off while deploying the schema and worker:
+
+```bash
+NEXT_PUBLIC_PLANNING_EMAIL_ALERTS_ENABLED=false
+PLANNING_ALERT_DELIVERY_ENABLED=false
+```
+
+The Vercel application requires the existing Supabase and Resend settings plus:
+
+```bash
+PLANNING_ALERT_DELIVERY_SECRET=long-random-secret
+PLANNING_ALERT_UNSUBSCRIBE_SECRET=separate-random-secret-at-least-32-characters
+```
+
+The scheduled GitHub Actions workflow requires matching `PLANNING_ALERT_DELIVERY_SECRET` and `PLANNING_ALERT_DELIVERY_URL` repository secrets. The URL is the OpenList production origin. Resend open and click tracking must remain disabled for the sending domain.
+
+Apply the delivery migration before enabling the server-side delivery gate. Enable the public CTA separately only after production queue and unsubscribe smoke tests pass.
