@@ -48,6 +48,12 @@ function logCompletion(rowsProcessed) {
   console.log(`Timestamp: ${formatCompletionTimestamp()}`)
 }
 
+async function refreshLocalitySeoCohort() {
+  const { error } = await supabase.rpc("openlist_refresh_locality_seo_cohorts")
+  if (error) throw error
+  console.log("Locality SEO cohort refreshed.")
+}
+
 async function runDownload(years) {
   await new Promise((resolve, reject) => {
     const child = spawn(
@@ -169,6 +175,7 @@ try {
   if (newRecords.length === 0) {
     console.log("No brand-new sold-prices rows detected for the current year.")
     console.log("Derived sold-prices tables are already in sync; skipping their rebuild.")
+    await refreshLocalitySeoCohort()
     logCompletion(0)
     process.exit(0)
   }
@@ -190,9 +197,7 @@ try {
 
   await refreshDerivedPprTables()
 
-  const { error: localityCohortError } = await supabase.rpc("openlist_refresh_locality_seo_cohorts")
-  if (localityCohortError) throw localityCohortError
-  console.log("Locality SEO cohort refreshed.")
+  await refreshLocalitySeoCohort()
 
   console.log(
     `Sold-prices refresh complete. Current-year source checked, ${result.insertedRows} new rows imported, ${result.processedRows} new rows processed.`
