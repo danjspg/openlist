@@ -93,7 +93,10 @@ begin
   ) select * from ppr union all select * from planning;
 
   delete from locality_candidates where locality_slug = '' or locality_label is null or length(locality_label) > 80
-    or locality_label ~ '[0-9]' or lower(locality_label) in ('county cork','county dublin','ireland');
+    or locality_label ~ '[0-9]'
+    or locality_label ~* '(^|[[:space:]])(p\.?o\.?|post office)([[:space:]]|$)'
+    or locality_label ~* '^co\.?[[:space:]]+'
+    or lower(locality_label) in ('carlow','cavan','clare','cork','donegal','dublin','galway','kerry','kildare','kilkenny','laois','leitrim','limerick','longford','louth','mayo','meath','monaghan','offaly','roscommon','sligo','tipperary','waterford','westmeath','wexford','wicklow','county cork','county dublin','ireland');
 
   foreach v_surface in array array['sold_prices','planning'] loop
     select count(*) into v_active from public.locality_seo_memberships where surface = v_surface and left_at is null;
