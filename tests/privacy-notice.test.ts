@@ -37,3 +37,12 @@ test("privacy files do not introduce a personal email address", async () => {
   const emails = `${page}\n${assessment}`.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || []
   assert.deepEqual([...new Set(emails.map((email) => email.toLowerCase()))], ["privacy@openlist.ie"])
 })
+
+test("privacy covers requested planning updates without marketing consent", async () => {
+  const page = await source("app/privacy/page.tsx")
+  assert.match(page, /saved planning subscriptions/)
+  assert.match(page, /planning update emails you request/)
+  assert.match(page, /planning-update and viewing-related transactional emails/)
+  assert.match(page, /stop a planning alert from My alerts, or delete the alert there/)
+  assert.match(page, /not permission for unrelated marketing/)
+})
