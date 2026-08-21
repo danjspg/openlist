@@ -90,49 +90,51 @@ export default function RootLayout({
                   OpenList makes Irish property data easier to understand by connecting sold prices, planning applications and location context.
                 </p>
 
-                <div className="mt-6 space-y-3 text-xs leading-5 text-stone-500">
+                <div className="mt-6 max-w-md space-y-4 text-xs leading-5 text-stone-500">
                   <p>
                     Information is provided for general purposes only and may not always reflect the latest official record. OpenList is not an estate agent, auctioneer, valuer, broker or legal adviser.
                   </p>
+                  <div className="text-sm text-stone-600">
+                    <AccountFooterLink />
+                  </div>
                 </div>
               </div>
 
-              <div className="grid gap-6 text-sm text-stone-600 sm:grid-cols-3 md:pt-12">
-                <FooterLinkGroup title="Property intelligence">
-                  <Link href="/sold-prices" className="transition hover:text-stone-900">
-                    Sold prices
-                  </Link>
+              <div className="grid gap-8 text-sm text-stone-600 sm:grid-cols-2 md:pt-12">
+                <FooterLinkGroup title="Explore">
                   <Link href="/planning" className="transition hover:text-stone-900">
                     Planning
                   </Link>
+                  <Link href="/sold-prices" className="transition hover:text-stone-900">
+                    Sold prices
+                  </Link>
+                  <Link href="/search" className="transition hover:text-stone-900">
+                    Search
+                  </Link>
                 </FooterLinkGroup>
 
-                <FooterLinkGroup title="Account tools">
-                  <AccountFooterLink />
-                </FooterLinkGroup>
-
-                <FooterLinkGroup title="Company">
+                <FooterLinkGroup title="About">
                   <Link href="/about" className="transition hover:text-stone-900">
                     About OpenList
                   </Link>
                   <Link href="/about#data-methodology" className="transition hover:text-stone-900">
                     Data methodology
                   </Link>
-                  <Link href="/terms" className="transition hover:text-stone-900">
-                    Terms
-                  </Link>
                   <Link href="/privacy" className="transition hover:text-stone-900">
                     Privacy
                   </Link>
-                  <Link href="/admin/access" className="text-stone-400 transition hover:text-stone-700">
-                    Admin
+                  <Link href="/terms" className="transition hover:text-stone-900">
+                    Terms
                   </Link>
                 </FooterLinkGroup>
               </div>
             </div>
 
-            <div className="mt-10 border-t border-stone-200 pt-6 text-xs text-stone-400">
-              © {new Date().getFullYear()} OpenList. All rights reserved.
+            <div className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-stone-200 pt-6 text-xs text-stone-400">
+              <span>© {new Date().getFullYear()} OpenList. All rights reserved.</span>
+              <Link href="/admin/access" className="transition hover:text-stone-700">
+                Admin
+              </Link>
             </div>
           </div>
           </footer>
