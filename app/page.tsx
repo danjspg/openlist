@@ -93,6 +93,52 @@ export default async function HomePage() {
                 Search sold prices
               </Link>
             </div>
+
+            <div className="mt-7 grid gap-3 sm:grid-cols-2 lg:mt-8">
+              <Link
+                href="/planning"
+                className="group rounded-2xl border border-stone-200 bg-white/85 px-4 py-4 shadow-sm transition hover:-translate-y-0.5 hover:border-stone-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300"
+              >
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
+                  Planning
+                </p>
+                <h2 className="mt-1.5 text-base font-semibold tracking-tight text-stone-900">
+                  See what is proposed nearby
+                </h2>
+                {planningSummary.totalCount > 0 ? (
+                  <p className="mt-2 text-xs leading-5 text-stone-500">
+                    {numberFormat.format(planningSummary.totalCount)} applications
+                    {planningSummary.latestRegistrationDate
+                      ? ` · latest ${formatPlanningDate(planningSummary.latestRegistrationDate)}`
+                      : ""}
+                  </p>
+                ) : null}
+                <p className="mt-2.5 text-sm font-semibold text-stone-800">
+                  Search planning <span aria-hidden="true" className="transition group-hover:translate-x-0.5">→</span>
+                </p>
+              </Link>
+
+              <Link
+                href="/sold-prices"
+                className="group rounded-2xl border border-stone-200 bg-white/85 px-4 py-4 shadow-sm transition hover:-translate-y-0.5 hover:border-stone-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300"
+              >
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
+                  Sold prices
+                </p>
+                <h2 className="mt-1.5 text-base font-semibold tracking-tight text-stone-900">
+                  See what homes actually sold for
+                </h2>
+                <p className="mt-2 text-xs leading-5 text-stone-500">
+                  {numberFormat.format(datasetSummary.salesCount)} sales
+                  {datasetSummary.latestSaleDate
+                    ? ` · latest ${formatPprDate(datasetSummary.latestSaleDate)}`
+                    : ""}
+                </p>
+                <p className="mt-2.5 text-sm font-semibold text-stone-800">
+                  Search sold prices <span aria-hidden="true" className="transition group-hover:translate-x-0.5">→</span>
+                </p>
+              </Link>
+            </div>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:pt-1" aria-label="Irish housing and development photography">
@@ -117,64 +163,6 @@ export default async function HomePage() {
               />
             </div>
           </div>
-        </div>
-
-        <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:mt-10 lg:gap-4">
-          <Link
-            href="/planning"
-            className="group rounded-2xl border border-stone-200 bg-white/85 px-4 py-4 shadow-sm transition hover:-translate-y-0.5 hover:border-stone-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300 sm:px-5 sm:py-5"
-          >
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
-              Planning applications
-            </p>
-            <h2 className="mt-2 text-base font-semibold tracking-tight text-stone-900">
-              See what is proposed around a property
-            </h2>
-            <p className="mt-1.5 text-sm leading-5 text-stone-600">
-              Search by address, area or reference, then follow proposals, status, key dates and decisions.
-            </p>
-            {planningSummary.totalCount > 0 ? (
-              <p className="mt-3 text-xs leading-5 text-stone-500">
-                {numberFormat.format(planningSummary.totalCount)} planning applications
-                {planningSummary.latestRegistrationDate
-                  ? ` · latest registered ${formatPlanningDate(planningSummary.latestRegistrationDate)}`
-                  : ""}
-              </p>
-            ) : null}
-            <p className="text-xs leading-5 text-stone-400">
-              Source: Irish local authorities
-            </p>
-            <p className="mt-3 text-sm font-semibold text-stone-800">
-              Search planning <span aria-hidden="true" className="transition group-hover:translate-x-0.5">→</span>
-            </p>
-          </Link>
-
-          <Link
-            href="/sold-prices"
-            className="group rounded-2xl border border-stone-200 bg-white/85 px-4 py-4 shadow-sm transition hover:-translate-y-0.5 hover:border-stone-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300 sm:px-5 sm:py-5"
-          >
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
-              Sold prices
-            </p>
-            <h2 className="mt-2 text-base font-semibold tracking-tight text-stone-900">
-              See what homes actually sold for
-            </h2>
-            <p className="mt-1.5 text-sm leading-5 text-stone-600">
-              Search Property Price Register transactions, compare areas and explore local market trends.
-            </p>
-            <p className="mt-3 text-xs leading-5 text-stone-500">
-              {numberFormat.format(datasetSummary.salesCount)} recorded sales
-              {datasetSummary.latestSaleDate
-                ? ` · latest recorded sale ${formatPprDate(datasetSummary.latestSaleDate)}`
-                : ""}
-            </p>
-            <p className="text-xs leading-5 text-stone-400">
-              Source: Property Price Register
-            </p>
-            <p className="mt-3 text-sm font-semibold text-stone-800">
-              Search sold prices <span aria-hidden="true" className="transition group-hover:translate-x-0.5">→</span>
-            </p>
-          </Link>
         </div>
       </section>
 
