@@ -73,7 +73,7 @@ function ViewingCard({ viewing, now }: { viewing: ViewingRow; now: number }) {
         >
           View details
         </Link>
-        {viewing.status === "scheduled" && (
+        {canCancel && (
           <Link
             href={`/my-viewings/${viewing.id}/edit`}
             className="inline-flex items-center rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:text-stone-900"

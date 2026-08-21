@@ -160,7 +160,7 @@ export default async function ViewingDetailsPage({
           </div>
 
           <div className="mt-8 flex flex-wrap gap-3 border-t border-stone-200 pt-6">
-            {viewing.status === "scheduled" && (
+            {canCancel && (
               <>
                 <Link
                   href={`/my-viewings/${viewing.id}/edit`}
@@ -168,17 +168,15 @@ export default async function ViewingDetailsPage({
                 >
                   Update viewing
                 </Link>
-                {canCancel && (
-                  <form action={cancelViewing}>
-                    <input type="hidden" name="id" value={viewing.id} />
-                    <button
-                      type="submit"
-                      className="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-5 py-3 text-sm font-medium text-red-700 transition hover:border-red-300 hover:bg-red-100"
-                    >
-                      Cancel viewing
-                    </button>
-                  </form>
-                )}
+                <form action={cancelViewing}>
+                  <input type="hidden" name="id" value={viewing.id} />
+                  <button
+                    type="submit"
+                    className="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-5 py-3 text-sm font-medium text-red-700 transition hover:border-red-300 hover:bg-red-100"
+                  >
+                    Cancel viewing
+                  </button>
+                </form>
               </>
             )}
             <Link

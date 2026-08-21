@@ -36,6 +36,28 @@ test("past viewing cancellation is stopped before any update or cancellation ema
   assert.ok(email > update)
 })
 
+test("past viewing updates are hidden and rejected server-side", async () => {
+  const [actions, listPage, detailPage] = await Promise.all([
+    source("app/my-viewings/actions.ts"),
+    source("app/my-viewings/page.tsx"),
+    source("app/my-viewings/[id]/page.tsx"),
+  ])
+
+  assert.match(listPage, /\{canCancel && \(\s*<Link\s+href=\{`\/my-viewings\/\$\{viewing\.id\}\/edit`\}/)
+  assert.match(detailPage, /\{canCancel && \(\s*<>\s*<Link\s+href=\{`\/my-viewings\/\$\{viewing\.id\}\/edit`\}/)
+
+  const updateGuard = actions.indexOf("if (!canCancelViewing(previousViewing.status, previousViewing.viewing_starts_at, updateStartedAt.getTime()))")
+  const updateWrite = actions.indexOf(".update({", actions.indexOf("export async function updateViewing"))
+  const updateEmail = actions.indexOf("await sendViewingUpdateEmails")
+
+  assert.ok(updateGuard >= 0)
+  assert.match(actions, /throw new Error\("Past viewings cannot be updated\."\)/)
+  assert.match(actions, /\.eq\("status", "scheduled"\)/)
+  assert.match(actions, /\.gt\("viewing_starts_at", updateStartedAt\.toISOString\(\)\)/)
+  assert.ok(updateWrite > updateGuard)
+  assert.ok(updateEmail > updateWrite)
+})
+
 test("list and detail views only render cancellation when the viewing is cancellable", async () => {
   const [listPage, detailPage] = await Promise.all([
     source("app/my-viewings/page.tsx"),
@@ -45,5 +67,5 @@ test("list and detail views only render cancellation when the viewing is cancell
   assert.match(listPage, /const canCancel = canCancelViewing\(viewing\.status, viewing\.viewing_starts_at, now\)/)
   assert.match(listPage, /\{canCancel && \(\s*<form action=\{cancelViewing\}>/)
   assert.match(detailPage, /const canCancel = canCancelViewing\(viewing\.status, viewing\.viewing_starts_at, now\)/)
-  assert.match(detailPage, /\{canCancel && \(\s*<form action=\{cancelViewing\}>/)
+  assert.match(detailPage, /<form action=\{cancelViewing\}>/)
 })

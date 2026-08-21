@@ -216,6 +216,11 @@ export async function updateViewing(formData: FormData) {
     throw new Error("Cancelled viewings cannot be updated.")
   }
 
+  const updateStartedAt = new Date()
+  if (!canCancelViewing(previousViewing.status, previousViewing.viewing_starts_at, updateStartedAt.getTime())) {
+    throw new Error("Past viewings cannot be updated.")
+  }
+
   const timeChanged = new Date(previousViewing.viewing_starts_at).getTime() !== startsAt.getTime()
   const { data, error } = await supabase
     .from("viewings")
@@ -238,6 +243,8 @@ export async function updateViewing(formData: FormData) {
     })
     .eq("id", id)
     .eq("owner_user_id", currentUser.id)
+    .eq("status", "scheduled")
+    .gt("viewing_starts_at", updateStartedAt.toISOString())
     .select("*")
     .single()
 
