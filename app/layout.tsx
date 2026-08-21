@@ -97,7 +97,7 @@ export default function RootLayout({
                 </div>
               </div>
 
-              <div className="grid gap-8 text-sm text-stone-600 sm:grid-cols-2 md:pt-12">
+              <div className="grid grid-cols-2 gap-6 text-sm text-stone-600 sm:gap-8 md:pt-12">
                 <FooterLinkGroup title="Explore">
                   <Link href="/planning" className="transition hover:text-stone-900">
                     Planning
