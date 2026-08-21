@@ -296,6 +296,26 @@ async function main() {
     console.log(
       "Sold Prices performance is read directly from Search Console; daily report snapshots are retained on issue #10. URL Inspection quota remains reserved for Planning."
     )
+    const { data: localityRows, error: localityError } = await supabase
+      .from("locality_seo_search_performance")
+      .select("canonical_path,clicks,impressions,position")
+      .gte("data_date", current28Start)
+      .lte("data_date", latestDate)
+    if (localityError) throw localityError
+    const active = await supabase.from("locality_seo_memberships").select("canonical_path,surface,entered_at,first_impression_at").is("left_at", null)
+    if (active.error) throw active.error
+    for (const surface of ["sold_prices", "planning"]) {
+      const pages = new Set((active.data || []).filter((row) => row.surface === surface).map((row) => row.canonical_path))
+      const values = (localityRows || []).filter((row) => pages.has(row.canonical_path))
+      const impressions = values.reduce((sum, row) => sum + Number(row.impressions || 0), 0)
+      const clicks = values.reduce((sum, row) => sum + Number(row.clicks || 0), 0)
+      const pagesWithImpressions = new Set(values.filter((row) => Number(row.impressions) > 0).map((row) => row.canonical_path)).size
+      const pagesWithClicks = new Set(values.filter((row) => Number(row.clicks) > 0).map((row) => row.canonical_path)).size
+      const positionWeight = values.reduce((sum, row) => sum + Number(row.position || 0) * Number(row.impressions || 0), 0)
+      console.log(`${surface === "sold_prices" ? "Sold Prices" : "Planning"} locality cohort: ${pages.size} active sitemap URLs; ${pagesWithImpressions} pages with impressions; ${pagesWithClicks} with clicks; ${clicks} clicks, ${impressions} impressions, CTR ${formatPercent(impressions ? clicks / impressions : null)}, avg position ${impressions ? (positionWeight / impressions).toFixed(2) : "n/a"}; ${(impressions / Math.max(pages.size, 1)).toFixed(2)} impressions/page, ${(clicks / Math.max(pages.size, 1)).toFixed(2)} clicks/page.`)
+      const top = [...values].sort((a, b) => Number(b.clicks) - Number(a.clicks) || Number(b.impressions) - Number(a.impressions)).slice(0, 5)
+      if (top.length) console.log(`Top ${surface} locality pages: ${top.map((row) => `${row.canonical_path} (${row.clicks}/${row.impressions})`).join(", ")}`)
+    }
   } else {
     console.log("Planning search performance trends: no stored Search Console performance rows yet")
     console.log("Sold Prices search performance trends: waiting for a Planning data-date anchor")

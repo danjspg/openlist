@@ -6,7 +6,6 @@ import {
   RECENT_PLANNING_SITEMAP_LIMIT,
 } from "@/lib/planning-seo"
 import { PPR_MARKETS } from "@/lib/ppr-markets"
-import { getCuratedPprAreaSitemapPaths } from "@/lib/ppr-sold-price-routes"
 
 export const revalidate = 86400
 
@@ -46,10 +45,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     url: `${baseUrl}/sold-prices/${market.slug}`,
   }))
 
-  const canonicalTownRoutes = getCuratedPprAreaSitemapPaths().map((path) => ({
-    url: `${baseUrl}${path}`,
-  }))
-
   const planningAuthorityRoutes = PLANNING_AUTHORITIES.map((authority) => ({
     url: `${baseUrl}/planning/${authority.slug}`,
   }))
@@ -67,6 +62,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...planningAuthorityRoutes,
     ...planningApplicationRoutes,
     ...marketRoutes,
-    ...canonicalTownRoutes,
   ]
 }
