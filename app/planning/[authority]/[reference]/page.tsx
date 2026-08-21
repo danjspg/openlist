@@ -56,13 +56,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     application.proposal,
     `Planning application ${application.reference}`
   )
+  const locationTitle = meaningfulPlanningValue(application.location)
+    ?.replace(/\s+([,.;:])/g, "$1")
   const summary = planningProposalSummary(
     application.proposal,
     `View planning application ${application.reference} from ${authority.name}.`
   )
 
   return {
-    title: `${heading} | ${application.reference} | OpenList`,
+    title: `${locationTitle ?? heading} | ${application.reference} | OpenList`,
     description: summary,
     alternates: { canonical },
     robots: { index: true, follow: true },
