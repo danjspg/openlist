@@ -66,6 +66,8 @@ test("planning detail presents a primary alert action and a secondary council ac
   assert.match(cta, /border border-stone-300 bg-white/)
   assert.match(cta, /min-h-11 w-full/)
   assert.match(cta, /grid gap-3 sm:grid-cols-2/)
+  assert.match(myAlerts, /planning_applications: AlertApplication \| AlertApplication\[\] \| null/)
+  assert.match(myAlerts, /Array\.isArray\(alert\.planning_applications\)/)
   assert.match(myAlerts, /Stop updates/)
   assert.match(myAlerts, /View application/)
 })

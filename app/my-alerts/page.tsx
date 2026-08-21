@@ -16,18 +16,20 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 }
 
-type AlertRow = {
-  id: string
-  application_id: string
-  enabled: boolean
-  created_at: string
-  planning_applications: {
+type AlertApplication = {
     reference: string
     local_authority: string
     local_authority_code: string
     proposal: string | null
     location: string | null
-  }[]
+}
+
+type AlertRow = {
+  id: string
+  application_id: string
+  enabled: boolean
+  created_at: string
+  planning_applications: AlertApplication | AlertApplication[] | null
 }
 
 export default async function MyAlertsPage() {
@@ -72,7 +74,9 @@ export default async function MyAlertsPage() {
 }
 
 function AlertCard({ alert }: { alert: AlertRow }) {
-  const application = alert.planning_applications[0] ?? null
+  const application = Array.isArray(alert.planning_applications)
+    ? alert.planning_applications[0] ?? null
+    : alert.planning_applications
   const authority = application ? getPlanningAuthorityByCode(application.local_authority_code) : null
   const applicationPath = application && authority
     ? planningApplicationPath(authority, application.reference)
