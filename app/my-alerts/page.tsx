@@ -229,12 +229,14 @@ function AlertCard({
             </button>
           </form>
         )}
-        <form action={deletePlanningAlert} className="sm:ml-auto">
-          <input type="hidden" name="subscriptionId" value={alert.id} />
-          <button type="submit" className="inline-flex min-h-10 w-full items-center justify-center px-2 text-xs font-medium text-stone-400 underline decoration-stone-300 underline-offset-4 transition hover:text-red-700 sm:w-auto">
-            Remove alert
-          </button>
-        </form>
+        {!alert.enabled ? (
+          <form action={deletePlanningAlert} className="sm:ml-auto">
+            <input type="hidden" name="subscriptionId" value={alert.id} />
+            <button type="submit" className="inline-flex min-h-10 w-full items-center justify-center px-2 text-xs font-medium text-stone-400 underline decoration-stone-300 underline-offset-4 transition hover:text-red-700 sm:w-auto">
+              Remove alert
+            </button>
+          </form>
+        ) : null}
       </div>
     </article>
   )
