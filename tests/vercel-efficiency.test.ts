@@ -7,9 +7,10 @@ async function source(path: string) {
 }
 
 test("public root rendering does not read auth cookies", async () => {
-  const [layout, nav, sessionRoute, privateViewings] = await Promise.all([
+  const [layout, nav, footer, sessionRoute, privateViewings] = await Promise.all([
     source("app/layout.tsx"),
     source("components/Nav.tsx"),
+    source("components/AccountFooterLink.tsx"),
     source("app/api/auth/session/route.ts"),
     source("app/my-viewings/page.tsx"),
   ])
@@ -20,6 +21,12 @@ test("public root rendering does not read auth cookies", async () => {
   assert.match(sessionRoute, /getCurrentUser/)
   assert.match(sessionRoute, /private, no-store/)
   assert.match(privateViewings, /requireUser/)
+  assert.match(sessionRoute, /from\("viewings"\)[\s\S]*\.eq\("user_id", user\.id\)[\s\S]*\.limit\(1\)/)
+  assert.match(sessionRoute, /hasViewings/)
+  assert.match(nav, /const \{ isAuthenticated, hasViewings \} = useAuthState\(\)/)
+  assert.match(nav, /shouldShowMyViewings\(isAuthenticated, hasViewings\)/)
+  assert.match(footer, /const\s+\{ isAuthenticated, hasViewings \} = useAuthState\(\)/)
+  assert.match(footer, /shouldShowMyViewings\(isAuthenticated, hasViewings\)/)
 })
 
 test("planning aggregation stays in Postgres and returns only compact summaries", async () => {

@@ -4,6 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import SignOutButton from "@/components/SignOutButton"
 import { useAuthState } from "@/components/AuthStateProvider"
+import { shouldShowMyViewings } from "@/lib/account-navigation"
 
 const navItems = [
   { href: "/planning", label: "Planning" },
@@ -14,7 +15,8 @@ const navItems = [
 
 export default function Nav() {
   const pathname = usePathname()
-  const { isAuthenticated } = useAuthState()
+  const { isAuthenticated, hasViewings } = useAuthState()
+  const showMyViewings = shouldShowMyViewings(isAuthenticated, hasViewings)
 
   return (
     <>
@@ -60,17 +62,19 @@ export default function Nav() {
               >
                 My alerts
               </Link>
-              <Link
-                href="/my-viewings"
-                className={`inline-flex items-center rounded-full border px-5 py-2.5 text-base font-medium transition ${
-                  pathname === "/my-viewings" ||
-                  pathname.startsWith("/my-viewings/")
-                    ? "border-stone-900 text-stone-900"
-                    : "border-stone-300 text-stone-700 hover:border-stone-900 hover:text-stone-900"
-                }`}
-              >
-                My viewings
-              </Link>
+              {showMyViewings ? (
+                <Link
+                  href="/my-viewings"
+                  className={`inline-flex items-center rounded-full border px-5 py-2.5 text-base font-medium transition ${
+                    pathname === "/my-viewings" ||
+                    pathname.startsWith("/my-viewings/")
+                      ? "border-stone-900 text-stone-900"
+                      : "border-stone-300 text-stone-700 hover:border-stone-900 hover:text-stone-900"
+                  }`}
+                >
+                  My viewings
+                </Link>
+              ) : null}
               <SignOutButton />
             </>
           ) : (
@@ -126,16 +130,18 @@ export default function Nav() {
             >
               My alerts
             </Link>
-            <Link
-              href="/my-viewings"
-              className={`inline-flex min-h-11 shrink-0 items-center font-medium transition ${
-                pathname === "/my-viewings" || pathname.startsWith("/my-viewings/")
-                  ? "text-stone-900"
-                  : "text-stone-500 hover:text-stone-900"
-              }`}
-            >
-              My viewings
-            </Link>
+            {showMyViewings ? (
+              <Link
+                href="/my-viewings"
+                className={`inline-flex min-h-11 shrink-0 items-center font-medium transition ${
+                  pathname === "/my-viewings" || pathname.startsWith("/my-viewings/")
+                    ? "text-stone-900"
+                    : "text-stone-500 hover:text-stone-900"
+                }`}
+              >
+                My viewings
+              </Link>
+            ) : null}
           </>
         ) : (
           <Link

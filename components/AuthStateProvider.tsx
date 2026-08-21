@@ -11,17 +11,20 @@ import {
 
 type AuthState = {
   isAuthenticated: boolean
+  hasViewings: boolean
   isResolved: boolean
 }
 
 const AuthStateContext = createContext<AuthState>({
   isAuthenticated: false,
+  hasViewings: false,
   isResolved: false,
 })
 
 export default function AuthStateProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({
     isAuthenticated: false,
+    hasViewings: false,
     isResolved: false,
   })
 
@@ -36,16 +39,20 @@ export default function AuthStateProvider({ children }: { children: ReactNode })
           signal: controller.signal,
         })
         const payload = response.ok
-          ? ((await response.json()) as { authenticated?: boolean })
+          ? ((await response.json()) as {
+              authenticated?: boolean
+              hasViewings?: boolean
+            })
           : null
 
         setState({
           isAuthenticated: Boolean(payload?.authenticated),
+          hasViewings: Boolean(payload?.hasViewings),
           isResolved: true,
         })
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return
-        setState({ isAuthenticated: false, isResolved: true })
+        setState({ isAuthenticated: false, hasViewings: false, isResolved: true })
       }
     }
 
