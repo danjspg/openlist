@@ -17,18 +17,17 @@ type Props = {
 }
 
 const alertButtonClass =
-  "group inline-flex min-h-14 w-full items-center justify-center gap-2.5 whitespace-nowrap rounded-xl border border-emerald-800/20 bg-gradient-to-b from-emerald-600 to-emerald-700 px-4 text-center text-sm font-semibold text-white shadow-sm shadow-emerald-950/10 ring-1 ring-inset ring-white/10 transition duration-200 hover:-translate-y-0.5 hover:from-emerald-500 hover:to-emerald-700 hover:shadow-md hover:shadow-emerald-950/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 active:translate-y-0 active:shadow-sm disabled:pointer-events-none disabled:opacity-60 sm:min-h-12 sm:w-auto"
+  "group inline-flex min-h-14 w-full items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-emerald-700 bg-emerald-700 px-4 text-center text-sm font-semibold text-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-emerald-800 hover:bg-emerald-800 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 active:translate-y-0 active:shadow-sm disabled:pointer-events-none disabled:opacity-60 sm:min-h-12 sm:w-auto"
 
 const councilButtonClass =
   "inline-flex min-h-14 w-full items-center justify-center whitespace-nowrap rounded-xl border border-stone-300 bg-white px-4 text-center text-sm font-semibold text-stone-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-stone-400 hover:text-stone-950 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-400 focus-visible:ring-offset-2 active:translate-y-0 active:shadow-sm sm:min-h-12 sm:w-auto"
 
-function MailSparkIcon() {
+function MailIcon() {
   return (
-    <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-white/12 ring-1 ring-inset ring-white/15 transition group-hover:bg-white/16" aria-hidden="true">
-      <svg viewBox="0 0 24 24" fill="none" className="size-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-white/15 text-white transition group-hover:bg-white/20" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" className="size-3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <path d="M4 6.75h16v10.5H4z" />
         <path d="m4.5 7.5 7.5 5.25 7.5-5.25" />
-        <path d="M17.75 3.5v2.25M16.625 4.625h2.25" />
       </svg>
     </span>
   )
@@ -37,8 +36,8 @@ function MailSparkIcon() {
 function AlertButtonContents() {
   return (
     <>
-      <MailSparkIcon />
-      <span className="leading-tight">Get email updates</span>
+      <MailIcon />
+      <span>Get email updates</span>
     </>
   )
 }
@@ -75,7 +74,7 @@ function CouncilOnlyAction({ councilUrl }: { councilUrl: string | null }) {
           href={councilUrl}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-stone-300 bg-white px-4 text-center text-sm font-semibold text-stone-700 transition hover:border-stone-500 hover:text-stone-950"
+          className={councilButtonClass}
         >
           Council record
         </a>
