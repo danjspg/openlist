@@ -77,13 +77,15 @@ export default function RootLayout({
             <div className="grid gap-10 md:grid-cols-2">
               <div>
                 <div className="flex items-center">
-                  <Image
-                    src="/logo-v2.png"
-                    alt="OpenList"
-                    width={450}
-                    height={131}
-                    className="h-auto w-40"
-                  />
+                  <Link href="/" aria-label="OpenList homepage" className="inline-flex">
+                    <Image
+                      src="/logo-v2.png"
+                      alt="OpenList"
+                      width={450}
+                      height={131}
+                      className="h-auto w-40"
+                    />
+                  </Link>
                 </div>
 
                 <p className="mt-4 max-w-md text-sm leading-6 text-stone-600">
