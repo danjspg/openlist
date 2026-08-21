@@ -44,22 +44,24 @@ export default function RootLayout({
         <AuthStateProvider>
           <header className="sticky top-0 z-50 border-b border-stone-200/80 bg-white/90 backdrop-blur-md">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
-            <div className="flex flex-wrap items-center justify-between gap-x-4 py-3 sm:py-5 md:flex-nowrap md:py-6">
+            <div className="flex flex-wrap items-center justify-between gap-x-4 py-3 sm:py-4 md:flex-nowrap md:py-4">
               <Link href="/" className="flex shrink-0 items-center">
                 <Image
                   src="/logo-small.png"
                   alt="OpenList"
-                  width={160}
-                  height={45}
-                  className="h-[45px] w-auto sm:hidden"
+                  width={180}
+                  height={180}
+                  className="h-[45px] w-[45px] sm:hidden"
+                  priority
                 />
 
                 <Image
-                  src="/logo.png"
+                  src="/logo-v2.png"
                   alt="OpenList"
-                  width={420}
-                  height={126}
-                  className="hidden h-[78px] w-auto sm:block md:h-[110px] lg:h-[126px]"
+                  width={450}
+                  height={131}
+                  className="hidden h-auto w-56 sm:block md:w-60 lg:w-64"
+                  priority
                 />
               </Link>
 
@@ -76,11 +78,11 @@ export default function RootLayout({
               <div>
                 <div className="flex items-center">
                   <Image
-                    src="/logo-small.png"
+                    src="/logo-v2.png"
                     alt="OpenList"
-                    width={114}
-                    height={32}
-                    className="h-8 w-auto"
+                    width={450}
+                    height={131}
+                    className="h-auto w-40"
                   />
                 </div>
 
