@@ -79,7 +79,7 @@ export function meaningfulPlanningValue(
   if (!cleaned || UNAVAILABLE_SOURCE_VALUES.has(cleaned.toLowerCase())) {
     return null
   }
-  return cleaned
+  return capitaliseFirstPlanningTextLetter(cleaned)
 }
 
 export function capitaliseFirstPlanningTextLetter(text: string) {
@@ -90,8 +90,7 @@ export function capitaliseFirstPlanningTextLetter(text: string) {
 }
 
 export function planningDisplayValue(value: string | null | undefined) {
-  const text = meaningfulPlanningValue(value)
-  return text ? capitaliseFirstPlanningTextLetter(text) : null
+  return meaningfulPlanningValue(value)
 }
 
 export function councilStatusPresentation(
@@ -103,7 +102,7 @@ export function councilStatusPresentation(
   if (normalizedStatus !== "unknown" && normalisePlanningStatus(value) === normalizedStatus) {
     return null
   }
-  return capitaliseFirstPlanningTextLetter(value)
+  return value
 }
 
 export function planningProposalTitle(
