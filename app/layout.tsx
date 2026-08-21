@@ -90,13 +90,10 @@ export default function RootLayout({
                   OpenList makes Irish property data easier to understand by connecting sold prices, planning applications and location context.
                 </p>
 
-                <div className="mt-6 max-w-md space-y-4 text-xs leading-5 text-stone-500">
+                <div className="mt-6 max-w-md text-xs leading-5 text-stone-500">
                   <p>
                     Information is provided for general purposes only and may not always reflect the latest official record. OpenList is not an estate agent, auctioneer, valuer, broker or legal adviser.
                   </p>
-                  <div className="text-sm text-stone-600">
-                    <AccountFooterLink />
-                  </div>
                 </div>
               </div>
 
@@ -111,6 +108,7 @@ export default function RootLayout({
                   <Link href="/search" className="transition hover:text-stone-900">
                     Search
                   </Link>
+                  <AccountFooterLink />
                 </FooterLinkGroup>
 
                 <FooterLinkGroup title="About">
