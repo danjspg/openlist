@@ -55,7 +55,7 @@ test("planning alert actions retain explicit intent and avoid duplicate subscrip
   assert.match(cta, /action=\{handleDisable\}/)
 })
 
-test("planning detail presents a primary alert action and a secondary council action", async () => {
+test("planning detail presents a primary alert action and a compact subscribed state", async () => {
   const [page, layout, cta, myAlerts] = await Promise.all([
     source("app/planning/[authority]/[reference]/page.tsx"),
     source("app/planning/[authority]/[reference]/layout.tsx"),
@@ -73,12 +73,15 @@ test("planning detail presents a primary alert action and a secondary council ac
   assert.match(layout, /\[data-planning-lifecycle-actions\]/)
   assert.doesNotMatch(layout, /\> div/)
   assert.match(cta, /Get email updates/)
+  assert.match(cta, /Email updates on/)
+  assert.match(cta, /Council record/)
+  assert.match(cta, /Stop email updates/)
+  assert.match(cta, /Manage my alerts/)
   assert.match(cta, /data-planning-lifecycle-actions/)
   assert.match(cta, /bg-gradient-to-b from-emerald-600 to-emerald-700/)
-  assert.match(cta, /View official council application/)
   assert.match(cta, /border border-stone-300 bg-white/)
-  assert.match(cta, /min-h-11 w-full/)
-  assert.match(cta, /grid gap-3 sm:grid-cols-2/)
+  assert.match(cta, /sm:flex-row sm:flex-nowrap/)
+  assert.doesNotMatch(cta, /We&apos;ll email you about meaningful changes to this application/)
   assert.match(myAlerts, /planning_applications: AlertApplication \| AlertApplication\[\] \| null/)
   assert.match(myAlerts, /Array\.isArray\(alert\.planning_applications\)/)
   assert.match(myAlerts, /Planning applications you&apos;re following/)

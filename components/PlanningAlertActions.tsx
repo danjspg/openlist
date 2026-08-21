@@ -19,6 +19,9 @@ type Props = {
 const alertButtonClass =
   "group inline-flex min-h-14 w-full items-center justify-center gap-2.5 whitespace-nowrap rounded-xl border border-emerald-800/20 bg-gradient-to-b from-emerald-600 to-emerald-700 px-4 text-center text-sm font-semibold text-white shadow-sm shadow-emerald-950/10 ring-1 ring-inset ring-white/10 transition duration-200 hover:-translate-y-0.5 hover:from-emerald-500 hover:to-emerald-700 hover:shadow-md hover:shadow-emerald-950/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 active:translate-y-0 active:shadow-sm disabled:pointer-events-none disabled:opacity-60 sm:min-h-12 sm:w-auto"
 
+const councilButtonClass =
+  "inline-flex min-h-14 w-full items-center justify-center whitespace-nowrap rounded-xl border border-stone-300 bg-white px-4 text-center text-sm font-semibold text-stone-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-stone-400 hover:text-stone-950 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-400 focus-visible:ring-offset-2 active:translate-y-0 active:shadow-sm sm:min-h-12 sm:w-auto"
+
 function MailSparkIcon() {
   return (
     <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-white/12 ring-1 ring-inset ring-white/15 transition group-hover:bg-white/16" aria-hidden="true">
@@ -36,6 +39,19 @@ function AlertButtonContents() {
     <>
       <MailSparkIcon />
       <span className="leading-tight">Get email updates</span>
+    </>
+  )
+}
+
+function EnabledStatusContents() {
+  return (
+    <>
+      <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-800" aria-hidden="true">
+        <svg viewBox="0 0 20 20" fill="none" className="size-3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="m5.5 10 3 3 6-6" />
+        </svg>
+      </span>
+      <span>Email updates on</span>
     </>
   )
 }
@@ -150,22 +166,39 @@ function EnabledPlanningAlertActions({ applicationId, returnPath, councilUrl }: 
   return (
     <div data-planning-lifecycle-actions className="mt-5">
       {subscription?.enabled ? (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
-          <p className="text-sm font-semibold text-emerald-900">Email updates are on</p>
-          <p className="mt-1 text-xs leading-5 text-emerald-800">
-            We&apos;ll email you about meaningful changes to this application.
-          </p>
-          <form action={handleDisable} className="mt-3">
-            <input type="hidden" name="subscriptionId" value={subscription.id} />
-            <input type="hidden" name="returnPath" value={returnPath} />
-            <button type="submit" disabled={isPending} className="text-sm font-semibold text-emerald-900 underline underline-offset-4 hover:text-emerald-700 disabled:opacity-60">
-              Stop email updates
-            </button>
-          </form>
-        </div>
-      ) : null}
+        <div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-nowrap sm:items-center sm:justify-end sm:gap-2">
+            <div className="inline-flex min-h-14 w-full items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-emerald-200 bg-emerald-50 px-4 text-sm font-semibold text-emerald-900 shadow-sm sm:min-h-12 sm:w-auto">
+              <EnabledStatusContents />
+            </div>
+            {councilUrl ? (
+              <a href={councilUrl} target="_blank" rel="noreferrer" className={councilButtonClass}>
+                Council record
+              </a>
+            ) : null}
+          </div>
 
-      {!subscription?.enabled ? (
+          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm sm:justify-end">
+            <form action={handleDisable} className="inline-flex">
+              <input type="hidden" name="subscriptionId" value={subscription.id} />
+              <input type="hidden" name="returnPath" value={returnPath} />
+              <button type="submit" disabled={isPending} className="font-medium text-stone-600 underline underline-offset-4 transition hover:text-stone-950 disabled:opacity-60">
+                Stop email updates
+              </button>
+            </form>
+            <span aria-hidden="true" className="text-stone-300">·</span>
+            <Link href="/my-alerts" className="font-medium text-stone-600 underline underline-offset-4 transition hover:text-stone-950">
+              Manage my alerts
+            </Link>
+          </div>
+
+          {!councilUrl ? (
+            <p className="mt-3 text-sm leading-6 text-stone-500 sm:text-right">
+              An official council link is not available for this recorded application.
+            </p>
+          ) : null}
+        </div>
+      ) : (
         <div>
           {alertIntent && isAuthenticated ? (
             <p className="mb-3 text-sm font-medium text-emerald-800">
@@ -187,29 +220,20 @@ function EnabledPlanningAlertActions({ applicationId, returnPath, councilUrl }: 
               </Link>
             )}
             {councilUrl ? (
-              <a href={councilUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-14 w-full items-center justify-center whitespace-nowrap rounded-xl border border-stone-300 bg-white px-4 text-center text-sm font-semibold text-stone-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-stone-400 hover:text-stone-950 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-400 focus-visible:ring-offset-2 active:translate-y-0 active:shadow-sm sm:min-h-12 sm:w-auto">
+              <a href={councilUrl} target="_blank" rel="noreferrer" className={councilButtonClass}>
                 Council record
               </a>
             ) : null}
           </div>
+
+          {!councilUrl ? (
+            <p className="mt-4 text-sm leading-6 text-stone-500">
+              An official council link is not available for this recorded application.
+            </p>
+          ) : null}
         </div>
-      ) : null}
+      )}
 
-      {subscription?.enabled && councilUrl ? (
-        <a href={councilUrl} target="_blank" rel="noreferrer" className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-stone-300 bg-white px-4 text-center text-sm font-semibold text-stone-700 transition hover:border-stone-500 hover:text-stone-950">
-          Council record
-        </a>
-      ) : !subscription?.enabled && !councilUrl ? (
-        <p className="mt-4 text-sm leading-6 text-stone-500">
-          An official council link is not available for this recorded application.
-        </p>
-      ) : null}
-
-      {subscription?.enabled ? (
-        <Link href="/my-alerts" className="mt-3 inline-flex text-sm font-medium text-stone-600 underline underline-offset-4 hover:text-stone-950">
-          Manage my alerts
-        </Link>
-      ) : null}
       {error ? <p className="mt-3 text-sm text-red-700">{error}</p> : null}
     </div>
   )
