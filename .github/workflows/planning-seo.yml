@@ -52,7 +52,7 @@ jobs:
           PLANNING_REVALIDATION_URL: ${{ secrets.PLANNING_REVALIDATION_URL }}
           PLANNING_REVALIDATION_SECRET: ${{ secrets.PLANNING_REVALIDATION_SECRET }}
         run: node scripts/drain-planning-revalidation.mjs
-      - name: Generate OpenList SEO report
+      - name: Generate OpenList metrics dashboard
         if: ${{ env.GOOGLE_SEARCH_CONSOLE_SERVICE_ACCOUNT_JSON_BASE64 != '' }}
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
@@ -65,44 +65,37 @@ jobs:
           node --import tsx scripts/report-planning-seo.mts --qa-file artifacts/high-interest-planning-qa.json | tee planning-seo-report.txt
           echo >> planning-seo-report.txt
           node --import tsx scripts/report-vercel-analytics.mts | tee -a planning-seo-report.txt
-          {
-            echo "## OpenList SEO report"
-            echo
-            echo '```text'
-            cat planning-seo-report.txt
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
-      - name: Publish latest report to GitHub issue
+          node --import tsx scripts/report-openlist-dashboard.mts --report planning-seo-report.txt > openlist-dashboard.md
+          cat openlist-dashboard.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish latest dashboard to GitHub issue
         if: ${{ env.GOOGLE_SEARCH_CONSOLE_SERVICE_ACCOUNT_JSON_BASE64 != '' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           published_at="$(date -u '+%Y-%m-%d %H:%M:%S UTC')"
           {
-            echo "This issue is maintained automatically by the \`Planning SEO measurement\` workflow and includes Search Console performance plus Vercel Web Analytics production traffic."
+            echo "This issue is maintained automatically by the \`Planning SEO measurement\` workflow. It combines product growth, production traffic, Search Console, indexing and planning QA metrics."
             echo
             echo "Last successful publication: $published_at"
             echo
-            echo '```text'
-            cat planning-seo-report.txt
-            echo '```'
+            cat openlist-dashboard.md
           } > planning-seo-issue.md
           gh issue edit 10 --repo "$GITHUB_REPOSITORY" --body-file planning-seo-issue.md
 
           {
-            echo "Daily snapshot: $published_at"
+            echo "## Daily snapshot · $published_at"
             echo
-            echo '```text'
-            cat planning-seo-report.txt
-            echo '```'
+            cat openlist-dashboard.md
           } > planning-seo-comment.md
           gh issue comment 10 --repo "$GITHUB_REPOSITORY" --body-file planning-seo-comment.md
-      - name: Upload OpenList SEO report
+      - name: Upload OpenList metrics report
         if: ${{ env.GOOGLE_SEARCH_CONSOLE_SERVICE_ACCOUNT_JSON_BASE64 != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: planning-seo-report
-          path: planning-seo-report.txt
+          path: |
+            planning-seo-report.txt
+            openlist-dashboard.md
           retention-days: 30
           if-no-files-found: error
       - name: Explain skipped collection
