@@ -82,6 +82,18 @@ export function meaningfulPlanningValue(
   return cleaned
 }
 
+export function capitaliseFirstPlanningTextLetter(text: string) {
+  const firstLetterIndex = text.search(/[A-Za-z]/)
+  if (firstLetterIndex < 0) return text
+
+  return `${text.slice(0, firstLetterIndex)}${text.charAt(firstLetterIndex).toLocaleUpperCase("en-IE")}${text.slice(firstLetterIndex + 1)}`
+}
+
+export function planningDisplayValue(value: string | null | undefined) {
+  const text = meaningfulPlanningValue(value)
+  return text ? capitaliseFirstPlanningTextLetter(text) : null
+}
+
 export function councilStatusPresentation(
   rawStatus: string | null | undefined,
   normalizedStatus: PlanningStatus
@@ -91,7 +103,7 @@ export function councilStatusPresentation(
   if (normalizedStatus !== "unknown" && normalisePlanningStatus(value) === normalizedStatus) {
     return null
   }
-  return value
+  return capitaliseFirstPlanningTextLetter(value)
 }
 
 export function planningProposalTitle(
@@ -100,9 +112,9 @@ export function planningProposalTitle(
   maxLength = DEFAULT_PROPOSAL_TITLE_MAX_LENGTH
 ) {
   const text = meaningfulPlanningValue(proposal)
-  if (!text) return capitaliseFirstPlanningTitleLetter(fallback)
+  if (!text) return capitaliseFirstPlanningTextLetter(fallback)
   const safeText = presentPlanningProposal(text, fallback).display
-  return capitaliseFirstPlanningTitleLetter(
+  return capitaliseFirstPlanningTextLetter(
     cappedPlanningProposalText(titlePresentationText(safeText), maxLength)
   )
 }
@@ -113,9 +125,9 @@ export function planningProposalSummary(
   maxLength = 155
 ) {
   const text = meaningfulPlanningValue(proposal)
-  if (!text) return fallback
+  if (!text) return capitaliseFirstPlanningTextLetter(fallback)
   const safeText = presentPlanningProposal(text, fallback).display
-  return cappedPlanningProposalText(safeText, maxLength)
+  return capitaliseFirstPlanningTextLetter(cappedPlanningProposalText(safeText, maxLength))
 }
 
 function cappedPlanningProposalText(text: string, requestedMaxLength: number) {
@@ -164,13 +176,6 @@ function titlePresentationText(text: string) {
   return `Retention: ${firstItem.charAt(0).toLocaleLowerCase("en-IE")}${firstItem.slice(1)}`
 }
 
-function capitaliseFirstPlanningTitleLetter(text: string) {
-  const firstLetterIndex = text.search(/[A-Za-z]/)
-  if (firstLetterIndex < 0) return text
-
-  return `${text.slice(0, firstLetterIndex)}${text.charAt(firstLetterIndex).toLocaleUpperCase("en-IE")}${text.slice(firstLetterIndex + 1)}`
-}
-
 function firstCompletePlanningSentence(text: string) {
   for (const match of text.matchAll(/[.!?](?=\s|$)/g)) {
     const end = (match.index ?? -1) + 1
@@ -190,7 +195,11 @@ export function presentPlanningProposal(
 ): PlanningProposalPresentation {
   const original = String(proposal || "").trim().replace(/\s+/g, " ")
   if (!original) {
-    return { display: fallback, original: null, isLikelyTruncated: false }
+    return {
+      display: capitaliseFirstPlanningTextLetter(fallback),
+      original: null,
+      isLikelyTruncated: false,
+    }
   }
 
   const numberedMatch = original.match(DANGLING_NUMBERED_ITEM)
@@ -207,7 +216,11 @@ export function presentPlanningProposal(
     !reachesObservedImportLimit &&
     (!truncationMatch || typeof truncationMatch.index !== "number")
   ) {
-    return { display: original, original: null, isLikelyTruncated: false }
+    return {
+      display: capitaliseFirstPlanningTextLetter(original),
+      original: null,
+      isLikelyTruncated: false,
+    }
   }
 
   const cutIndex = truncationMatch && typeof truncationMatch.index === "number"
@@ -237,9 +250,10 @@ export function presentPlanningProposal(
   }
 
   safeText = safeText.replace(/[.!?…]+$/, "").trim()
+  const display = safeText ? `${safeText}…` : fallback
 
   return {
-    display: safeText ? `${safeText}…` : fallback,
+    display: capitaliseFirstPlanningTextLetter(display),
     original,
     isLikelyTruncated: true,
   }
