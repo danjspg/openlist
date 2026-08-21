@@ -29,6 +29,19 @@ test("planning headings always capitalize their first letter", () => {
   )
 })
 
+test("planning descriptions and shared display values capitalize their first letter", () => {
+  assert.equal(
+    planningProposalSummary("to retain indefinitely existing dog boarding kennels and a storage shed"),
+    "To retain indefinitely existing dog boarding kennels and a storage shed"
+  )
+  assert.equal(
+    presentPlanningProposal("to retain indefinitely existing dog boarding kennels and a storage shed").display,
+    "To retain indefinitely existing dog boarding kennels and a storage shed"
+  )
+  assert.equal(meaningfulPlanningValue("  granted  "), "Granted")
+  assert.equal(meaningfulPlanningValue("(retention) of existing shed"), "(Retention) of existing shed")
+})
+
 test("planning abbreviations do not create false title sentence boundaries", () => {
   assert.equal(
     planningProposalTitle("The works include 2no. modified shipping containers for the site. Further details follow."),
@@ -111,7 +124,7 @@ test("a dangling numbered proposal is shortened at a defensible clause boundary"
   assert.equal(result.original, original)
 })
 
-test("complete short and long proposals are left unchanged", () => {
+test("complete short and long proposals are left unchanged apart from display capitalization", () => {
   const shortProposal = "Permission for a single-storey rear extension."
   const longProposal =
     "Permission for the construction of a dwelling, alterations to the existing entrance, connection to public services and all associated site works."
@@ -157,11 +170,11 @@ test("council status is suppressed when it normalizes to the displayed lifecycle
 
 test("council status remains available when it adds source information", () => {
   assert.equal(councilStatusPresentation("Withdrawn", "registered"), "Withdrawn")
-  assert.equal(councilStatusPresentation("Council-specific wording", "unknown"), "Council-specific wording")
+  assert.equal(councilStatusPresentation("council-specific wording", "unknown"), "Council-specific wording")
 })
 
 test("decision outcome remains separate from lifecycle presentation", () => {
   assert.equal(councilStatusPresentation("Decision Made", "decision_made"), null)
-  assert.equal(meaningfulPlanningValue("Refused"), "Refused")
+  assert.equal(meaningfulPlanningValue("refused"), "Refused")
   assert.equal(meaningfulPlanningValue("N/A"), null)
 })
