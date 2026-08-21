@@ -28,6 +28,7 @@ import { getPublicSiteUrl } from "@/lib/site-url"
 import { planningStatusLabel } from "@/lib/planning-status"
 import { PlanningTimeline } from "@/components/PlanningTimeline"
 import { DecisionDueRelativeText } from "@/components/DecisionDueRelativeText"
+import { PlanningAlertActions } from "@/components/PlanningAlertActions"
 
 // Detail pages are generated on first visit and refreshed only by the bounded
 // planning revalidation worker after their underlying record changes.
@@ -84,7 +85,6 @@ export default async function PlanningApplicationPage({ params }: Props) {
   const currentStatus = planningStatusLabel(application.normalized_status)
   const decision = meaningfulPlanningValue(application.decision_text)
   const decisionDue = decisionDuePresentation(application)
-  const hasCardDetails = Boolean(councilStatus || decision || decisionDue)
 
   const canonicalSlug = planningReferenceSlug(application.reference)
   if (resolved.reference !== canonicalSlug) notFound()
@@ -197,23 +197,13 @@ export default async function PlanningApplicationPage({ params }: Props) {
                   <p className="mt-2 text-xs leading-5 text-stone-500">
                     Council record currently gives this as the decision due date.
                   </p>
-                  {/* Future issue #8 CTA placement: directly beneath Decision Due and above the council link. */}
                 </div>
               ) : null}
-              {application.source_url ? (
-                <a
-                  href={application.source_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={`${currentStatus || hasCardDetails ? "mt-5" : ""} inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-stone-950 px-4 text-center text-sm font-semibold text-white transition hover:bg-stone-700`}
-                >
-                  View official council application
-                </a>
-              ) : (
-                <p className="mt-4 text-sm leading-6 text-stone-500">
-                  An official council link is not available for this recorded application.
-                </p>
-              )}
+              <PlanningAlertActions
+                applicationId={application.id}
+                returnPath={canonicalPath}
+                councilUrl={application.source_url}
+              />
             </div>
             ) : null}
           </div>

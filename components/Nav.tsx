@@ -51,6 +51,16 @@ export default function Nav() {
           {isAuthenticated ? (
             <>
               <Link
+                href="/my-alerts"
+                className={`inline-flex items-center rounded-full border px-5 py-2.5 text-base font-medium transition ${
+                  pathname === "/my-alerts"
+                    ? "border-stone-900 text-stone-900"
+                    : "border-stone-300 text-stone-700 hover:border-stone-900 hover:text-stone-900"
+                }`}
+              >
+                My alerts
+              </Link>
+              <Link
                 href="/my-viewings"
                 className={`inline-flex items-center rounded-full border px-5 py-2.5 text-base font-medium transition ${
                   pathname === "/my-viewings" ||
@@ -107,16 +117,26 @@ export default function Nav() {
         })}
 
         {isAuthenticated ? (
-          <Link
-            href="/my-viewings"
-            className={`inline-flex min-h-11 shrink-0 items-center font-medium transition ${
-              pathname === "/my-viewings" || pathname.startsWith("/my-viewings/")
-                ? "text-stone-900"
-                : "text-stone-500 hover:text-stone-900"
-            }`}
-          >
-            My viewings
-          </Link>
+          <>
+            <Link
+              href="/my-alerts"
+              className={`inline-flex min-h-11 shrink-0 items-center font-medium transition ${
+                pathname === "/my-alerts" ? "text-stone-900" : "text-stone-500 hover:text-stone-900"
+              }`}
+            >
+              My alerts
+            </Link>
+            <Link
+              href="/my-viewings"
+              className={`inline-flex min-h-11 shrink-0 items-center font-medium transition ${
+                pathname === "/my-viewings" || pathname.startsWith("/my-viewings/")
+                  ? "text-stone-900"
+                  : "text-stone-500 hover:text-stone-900"
+              }`}
+            >
+              My viewings
+            </Link>
+          </>
         ) : (
           <Link
             href="/sign-in?redirectTo=%2Fmy-viewings"
