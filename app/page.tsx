@@ -169,6 +169,61 @@ export default async function HomePage() {
       <section className="mx-auto max-w-6xl px-4 pb-10 sm:px-6 sm:pb-12">
         <div className="max-w-2xl">
           <p className="text-sm uppercase tracking-[0.2em] text-stone-500">
+            Ireland planning snapshot
+          </p>
+          <p className="mt-3 text-base leading-7 text-stone-600 sm:text-lg sm:leading-8">
+            A national view of planning coverage, freshness and the tools available to follow development activity.
+          </p>
+        </div>
+
+        <div className="mt-8 rounded-[32px] border border-stone-200 bg-white p-4 shadow-sm sm:mt-10 sm:p-5">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <Link href="/planning" className="block h-full">
+              <div className="flex h-full flex-col rounded-[24px] border border-stone-200 bg-stone-50 px-4 py-4 transition hover:border-stone-300 hover:bg-white">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">Coverage</p>
+                <h2 className="mt-2 text-lg font-semibold tracking-tight text-stone-900">Planning applications</h2>
+                <p className="mt-5 text-2xl font-semibold tracking-tight text-stone-900">
+                  {planningSummary.totalCount > 0 ? numberFormat.format(planningSummary.totalCount) : "National"}
+                </p>
+                <p className="mt-auto pt-2 text-sm leading-6 text-stone-600">Search current and historic records across Ireland.</p>
+              </div>
+            </Link>
+
+            <Link href="/planning" className="block h-full">
+              <div className="flex h-full flex-col rounded-[24px] border border-stone-200 bg-stone-50 px-4 py-4 transition hover:border-stone-300 hover:bg-white">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">Freshness</p>
+                <h2 className="mt-2 text-lg font-semibold tracking-tight text-stone-900">Latest registered</h2>
+                <p className="mt-5 text-2xl font-semibold tracking-tight text-stone-900">
+                  {planningSummary.latestRegistrationDate ? formatPlanningDate(planningSummary.latestRegistrationDate) : "Updated regularly"}
+                </p>
+                <p className="mt-auto pt-2 text-sm leading-6 text-stone-600">Latest registration currently present in OpenList.</p>
+              </div>
+            </Link>
+
+            <Link href="/planning" className="block h-full">
+              <div className="flex h-full flex-col rounded-[24px] border border-stone-200 bg-stone-50 px-4 py-4 transition hover:border-stone-300 hover:bg-white">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">Research</p>
+                <h2 className="mt-2 text-lg font-semibold tracking-tight text-stone-900">Find the right application</h2>
+                <p className="mt-5 text-xl font-semibold tracking-tight text-stone-900">Address · area · reference</p>
+                <p className="mt-auto pt-2 text-sm leading-6 text-stone-600">Search by place, council or planning reference.</p>
+              </div>
+            </Link>
+
+            <Link href="/planning" className="block h-full">
+              <div className="flex h-full flex-col rounded-[24px] border border-stone-200 bg-stone-50 px-4 py-4 transition hover:border-stone-300 hover:bg-white">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">Lifecycle</p>
+                <h2 className="mt-2 text-lg font-semibold tracking-tight text-stone-900">Follow what changes</h2>
+                <p className="mt-5 text-xl font-semibold tracking-tight text-stone-900">Status · dates · decisions</p>
+                <p className="mt-auto pt-2 text-sm leading-6 text-stone-600">See key milestones and available application history.</p>
+              </div>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-6xl px-4 pb-10 sm:px-6 sm:pb-12">
+        <div className="max-w-2xl">
+          <p className="text-sm uppercase tracking-[0.2em] text-stone-500">
             Ireland market snapshot
           </p>
           <p className="mt-3 text-base leading-7 text-stone-600 sm:text-lg sm:leading-8">
