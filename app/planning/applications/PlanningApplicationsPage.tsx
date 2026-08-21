@@ -199,7 +199,9 @@ export async function PlanningApplicationsView({
               label={areaFilterLabel}
               name={areaFilterName}
               value={areaFilterValue}
-              options={dashboard.areaOptions}
+              options={[...dashboard.areaOptions].sort((left, right) =>
+                left.localeCompare(right, "en-IE", { sensitivity: "base" })
+              )}
             />
             <SelectFilter
               label="Status"
