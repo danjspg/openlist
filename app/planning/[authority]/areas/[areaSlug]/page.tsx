@@ -3,7 +3,6 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import type { ReactNode } from "react"
 import { PlanningApplicationList } from "@/components/planning/PlanningApplicationResult"
-import { getSoldPricesLocalityMembership } from "@/lib/locality-seo"
 import {
   formatPlanningDate,
   getPlanningLocalityDashboard,
@@ -36,11 +35,7 @@ async function resolve(params: Props["params"]) {
   if (!localityPage) return null
 
   const county = countyForPlanningAuthority(authority.code)
-  const soldPrices = county
-    ? await getSoldPricesLocalityMembership(county, slug)
-    : null
-
-  return { authority, slug, county, soldPrices, ...localityPage }
+  return { authority, slug, county, ...localityPage }
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -59,7 +54,7 @@ export default async function PlanningLocalityPage({ params }: Props) {
   const page = await resolve(params)
   if (!page) notFound()
 
-  const { authority, locality, dashboard, recentDecisions, county, soldPrices } = page
+  const { authority, locality, dashboard, recentDecisions, county } = page
   const searchHref = localitySearchHref(authority.slug, locality)
   const decisionsHref = localitySearchHref(authority.slug, locality, "decision_made")
   const statusStats = localityStatusStats(dashboard.statusStats)
@@ -90,8 +85,8 @@ export default async function PlanningLocalityPage({ params }: Props) {
             <Link className="inline-flex min-h-10 items-center hover:text-stone-950 hover:underline" href={`/planning/${authority.slug}`}>
               {authority.shortName} planning
             </Link>
-            {soldPrices && county ? (
-              <Link className="inline-flex min-h-10 items-center hover:text-stone-950 hover:underline" href={`/sold-prices/${areaSlug(county)}/${soldPrices.locality_slug}`}>
+            {county ? (
+              <Link className="inline-flex min-h-10 items-center hover:text-stone-950 hover:underline" href={`/sold-prices/${areaSlug(county)}/${areaSlug(locality)}`}>
                 Sold prices in {locality} <span aria-hidden="true" className="ml-1">→</span>
               </Link>
             ) : null}
@@ -156,8 +151,8 @@ export default async function PlanningLocalityPage({ params }: Props) {
             <Link className="inline-flex min-h-10 items-center text-stone-700 hover:text-stone-950 hover:underline" href={`/planning/${authority.slug}`}>
               {authority.name} planning <span aria-hidden="true" className="ml-1">→</span>
             </Link>
-            {soldPrices && county ? (
-              <Link className="inline-flex min-h-10 items-center text-stone-700 hover:text-stone-950 hover:underline" href={`/sold-prices/${areaSlug(county)}/${soldPrices.locality_slug}`}>
+            {county ? (
+              <Link className="inline-flex min-h-10 items-center text-stone-700 hover:text-stone-950 hover:underline" href={`/sold-prices/${areaSlug(county)}/${areaSlug(locality)}`}>
                 Sold prices in {locality} <span aria-hidden="true" className="ml-1">→</span>
               </Link>
             ) : null}
