@@ -18,8 +18,15 @@ jobs:
         id: time
         run: echo "run=$([[ $(TZ=Europe/Dublin date +%H) =~ ^(06|13|20)$ ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
       - if: github.event_name == 'workflow_dispatch' || steps.time.outputs.run == 'true'
+        name: Poll watched official sources
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           PLANNING_ALERT_WATCH_DELAY_MS: "750"
         run: node scripts/watch-planning-alert-applications.mjs
+      - if: github.event_name == 'workflow_dispatch' || steps.time.outputs.run == 'true'
+        name: Revalidate changed Planning detail pages
+        env:
+          PLANNING_REVALIDATION_URL: ${{ secrets.PLANNING_REVALIDATION_URL }}
+          PLANNING_REVALIDATION_SECRET: ${{ secrets.PLANNING_REVALIDATION_SECRET }}
+        run: node scripts/drain-planning-revalidation.mjs

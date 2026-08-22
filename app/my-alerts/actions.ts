@@ -1,7 +1,9 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { after } from "next/server"
 import { requireUser } from "@/lib/auth"
+import { initializePlanningAlertWatch } from "@/lib/planning-alert-initialization"
 import { getServerSupabase } from "@/lib/supabase"
 
 function subscriptionId(formData: FormData) {
@@ -34,6 +36,14 @@ export async function enablePlanningAlert(formData: FormData) {
     )
 
   if (error) throw new Error(error.message)
+
+  after(async () => {
+    try {
+      await initializePlanningAlertWatch(application_id)
+    } catch (watchError) {
+      console.error(`Immediate Planning alert baseline failed for ${application_id}.`, watchError)
+    }
+  })
 
   revalidatePath("/my-alerts")
   const path = returnPath(formData)

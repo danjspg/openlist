@@ -73,23 +73,24 @@ test("watch-only migration removes general ingestion from email eligibility", as
 })
 
 test("planning alert watcher baselines first and records only source-observed changes", async () => {
-  const watcher = await source("scripts/watch-planning-alert-applications.mjs")
+  const watcher = await source("lib/planning-alert-watch.mjs")
 
   assert.match(watcher, /new Map\(\(data \|\| \[\]\)\.map\(\(row\) => \[row\.application_id, row\.planning_applications\]\)\)/)
   assert.match(watcher, /EPLAN_AUTHORITIES\[app\.local_authority_code\]/)
   assert.match(watcher, /strategy: "cork_official_api"/)
   assert.match(watcher, /strategy: "national_arcgis_exact"/)
   assert.match(watcher, /if \(!watch\?\.initialized_at\) \{[\s\S]*baselineUpdates[\s\S]*initialized_at: now/)
-  assert.match(watcher, /await updateCanonical\(app, baselineUpdates, now\)[\s\S]*report\.initialized \+= 1/)
+  assert.match(watcher, /await updateCanonical\(app, baselineUpdates, now\)[\s\S]*outcome: "initialized"/)
   assert.doesNotMatch(
     watcher.match(/if \(!watch\?\.initialized_at\) \{[\s\S]*?continue/)?.[0] || "",
     /planning_alert_observed_changes/
   )
-  assert.match(watcher, /const changedFields = fields\.filter\(\(field\) => state\[field\] && state\[field\] !== previous\[field\]\)/)
+  assert.match(watcher, /const changedFields = changedWatchFields\(watch\.state \|\| \{\}, state\)/)
   assert.match(watcher, /await updateCanonical\(app, updates, now\)/)
   assert.match(watcher, /\.from\("planning_alert_observed_changes"\)\.upsert/)
-  assert.match(watcher, /revalidation_pending: true/)
-  assert.match(watcher, /field === "decision_due_date" \? query\.eq\("new_value", value\) : query\.eq\("event_date", value\)/)
+  assert.doesNotMatch(watcher, /revalidation_pending: true/)
+  assert.match(watcher, /DATE_EVENT_FIELDS\.has\(field\)/)
+  assert.match(watcher, /queueRevalidation\(app\.id, now\)/)
   assert.match(watcher, /upsertWatchFailure\(app, strategy, now, source\)/)
 })
 
