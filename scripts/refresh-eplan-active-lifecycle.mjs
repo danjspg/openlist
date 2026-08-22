@@ -24,7 +24,11 @@ async function loadCandidates() {
     .select(`id,reference,local_authority_code,normalized_status,${lifecycleFields.join(",")}`)
     .in("local_authority_code", Object.keys(EPLAN_AUTHORITIES))
     .in("normalized_status", activeStatuses)
-    .or("and(normalized_status.eq.further_information_requested,further_information_requested_date.is.null),and(normalized_status.eq.further_information_received,further_information_received_date.is.null),and(normalized_status.eq.appealed,appeal_lodged_date.is.null)")
+    // ePlan can reveal a lifecycle milestone before ArcGIS's coarse current
+    // status catches up (for example, a row still marked registered). Keep the
+    // scope active-only, but do not assume the current status is authoritative
+    // for whether an FI date exists.
+    .or("further_information_requested_date.is.null,further_information_received_date.is.null,appeal_lodged_date.is.null")
     .order("id", { ascending: true })
     .limit(limit)
   if (afterId) query = query.gt("id", afterId)
