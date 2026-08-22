@@ -20,21 +20,32 @@ const lifecycleFields = [
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
 async function loadCandidates() {
-  let query = supabase.from("planning_applications")
-    .select(`id,reference,local_authority_code,normalized_status,${lifecycleFields.join(",")}`)
-    .in("local_authority_code", Object.keys(EPLAN_AUTHORITIES))
-    .in("normalized_status", activeStatuses)
-    // ePlan can reveal a lifecycle milestone before ArcGIS's coarse current
-    // status catches up (for example, a row still marked registered). Keep the
-    // scope active-only, but do not assume the current status is authoritative
-    // for whether an FI date exists.
-    .or("further_information_requested_date.is.null,further_information_received_date.is.null,appeal_lodged_date.is.null")
-    .order("id", { ascending: true })
-    .limit(limit)
-  if (afterId) query = query.gt("id", afterId)
-  const { data, error } = await query
-  if (error) throw error
-  return data || []
+  const selected = `id,reference,local_authority_code,normalized_status,${lifecycleFields.join(",")}`
+  const rows = []
+  // Avoid a large PostgREST OR predicate against the growing active corpus.
+  // These narrow status/field probes are bounded before we merge/dedupe them.
+  for (const status of activeStatuses) {
+    for (const field of [
+      "further_information_requested_date",
+      "further_information_received_date",
+      "appeal_lodged_date",
+    ]) {
+      let query = supabase.from("planning_applications")
+        .select(selected)
+        .in("local_authority_code", Object.keys(EPLAN_AUTHORITIES))
+        .eq("normalized_status", status)
+        .is(field, null)
+        .order("id", { ascending: true })
+        .limit(limit)
+      if (afterId) query = query.gt("id", afterId)
+      const { data, error } = await query
+      if (error) throw error
+      rows.push(...(data || []))
+    }
+  }
+  return Array.from(new Map(rows.map((row) => [row.id, row])).values())
+    .sort((a, b) => a.id.localeCompare(b.id))
+    .slice(0, limit)
 }
 
 const candidates = await loadCandidates()
