@@ -1,0 +1,106 @@
+{
+  "origin": "https://www.openlist.ie",
+  "samples": 1,
+  "capturedAt": "2026-08-22T08:23:53.898Z",
+  "results": [
+    {
+      "path": "/",
+      "sample": 1,
+      "status": 200,
+      "ttfbMs": 60,
+      "totalMs": 61,
+      "bytes": 8503,
+      "cacheControl": "public, max-age=0, must-revalidate",
+      "vercelCache": "HIT",
+      "age": "40"
+    },
+    {
+      "path": "/planning",
+      "sample": 1,
+      "status": 200,
+      "ttfbMs": 56,
+      "totalMs": 57,
+      "bytes": 28079,
+      "cacheControl": "public, max-age=0, must-revalidate",
+      "vercelCache": "HIT",
+      "age": "38"
+    },
+    {
+      "path": "/planning/cork",
+      "sample": 1,
+      "status": 200,
+      "ttfbMs": 56,
+      "totalMs": 56,
+      "bytes": 22095,
+      "cacheControl": "public, max-age=0, must-revalidate",
+      "vercelCache": "HIT",
+      "age": "35"
+    },
+    {
+      "path": "/planning/cork/areas/carrigaline",
+      "sample": 1,
+      "status": 200,
+      "ttfbMs": 53,
+      "totalMs": 55,
+      "bytes": 11503,
+      "cacheControl": "public, max-age=0, must-revalidate",
+      "vercelCache": "HIT",
+      "age": "2"
+    },
+    {
+      "path": "/sold-prices",
+      "sample": 1,
+      "status": 200,
+      "ttfbMs": 569,
+      "totalMs": 1130,
+      "bytes": 10406,
+      "cacheControl": "private, no-cache, no-store, max-age=0, must-revalidate",
+      "vercelCache": "MISS",
+      "age": "0"
+    },
+    {
+      "path": "/sold-prices/cork",
+      "sample": 1,
+      "status": 200,
+      "ttfbMs": 1165,
+      "totalMs": 1165,
+      "bytes": 11798,
+      "cacheControl": "public, max-age=0, must-revalidate",
+      "vercelCache": "MISS",
+      "age": "0"
+    },
+    {
+      "path": "/sold-prices/cork/carrigaline",
+      "sample": 1,
+      "status": 200,
+      "ttfbMs": 2338,
+      "totalMs": 2338,
+      "bytes": 12196,
+      "cacheControl": "public, max-age=0, must-revalidate",
+      "vercelCache": "MISS",
+      "age": "0"
+    },
+    {
+      "path": "/sitemap.xml",
+      "sample": 1,
+      "status": 200,
+      "ttfbMs": 339,
+      "totalMs": 340,
+      "bytes": 34940,
+      "cacheControl": "public, max-age=0, must-revalidate",
+      "vercelCache": "PRERENDER",
+      "age": "0"
+    },
+    {
+      "path": "/robots.txt",
+      "sample": 1,
+      "status": 200,
+      "ttfbMs": 259,
+      "totalMs": 260,
+      "bytes": 452,
+      "cacheControl": "public, max-age=0, must-revalidate",
+      "vercelCache": "PRERENDER",
+      "age": "0"
+    }
+  ]
+}
