@@ -59,7 +59,6 @@ export const PPR_ANALYTICS_THRESHOLDS = {
   thresholdBands: [300_000, 400_000, 500_000] as const,
 } as const
 
-const MOMENTUM_LOOKBACK_YEARS = 5
 const PPR_ANALYTICS_REVALIDATE_SECONDS = 60 * 60 * 6
 const PPR_COMPARISON_CACHE_VERSION = "v11"
 const PPR_INSIGHTS_CACHE_VERSION = "v7"
@@ -1150,16 +1149,6 @@ function applyMarketFilters(query: any, market: PprMarket) {
   return query.or(expression)
 }
 
-async function getMarketSalesRows(market: PprMarket, startDate?: string) {
-  return fetchSalesBatch(
-    ANALYTICS_CARD_SALE_SELECT,
-    (query) => {
-      const scoped = applyMarketFilters(query, market)
-      return startDate ? scoped.gte("date_of_sale", startDate) : scoped
-    }
-  )
-}
-
 async function getCountySalesRows(county: string, startDate?: string) {
   return fetchSalesBatch(
     ANALYTICS_SALE_SELECT,
@@ -1170,53 +1159,9 @@ async function getCountySalesRows(county: string, startDate?: string) {
   )
 }
 
-async function getAreaSalesRows(county: string, areaSlug: string, startDate?: string) {
-  return fetchSalesBatch(
-    ANALYTICS_CARD_SALE_SELECT,
-    (query) => {
-      const scoped = query
-        .ilike("county", county)
-        .eq("area_slug", areaSlug)
-      return startDate ? scoped.gte("date_of_sale", startDate) : scoped
-    }
-  )
-}
-
 function emptyLocationInsights(): PprLocationInsights {
   return {
     totalSalesCount: 0,
-  }
-}
-
-const getMarketInsightsUncached = async (
-  market: PprMarket,
-  range: PprDateRangeValue = "last-year"
-) => {
-  const analyticsRange = getAnalyticsRange(range)
-  const momentumStartDate = startOfYear(new Date().getFullYear() - 3)
-  const historyStartDate =
-    analyticsRange.months === null
-      ? undefined
-      : [getPprDateRangePreset(range).dateFrom, momentumStartDate]
-          .filter(Boolean)
-          .sort()[0] || startOfYear(new Date().getFullYear() - MOMENTUM_LOOKBACK_YEARS)
-  const sales = await getMarketSalesRows(market, historyStartDate)
-  const currentWindow =
-    analyticsRange.months === null ? undefined : rollingWindow(new Date(), analyticsRange.months)
-  const rangeMonths = analyticsRange.months
-  const displaySales =
-    rangeMonths === null
-      ? sales.slice(0, 12)
-      : sales.filter((sale) => currentWindow && withinWindow(sale, currentWindow)).slice(0, 12)
-
-  const insights = buildLocationInsights(sales, {
-      range,
-      lastSaleDate: sales[0]?.date_of_sale ?? null,
-    })
-
-  return {
-    insights,
-    recentSales: displaySales as PprSale[],
   }
 }
 
@@ -1232,7 +1177,13 @@ const getMarketInsightsCached = unstable_cache(
         recentSales,
       }
     }
-    return getMarketInsightsUncached(market, range)
+    // A missing derived row must not make a visitor request page through the
+    // entire PPR corpus. Keep the useful bounded recent-sales surface and omit
+    // derived analytics until the scheduled PPR rebuild restores the snapshot.
+    return {
+      insights: emptyLocationInsights(),
+      recentSales: await getRecentMarketSales(market, range),
+    }
   },
   ["ppr-market-insights", PPR_INSIGHTS_CACHE_VERSION],
   { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
@@ -1252,47 +1203,6 @@ export async function getMarketInsights(
   }
 }
 
-const getAreaInsightsUncached = async (
-  county: string,
-  areaSlug: string,
-  range: PprDateRangeValue = "last-year"
-) => {
-  const analyticsRange = getAnalyticsRange(range)
-  const momentumStartDate = startOfYear(new Date().getFullYear() - 3)
-  const historyStartDate =
-    analyticsRange.months === null
-      ? undefined
-      : [getPprDateRangePreset(range).dateFrom, momentumStartDate].filter(Boolean).sort()[0]
-  const [sales, areaStats] = await Promise.all([
-    getAreaSalesRows(county, areaSlug, historyStartDate),
-    supabase
-      .from("ppr_area_stats")
-      .select("*")
-      .ilike("county", county)
-      .eq("area_slug", areaSlug)
-      .order("period_end", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-  ])
-
-  const summary = areaStats.data as PprAreaStats | null
-  const currentWindow =
-    analyticsRange.months === null ? undefined : rollingWindow(new Date(), analyticsRange.months)
-  const insights = buildLocationInsights(sales, {
-    range,
-    lastSaleDate: sales[0]?.date_of_sale ?? null,
-  })
-
-  return {
-    insights,
-    recentSales:
-      analyticsRange.months === null
-        ? (sales.slice(0, 8) as PprSale[])
-        : (sales.filter((sale) => currentWindow && withinWindow(sale, currentWindow)).slice(0, 8) as PprSale[]),
-    stats: summary,
-  }
-}
-
 const getAreaInsightsCached = unstable_cache(
   async (county: string, areaSlug: string, range: PprDateRangeValue = "last-year") => {
     const snapshot = await loadAreaInsightsFromTable(county, areaSlug, range)
@@ -1303,8 +1213,10 @@ const getAreaInsightsCached = unstable_cache(
         recentSales,
       }
     }
-
-    return getAreaInsightsUncached(county, areaSlug, range)
+    return {
+      insights: emptyLocationInsights(),
+      recentSales: await getRecentAreaSales(county, areaSlug, range),
+    }
   },
   ["ppr-area-insights", PPR_INSIGHTS_CACHE_VERSION],
   { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
