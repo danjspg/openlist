@@ -37,6 +37,38 @@ if (requestedAuthorities.length && !authorityCodes.length) {
 }
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
+async function persistLifecycleUpdates(candidate, updates) {
+  const { error } = await supabase.from("planning_applications")
+    // Do not flip revalidation_pending here. That partial-index change turns
+    // an otherwise HOT lifecycle update into a 13s rewrite across the large
+    // Planning GIN indexes. Timeline events remain the durable change record.
+    .update(updates)
+    .eq("id", candidate.id)
+    .eq("reference", candidate.reference)
+    .eq("local_authority_code", candidate.local_authority_code)
+  if (!error) return { ok: true, slowPath: false }
+
+  // A small number of very large legacy rows cannot finish their index writes
+  // within PostgREST's normal request statement timeout. Keep ordinary writes
+  // on the fast table path, but complete just those rows through a narrowly
+  // privileged, 60-second function. This prevents one outlier from aborting a
+  // whole authority and does not raise the global/API timeout.
+  if (error.code !== "57014") return { ok: false, error }
+  const { error: fallbackError } = await supabase.rpc("openlist_apply_eplan_lifecycle_update", {
+    p_id: candidate.id,
+    p_authority_code: candidate.local_authority_code,
+    p_reference: candidate.reference,
+    p_further_information_requested_date: updates.further_information_requested_date || null,
+    p_further_information_received_date: updates.further_information_received_date || null,
+    p_withdrawal_date: updates.withdrawal_date || null,
+    p_appeal_lodged_date: updates.appeal_lodged_date || null,
+    p_expiry_date: updates.expiry_date || null,
+  })
+  return fallbackError
+    ? { ok: false, error: fallbackError }
+    : { ok: true, slowPath: true }
+}
+
 async function loadCandidates() {
   const selected = `id,reference,local_authority_code,normalized_status,${lifecycleFields.join(",")}`
   // PostgREST predicates combining status and several `is null` fields caused
@@ -73,6 +105,7 @@ const report = {
   notFound: 0,
   conflicts: 0,
   errors: 0,
+  slowPathWrites: 0,
   fields: {},
 }
 for (const candidate of candidates) {
@@ -95,20 +128,24 @@ for (const candidate of candidates) {
     }
     if (Object.keys(updates).length) {
       report.changed += 1
-      if (
-        (updates.further_information_requested_date && candidate.normalized_status !== "further_information_requested") ||
-        (updates.further_information_received_date && candidate.normalized_status !== "further_information_received")
-      ) report.statusLagged += 1
+      let persistedOk = true
       if (!dryRun) {
-        const { error } = await supabase.from("planning_applications")
-          // Do not flip revalidation_pending here. That partial-index change turns
-          // an otherwise HOT lifecycle update into a 13s rewrite across the large
-          // Planning GIN indexes. Timeline events remain the durable change record.
-          .update(updates)
-          .eq("id", candidate.id)
-          .eq("reference", candidate.reference)
-          .eq("local_authority_code", candidate.local_authority_code)
-        if (error) throw error
+        const persisted = await persistLifecycleUpdates(candidate, updates)
+        if (!persisted.ok) {
+          persistedOk = false
+          report.errors += 1
+          report.changed -= 1
+          for (const field of Object.keys(updates)) report.fields[field] -= 1
+          console.warn(`${candidate.local_authority_code} ${candidate.reference}: write_failed ${persisted.error.code || persisted.error.message}`)
+        } else if (persisted.slowPath) {
+          report.slowPathWrites += 1
+        }
+      }
+      if (persistedOk) {
+        if (
+          (updates.further_information_requested_date && candidate.normalized_status !== "further_information_requested") ||
+          (updates.further_information_received_date && candidate.normalized_status !== "further_information_received")
+        ) report.statusLagged += 1
       }
     }
   }
