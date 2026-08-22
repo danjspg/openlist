@@ -36,16 +36,3 @@ export async function getPlanningLocalityMembership(authorityCode: string, slug:
   if (error) return null
   return data as LocalityMembership | null
 }
-
-export async function getSoldPricesLocalityMembership(county: string, slug: string) {
-  const { data, error } = await getServerSupabase()
-    .from("locality_seo_memberships")
-    .select("canonical_path,county,authority_code,locality_label,locality_slug,evidence")
-    .eq("surface", "sold_prices")
-    .eq("county", county)
-    .eq("locality_slug", slug)
-    .is("left_at", null)
-    .maybeSingle()
-  if (error) return null
-  return data as LocalityMembership | null
-}

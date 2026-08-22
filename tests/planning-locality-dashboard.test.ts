@@ -39,7 +39,7 @@ test("planning locality dashboard reuses concise result presentation and useful 
   assert.match(page, /title="Recent decisions"/)
   assert.match(page, /dateLabel="Decision"/)
   assert.match(page, /View all \{formatPlanningCount\(dashboard\.totalCount\)\}/)
-  assert.match(page, /getSoldPricesLocalityMembership/)
+  assert.match(page, /Sold prices in \{locality\}/)
   assert.match(page, /alternates: \{ canonical: `\/planning\/\$\{page\.authority\.slug\}\/areas\/\$\{page\.slug\}` \}/)
   assert.match(result, /line-clamp-3/)
   assert.match(result, /dateLabel = "Registered"/)
