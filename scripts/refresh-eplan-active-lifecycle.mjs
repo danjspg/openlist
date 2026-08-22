@@ -101,7 +101,10 @@ for (const candidate of candidates) {
       ) report.statusLagged += 1
       if (!dryRun) {
         const { error } = await supabase.from("planning_applications")
-          .update({ ...updates, updated_at: new Date().toISOString(), revalidation_pending: true })
+          // Do not flip revalidation_pending here. That partial-index change turns
+          // an otherwise HOT lifecycle update into a 13s rewrite across the large
+          // Planning GIN indexes. Timeline events remain the durable change record.
+          .update(updates)
           .eq("id", candidate.id)
           .eq("reference", candidate.reference)
           .eq("local_authority_code", candidate.local_authority_code)
