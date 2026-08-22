@@ -9,6 +9,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test tests/**/*.test.ts",
+    "perf:routes": "node scripts/benchmark-production-routes.mjs",
     "ppr:download": "node scripts/download-ppr-csvs.mjs",
     "ppr:ingest": "node scripts/ingest-ppr-csv.mjs",
     "ppr:refresh": "node --env-file=.env.local scripts/refresh-ppr.mjs",
@@ -32,7 +33,8 @@
     "planning:timeline:report": "node --env-file=.env.local scripts/report-planning-timeline.mjs",
     "planning:seo:collect": "node --env-file=.env.local --import tsx scripts/collect-planning-seo.mts",
     "planning:seo:report": "node --env-file=.env.local --import tsx scripts/report-planning-seo.mts",
-    "planning:qa:high-interest": "node --env-file=.env.local --import tsx scripts/audit-high-interest-planning.mts"
+    "planning:qa:high-interest": "node --env-file=.env.local --import tsx scripts/audit-high-interest-planning.mts",
+    "planning:dashboard:snapshots": "node --env-file=.env.local scripts/refresh-planning-dashboard-snapshots.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.103.0",

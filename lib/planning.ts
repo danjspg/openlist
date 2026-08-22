@@ -492,16 +492,23 @@ const getPlanningAggregateSummaryCached = unstable_cache(
     status = "",
     applicationType = ""
   ) => {
-    const { data, error } = await getServerSupabase().rpc(
-      "openlist_planning_dashboard_aggregate",
-      {
-        p_authority_code: authorityCode === "NATIONAL" ? null : authorityCode,
-        p_q: q || null,
-        p_area: area || null,
-        p_status: status || null,
-        p_application_type: applicationType || null,
-      }
-    )
+    const serverSupabase = getServerSupabase()
+    const isCommonDashboard = !q && !area && !status && !applicationType
+    const snapshot = isCommonDashboard
+      ? await serverSupabase.rpc("openlist_planning_dashboard_snapshot", {
+          p_authority_code: authorityCode,
+        })
+      : { data: null, error: null }
+
+    const { data, error } = snapshot.data
+      ? snapshot
+      : await serverSupabase.rpc("openlist_planning_dashboard_aggregate", {
+          p_authority_code: authorityCode === "NATIONAL" ? null : authorityCode,
+          p_q: q || null,
+          p_area: area || null,
+          p_status: status || null,
+          p_application_type: applicationType || null,
+        })
 
     if (error || !data) {
       throw new Error(

@@ -62,3 +62,9 @@ jobs:
           echo "Starting bounded historical planning status refresh"
           node scripts/refresh-historical-planning-statuses.mjs
           echo "Bounded historical planning status refresh completed"
+
+      - name: Refresh Planning dashboard snapshots
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/refresh-planning-dashboard-snapshots.mjs

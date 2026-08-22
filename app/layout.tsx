@@ -6,7 +6,6 @@ import Link from "next/link"
 import AccountFooterLink from "@/components/AccountFooterLink"
 import AuthStateProvider from "@/components/AuthStateProvider"
 import Nav from "@/components/Nav"
-import "leaflet/dist/leaflet.css"
 import "./globals.css"
 
 export const metadata: Metadata = {

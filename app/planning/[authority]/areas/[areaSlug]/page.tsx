@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import type { ReactNode } from "react"
+import { cache, type ReactNode } from "react"
 import { PlanningApplicationList } from "@/components/planning/PlanningApplicationResult"
 import {
   formatPlanningDate,
@@ -26,8 +26,7 @@ export function generateStaticParams() {
 
 type Props = { params: Promise<{ authority: string; areaSlug: string }> }
 
-async function resolve(params: Props["params"]) {
-  const { authority: authoritySlug, areaSlug: slug } = await params
+const resolveLocalityPage = cache(async (authoritySlug: string, slug: string) => {
   const authority = getPlanningAuthorityBySlug(authoritySlug)
   if (!authority || areaSlug(slug) !== slug) return null
 
@@ -36,6 +35,11 @@ async function resolve(params: Props["params"]) {
 
   const county = countyForPlanningAuthority(authority.code)
   return { authority, slug, county, ...localityPage }
+})
+
+async function resolve(params: Props["params"]) {
+  const { authority: authoritySlug, areaSlug: slug } = await params
+  return resolveLocalityPage(authoritySlug, slug)
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
