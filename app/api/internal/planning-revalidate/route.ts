@@ -14,7 +14,12 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const result = await drainPlanningRevalidationQueue(getServerSupabase(), revalidatePath)
+    const result = await drainPlanningRevalidationQueue(
+      getServerSupabase(),
+      revalidatePath,
+      100,
+      { dedicatedOnly: request.nextUrl.searchParams.get("queue") === "dedicated" }
+    )
     return NextResponse.json(result)
   } catch (error) {
     console.error("Planning revalidation drain failed.", error)

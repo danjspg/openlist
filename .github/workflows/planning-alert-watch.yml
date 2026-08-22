@@ -29,4 +29,5 @@ jobs:
         env:
           PLANNING_REVALIDATION_URL: ${{ secrets.PLANNING_REVALIDATION_URL }}
           PLANNING_REVALIDATION_SECRET: ${{ secrets.PLANNING_REVALIDATION_SECRET }}
+          PLANNING_REVALIDATION_QUEUE: dedicated
         run: node scripts/drain-planning-revalidation.mjs

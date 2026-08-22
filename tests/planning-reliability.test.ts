@@ -64,4 +64,6 @@ test("revalidation worker is exact-path, bounded, race-safe, and leaves failures
   assert.doesNotMatch(workflow, /name: Refresh bounded historical planning statuses\s+if: \$\{\{ always\(\) \}\}/)
   assert.match(drain, /maxBatches = 20/)
   assert.match(drain, /result\.failures > 0/)
+  assert.match(route, /dedicatedOnly: request\.nextUrl\.searchParams\.get\("queue"\) === "dedicated"/)
+  assert.match(worker, /const legacyLimit = dedicatedOnly \? 0/)
 })
