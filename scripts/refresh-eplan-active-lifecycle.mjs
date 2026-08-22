@@ -32,15 +32,16 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 async function loadCandidates() {
   const selected = `id,reference,local_authority_code,normalized_status,${lifecycleFields.join(",")}`
   // PostgREST predicates combining status and several `is null` fields caused
-  // statement timeouts on the production corpus. Load a compact, bounded active
-  // cohort through the existing status/authority indexes, then apply the
-  // actionable-gap rules locally. The worker still sends at most `limit` pages.
+  // statement timeouts on the production corpus. Load a compact active cohort
+  // through the existing status/authority indexes, then apply the actionable-gap
+  // rules locally. Do not order by UUID here: the extra sort also exceeds the
+  // API statement timeout. Per-authority runs remain below PostgREST's 1,000-row
+  // response cap and the worker still sends at most `limit` pages.
   let query = supabase.from("planning_applications")
     .select(selected)
     .in("local_authority_code", authorityCodes)
     .in("normalized_status", activeStatuses)
-    .order("id", { ascending: true })
-    .limit(5000)
+    .limit(1000)
   if (afterId) query = query.gt("id", afterId)
   const { data, error } = await query
   if (error) throw error
@@ -50,6 +51,7 @@ async function loadCandidates() {
       (row.normalized_status === "further_information_received" && !row.further_information_received_date) ||
       (row.normalized_status === "appealed" && !row.appeal_lodged_date)
     ))
+    .sort((a, b) => a.id.localeCompare(b.id))
     .slice(0, limit)
 }
 
