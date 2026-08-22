@@ -27,7 +27,7 @@ function escapeHtml(value: string) {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
+    .replace(/\"/g, "&quot;")
     .replace(/'/g, "&#39;")
 }
 
@@ -59,13 +59,17 @@ export function renderPlanningAlertEmail(delivery: PlanningAlertEmailDelivery) {
   const reference = escapeHtml(plainReference)
   const proposal = delivery.proposal?.trim() ? escapeHtml(delivery.proposal.trim()) : null
   const location = delivery.location?.trim() ? escapeHtml(delivery.location.trim()) : null
-  const detail = delivery.event_label?.trim() ? escapeHtml(delivery.event_label.trim()) : escapeHtml(title)
-  const subject = `${title.replace(/\s+/g, " ").trim()}: ${plainReference}`
+  const rawDetail = delivery.event_label?.replace(/\s+/g, " ").trim() || ""
+  const normalisedTitle = title.replace(/\s+/g, " ").trim()
+  const detail = rawDetail && rawDetail.toLocaleLowerCase("en-IE") !== normalisedTitle.toLocaleLowerCase("en-IE")
+    ? escapeHtml(rawDetail)
+    : null
+  const subject = `${normalisedTitle}: ${plainReference}`
   const text = [
     title,
     `Planning reference: ${delivery.application_reference}`,
     `Update date: ${formatDate(delivery.event_date)}`,
-    delivery.event_label,
+    detail ? rawDetail : "",
     delivery.location ? `Location: ${delivery.location}` : "",
     delivery.proposal ? `Proposal: ${delivery.proposal}` : "",
     `View application: ${applicationUrl}`,
@@ -84,7 +88,7 @@ export function renderPlanningAlertEmail(delivery: PlanningAlertEmailDelivery) {
             <h1 style="margin:10px 0 0; font-size:26px; line-height:1.25; color:#1c1917;">${escapeHtml(title)}</h1>
           </div>
           <div style="padding:26px 28px;">
-            <p style="margin:0; font-size:15px; line-height:1.7; color:#1c1917;">${detail}</p>
+            ${detail ? `<p style="margin:0; font-size:15px; line-height:1.7; color:#1c1917;">${detail}</p>` : ""}
             <div style="margin:22px 0; padding:18px; border:1px solid #e7e5e4; border-radius:14px; background:#fafaf9;">
               <div style="font-size:12px; text-transform:uppercase; font-weight:700; color:#78716c;">Planning reference</div>
               <div style="margin-top:5px; font-size:16px; font-weight:700;">${reference}</div>
