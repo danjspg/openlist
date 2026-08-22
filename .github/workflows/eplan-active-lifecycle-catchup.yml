@@ -1,0 +1,33 @@
+name: Catch Up Active ePlan Lifecycle Gaps
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eplan-active-lifecycle-catchup
+  cancel-in-progress: false
+
+jobs:
+  catch-up:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Catch up verified active ePlan authorities sequentially
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          EPLAN_ACTIVE_ENRICH_LIMIT: "500"
+          EPLAN_ACTIVE_ENRICH_DELAY_MS: "750"
+        run: |
+          for authority in KERRY MEATH OFFALY WATERFORD CARLOW CAVAN CLARE DONEGAL GALWAYCOCO GALWAYCITY KILDARE KILKENNY LAOIS LEITRIM LIMERICK LONGFORD LOUTH MAYO MONAGHAN ROSCOMMON SLIGO TIPPERARY WESTMEATH WICKLOW; do
+            EPLAN_ACTIVE_ENRICH_AUTHORITIES="$authority" node scripts/refresh-eplan-active-lifecycle.mjs
+          done
