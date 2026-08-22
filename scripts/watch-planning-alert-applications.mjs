@@ -17,28 +17,32 @@ const applications = [...new Map((subscriptions || []).map(s => [s.application_i
 const report = { selected: applications.length, initialized: 0, checked: 0, changed: 0, failures: 0, unsupported: 0 }
 
 for (const app of applications) {
-  if (!app || terminal.has(app.normalized_status)) continue
+  if (!app) continue
   const now = new Date().toISOString()
   const { data: watch } = await supabase.from("planning_alert_watch_state").select("initialized_at,state").eq("application_id", app.id).maybeSingle()
-  if (!EPLAN_AUTHORITIES[app.local_authority_code]) {
-    report.unsupported += 1
-    await supabase.from("planning_alert_watch_state").upsert({ application_id: app.id, last_checked_at: now, last_error: "No watch source implemented for this authority", source_strategy: "pending_source" })
-    continue
+  // ePlan is the richer official detail register for its verified authorities.
+  // Cork and remaining authorities are still deliberately watched through the
+  // canonical state refreshed from their existing official integrations; they
+  // never silently leave the monitoring cohort just because ePlan is absent.
+  const strategy = EPLAN_AUTHORITIES[app.local_authority_code] ? "eplan" : "canonical_official_refresh"
+  let source = null
+  if (strategy === "eplan") {
+    source = await fetchEplanApplication(app.local_authority_code, app.reference)
+    if (!source.ok) {
+      report.failures += 1
+      await supabase.from("planning_alert_watch_state").upsert({ application_id: app.id, last_checked_at: now, last_error: source.reason, source_strategy: strategy })
+      await sleep(delay); continue
+    }
   }
-  const source = await fetchEplanApplication(app.local_authority_code, app.reference)
-  if (!source.ok) {
-    report.failures += 1
-    await supabase.from("planning_alert_watch_state").upsert({ application_id: app.id, last_checked_at: now, last_error: source.reason, source_strategy: "eplan" })
-    await sleep(delay); continue
-  }
-  const state = Object.fromEntries(fields.map(field => [field, source[field] || null]))
+  const state = Object.fromEntries(fields.map(field => [field, source?.[field] || app[field] || null]))
   if (!watch?.initialized_at) {
     const update = Object.fromEntries(fields.filter(field => !app[field] && state[field]).map(field => [field, state[field]]))
     if (Object.keys(update).length) await supabase.from("planning_applications").update(update).eq("id", app.id)
-    await supabase.from("planning_alert_watch_state").upsert({ application_id: app.id, initialized_at: now, last_checked_at: now, last_successful_check_at: now, source_strategy: "eplan", state, last_error: null, updated_at: now })
+    await supabase.from("planning_alert_watch_state").upsert({ application_id: app.id, initialized_at: now, last_checked_at: now, last_successful_check_at: now, source_strategy: strategy, state, last_error: null, updated_at: now })
     report.initialized += 1
     await sleep(delay); continue
   }
+  if (terminal.has(app.normalized_status)) continue
   report.checked += 1
   const previous = watch.state || {}
   for (const field of fields) {
@@ -50,7 +54,7 @@ for (const app of applications) {
       report.changed += 1
     }
   }
-  await supabase.from("planning_alert_watch_state").upsert({ application_id: app.id, last_checked_at: now, last_successful_check_at: now, source_strategy: "eplan", state, last_error: null, updated_at: now })
+  await supabase.from("planning_alert_watch_state").upsert({ application_id: app.id, last_checked_at: now, last_successful_check_at: now, source_strategy: strategy, state, last_error: null, updated_at: now })
   await sleep(delay)
 }
 console.log(JSON.stringify(report))
