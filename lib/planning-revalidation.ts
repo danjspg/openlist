@@ -27,7 +27,8 @@ export type PlanningRevalidationResult = {
 export async function drainPlanningRevalidationQueue(
   supabase: QueueClient,
   invalidatePath: (path: string) => void,
-  batchSize = 100
+  batchSize = 100,
+  { dedicatedOnly = false }: { dedicatedOnly?: boolean } = {}
 ): Promise<PlanningRevalidationResult> {
   const limit = Math.max(1, Math.min(batchSize, 100))
   const { data: queued, error: queueError } = await supabase
@@ -67,7 +68,7 @@ export async function drainPlanningRevalidationQueue(
     }
   }
 
-  const legacyLimit = Math.max(0, limit - (queued?.length ?? 0))
+  const legacyLimit = dedicatedOnly ? 0 : Math.max(0, limit - (queued?.length ?? 0))
   const legacyQuery = supabase
     .from("planning_applications")
     .select("id,local_authority_code,reference,updated_at")
@@ -104,22 +105,25 @@ export async function drainPlanningRevalidationQueue(
     }
   }
 
-  const [{ count, error: countError }, { count: queueCount, error: queueCountError }] = await Promise.all([
-    supabase
-    .from("planning_applications")
-    .select("id", { count: "exact", head: true })
-    .eq("revalidation_pending", true),
-    supabase
+  const { count: queueCount, error: queueCountError } = await supabase
       .from("planning_revalidation_queue")
-      .select("application_id", { count: "exact", head: true }),
-  ])
-  if (countError) throw new Error(`Planning revalidation queue count failed: ${countError.message}`)
+      .select("application_id", { count: "exact", head: true })
   if (queueCountError) throw new Error(`Planning exact-path queue count failed: ${queueCountError.message}`)
+
+  let legacyCount = 0
+  if (!dedicatedOnly) {
+    const { count, error: countError } = await supabase
+      .from("planning_applications")
+      .select("id", { count: "exact", head: true })
+      .eq("revalidation_pending", true)
+    if (countError) throw new Error(`Planning revalidation queue count failed: ${countError.message}`)
+    legacyCount = count ?? 0
+  }
 
   return {
     selected: (queued?.length ?? 0) + (data?.length ?? 0),
     invalidated,
-    remaining: (count ?? 0) + (queueCount ?? 0),
+    remaining: legacyCount + (queueCount ?? 0),
     failures,
   }
 }

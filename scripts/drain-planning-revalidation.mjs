@@ -1,5 +1,6 @@
 const endpoint = process.env.PLANNING_REVALIDATION_URL?.replace(/\/+$/, "")
 const secret = process.env.PLANNING_REVALIDATION_SECRET
+const queue = process.env.PLANNING_REVALIDATION_QUEUE
 const maxBatches = 20
 
 if (!endpoint || !secret) {
@@ -7,7 +8,8 @@ if (!endpoint || !secret) {
 }
 
 for (let batch = 1; batch <= maxBatches; batch += 1) {
-  const response = await fetch(`${endpoint}/api/internal/planning-revalidate`, {
+  const query = queue ? `?queue=${encodeURIComponent(queue)}` : ""
+  const response = await fetch(`${endpoint}/api/internal/planning-revalidate${query}`, {
     method: "POST",
     headers: { authorization: `Bearer ${secret}` },
   })

@@ -164,6 +164,7 @@ test("watch updates stay HOT and use the separate durable exact-path queue", asy
   assert.match(worker, /from\("planning_revalidation_queue"\)/)
   assert.match(worker, /invalidatePath\(planningApplicationPath\(authority, related\.reference\)\)/)
   assert.match(workflow, /Revalidate changed Planning detail pages/)
+  assert.match(workflow, /PLANNING_REVALIDATION_QUEUE: dedicated/)
   assert.match(migration, /create table public\.planning_revalidation_queue/)
 })
 
