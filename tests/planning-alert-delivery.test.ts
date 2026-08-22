@@ -60,6 +60,39 @@ test("delivery migration queues only observed post-subscription events exactly o
   }
 })
 
+test("watch-only migration removes general ingestion from email eligibility", async () => {
+  const migration = await source("supabase/migrations/20260822130000_watch_only_planning_alerts.sql")
+
+  assert.match(migration, /create table public\.planning_alert_watch_state/)
+  assert.match(migration, /create table public\.planning_alert_observed_changes/)
+  assert.match(migration, /alter table public\.planning_alert_deliveries add column observed_change_id/)
+  assert.match(migration, /from public\.planning_alert_observed_changes c/)
+  assert.match(migration, /join public\.planning_alert_subscriptions s on s\.application_id=c\.application_id and s\.enabled/)
+  assert.match(migration, /where c\.observed_at >= s\.created_at/)
+  assert.doesNotMatch(migration, /from public\.planning_application_events event/)
+})
+
+test("planning alert watcher baselines first and records only source-observed changes", async () => {
+  const watcher = await source("scripts/watch-planning-alert-applications.mjs")
+
+  assert.match(watcher, /new Map\(\(data \|\| \[\]\)\.map\(\(row\) => \[row\.application_id, row\.planning_applications\]\)\)/)
+  assert.match(watcher, /EPLAN_AUTHORITIES\[app\.local_authority_code\]/)
+  assert.match(watcher, /strategy: "cork_official_api"/)
+  assert.match(watcher, /strategy: "national_arcgis_exact"/)
+  assert.match(watcher, /if \(!watch\?\.initialized_at\) \{[\s\S]*baselineUpdates[\s\S]*initialized_at: now/)
+  assert.match(watcher, /await updateCanonical\(app, baselineUpdates, now\)[\s\S]*report\.initialized \+= 1/)
+  assert.doesNotMatch(
+    watcher.match(/if \(!watch\?\.initialized_at\) \{[\s\S]*?continue/)?.[0] || "",
+    /planning_alert_observed_changes/
+  )
+  assert.match(watcher, /const changedFields = fields\.filter\(\(field\) => state\[field\] && state\[field\] !== previous\[field\]\)/)
+  assert.match(watcher, /await updateCanonical\(app, updates, now\)/)
+  assert.match(watcher, /\.from\("planning_alert_observed_changes"\)\.upsert/)
+  assert.match(watcher, /revalidation_pending: true/)
+  assert.match(watcher, /field === "decision_due_date" \? query\.eq\("new_value", value\) : query\.eq\("event_date", value\)/)
+  assert.match(watcher, /upsertWatchFailure\(app, strategy, now, source\)/)
+})
+
 test("status delivery destinations are explicit and specific events suppress generic duplicates", async () => {
   const migration = await source("supabase/migrations/20260821095315_planning_alert_deliveries.sql")
 
