@@ -134,7 +134,8 @@ test("one event renders one transactional email with deterministic idempotency",
       proposal: "A test proposal",
       location: "A test location",
     })
-    assert.equal(email.subject, "A decision has been recorded: 26/1595")
+    assert.equal(email.subject, "A decision has been recorded · A test location")
+    assert.doesNotMatch(email.subject, /26\/1595/)
     assert.match(email.html, /Decision: Grant permission/)
     assert.match(email.html, /Stop updates for this application/)
     assert.match(email.text, /not a marketing email/)
@@ -145,6 +146,48 @@ test("one event renders one transactional email with deterministic idempotency",
     assert.ok(email.html.includes(authoritativeSourceDisclaimer))
     assert.ok(email.text.includes(authoritativeSourceDisclaimer))
     assert.equal(planningAlertEventTitle("decision_made", "ignored"), "A decision has been recorded")
+  } finally {
+    if (previousSecret === undefined) delete process.env.PLANNING_ALERT_UNSUBSCRIBE_SECRET
+    else process.env.PLANNING_ALERT_UNSUBSCRIBE_SECRET = previousSecret
+    if (previousSiteUrl === undefined) delete process.env.NEXT_PUBLIC_SITE_URL
+    else process.env.NEXT_PUBLIC_SITE_URL = previousSiteUrl
+  }
+})
+
+test("planning alert subjects use the existing location, omit duplicate county suffixes, and stay compact", () => {
+  const previousSecret = process.env.PLANNING_ALERT_UNSUBSCRIBE_SECRET
+  const previousSiteUrl = process.env.NEXT_PUBLIC_SITE_URL
+  process.env.PLANNING_ALERT_UNSUBSCRIBE_SECRET = "test-only-secret-with-at-least-thirty-two-characters"
+  process.env.NEXT_PUBLIC_SITE_URL = "https://www.openlist.ie"
+  try {
+    const base = {
+      delivery_id: "33333333-3333-4333-8333-333333333333",
+      subscription_id: subscriptionId,
+      event_type: "further_information_requested",
+      event_date: "2026-08-21",
+      event_label: "Further information requested",
+      old_value: null,
+      new_value: null,
+      local_authority_code: "LOUTH",
+      application_reference: "2660436",
+      proposal: null,
+    } as const
+
+    assert.equal(
+      renderPlanningAlertEmail({ ...base, location: "Cuan Mo Chroi, Dundalk, Co. Louth" }).subject,
+      "Further information requested · Cuan Mo Chroi, Dundalk"
+    )
+    assert.equal(
+      renderPlanningAlertEmail({ ...base, location: null }).subject,
+      "Further information requested"
+    )
+
+    const longSubject = renderPlanningAlertEmail({
+      ...base,
+      location: "A very long planning location name that should be shortened for a useful mobile subject line",
+    }).subject
+    assert.ok(longSubject.length <= 78)
+    assert.match(longSubject, /…$/)
   } finally {
     if (previousSecret === undefined) delete process.env.PLANNING_ALERT_UNSUBSCRIBE_SECRET
     else process.env.PLANNING_ALERT_UNSUBSCRIBE_SECRET = previousSecret

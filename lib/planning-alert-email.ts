@@ -1,12 +1,13 @@
 import { getPlanningAuthorityByCode } from "@/lib/planning-authorities"
 import { planningAlertEventTitle } from "@/lib/planning-alert-delivery-rules"
 import { createPlanningAlertUnsubscribeToken } from "@/lib/planning-alert-unsubscribe"
-import { planningApplicationPath } from "@/lib/property-intelligence"
+import { countyForPlanningAuthority, planningApplicationPath } from "@/lib/property-intelligence"
 import { getResendClient } from "@/lib/resend"
 import { getPublicSiteUrl } from "@/lib/site-url"
 
 const authoritativeSourceDisclaimer =
   "OpenList helps you follow this application. The relevant local authority remains the authoritative source for the planning record."
+const PLANNING_ALERT_SUBJECT_MAX_LENGTH = 78
 
 export type PlanningAlertEmailDelivery = {
   delivery_id: string
@@ -42,6 +43,36 @@ function formatDate(value: string) {
   }).format(date)
 }
 
+function compactPlanningLocation(location: string | null, authorityCode: string) {
+  const cleanLocation = location?.replace(/\s+/g, " ").trim()
+  if (!cleanLocation) return null
+
+  const county = countyForPlanningAuthority(authorityCode)
+  if (!county) return cleanLocation
+
+  // Planning source locations sometimes repeat the authority county at the end.
+  // Remove only an unambiguous trailing county suffix; this is not an address parser.
+  const countySuffix = new RegExp(`,\\s*(?:Co\\.?\\s+|County\\s+)?${county}\\s*$`, "i")
+  return cleanLocation.replace(countySuffix, "").trim() || cleanLocation
+}
+
+function planningAlertSubject(
+  title: string,
+  location: string | null,
+  authorityCode: string
+) {
+  const compactLocation = compactPlanningLocation(location, authorityCode)
+  if (!compactLocation) return title
+
+  const separator = " · "
+  const availableLocationLength = PLANNING_ALERT_SUBJECT_MAX_LENGTH - title.length - separator.length
+  if (availableLocationLength <= 0) return title.slice(0, PLANNING_ALERT_SUBJECT_MAX_LENGTH)
+  const displayLocation = compactLocation.length > availableLocationLength
+    ? `${compactLocation.slice(0, Math.max(availableLocationLength - 1, 1)).trimEnd()}…`
+    : compactLocation
+  return `${title}${separator}${displayLocation}`
+}
+
 function emailLinks(delivery: PlanningAlertEmailDelivery) {
   const authority = getPlanningAuthorityByCode(delivery.local_authority_code)
   if (!authority) throw new Error(`Unknown planning authority ${delivery.local_authority_code}`)
@@ -60,7 +91,7 @@ export function renderPlanningAlertEmail(delivery: PlanningAlertEmailDelivery) {
   const proposal = delivery.proposal?.trim() ? escapeHtml(delivery.proposal.trim()) : null
   const location = delivery.location?.trim() ? escapeHtml(delivery.location.trim()) : null
   const detail = delivery.event_label?.trim() ? escapeHtml(delivery.event_label.trim()) : escapeHtml(title)
-  const subject = `${title.replace(/\s+/g, " ").trim()}: ${plainReference}`
+  const subject = planningAlertSubject(title.replace(/\s+/g, " ").trim(), delivery.location, delivery.local_authority_code)
   const text = [
     title,
     `Planning reference: ${delivery.application_reference}`,
