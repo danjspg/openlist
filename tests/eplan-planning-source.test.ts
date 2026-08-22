@@ -52,4 +52,8 @@ test("only verified authority paths build ePlan URLs", () => {
     buildEplanApplicationUrl("ROSCOMMON", "2660290"),
     "https://www.eplanning.ie/RoscommonCC/AppFileRefDetails/2660290/0"
   )
+  assert.equal(
+    buildEplanApplicationUrl("GALWAYCITY", "2660002"),
+    "https://www.eplanning.ie/GalwayCity/AppFileRefDetails/2660002/0"
+  )
 })
