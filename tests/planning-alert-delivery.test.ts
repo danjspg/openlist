@@ -22,7 +22,10 @@ async function source(path: string) {
 const subscriptionId = "11111111-1111-4111-8111-111111111111"
 
 test("delivery migration queues only observed post-subscription events exactly once", async () => {
-  const migration = await source("supabase/migrations/20260821095315_planning_alert_deliveries.sql")
+  const [migration, historicalSafety] = await Promise.all([
+    source("supabase/migrations/20260821095315_planning_alert_deliveries.sql"),
+    source("supabase/migrations/20260822094500_prevent_historical_planning_alerts.sql"),
+  ])
 
   assert.match(migration, /unique \(subscription_id, event_id\)/)
   assert.match(migration, /event\.provenance = 'observed'/)
@@ -31,6 +34,8 @@ test("delivery migration queues only observed post-subscription events exactly o
   assert.match(migration, /on conflict \(subscription_id, event_id\) do nothing/)
   assert.match(migration, /order by event\.detected_at, event\.id, subscription\.id[\s\S]*limit bounded_limit/)
   assert.match(migration, /planning_application_events_alert_queue_idx[\s\S]*\(application_id, detected_at, id\)[\s\S]*where provenance = 'observed'/)
+  assert.match(historicalSafety, /event\.detected_at >= subscription\.created_at/)
+  assert.match(historicalSafety, /event\.event_date is null or event\.event_date >= subscription\.created_at::date/)
 
   assert.deepEqual(PLANNING_ALERT_EVENT_TYPES, [
     "further_information_requested",
