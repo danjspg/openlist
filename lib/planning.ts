@@ -269,8 +269,30 @@ export async function getPlanningLocalityDashboard(
   const overview = await getPlanningDashboard({}, authority)
   const locality = overview.areaOptions.find((label) => areaSlug(label) === localitySlug)
   if (!locality) return null
-  const dashboard = await getPlanningDashboard({ area: locality }, authority)
-  return dashboard.totalCount >= 8 ? { locality, dashboard } : null
+  const [dashboard, recentDecisions] = await Promise.all([
+    getPlanningDashboard({ area: locality }, authority),
+    getPlanningRecentDecisions(authority.code, locality),
+  ])
+  return dashboard.totalCount >= 8 ? { locality, dashboard, recentDecisions } : null
+}
+
+async function getPlanningRecentDecisions(authorityCode: string, locality: string) {
+  const { data, error } = await getServerSupabase()
+    .from("planning_applications")
+    .select(PLANNING_APPLICATION_SELECT)
+    .eq("local_authority_code", authorityCode)
+    .ilike("location", `%${escapePostgrestLike(locality)}%`)
+    .not("decision_date", "is", null)
+    .order("decision_date", { ascending: false, nullsFirst: false })
+    .order("reference", { ascending: false })
+    .limit(5)
+
+  if (error) {
+    console.warn("Planning locality decision query failed.", error.message)
+    return [] as PlanningApplication[]
+  }
+
+  return (data ?? []) as PlanningApplication[]
 }
 
 function emptyPlanningAggregateSummary(): PlanningAggregateSummary {
