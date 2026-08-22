@@ -2,6 +2,11 @@ name: Catch Up Active ePlan Lifecycle Gaps
 
 on:
   workflow_dispatch:
+    inputs:
+      start_authority:
+        description: Resume from this verified authority code (blank starts at Kerry)
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -27,7 +32,13 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           EPLAN_ACTIVE_ENRICH_LIMIT: "500"
           EPLAN_ACTIVE_ENRICH_DELAY_MS: "750"
+          EPLAN_CATCHUP_START_AUTHORITY: ${{ inputs.start_authority }}
         run: |
+          started=false
           for authority in KERRY MEATH OFFALY WATERFORD CARLOW CAVAN CLARE DONEGAL GALWAYCOCO GALWAYCITY KILDARE KILKENNY LAOIS LEITRIM LIMERICK LONGFORD LOUTH MAYO MONAGHAN ROSCOMMON SLIGO TIPPERARY WESTMEATH WICKLOW; do
+            if [ -n "$EPLAN_CATCHUP_START_AUTHORITY" ] && [ "$started" = false ]; then
+              [ "$authority" = "$EPLAN_CATCHUP_START_AUTHORITY" ] || continue
+            fi
+            started=true
             EPLAN_ACTIVE_ENRICH_AUTHORITIES="$authority" node scripts/refresh-eplan-active-lifecycle.mjs
           done
