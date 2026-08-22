@@ -7,9 +7,10 @@ async function source(path: string) {
 }
 
 test("common Planning dashboards read a maintained compact snapshot", async () => {
-  const [planning, migration, workflow] = await Promise.all([
+  const [planning, migration, securityMigration, workflow] = await Promise.all([
     source("lib/planning.ts"),
     source("supabase/migrations/20260822081145_add_planning_dashboard_snapshots.sql"),
+    source("supabase/migrations/20260822083100_revoke_public_planning_dashboard_snapshot_functions.sql"),
     source(".github/workflows/planning-refresh.yml"),
   ])
 
@@ -17,6 +18,7 @@ test("common Planning dashboards read a maintained compact snapshot", async () =
   assert.match(planning, /openlist_planning_dashboard_snapshot/)
   assert.match(migration, /create table if not exists public\.planning_dashboard_snapshots/i)
   assert.match(migration, /on conflict \(authority_code\) do update/i)
+  assert.match(securityMigration, /from public, anon, authenticated/i)
   assert.match(workflow, /refresh-planning-dashboard-snapshots\.mjs/)
 })
 
