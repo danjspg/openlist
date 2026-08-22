@@ -1,0 +1,12 @@
+-- Built concurrently in production outside the transaction-only migration runner.
+-- This partial index keeps the background ePlan active-gap selector bounded to
+-- one authority's active statuses, rather than bitmap-intersecting two broad
+-- indexes under the PostgREST statement timeout.
+--
+-- Production DDL:
+-- CREATE INDEX CONCURRENTLY planning_applications_eplan_active_authority_status_idx
+--   ON public.planning_applications (local_authority_code, normalized_status)
+--   WHERE normalized_status IN (
+--     'pre_validation', 'registered', 'under_assessment',
+--     'further_information_requested', 'further_information_received', 'appealed'
+--   );
