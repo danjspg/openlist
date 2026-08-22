@@ -9,6 +9,7 @@ import {
   changedWatchFields,
   createPlanningAlertWatcher,
   sourceState,
+  upgradeWatchComparisonState,
 } from "../lib/planning-alert-watch.mjs"
 
 async function source(path: string) {
@@ -110,6 +111,28 @@ test("a source change after subscription baseline is not absorbed by the next sc
     decision_date: "2026-08-22",
     decision_text: "Refused",
   })
+})
+
+test("existing watch states baseline only newly introduced fields without hiding existing-field changes", () => {
+  const previousVersionOne = {
+    further_information_requested_date: "2026-06-01",
+    further_information_received_date: null,
+  }
+  const official = sourceState({
+    status: "DECISION MADE",
+    decision_date: "2026-08-20",
+    decision_text: "Grant Permission",
+    further_information_requested_date: "2026-06-01",
+    further_information_received_date: "2026-07-01",
+  })
+  const { comparisonState, baselineOnlyFields } = upgradeWatchComparisonState(
+    previousVersionOne,
+    official,
+    1
+  )
+
+  assert.deepEqual(baselineOnlyFields, ["status", "decision_date", "decision_text"])
+  assert.deepEqual(changedWatchFields(comparisonState, official), ["further_information_received_date"])
 })
 
 test("subscription creation requests an immediate no-email baseline with scheduled retry", async () => {

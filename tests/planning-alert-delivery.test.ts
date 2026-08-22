@@ -85,7 +85,8 @@ test("planning alert watcher baselines first and records only source-observed ch
     watcher.match(/if \(!watch\?\.initialized_at\) \{[\s\S]*?continue/)?.[0] || "",
     /planning_alert_observed_changes/
   )
-  assert.match(watcher, /const changedFields = changedWatchFields\(watch\.state \|\| \{\}, state\)/)
+  assert.match(watcher, /upgradeWatchComparisonState\([\s\S]*watch\.state,[\s\S]*state,[\s\S]*watch\.state_version/)
+  assert.match(watcher, /const changedFields = changedWatchFields\(comparisonState, state\)/)
   assert.match(watcher, /await updateCanonical\(app, updates, now\)/)
   assert.match(watcher, /\.from\("planning_alert_observed_changes"\)\.upsert/)
   assert.doesNotMatch(watcher, /revalidation_pending: true/)
