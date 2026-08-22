@@ -17,6 +17,14 @@ const lifecycleFields = [
   "further_information_requested_date", "further_information_received_date", "decision_due_date",
   "decision_date", "withdrawal_date", "appeal_lodged_date", "expiry_date",
 ]
+// National ArcGIS remains primary for decision dates. Keep this active ePlan
+// pass focused on alertable lifecycle milestones, whose dedicated trigger is
+// bounded; writing ePlan decision dates also invokes the legacy broad event
+// trigger and exceeds the PostgREST statement timeout.
+const enrichmentFields = [
+  "further_information_requested_date", "further_information_received_date",
+  "withdrawal_date", "appeal_lodged_date", "expiry_date",
+]
 const requestedAuthorities = (process.env.EPLAN_ACTIVE_ENRICH_AUTHORITIES || "")
   .split(",")
   .map((code) => code.trim().toUpperCase())
@@ -75,7 +83,7 @@ for (const candidate of candidates) {
   } else {
     report.fetched += 1
     const updates = {}
-    for (const field of lifecycleFields) {
+    for (const field of enrichmentFields) {
       const incoming = result[field]
       if (!incoming) continue
       if (candidate[field]) {
