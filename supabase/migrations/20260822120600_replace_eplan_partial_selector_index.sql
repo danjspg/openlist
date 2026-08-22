@@ -1,0 +1,12 @@
+-- Supersedes the short-lived partial index documented in
+-- 20260822120300_add_eplan_active_authority_status_index.sql.
+--
+-- PostgREST uses a generic prepared plan for the selector, so PostgreSQL
+-- cannot prove the parameterised status list satisfies that partial predicate.
+-- The full composite index is therefore required to keep the API path bounded.
+-- Both operations were run concurrently in production outside the
+-- transaction-only migration runner:
+--
+-- DROP INDEX CONCURRENTLY planning_applications_eplan_active_authority_status_idx;
+-- CREATE INDEX CONCURRENTLY planning_applications_authority_normalized_status_idx
+--   ON public.planning_applications (local_authority_code, normalized_status);
