@@ -31,33 +31,25 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
 async function loadCandidates() {
   const selected = `id,reference,local_authority_code,normalized_status,${lifecycleFields.join(",")}`
-  const rows = []
-  // Avoid a large PostgREST OR predicate against the growing active corpus.
-  // Target fields only where their status makes them actionable. In particular,
-  // a request-stage application is expected not to have an FI-received date, so
-  // it must not be re-fetched every day solely for that future milestone.
-  const candidateGroups = [
-    { field: "further_information_requested_date", statuses: activeStatuses },
-    { field: "further_information_received_date", statuses: ["further_information_received"] },
-    { field: "appeal_lodged_date", statuses: ["appealed"] },
-  ]
-  for (const { field, statuses } of candidateGroups) {
-    for (const status of statuses) {
-      let query = supabase.from("planning_applications")
-        .select(selected)
-        .in("local_authority_code", authorityCodes)
-        .eq("normalized_status", status)
-        .is(field, null)
-        .order("id", { ascending: true })
-        .limit(limit)
-      if (afterId) query = query.gt("id", afterId)
-      const { data, error } = await query
-      if (error) throw error
-      rows.push(...(data || []))
-    }
-  }
-  return Array.from(new Map(rows.map((row) => [row.id, row])).values())
-    .sort((a, b) => a.id.localeCompare(b.id))
+  // PostgREST predicates combining status and several `is null` fields caused
+  // statement timeouts on the production corpus. Load a compact, bounded active
+  // cohort through the existing status/authority indexes, then apply the
+  // actionable-gap rules locally. The worker still sends at most `limit` pages.
+  let query = supabase.from("planning_applications")
+    .select(selected)
+    .in("local_authority_code", authorityCodes)
+    .in("normalized_status", activeStatuses)
+    .order("id", { ascending: true })
+    .limit(5000)
+  if (afterId) query = query.gt("id", afterId)
+  const { data, error } = await query
+  if (error) throw error
+  return (data || [])
+    .filter((row) => (
+      !row.further_information_requested_date ||
+      (row.normalized_status === "further_information_received" && !row.further_information_received_date) ||
+      (row.normalized_status === "appealed" && !row.appeal_lodged_date)
+    ))
     .slice(0, limit)
 }
 
