@@ -17,22 +17,35 @@ const lifecycleFields = [
   "further_information_requested_date", "further_information_received_date", "decision_due_date",
   "decision_date", "withdrawal_date", "appeal_lodged_date", "expiry_date",
 ]
+const requestedAuthorities = (process.env.EPLAN_ACTIVE_ENRICH_AUTHORITIES || "")
+  .split(",")
+  .map((code) => code.trim().toUpperCase())
+  .filter(Boolean)
+const authorityCodes = requestedAuthorities.length
+  ? requestedAuthorities.filter((code) => EPLAN_AUTHORITIES[code])
+  : Object.keys(EPLAN_AUTHORITIES)
+if (requestedAuthorities.length && !authorityCodes.length) {
+  throw new Error("EPLAN_ACTIVE_ENRICH_AUTHORITIES did not include a verified ePlan authority")
+}
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
 async function loadCandidates() {
   const selected = `id,reference,local_authority_code,normalized_status,${lifecycleFields.join(",")}`
   const rows = []
   // Avoid a large PostgREST OR predicate against the growing active corpus.
-  // These narrow status/field probes are bounded before we merge/dedupe them.
-  for (const status of activeStatuses) {
-    for (const field of [
-      "further_information_requested_date",
-      "further_information_received_date",
-      "appeal_lodged_date",
-    ]) {
+  // Target fields only where their status makes them actionable. In particular,
+  // a request-stage application is expected not to have an FI-received date, so
+  // it must not be re-fetched every day solely for that future milestone.
+  const candidateGroups = [
+    { field: "further_information_requested_date", statuses: activeStatuses },
+    { field: "further_information_received_date", statuses: ["further_information_received"] },
+    { field: "appeal_lodged_date", statuses: ["appealed"] },
+  ]
+  for (const { field, statuses } of candidateGroups) {
+    for (const status of statuses) {
       let query = supabase.from("planning_applications")
         .select(selected)
-        .in("local_authority_code", Object.keys(EPLAN_AUTHORITIES))
+        .in("local_authority_code", authorityCodes)
         .eq("normalized_status", status)
         .is(field, null)
         .order("id", { ascending: true })
@@ -49,7 +62,17 @@ async function loadCandidates() {
 }
 
 const candidates = await loadCandidates()
-const report = { selected: candidates.length, fetched: 0, changed: 0, notFound: 0, conflicts: 0, errors: 0, fields: {} }
+const report = {
+  authorities: authorityCodes,
+  selected: candidates.length,
+  fetched: 0,
+  changed: 0,
+  statusLagged: 0,
+  notFound: 0,
+  conflicts: 0,
+  errors: 0,
+  fields: {},
+}
 for (const candidate of candidates) {
   const result = await fetchEplanApplication(candidate.local_authority_code, candidate.reference)
   if (!result.ok) {
@@ -70,6 +93,10 @@ for (const candidate of candidates) {
     }
     if (Object.keys(updates).length) {
       report.changed += 1
+      if (
+        (updates.further_information_requested_date && candidate.normalized_status !== "further_information_requested") ||
+        (updates.further_information_received_date && candidate.normalized_status !== "further_information_received")
+      ) report.statusLagged += 1
       if (!dryRun) {
         const { error } = await supabase.from("planning_applications")
           .update({ ...updates, updated_at: new Date().toISOString(), revalidation_pending: true })
