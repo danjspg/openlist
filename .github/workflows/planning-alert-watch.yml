@@ -17,7 +17,7 @@ jobs:
       - name: Run only at the intended Europe/Dublin local hour
         id: time
         run: echo "run=$([[ $(TZ=Europe/Dublin date +%H) =~ ^(06|13|20)$ ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
-      - if: steps.time.outputs.run == 'true'
+      - if: github.event_name == 'workflow_dispatch' || steps.time.outputs.run == 'true'
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
