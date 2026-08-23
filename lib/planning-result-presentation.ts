@@ -7,6 +7,7 @@ import { planningApplicationPath, planningGridToWgs84 } from "@/lib/property-int
 
 export function planningResultRecord(application: PlanningApplication): PlanningResultRecord {
   const authority = getPlanningAuthorityByCode(application.local_authority_code)
+  const decision = planningResultDecision(application.decision_text)
 
   return {
     id: application.id,
@@ -16,18 +17,56 @@ export function planningResultRecord(application: PlanningApplication): Planning
     status: planningStatusLabel(application.normalized_status),
     proposal: planningProposalTitle(application.proposal, "No proposal text recorded"),
     authority: application.local_authority,
-    location: application.location,
+    location: planningResultLocation(application.location),
     applicant: application.applicant_name,
-    applicationType: application.application_type,
-    decision: application.decision_text,
-    latestEvent: latestPlanningLifecycleEvent(application),
+    applicationType: planningResultApplicationType(application.application_type),
+    decision,
+    latestEvent: latestPlanningLifecycleEvent(application, decision),
     detailHref: authority ? planningApplicationPath(authority, application.reference) : null,
     coordinates: planningGridToWgs84(application),
   }
 }
 
+export function planningResultLocation(value: string | null) {
+  if (!value) return null
+  const cleaned = value
+    .replace(/\s+([,.;:])/g, "$1")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim()
+  return cleaned || null
+}
+
+export function planningResultApplicationType(value: string | null) {
+  const trimmed = value?.trim()
+  if (!trimmed) return null
+
+  if (trimmed === trimmed.toUpperCase() && /[A-Z]/.test(trimmed)) {
+    if (/^[A-Z0-9/&.-]{2,4}$/.test(trimmed) && trimmed !== "PERMISSION") {
+      return trimmed
+    }
+
+    return trimmed
+      .toLocaleLowerCase("en-IE")
+      .replace(/\b[a-z]/g, (letter) => letter.toLocaleUpperCase("en-IE"))
+  }
+
+  return trimmed
+}
+
+export function planningResultDecision(value: string | null) {
+  const trimmed = value?.trim()
+  if (!trimmed) return null
+
+  if (/^(?:n\/?a|not recorded|not applicable|none|null|-)$/i.test(trimmed)) {
+    return null
+  }
+
+  return trimmed
+}
+
 function latestPlanningLifecycleEvent(
-  application: PlanningApplication
+  application: PlanningApplication,
+  decision: string | null
 ): PlanningResultRecord["latestEvent"] {
   type LifecycleEvent = NonNullable<PlanningResultRecord["latestEvent"]>
 
@@ -45,7 +84,7 @@ function latestPlanningLifecycleEvent(
       ? {
           label: "Decision",
           date: application.decision_date,
-          detail: application.decision_text,
+          detail: decision,
         }
       : null,
     application.appeal_lodged_date

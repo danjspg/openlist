@@ -259,7 +259,9 @@ export async function PlanningApplicationsView({
                 </h2>
                 <p className="mt-1 text-sm text-stone-500">
                   {hasActiveSearch
-                    ? `${formatPlanningCount(dashboard.searchCount)} planning applications match the selected filters.`
+                    ? dashboard.searchCount === 1
+                      ? "1 application matches the selected filters."
+                      : `${formatPlanningCount(dashboard.searchCount)} applications match the selected filters.`
                     : latestRegistrationsLabel}
                 </p>
               </div>
