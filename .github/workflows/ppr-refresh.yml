@@ -44,4 +44,5 @@ jobs:
         run: |
           echo "Starting PPR refresh job"
           node scripts/refresh-ppr.mjs
+          node scripts/refresh-ppr-dublin-district-insights.mjs
           echo "PPR refresh job completed"
