@@ -6,10 +6,8 @@ import PprLocationInsights from "@/components/ppr/PprLocationInsights"
 import PprSaleCard from "@/components/ppr/PprSaleCard"
 import { getPprMarket, getRelevantMarketComparisonLinks } from "@/lib/ppr-markets"
 import { formatPlanningDate } from "@/lib/planning"
-import { getPlanningAuthorityByCode } from "@/lib/planning-authorities"
-import { planningApplicationPath } from "@/lib/property-intelligence"
+import { planningResultRecord } from "@/lib/planning-result-presentation"
 import { getPlanningApplicationsForSoldPriceArea } from "@/lib/property-research"
-import { planningProposalTitle } from "@/lib/planning-presentation"
 import {
   areaNameFromSlug,
   formatPprCountyDisplayName,
@@ -255,14 +253,42 @@ export default async function PprAreaPage({ params }: Props) {
               {planningApplications.length > 0 ? (
                 <div className="mt-6 divide-y divide-stone-200 border-y border-stone-200">
                   {planningApplications.map((application) => {
-                    const authority = getPlanningAuthorityByCode(application.local_authority_code)
-                    const href = authority ? planningApplicationPath(authority, application.reference) : "/planning"
+                    const result = planningResultRecord(application)
+                    const href = result.detailHref || "/planning"
+                    const location = result.location || result.authority
+
                     return (
-                      <Link key={application.id} href={href} className="block py-5 transition hover:bg-stone-50 sm:px-3">
-                        <div className="flex flex-wrap items-baseline justify-between gap-2"><p className="font-mono text-sm font-semibold text-emerald-800">{application.reference}</p><p className="text-sm text-stone-500">{formatPlanningDate(application.registration_date)}</p></div>
-                        <p className="mt-2 line-clamp-3 font-semibold leading-6 text-stone-900">{planningProposalTitle(application.proposal, "Proposal not recorded")}</p>
-                        <p className="mt-1 text-sm leading-6 text-stone-500">{application.location || application.local_authority}</p>
-                      </Link>
+                      <article key={application.id} className="py-5 sm:px-2">
+                        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                          <p className="font-mono text-sm font-semibold text-emerald-800">
+                            {result.reference}
+                          </p>
+                          <p className="text-xs font-medium text-stone-500">
+                            Registered {formatPlanningDate(result.registrationDate)}
+                          </p>
+                        </div>
+                        <h3 className="mt-2 text-base font-semibold leading-6 text-stone-900">
+                          <Link href={href} className="transition hover:text-emerald-800">
+                            {location}
+                          </Link>
+                        </h3>
+                        <p className="mt-1.5 line-clamp-2 text-sm leading-6 text-stone-600">
+                          {result.proposal}
+                        </p>
+                        <div className="mt-3 flex flex-wrap items-center gap-3">
+                          {result.status ? (
+                            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">
+                              {result.status}
+                            </span>
+                          ) : null}
+                          <Link
+                            href={href}
+                            className="text-sm font-semibold text-stone-700 transition hover:text-emerald-800"
+                          >
+                            View application →
+                          </Link>
+                        </div>
+                      </article>
                     )
                   })}
                 </div>

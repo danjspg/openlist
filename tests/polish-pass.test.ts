@@ -134,8 +134,24 @@ test("planning result surfaces use concise, visually clamped proposal titles", a
   assert.match(planningResults, /className="line-clamp-3 text-lg/)
   assert.match(unifiedSearch, /planningProposalTitle\(application\.proposal/)
   assert.match(unifiedSearch, /className="mt-2 line-clamp-3/)
-  assert.match(soldPriceArea, /planningProposalTitle\(application\.proposal/)
-  assert.match(soldPriceArea, /className="mt-2 line-clamp-3/)
+  assert.match(soldPriceArea, /planningResultRecord\(application\)/)
+  assert.match(soldPriceArea, /line-clamp-2 text-sm leading-6/)
+})
+
+test("sold-price locality results share the polished OpenList card language without overpowering prices", async () => {
+  const [saleCard, soldPriceArea] = await Promise.all([
+    source("components/ppr/PprSaleCard.tsx"),
+    source("app/sold-prices/[county]/[areaSlug]/page.tsx"),
+  ])
+
+  assert.match(saleCard, /View area prices/)
+  assert.match(saleCard, /bg-emerald-700/)
+  assert.match(saleCard, /min-h-10/)
+  assert.match(soldPriceArea, /const result = planningResultRecord\(application\)/)
+  assert.match(soldPriceArea, /const location = result\.location \|\| result\.authority/)
+  assert.match(soldPriceArea, /Registered \{formatPlanningDate\(result\.registrationDate\)\}/)
+  assert.match(soldPriceArea, /\{result\.status\}/)
+  assert.match(soldPriceArea, /View application →/)
 })
 
 test("planning page remains useful when aggregate statistics time out", async () => {
