@@ -87,7 +87,6 @@ export const PLANNING_APPLICATION_TYPE_GROUPS = [
       "LRD Permission",
       "SDZ Application Clonburris",
       "LRD3-Application",
-      "Permission for Retention (SDZ)",
       "Strategic Infrastructure Application",
     ],
   },
