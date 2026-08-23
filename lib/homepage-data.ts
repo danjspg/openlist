@@ -14,14 +14,8 @@ type PlanningAggregatePayload = {
 const getHomepagePlanningSummaryCached = unstable_cache(
   async (): Promise<HomepagePlanningSummary> => {
     const { data, error } = await getServerSupabase().rpc(
-      "openlist_planning_dashboard_aggregate",
-      {
-        p_authority_code: null,
-        p_q: null,
-        p_area: null,
-        p_status: null,
-        p_application_type: null,
-      }
+      "openlist_planning_dashboard_snapshot",
+      { p_authority_code: "NATIONAL" }
     )
 
     if (error || !data) {
@@ -37,7 +31,7 @@ const getHomepagePlanningSummaryCached = unstable_cache(
       latestRegistrationDate: summary.latestRegistrationDate ?? null,
     }
   },
-  ["homepage-planning-summary", "v1"],
+  ["homepage-planning-summary", "v2-snapshot"],
   { revalidate: 60 * 60 * 6 }
 )
 
