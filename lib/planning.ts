@@ -180,7 +180,8 @@ export async function getPlanningDashboard(
   )
   const hasFacetFilters = Boolean(filters.q || filters.area || filters.status || filters.type)
   const hasApplicationFilters = hasResultFilters || filters.sort === "oldest"
-  const shouldLoadFilteredOverview = hasFacetFilters && !filters.q && !filters.type
+  const shouldLoadFilteredOverview =
+    hasFacetFilters && !filters.q && !filters.status && !filters.type
   const needsNationalCouncilActivity =
     !authority && !selectedCouncilCode && !hasApplicationFilters
 
@@ -233,8 +234,8 @@ export async function getPlanningDashboard(
 
   return {
     authority,
-    aggregateAvailable: overviewResult !== null && !filters.type,
-    totalCount: filters.type
+    aggregateAvailable: overviewResult !== null && !filters.status && !filters.type,
+    totalCount: filters.status || filters.type
       ? searchResult.count
       : hasApplicationFilters
         ? filteredSummary.totalCount
