@@ -12,10 +12,17 @@ const delayMs = Number(process.env.OPENLIST_BENCHMARK_DELAY_MS || 1000)
 const output = process.env.OPENLIST_BENCHMARK_OUTPUT || "docs/performance/production-route-after.json"
 
 // Public, low-rate smoke coverage only. This is deliberately not a load test.
+// Keep representative snapshot-backed, filtered, locality, dynamic and SEO routes
+// here so a fast cache hit on one route does not hide a slow fallback elsewhere.
 const routes = [
   "/",
   "/planning",
   "/planning/cork",
+  "/planning/wexford",
+  "/planning/longford",
+  "/planning/westmeath",
+  "/planning/cork?area=Carrigaline",
+  "/planning/wexford?area=Wexford",
   "/planning/cork/areas/carrigaline",
   "/sold-prices",
   "/sold-prices/cork",
