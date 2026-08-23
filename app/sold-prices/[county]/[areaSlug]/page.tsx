@@ -81,12 +81,11 @@ export default async function PprAreaPage({ params }: Props) {
     getPlanningApplicationsForSoldPriceArea(decodedCounty, areaName),
   ])
   const { insights, recentSales } = areaData
-  const recordedSalesCount = Math.max(insights.totalSalesCount, recentSales.length)
-  const countUsesRecentFallback = recentSales.length > insights.totalSalesCount
   const activityPeriodCount = insights.activity?.currentPeriodCount ?? 0
-  const currentSalesCount = activityPeriodCount > 0 ? activityPeriodCount : recordedSalesCount
+  const currentSalesCount = activityPeriodCount > 0 ? activityPeriodCount : insights.totalSalesCount
   const hasActivityComparison = insights.activity?.changePct !== undefined
   const hasRecordedSales = currentSalesCount > 0
+  const aggregateUnavailable = !hasRecordedSales && recentSales.length > 0
   const snapshotMedian = insights.momentum?.currentMedian ?? insights.medianAllTime
   const recentSalesMedian = medianRecentSalePrice(recentSales)
   const summaryMedian = snapshotMedian ?? recentSalesMedian
@@ -167,9 +166,11 @@ export default async function PprAreaPage({ params }: Props) {
                   : insights.activity!.changePct! < 0
                     ? `↓ ${signedPercent(insights.activity!.changePct)}`
                     : "No change"
-                : hasRecordedSales
-                  ? `${numberDisplay(currentSalesCount)}${countUsesRecentFallback ? "+" : ""} ${currentSalesCount === 1 && !countUsesRecentFallback ? "sale" : "sales"}`
-                  : "No sales"}
+                : aggregateUnavailable
+                  ? "Limited data"
+                  : hasRecordedSales
+                    ? `${numberDisplay(currentSalesCount)} ${currentSalesCount === 1 ? "sale" : "sales"}`
+                    : "No sales"}
             </p>
             <p className="mt-2 text-xs leading-5 text-stone-500">
               {hasActivityComparison && insights.activity
@@ -179,9 +180,11 @@ export default async function PprAreaPage({ params }: Props) {
             <p className="text-xs leading-5 text-stone-500">
               {hasActivityComparison && insights.activity
                 ? `${numberDisplay(insights.activity.currentPeriodCount)} vs ${numberDisplay(insights.activity.previousPeriodCount)} recorded sales`
-                : hasRecordedSales
-                  ? "Not enough sales for a reliable activity comparison"
-                  : "No recorded transactions in this period"}
+                : aggregateUnavailable
+                  ? "Sales are available, but the aggregate count is temporarily unavailable"
+                  : hasRecordedSales
+                    ? "Not enough sales for a reliable activity comparison"
+                    : "No recorded transactions in this period"}
             </p>
           </div>
           <div className="rounded-[24px] border border-stone-200 bg-white p-5 shadow-sm">
