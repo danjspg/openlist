@@ -9,7 +9,8 @@ import { planningReferenceFromSlug } from "@/lib/property-intelligence"
 import type { PlanningSitemapApplication } from "@/lib/planning-seo"
 import type { PlanningEvent } from "@/lib/planning-events"
 import type { PlanningStatus } from "@/lib/planning-status"
-import { isCanonicalPlanningStatus } from "@/lib/planning-status"
+import { normalisePlanningStatus } from "@/lib/planning-status"
+import { planningApplicationTypeValues } from "@/lib/planning-application-type"
 import { getServerSupabase } from "@/lib/supabase"
 import { areaSlug } from "@/lib/ppr"
 
@@ -179,7 +180,7 @@ export async function getPlanningDashboard(
   )
   const hasFacetFilters = Boolean(filters.q || filters.area || filters.status || filters.type)
   const hasApplicationFilters = hasResultFilters || filters.sort === "oldest"
-  const shouldLoadFilteredOverview = hasFacetFilters && !filters.q
+  const shouldLoadFilteredOverview = hasFacetFilters && !filters.q && !filters.type
   const needsNationalCouncilActivity =
     !authority && !selectedCouncilCode && !hasApplicationFilters
 
@@ -232,8 +233,12 @@ export async function getPlanningDashboard(
 
   return {
     authority,
-    aggregateAvailable: overviewResult !== null,
-    totalCount: hasApplicationFilters ? filteredSummary.totalCount : overview.totalCount,
+    aggregateAvailable: overviewResult !== null && !filters.type,
+    totalCount: filters.type
+      ? searchResult.count
+      : hasApplicationFilters
+        ? filteredSummary.totalCount
+        : overview.totalCount,
     latestRegistrationDate: hasApplicationFilters
       ? filteredSummary.latestRegistrationDate
       : overview.latestRegistrationDate,
@@ -611,13 +616,16 @@ async function getPlanningSearchResults(
   }
 
   if (filters.status) {
-    query = isCanonicalPlanningStatus(filters.status)
-      ? query.eq("normalized_status", filters.status)
-      : query.eq("status", filters.status)
+    query = query.eq("normalized_status", normalisePlanningStatus(filters.status))
   }
 
   if (filters.type) {
-    query = query.eq("application_type", filters.type)
+    const applicationTypes = planningApplicationTypeValues(filters.type)
+    if (applicationTypes.length === 1) {
+      query = query.eq("application_type", applicationTypes[0])
+    } else if (applicationTypes.length > 1) {
+      query = query.in("application_type", applicationTypes)
+    }
   }
 
   const ascending = filters.sort === "oldest"
