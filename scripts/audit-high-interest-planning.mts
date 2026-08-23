@@ -20,6 +20,11 @@ import {
   topVercelPaths,
   type VercelAnalyticsPathRow,
 } from "../lib/vercel-web-analytics"
+import {
+  CORK_RATE_LIMIT_BACKOFF_MS,
+  CorkRequestThrottle,
+  corkRetryDelayMs,
+} from "../lib/cork-request-throttle"
 
 const args = new Set(process.argv.slice(2))
 const dryRun = args.has("--dry-run")
@@ -102,6 +107,8 @@ type VercelDiscovery = {
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+const corkRequestThrottle = new CorkRequestThrottle()
+let corkRateLimitedRequests = 0
 const dateOnly = (date: Date) => date.toISOString().slice(0, 10)
 const chunks = <T>(values: T[], size: number) => {
   const result: T[][] = []
@@ -109,16 +116,29 @@ const chunks = <T>(values: T[], size: number) => {
   return result
 }
 
-async function fetchJson(url: string, label: string, headers: Record<string, string> = {}) {
+async function fetchJson(url: string, label: string, headers: Record<string, string> = {}, options: { cork?: boolean } = {}) {
   let error: Error | null = null
-  for (let attempt = 1; attempt <= 3; attempt++) {
+  let rateLimited = false
+  const maxAttempts = options.cork ? CORK_RATE_LIMIT_BACKOFF_MS.length + 1 : 3
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
+      if (options.cork) await corkRequestThrottle.waitForTurn()
       const response = await fetch(url, { headers: { "User-Agent": "OpenList traffic-driven planning QA", ...headers } })
       if (response.ok) return await response.json()
       error = new Error(`${label}: HTTP ${response.status}`)
       if (![408, 425, 429, 500, 502, 503, 504].includes(response.status)) break
+      if (options.cork && response.status === 429) {
+        if (!rateLimited) {
+          rateLimited = true
+          corkRateLimitedRequests += 1
+        }
+        if (attempt < maxAttempts) {
+          await sleep(corkRetryDelayMs(attempt, response.headers.get("Retry-After")))
+        }
+        continue
+      }
     } catch (cause) { error = cause instanceof Error ? cause : new Error(String(cause)) }
-    await sleep(attempt * 500)
+    if (attempt < maxAttempts) await sleep(attempt * 500)
   }
   throw error || new Error(`${label} failed`)
 }
@@ -128,7 +148,7 @@ function sql(value: string) { return value.replaceAll("'", "''") }
 async function loadSource(row: Stored): Promise<Source> {
   if (row.local_authority_code === "CORKCOCO") {
     if (!Number.isInteger(Number(row.source_application_id))) throw new Error("Cork source application id is unavailable")
-    const detail = await fetchJson(`${CORK_DETAIL_URL}/${row.source_application_id}`, `${row.reference} Cork detail`, { "x-client": "CORKCOCO", "x-product": "CITIZENPORTAL", "x-service": "PA" })
+    const detail = await fetchJson(`${CORK_DETAIL_URL}/${row.source_application_id}`, `${row.reference} Cork detail`, { "x-client": "CORKCOCO", "x-product": "CITIZENPORTAL", "x-service": "PA" }, { cork: true })
     const dates: Source["dates"] = {}
     for (const field of LIFECYCLE_DATE_FIELDS) {
       const sourceField = CORK_FIELD_MAP[field]
@@ -486,6 +506,7 @@ const report = {
   vercelTruncatedDailyPartitions: vercelDiscovery.truncatedPartitions,
   vercelError: vercelDiscovery.error,
   invalidVercelPaths,
+  corkRateLimitedRequests,
   checked: results.length,
   ...counts,
   unresolvedFailures: counts.fail,
