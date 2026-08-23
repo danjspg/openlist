@@ -8,7 +8,13 @@ import {
   type PprSale,
 } from "@/lib/ppr"
 
-export default function PprSaleCard({ sale }: { sale: PprSale }) {
+export default function PprSaleCard({
+  sale,
+  showAreaLink = true,
+}: {
+  sale: PprSale
+  showAreaLink?: boolean
+}) {
   const locality = sale.locality?.trim()
   const county = sale.county?.trim()
   const area = sale.area_slug || (locality ? areaSlug(locality) : "")
@@ -50,7 +56,7 @@ export default function PprSaleCard({ sale }: { sale: PprSale }) {
         ))}
       </div>
 
-      {county && area && (
+      {showAreaLink && county && area && (
         <Link
           href={`/sold-prices/${encodeURIComponent(county.toLowerCase())}/${area}`}
           className="mt-4 inline-flex min-h-10 items-center rounded-full border border-emerald-700 bg-emerald-700 px-4 text-sm font-semibold text-white shadow-sm transition hover:border-emerald-800 hover:bg-emerald-800"

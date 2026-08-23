@@ -75,12 +75,29 @@ export default async function PprAreaPage({ params }: Props) {
         { href: "/sold-prices/affordable-markets", label: "Affordable Markets" },
       ]
 
-  const [areaData, nearbyAreas, planningApplications] = await Promise.all([
+  const [areaData, nearbyAreaCandidates, planningApplications] = await Promise.all([
     getAreaInsights(decodedCounty, areaSlug, selectedRange),
     getNearbyAreaLinks(decodedCounty, areaSlug),
     getPlanningApplicationsForSoldPriceArea(decodedCounty, areaName),
   ])
   const { insights, recentSales } = areaData
+  const nearbyAreas = await Promise.all(
+    nearbyAreaCandidates.map(async (area) => {
+      const nearbySlug = area.area_slug
+      if (!nearbySlug) return area
+
+      const nearbyCounty = String(area.county || decodedCounty)
+      const nearbyData = await getAreaInsights(nearbyCounty, nearbySlug, selectedRange)
+
+      return {
+        ...area,
+        median_price_eur:
+          nearbyData.insights.momentum?.currentMedian ??
+          nearbyData.insights.medianAllTime ??
+          area.median_price_eur,
+      }
+    })
+  )
 
   return (
     <main className="min-h-screen bg-stone-50">
@@ -225,7 +242,7 @@ export default async function PprAreaPage({ params }: Props) {
               {recentSales.length > 0 ? (
                 <div className="space-y-4">
                   {recentSales.map((sale) => (
-                    <PprSaleCard key={sale.id} sale={sale} />
+                    <PprSaleCard key={sale.id} sale={sale} showAreaLink={false} />
                   ))}
                 </div>
               ) : (
