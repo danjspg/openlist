@@ -9,6 +9,15 @@ import { PPR_MARKETS } from "@/lib/ppr-markets"
 
 export const revalidate = 86400
 
+const POSITIONING_REFRESH_DATE = new Date("2026-08-23T00:00:00Z")
+const POSITIONING_REFRESH_ROUTES = new Set([
+  "",
+  "/about",
+  "/planning",
+  "/search",
+  "/sold-prices",
+])
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.openlist.ie"
   const staticRoutes = [
@@ -37,6 +46,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     "/sold-prices/falling-markets",
   ].map((path) => ({
     url: `${baseUrl}${path}`,
+    ...(POSITIONING_REFRESH_ROUTES.has(path)
+      ? { lastModified: POSITIONING_REFRESH_DATE }
+      : {}),
   }))
 
   const marketRoutes = PPR_MARKETS.filter(

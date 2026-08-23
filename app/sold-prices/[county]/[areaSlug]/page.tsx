@@ -81,6 +81,17 @@ export default async function PprAreaPage({ params }: Props) {
     getPlanningApplicationsForSoldPriceArea(decodedCounty, areaName),
   ])
   const { insights, recentSales } = areaData
+  const recordedSalesCount = Math.max(insights.totalSalesCount, recentSales.length)
+  const countUsesRecentFallback = recentSales.length > insights.totalSalesCount
+  const activityPeriodCount = insights.activity?.currentPeriodCount ?? 0
+  const currentSalesCount = activityPeriodCount > 0 ? activityPeriodCount : recordedSalesCount
+  const hasActivityComparison = insights.activity?.changePct !== undefined
+  const hasRecordedSales = currentSalesCount > 0
+  const snapshotMedian = insights.momentum?.currentMedian ?? insights.medianAllTime
+  const recentSalesMedian = medianRecentSalePrice(recentSales)
+  const summaryMedian = snapshotMedian ?? recentSalesMedian
+  const summaryMedianUsesRecentFallback = snapshotMedian === undefined && recentSalesMedian !== undefined
+  const summaryLastSaleDate = insights.lastSaleDate ?? recentSales[0]?.date_of_sale ?? null
   const nearbyAreas = await Promise.all(
     nearbyAreaCandidates.map(async (area) => {
       const nearbySlug = area.area_slug
@@ -136,44 +147,52 @@ export default async function PprAreaPage({ params }: Props) {
 
         <div className="mt-8 grid gap-4 md:grid-cols-4">
           <div className="rounded-[24px] border border-stone-200 bg-white p-5 shadow-sm">
-            <p className="text-sm text-stone-500">Sales activity</p>
+            <p className="text-sm text-stone-500">
+              {hasActivityComparison ? "Sales activity" : "Recorded sales"}
+            </p>
             <p
               className={`mt-2 text-3xl font-semibold ${
-                insights.activity?.changePct !== undefined
-                  ? insights.activity.changePct > 0
+                hasActivityComparison
+                  ? insights.activity!.changePct! > 0
                     ? "text-emerald-700"
-                    : insights.activity.changePct < 0
+                    : insights.activity!.changePct! < 0
                       ? "text-rose-700"
                       : "text-stone-900"
                   : "text-stone-900"
               }`}
             >
-              {insights.activity?.changePct !== undefined
-                ? insights.activity.changePct > 0
-                  ? `↑ ${signedPercent(insights.activity.changePct)}`
-                  : insights.activity.changePct < 0
-                    ? `↓ ${signedPercent(insights.activity.changePct)}`
+              {hasActivityComparison
+                ? insights.activity!.changePct! > 0
+                  ? `↑ ${signedPercent(insights.activity!.changePct)}`
+                  : insights.activity!.changePct! < 0
+                    ? `↓ ${signedPercent(insights.activity!.changePct)}`
                     : "No change"
-                : "Limited data"}
+                : hasRecordedSales
+                  ? `${numberDisplay(currentSalesCount)}${countUsesRecentFallback ? "+" : ""} ${currentSalesCount === 1 && !countUsesRecentFallback ? "sale" : "sales"}`
+                  : "No sales"}
             </p>
             <p className="mt-2 text-xs leading-5 text-stone-500">
-              {insights.activity
+              {hasActivityComparison && insights.activity
                 ? `${insights.activity.currentPeriodLabel} vs ${insights.activity.previousPeriodLabel}`
                 : `Across ${analyticsRange.label}`}
             </p>
             <p className="text-xs leading-5 text-stone-500">
-              {insights.activity
+              {hasActivityComparison && insights.activity
                 ? `${numberDisplay(insights.activity.currentPeriodCount)} vs ${numberDisplay(insights.activity.previousPeriodCount)} recorded sales`
-                : `Across ${analyticsRange.label}`}
+                : hasRecordedSales
+                  ? "Not enough sales for a reliable activity comparison"
+                  : "No recorded transactions in this period"}
             </p>
           </div>
           <div className="rounded-[24px] border border-stone-200 bg-white p-5 shadow-sm">
             <p className="text-sm text-stone-500">Median price</p>
             <p className="mt-2 text-2xl font-semibold text-stone-900">
-              {euroDisplay(insights.momentum?.currentMedian || insights.medianAllTime)}
+              {euroDisplay(summaryMedian)}
             </p>
             <p className="mt-2 text-xs leading-5 text-stone-500">
-              {analyticsRange.helperText || `Across ${analyticsRange.label}`}
+              {summaryMedianUsesRecentFallback
+                ? `Median of ${numberDisplay(recentSales.length)} recent sales shown`
+                : analyticsRange.helperText || `Across ${analyticsRange.label}`}
             </p>
           </div>
           <div className="rounded-[24px] border border-stone-200 bg-white p-5 shadow-sm">
@@ -202,7 +221,7 @@ export default async function PprAreaPage({ params }: Props) {
           <div className="rounded-[24px] border border-stone-200 bg-white p-5 shadow-sm">
             <p className="text-sm text-stone-500">Last sale</p>
             <p className="mt-2 text-2xl font-semibold text-stone-900">
-              {formatPprDate(insights.lastSaleDate)}
+              {formatPprDate(summaryLastSaleDate)}
             </p>
           </div>
         </div>
@@ -373,4 +392,20 @@ export default async function PprAreaPage({ params }: Props) {
       </section>
     </main>
   )
+}
+
+function medianRecentSalePrice(sales: Array<{ price_eur: number | string }>) {
+  const prices = sales
+    .map((sale) => Number(sale.price_eur))
+    .filter((price) => Number.isFinite(price))
+    .sort((left, right) => left - right)
+
+  if (prices.length === 0) return undefined
+
+  const midpoint = Math.floor(prices.length / 2)
+  if (prices.length % 2 === 0) {
+    return (prices[midpoint - 1] + prices[midpoint]) / 2
+  }
+
+  return prices[midpoint]
 }

@@ -129,11 +129,8 @@ export default function RootLayout({
               </div>
             </div>
 
-            <div className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-stone-200 pt-6 text-xs text-stone-400">
+            <div className="mt-10 border-t border-stone-200 pt-6 text-xs text-stone-400">
               <span>© {new Date().getFullYear()} OpenList. All rights reserved.</span>
-              <Link href="/admin/access" className="transition hover:text-stone-700">
-                Admin
-              </Link>
             </div>
           </div>
           </footer>
