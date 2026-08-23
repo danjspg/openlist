@@ -19,6 +19,8 @@ export default function PlanningResultsView({
     (application) => application.coordinates
   )
   const [view, setView] = useState<"list" | "map">("list")
+  const resultCount = applications.length
+  const mappedCount = mappableApplications.length
 
   if (applications.length === 0) {
     return (
@@ -30,14 +32,16 @@ export default function PlanningResultsView({
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-4 border-b border-stone-200 py-3">
-        <p className="text-sm text-stone-500">
-          {mappableApplications.length > 0
-            ? `${mappableApplications.length.toLocaleString("en-IE")} of ${applications.length.toLocaleString("en-IE")} applications shown have usable map coordinates.`
-            : "These applications do not include usable map coordinates."}
+      <div className="flex flex-col gap-3 border-b border-stone-200 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm font-medium text-stone-500">
+          {resultCount.toLocaleString("en-IE")} {resultCount === 1 ? "result" : "results"}
+          <span aria-hidden="true" className="mx-1.5 text-stone-300">·</span>
+          {mappedCount > 0
+            ? `${mappedCount.toLocaleString("en-IE")} mapped`
+            : "No mapped results"}
         </p>
         <div
-          className="inline-flex shrink-0 rounded-md border border-stone-200 bg-stone-50 p-1"
+          className="inline-flex w-fit shrink-0 rounded-md border border-stone-200 bg-stone-50 p-1"
           aria-label="Planning results view"
         >
           {(["list", "map"] as const).map((option) => (
