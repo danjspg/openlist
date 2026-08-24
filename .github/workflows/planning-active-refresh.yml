@@ -40,6 +40,12 @@ jobs:
           PLANNING_API_REQUEST_DELAY_MS: "1000"
         run: node scripts/ingest-cork-planning-applications.mjs --authority CORKCITY
 
+      - name: Revalidate changed Cork City planning pages
+        env:
+          PLANNING_REVALIDATION_URL: ${{ secrets.PLANNING_REVALIDATION_URL }}
+          PLANNING_REVALIDATION_SECRET: ${{ secrets.PLANNING_REVALIDATION_SECRET }}
+        run: node scripts/drain-planning-revalidation.mjs
+
       - name: Refresh active Planning applications
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}

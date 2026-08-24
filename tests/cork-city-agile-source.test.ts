@@ -75,5 +75,11 @@ test("Cork City is wired into ingestion, daily refresh, detail refresh, and aler
   assert.match(watcher, /const corkConfig = corkAgileApplicationConfig\(app\)/)
   assert.match(watcher, /"x-client": config\.code/)
   assert.match(dailyWorkflow, /ingest-cork-planning-applications\.mjs --authority CORKCITY/)
+  assert.ok(
+    dailyWorkflow.indexOf("Ingest recent Cork City applications") <
+      dailyWorkflow.indexOf("Revalidate changed Cork City planning pages") &&
+      dailyWorkflow.indexOf("Revalidate changed Cork City planning pages") <
+        dailyWorkflow.indexOf("Refresh active Planning applications")
+  )
   assert.match(weeklyWorkflow, /ingest-cork-planning-applications\.mjs --authority CORKCITY/)
 })
