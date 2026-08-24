@@ -1,4 +1,8 @@
 import { unstable_cache } from "next/cache"
+import {
+  PLANNING_DATASET_CACHE_TAG,
+  PPR_DATASET_CACHE_TAG,
+} from "@/lib/dataset-cache"
 import { wgs84ToPlanningGrid } from "@/lib/eircode-planning-grid"
 import {
   planningLocationContainsLocality,
@@ -68,7 +72,10 @@ const getPlanningResearchContextCached = unstable_cache(
   return { location, coordinates, nearbySales }
   },
   ["planning-research-context", PLANNING_RESEARCH_CACHE_VERSION],
-  { revalidate: PLANNING_RESEARCH_REVALIDATE }
+  {
+    revalidate: PLANNING_RESEARCH_REVALIDATE,
+    tags: [PPR_DATASET_CACHE_TAG],
+  }
 )
 
 async function findNearbySales(
@@ -136,6 +143,7 @@ const getPprAreaCandidatesForCountyCached = unstable_cache(async function getPpr
   })
 }, ["planning-ppr-area-candidates", PLANNING_RESEARCH_CACHE_VERSION], {
   revalidate: PPR_AREA_CANDIDATE_REVALIDATE,
+  tags: [PPR_DATASET_CACHE_TAG],
 })
 
 export async function getPprAreaCandidatesForCounty(county: string) {
@@ -352,6 +360,7 @@ const getPlanningApplicationsForSoldPriceAreaCached = unstable_cache(async funct
   return (data ?? []) as PlanningApplication[]
 }, ["planning-applications-for-sold-price-area", PLANNING_RESEARCH_CACHE_VERSION], {
   revalidate: SOLD_PRICE_PLANNING_RESEARCH_REVALIDATE_SECONDS,
+  tags: [PLANNING_DATASET_CACHE_TAG],
 })
 
 function escapePostgrestLike(value: string) {

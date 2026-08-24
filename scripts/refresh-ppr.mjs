@@ -20,6 +20,7 @@ if (!supabaseUrl || !serviceRoleKey) {
 }
 
 const supabase = createClient(supabaseUrl, serviceRoleKey)
+const deferDerivedRefresh = process.env.PPR_DEFER_DERIVED_REFRESH === "1"
 
 function usage() {
   console.error("Usage: node scripts/refresh-ppr.mjs")
@@ -174,7 +175,11 @@ try {
 
   if (newRecords.length === 0) {
     console.log("No brand-new sold-prices rows detected for the current year.")
-    console.log("Derived sold-prices tables are already in sync; skipping their rebuild.")
+    console.log(
+      deferDerivedRefresh
+        ? "Derived sold-prices tables will be verified by the publication job."
+        : "Derived sold-prices tables are already in sync; skipping their rebuild."
+    )
     await refreshLocalitySeoCohort()
     logCompletion(0)
     process.exit(0)
@@ -195,7 +200,11 @@ try {
     `${year}: Supabase insert/update result - imported ${result.insertedRows} new rows from ${result.processedRows} processed rows.`
   )
 
-  await refreshDerivedPprTables()
+  if (deferDerivedRefresh) {
+    console.log("Deferring derived sold-prices rebuild to the failure-safe publication job.")
+  } else {
+    await refreshDerivedPprTables()
+  }
 
   await refreshLocalitySeoCohort()
 
