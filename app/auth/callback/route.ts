@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import type { EmailOtpType } from "@supabase/supabase-js"
-import { getSafeRedirectPath } from "@/lib/site-url"
+import { DEFAULT_ACCOUNT_PATH, getSafeRedirectPath } from "@/lib/site-url"
 import {
   applySessionCookies,
   createAuthClient,
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
   const cookieNext = request.cookies.get("openlist_auth_next")?.value
   const next = getSafeRedirectPath(
     url.searchParams.get("next") || (cookieNext ? decodeURIComponent(cookieNext) : null),
-    "/my-viewings"
+    DEFAULT_ACCOUNT_PATH
   )
 
   if (!tokenHash || !isEmailOtpType(type)) {

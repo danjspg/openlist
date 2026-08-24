@@ -1,7 +1,11 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { getAuthCallbackUrl, getSafeRedirectPath } from "@/lib/site-url"
+import {
+  DEFAULT_ACCOUNT_PATH,
+  getAuthCallbackUrl,
+  getSafeRedirectPath,
+} from "@/lib/site-url"
 import { supabase } from "@/lib/supabase"
 import PrivacyReference from "@/components/PrivacyReference"
 
@@ -26,7 +30,7 @@ export default function AuthEmailForm({
 
     try {
       setIsSubmitting(true)
-      const safeNextPath = getSafeRedirectPath(redirectTo, "/my-viewings")
+      const safeNextPath = getSafeRedirectPath(redirectTo, DEFAULT_ACCOUNT_PATH)
       document.cookie = `openlist_auth_next=${encodeURIComponent(safeNextPath)}; Path=/; SameSite=Lax; Max-Age=600`
       const nextRedirectUrl = getAuthCallbackUrl(window.location.origin)
       setRedirectUrl(nextRedirectUrl)

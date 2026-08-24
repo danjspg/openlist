@@ -79,7 +79,7 @@ export default function Nav() {
             </>
           ) : (
             <Link
-              href="/sign-in?redirectTo=%2Fmy-viewings"
+              href="/sign-in?redirectTo=%2Fmy-alerts"
               className="inline-flex items-center rounded-full border border-stone-300 px-5 py-2.5 text-base font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900"
             >
               Sign in
@@ -145,7 +145,7 @@ export default function Nav() {
           </>
         ) : (
           <Link
-            href="/sign-in?redirectTo=%2Fmy-viewings"
+            href="/sign-in?redirectTo=%2Fmy-alerts"
             className="inline-flex min-h-11 shrink-0 items-center font-medium text-stone-500 transition hover:text-stone-900"
           >
             Sign in
