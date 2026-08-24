@@ -1,4 +1,5 @@
 import { unstable_cache } from "next/cache"
+import { PPR_DATASET_CACHE_TAG } from "@/lib/dataset-cache"
 import { getServerSupabase, supabase } from "@/lib/supabase"
 import { IRISH_COUNTIES } from "@/lib/property"
 import { dublinDistrictPrefix, type PprMarket } from "@/lib/ppr-markets"
@@ -515,7 +516,7 @@ async function getPprQuickAreasUncached(limit = 8) {
 const getPprQuickAreasCached = unstable_cache(
   async (limit = 8) => getPprQuickAreasUncached(limit),
   ["ppr-quick-areas"],
-  { revalidate: PPR_CACHE_REVALIDATE_SECONDS }
+  { revalidate: PPR_CACHE_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getPprQuickAreas(limit = 8) {
@@ -574,7 +575,7 @@ async function getPprSearchAreasUncached() {
 const getPprSearchAreasCached = unstable_cache(
   async () => getPprSearchAreasUncached(),
   ["ppr-search-areas", PPR_DATASET_CACHE_VERSION, PPR_SEARCH_AREAS_CACHE_VERSION],
-  { revalidate: PPR_CACHE_REVALIDATE_SECONDS }
+  { revalidate: PPR_CACHE_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getPprSearchAreas() {
@@ -738,7 +739,7 @@ async function getPprDatasetSummaryUncached(): Promise<PprDatasetSummary> {
 const getPprDatasetSummaryCached = unstable_cache(
   async () => getPprDatasetSummaryUncached(),
   ["ppr-dataset-summary", PPR_DATASET_CACHE_VERSION],
-  { revalidate: PPR_CACHE_REVALIDATE_SECONDS }
+  { revalidate: PPR_CACHE_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getPprDatasetSummary(): Promise<PprDatasetSummary> {
@@ -780,9 +781,14 @@ async function getPprKpisUncached() {
   }
 }
 
-const getPprKpisCached = unstable_cache(async () => getPprKpisUncached(), ["ppr-kpis", PPR_DATASET_CACHE_VERSION], {
-  revalidate: PPR_CACHE_REVALIDATE_SECONDS,
-})
+const getPprKpisCached = unstable_cache(
+  async () => getPprKpisUncached(),
+  ["ppr-kpis", PPR_DATASET_CACHE_VERSION],
+  {
+    revalidate: PPR_CACHE_REVALIDATE_SECONDS,
+    tags: [PPR_DATASET_CACHE_TAG],
+  }
+)
 
 export async function getPprKpis() {
   return getPprKpisCached()
@@ -996,7 +1002,7 @@ async function getPprSearchSummaryUncached(
 const getPprSearchSummaryCached = unstable_cache(
   async (filters: PprSearchFilters) => getPprSearchSummaryUncached(filters),
   ["ppr-search-summary"],
-  { revalidate: PPR_CACHE_REVALIDATE_SECONDS }
+  { revalidate: PPR_CACHE_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getPprSearchSummary(filters: PprSearchFilters): Promise<PprSearchSummary> {
@@ -1099,7 +1105,7 @@ async function getCountyAreaLinksUncached(county: string, limit = 8) {
 const getCountyAreaLinksCached = unstable_cache(
   async (county: string, limit = 8) => getCountyAreaLinksUncached(county, limit),
   ["ppr-county-area-links"],
-  { revalidate: PPR_CACHE_REVALIDATE_SECONDS }
+  { revalidate: PPR_CACHE_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getCountyAreaLinks(county: string, limit = 8) {

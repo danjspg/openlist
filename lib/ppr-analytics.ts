@@ -1,4 +1,5 @@
 import { unstable_cache } from "next/cache"
+import { PPR_DATASET_CACHE_TAG } from "@/lib/dataset-cache"
 import { cache } from "react"
 import {
   COMPARISON_PAGE_MARKET_SLUGS,
@@ -1186,7 +1187,7 @@ const getMarketInsightsCached = unstable_cache(
     }
   },
   ["ppr-market-insights", PPR_INSIGHTS_CACHE_VERSION],
-  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
+  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getMarketInsights(
@@ -1219,7 +1220,7 @@ const getAreaInsightsCached = unstable_cache(
     }
   },
   ["ppr-area-insights", PPR_INSIGHTS_CACHE_VERSION],
-  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
+  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getAreaInsights(
@@ -1378,7 +1379,7 @@ const getTrackedLocationComparisonRowsCached = unstable_cache(
     (await loadComparisonRowsFromTable("all-tracked", range)) ||
     getTrackedLocationComparisonRowsUncached(range),
   ["ppr-tracked-comparison-rows", PPR_COMPARISON_CACHE_VERSION],
-  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
+  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getTrackedLocationComparisonRows(
@@ -1712,7 +1713,7 @@ const getHomepageSoldPriceStatsCached = unstable_cache(
     return stats
   },
   ["ppr-homepage-sold-price-stats", PPR_HOMEPAGE_STATS_CACHE_VERSION],
-  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
+  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getHomepageSoldPriceStats() {
@@ -1813,7 +1814,7 @@ const getNationalOverviewSnapshotCached = unstable_cache(
     return getNationalOverviewSnapshotUncached(range)
   },
   ["ppr-national-overview-snapshot", PPR_NATIONAL_SNAPSHOT_CACHE_VERSION],
-  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
+  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getNationalOverviewSnapshot(range: PprDateRangeValue = "last-year") {
@@ -1861,7 +1862,7 @@ const getNationalActivitySnapshotCached = unstable_cache(
     return getNationalActivitySnapshotUncached()
   },
   ["ppr-national-activity-snapshot", PPR_NATIONAL_SNAPSHOT_CACHE_VERSION],
-  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
+  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getNationalActivitySnapshot() {
@@ -1899,7 +1900,7 @@ const getNationalActivityLeaderCached = unstable_cache(
     return getNationalActivityLeaderUncached()
   },
   ["ppr-national-activity-leader"],
-  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
+  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getNationalActivityLeader() {
@@ -1934,7 +1935,7 @@ const getDublinComparisonRowsCached = unstable_cache(
     (await loadComparisonRowsFromTable("dublin-compared", range)) ||
     getDublinComparisonRowsUncached(range),
   ["ppr-dublin-comparison-rows", PPR_COMPARISON_CACHE_VERSION],
-  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
+  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getDublinComparisonRows(range: PprDateRangeValue = "last-year") {
@@ -1946,7 +1947,7 @@ const getCorkComparisonRowsCached = unstable_cache(
     (await loadComparisonRowsFromTable("cork-compared", range)) ||
     getCuratedCountyComparisonRows(COMPARISON_PAGE_MARKET_SLUGS.corkCompared, range),
   ["ppr-cork-comparison-rows", PPR_COMPARISON_CACHE_VERSION],
-  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
+  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getCorkComparisonRows(range: PprDateRangeValue = "last-year") {
@@ -1990,7 +1991,7 @@ const getLimerickComparisonRowsCached = unstable_cache(
     (await loadComparisonRowsFromTable("limerick-compared", range)) ||
     getCuratedCountyComparisonRows(COMPARISON_PAGE_MARKET_SLUGS.limerickCompared, range),
   ["ppr-limerick-comparison-rows", PPR_COMPARISON_CACHE_VERSION],
-  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
+  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getLimerickComparisonRows(range: PprDateRangeValue = "last-year") {
@@ -2002,7 +2003,7 @@ const getGalwayComparisonRowsCached = unstable_cache(
     (await loadComparisonRowsFromTable("galway-compared", range)) ||
     getCuratedCountyComparisonRows(COMPARISON_PAGE_MARKET_SLUGS.galwayCompared, range),
   ["ppr-galway-comparison-rows", PPR_COMPARISON_CACHE_VERSION],
-  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
+  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getGalwayComparisonRows(range: PprDateRangeValue = "last-year") {
@@ -2014,7 +2015,7 @@ const getWaterfordComparisonRowsCached = unstable_cache(
     (await loadComparisonRowsFromTable("waterford-compared", range)) ||
     getCuratedCountyComparisonRows(COMPARISON_PAGE_MARKET_SLUGS.waterfordCompared, range),
   ["ppr-waterford-comparison-rows", PPR_COMPARISON_CACHE_VERSION],
-  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
+  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getWaterfordComparisonRows(range: PprDateRangeValue = "last-year") {
@@ -2045,7 +2046,7 @@ const getCountiesComparedRowsCached = unstable_cache(
     (await loadComparisonRowsFromTable("counties-compared", range)) ||
     getCountiesComparedRowsUncached(range),
   ["ppr-counties-compared-rows", PPR_COMPARISON_CACHE_VERSION],
-  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
+  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getCountiesComparedRows(range: PprDateRangeValue = "last-year") {
@@ -2069,7 +2070,7 @@ const getCommuterTownRowsCached = unstable_cache(
     (await loadComparisonRowsFromTable("commuter-towns", range)) ||
     getCommuterTownRowsUncached(range),
   ["ppr-commuter-town-rows", PPR_COMPARISON_CACHE_VERSION],
-  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
+  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getCommuterTownRows(range: PprDateRangeValue = "last-year") {
@@ -2105,7 +2106,7 @@ const getAffordableMarketRowsCached = unstable_cache(
     (await loadComparisonRowsFromTable("affordable-markets", range)) ||
     getAffordableMarketRowsUncached(range),
   ["ppr-affordable-market-rows", PPR_COMPARISON_CACHE_VERSION],
-  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
+  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getAffordableMarketRows(range: PprDateRangeValue = "last-year") {
@@ -2134,7 +2135,7 @@ const getHighValueMarketRowsCached = unstable_cache(
     (await loadComparisonRowsFromTable("high-value-markets", range)) ||
     getHighValueMarketRowsUncached(range),
   ["ppr-high-value-market-rows", PPR_COMPARISON_CACHE_VERSION],
-  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
+  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getHighValueMarketRows(range: PprDateRangeValue = "last-year") {
@@ -2153,7 +2154,7 @@ const getMostActiveMarketRowsCached = unstable_cache(
     (await loadComparisonRowsFromTable("most-active-markets", range)) ||
     getMostActiveMarketRowsUncached(range),
   ["ppr-most-active-market-rows", PPR_COMPARISON_CACHE_VERSION],
-  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
+  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getMostActiveMarketRows(range: PprDateRangeValue = "last-year") {
@@ -2172,7 +2173,7 @@ const getLeastActiveMarketRowsCached = unstable_cache(
     (await loadComparisonRowsFromTable("least-active-markets", range)) ||
     getLeastActiveMarketRowsUncached(range),
   ["ppr-least-active-market-rows", PPR_COMPARISON_CACHE_VERSION],
-  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
+  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getLeastActiveMarketRows(range: PprDateRangeValue = "last-year") {
@@ -2191,7 +2192,7 @@ const getHottestMarketRowsCached = unstable_cache(
     (await loadComparisonRowsFromTable("hottest-markets", range)) ||
     getHottestMarketRowsUncached(range),
   ["ppr-hottest-market-rows", PPR_COMPARISON_CACHE_VERSION],
-  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
+  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getHottestMarketRows(range: PprDateRangeValue = "last-year") {
@@ -2210,7 +2211,7 @@ const getCoolestMarketRowsCached = unstable_cache(
     (await loadComparisonRowsFromTable("coolest-markets", range)) ||
     getCoolestMarketRowsUncached(range),
   ["ppr-coolest-market-rows", PPR_COMPARISON_CACHE_VERSION],
-  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
+  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getCoolestMarketRows(range: PprDateRangeValue = "last-year") {
@@ -2236,7 +2237,7 @@ const getRisingMarketRowsCached = unstable_cache(
     (await loadComparisonRowsFromTable("rising-markets", range)) ||
     getRisingMarketRowsUncached(range),
   ["ppr-rising-market-rows", PPR_COMPARISON_CACHE_VERSION],
-  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
+  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getRisingMarketRows(range: PprDateRangeValue = "last-year") {
@@ -2263,7 +2264,7 @@ const getFallingMarketRowsCached = unstable_cache(
     (await loadComparisonRowsFromTable("falling-markets", range)) ||
     getFallingMarketRowsUncached(range),
   ["ppr-falling-market-rows", PPR_COMPARISON_CACHE_VERSION],
-  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS }
+  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getFallingMarketRows(range: PprDateRangeValue = "last-year") {

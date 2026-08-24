@@ -41,8 +41,48 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           PPR_ALLOW_INSECURE_TLS: ${{ secrets.PPR_ALLOW_INSECURE_TLS || '1' }}
+          PPR_DEFER_DERIVED_REFRESH: "1"
         run: |
           echo "Starting PPR refresh job"
           node scripts/refresh-ppr.mjs
           node scripts/refresh-ppr-dublin-district-insights.mjs
           echo "PPR refresh job completed"
+
+  publish-snapshots:
+    name: Publish current sold-price counts
+    if: ${{ always() }}
+    needs: refresh
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Rebuild sold-price snapshots
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          node scripts/rebuild-ppr-summaries.mjs
+          node scripts/rebuild-ppr-phase1-analytics.mjs
+
+      - name: Verify sold-price snapshot freshness
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/verify-dataset-snapshots.mjs ppr
+
+      - name: Publish current sold-price counts
+        env:
+          PLANNING_REVALIDATION_URL: ${{ secrets.PLANNING_REVALIDATION_URL }}
+          PLANNING_REVALIDATION_SECRET: ${{ secrets.PLANNING_REVALIDATION_SECRET }}
+        run: node scripts/revalidate-dataset-caches.mjs ppr

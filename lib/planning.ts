@@ -1,5 +1,6 @@
 import { unstable_cache } from "next/cache"
 import { cache } from "react"
+import { PLANNING_DATASET_CACHE_TAG } from "@/lib/dataset-cache"
 import {
   getPlanningAuthorityByCode,
   PLANNING_AUTHORITIES,
@@ -348,7 +349,10 @@ const getNationalCouncilActivityCached = unstable_cache(
     }
   },
   ["planning-council-activity-12m", PLANNING_AGGREGATE_CACHE_VERSION],
-  { revalidate: PLANNING_CACHE_REVALIDATE_SECONDS }
+  {
+    revalidate: PLANNING_CACHE_REVALIDATE_SECONDS,
+    tags: [PLANNING_DATASET_CACHE_TAG],
+  }
 )
 
 const getPlanningApplicationCached = unstable_cache(async function getPlanningApplicationUncached(
@@ -525,7 +529,10 @@ const getPlanningAggregateSummaryCached = unstable_cache(
     return normaliseDatabaseAggregateSummary(data, authorityCode)
   },
   ["planning-aggregate-summary", PLANNING_AGGREGATE_CACHE_VERSION],
-  { revalidate: PLANNING_CACHE_REVALIDATE_SECONDS }
+  {
+    revalidate: PLANNING_CACHE_REVALIDATE_SECONDS,
+    tags: [PLANNING_DATASET_CACHE_TAG],
+  }
 )
 
 function normaliseDatabaseAggregateSummary(

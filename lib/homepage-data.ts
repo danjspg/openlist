@@ -1,4 +1,5 @@
 import { unstable_cache } from "next/cache"
+import { PLANNING_DATASET_CACHE_TAG } from "@/lib/dataset-cache"
 import { getServerSupabase } from "@/lib/supabase"
 
 export type HomepagePlanningSummary = {
@@ -32,7 +33,7 @@ const getHomepagePlanningSummaryCached = unstable_cache(
     }
   },
   ["homepage-planning-summary", "v2-snapshot"],
-  { revalidate: 60 * 60 * 6 }
+  { revalidate: 60 * 60 * 6, tags: [PLANNING_DATASET_CACHE_TAG] }
 )
 
 export async function getHomepagePlanningSummary() {

@@ -103,3 +103,40 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh issue comment 10 --repo "$GITHUB_REPOSITORY" --body "Active Planning refresh failed on $(date -u '+%Y-%m-%d %H:%M UTC'). The workflow still attempted to drain the revalidation queue. Review run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+
+  publish-snapshots:
+    name: Publish current Planning counts
+    if: ${{ always() }}
+    needs: refresh-active
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Refresh Planning dashboard snapshots
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/refresh-planning-dashboard-snapshots.mjs
+
+      - name: Verify Planning snapshot freshness
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/verify-dataset-snapshots.mjs planning
+
+      - name: Publish current Planning counts
+        env:
+          PLANNING_REVALIDATION_URL: ${{ secrets.PLANNING_REVALIDATION_URL }}
+          PLANNING_REVALIDATION_SECRET: ${{ secrets.PLANNING_REVALIDATION_SECRET }}
+        run: node scripts/revalidate-dataset-caches.mjs planning

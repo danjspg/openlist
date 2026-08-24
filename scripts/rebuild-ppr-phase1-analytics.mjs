@@ -556,6 +556,10 @@ function compareRowsByCoolest(left, right) {
 async function rebuildPprPhase1Analytics() {
   const now = new Date()
   const allSales = await fetchSales("date_of_sale,price_eur,county", undefined)
+  const latestSaleDate = allSales.reduce(
+    (latest, sale) => (!latest || sale.date_of_sale > latest ? sale.date_of_sale : latest),
+    null
+  )
   console.log(`Loaded ${allSales.length} sales for national snapshots`)
 
   const rangeKeys = ["last-year", "last-3-years", "last-5-years", "all"]
@@ -649,7 +653,7 @@ async function rebuildPprPhase1Analytics() {
               median(pricesForSales(previousComparisonSales))
             ) ?? null
           : null,
-      latest_sale_date: allSales[0]?.date_of_sale ?? null,
+      latest_sale_date: latestSaleDate,
       strongest_county: strongestCounty?.county ?? null,
       strongest_county_yoy_change_pct: strongestCounty?.yoy ?? null,
       updated_at: new Date().toISOString(),

@@ -1,4 +1,8 @@
 import { unstable_cache } from "next/cache"
+import {
+  PLANNING_DATASET_CACHE_TAG,
+  PPR_DATASET_CACHE_TAG,
+} from "@/lib/dataset-cache"
 import { getPprAreaSuggestions, type PprSale } from "@/lib/ppr"
 import {
   searchExactEircode,
@@ -196,7 +200,10 @@ const searchPropertyIntelligenceCached = unstable_cache(
   }
   },
   ["unified-property-search", "v12-numeric-planning-references"],
-  { revalidate: 60 * 60 }
+  {
+    revalidate: 60 * 60,
+    tags: [PLANNING_DATASET_CACHE_TAG, PPR_DATASET_CACHE_TAG],
+  }
 )
 
 function escapePostgrestLike(value: string) {
