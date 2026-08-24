@@ -5,6 +5,7 @@ import {
   getPlanningAuthorityByCode,
 } from "../lib/planning-authorities"
 import { authoritativeCorkProposal, parseCorkCouncilDate } from "../lib/cork-planning-source.mjs"
+import { corkAgileApplicationConfig } from "../lib/cork-agile-authorities.mjs"
 import { cleanNationalPlanningText, parseNationalArcgisDate } from "../lib/national-planning-source.mjs"
 import { planningApplicationPath } from "../lib/property-intelligence"
 import { parsePlanningDetailUrl } from "../lib/planning-seo"
@@ -146,9 +147,10 @@ async function fetchJson(url: string, label: string, headers: Record<string, str
 function sql(value: string) { return value.replaceAll("'", "''") }
 
 async function loadSource(row: Stored): Promise<Source> {
-  if (row.local_authority_code === "CORKCOCO") {
+  const corkConfig = corkAgileApplicationConfig(row)
+  if (corkConfig) {
     if (!Number.isInteger(Number(row.source_application_id))) throw new Error("Cork source application id is unavailable")
-    const detail = await fetchJson(`${CORK_DETAIL_URL}/${row.source_application_id}`, `${row.reference} Cork detail`, { "x-client": "CORKCOCO", "x-product": "CITIZENPORTAL", "x-service": "PA" }, { cork: true })
+    const detail = await fetchJson(`${CORK_DETAIL_URL}/${row.source_application_id}`, `${row.reference} Cork detail`, { "x-client": corkConfig.code, "x-product": "CITIZENPORTAL", "x-service": "PA" }, { cork: true })
     const dates: Source["dates"] = {}
     for (const field of LIFECYCLE_DATE_FIELDS) {
       const sourceField = CORK_FIELD_MAP[field]

@@ -23,7 +23,7 @@ const AGILE_SEARCH_STATUSES = ["registered", "determined"]
 const AGILE_WINDOW_DAYS = 45
 const DEFAULT_DAYS = Number(process.env.PLANNING_NATIONAL_DEFAULT_DAYS || 365)
 const DEFAULT_PAGE_SIZE = 2000
-const DEFAULT_EXCLUDED_CODES = new Set(["CORKCOCO"])
+const DEFAULT_EXCLUDED_CODES = new Set(["CORKCOCO", "CORKCITY"])
 const REQUEST_DELAY_MS = Number(process.env.PLANNING_NATIONAL_REQUEST_DELAY_MS || 250)
 const MAX_RETRIES = Number(process.env.PLANNING_NATIONAL_MAX_RETRIES || 4)
 function boundedEnvNumber(name, fallback, minimum, maximum = Infinity) {
@@ -669,16 +669,12 @@ function selectedAuthorities(options) {
   const requested = new Set(options.authorities.map((value) => value.toLowerCase()))
 
   return AUTHORITIES.filter((authority) => {
-    if (!options.includeCork && DEFAULT_EXCLUDED_CODES.has(authority.code)) {
-      return false
-    }
-
-    if (requested.size === 0) return true
-
-    return (
+    if (requested.size > 0) return (
       requested.has(authority.code.toLowerCase()) ||
       requested.has(authority.sourceName.toLowerCase())
     )
+
+    return options.includeCork || !DEFAULT_EXCLUDED_CODES.has(authority.code)
   })
 }
 

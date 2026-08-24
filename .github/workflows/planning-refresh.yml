@@ -29,14 +29,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Refresh Cork planning applications
+      - name: Refresh Cork Agile planning applications
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          echo "Starting Cork planning applications refresh job"
-          node scripts/ingest-cork-planning-applications.mjs
-          echo "Cork planning applications refresh job completed"
+          echo "Starting Cork Agile planning applications refresh job"
+          node scripts/ingest-cork-planning-applications.mjs --authority CORKCOCO
+          node scripts/ingest-cork-planning-applications.mjs --authority CORKCITY
+          echo "Cork Agile planning applications refresh job completed"
 
       - name: Refresh rolling national planning applications
         env:

@@ -3,12 +3,14 @@ import path from "path"
 import { fileURLToPath } from "url"
 import { createClient } from "@supabase/supabase-js"
 import { formatErrorForLog } from "./ppr-error-format.mjs"
+import { CORK_CITY_AGILE_START_DATE } from "../lib/cork-agile-authorities.mjs"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const DEFAULT_BUCKET_LIMIT = Number(process.env.PLANNING_STATUS_BUCKET_LIMIT || 12)
 const CORK_COUNTY_CODE = "CORKCOCO"
+const CORK_CITY_CODE = "CORKCITY"
 
 if (!supabaseUrl || !serviceRoleKey) {
   console.error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY")
@@ -55,15 +57,40 @@ async function runScript(args) {
 async function refreshBucket(bucket, dryRun) {
   const from = bucket.period_start
   const to = addDays(bucket.period_end, -1)
-  const args = bucket.local_authority_code === CORK_COUNTY_CODE
-    ? [
+  const runs = []
+  if (bucket.local_authority_code === CORK_COUNTY_CODE) {
+    runs.push([
         "scripts/ingest-cork-planning-applications.mjs",
         from,
         to,
         "--window-days",
         "31",
-      ]
-    : [
+        "--authority",
+        CORK_COUNTY_CODE,
+      ])
+  } else if (bucket.local_authority_code === CORK_CITY_CODE && to >= CORK_CITY_AGILE_START_DATE) {
+    if (from < CORK_CITY_AGILE_START_DATE) {
+      runs.push([
+        "scripts/ingest-national-planning-applications.mjs",
+        "--from",
+        from,
+        "--to",
+        addDays(CORK_CITY_AGILE_START_DATE, -1),
+        "--authority",
+        CORK_CITY_CODE,
+      ])
+    }
+    runs.push([
+      "scripts/ingest-cork-planning-applications.mjs",
+      from < CORK_CITY_AGILE_START_DATE ? CORK_CITY_AGILE_START_DATE : from,
+      to,
+      "--window-days",
+      "31",
+      "--authority",
+      CORK_CITY_CODE,
+    ])
+  } else {
+    runs.push([
         "scripts/ingest-national-planning-applications.mjs",
         "--from",
         from,
@@ -71,10 +98,13 @@ async function refreshBucket(bucket, dryRun) {
         to,
         "--authority",
         bucket.local_authority_code,
-      ]
+      ])
+  }
 
-  if (dryRun) args.push("--dry-run")
-  await runScript(args)
+  for (const args of runs) {
+    if (dryRun) args.push("--dry-run")
+    await runScript(args)
+  }
 
   if (dryRun) return
   const { error } = await supabase.rpc("openlist_mark_planning_status_bucket_checked", {
