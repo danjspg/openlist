@@ -12,15 +12,27 @@ import {
   isLikelyTruncatedCorkSearchProposal,
   parseCorkCouncilDate,
 } from "../lib/cork-planning-source.mjs"
+import {
+  corkAgileApplicationUrl,
+  corkAgileAuthorityConfig,
+} from "../lib/cork-agile-authorities.mjs"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 const API_URL = "https://planningapi.agileapplications.ie/api/application/search"
 const API_DETAIL_URL = "https://planningapi.agileapplications.ie/api/application"
-const SOURCE_URL = "https://planning.agileapplications.ie/corkcoco/search-applications/"
-const LOCAL_AUTHORITY = "Cork County Council"
-const LOCAL_AUTHORITY_CODE = "CORKCOCO"
+const cliArgs = process.argv.slice(2)
+const authorityIndex = cliArgs.indexOf("--authority")
+const authorityConfig = corkAgileAuthorityConfig(
+  authorityIndex >= 0 ? cliArgs[authorityIndex + 1] : "CORKCOCO"
+)
+if (!authorityConfig) {
+  throw new Error("--authority must be CORKCOCO/cork or CORKCITY/cork-city")
+}
+const SOURCE_URL = `https://planning.agileapplications.ie/${authorityConfig.tenant}/search-applications/`
+const LOCAL_AUTHORITY = authorityConfig.name
+const LOCAL_AUTHORITY_CODE = authorityConfig.code
 const PRODUCT_CODE = "CITIZENPORTAL"
 const SERVICE_CODE = "PA"
 const DEFAULT_WINDOW_DAYS = 7
@@ -29,6 +41,39 @@ const SEARCH_STATUSES = ["registered", "determined"]
 const API_REQUEST_DELAY_MS = Number(process.env.PLANNING_API_REQUEST_DELAY_MS || 1000)
 const API_MAX_RETRIES = Number(process.env.PLANNING_API_MAX_RETRIES || 5)
 const RETRYABLE_HTTP_STATUSES = new Set([408, 409, 425, 429, 500, 502, 503, 504])
+const PRESERVE_WEAKER_SOURCE_FIELDS = [
+  "web_reference",
+  "application_type",
+  "proposal",
+  "location",
+  "applicant_name",
+  "agent_name",
+  "status",
+  "decision_text",
+  "registration_date",
+  "valid_date",
+  "decision_date",
+  "decision_due_date",
+  "final_grant_date",
+  "expiry_date",
+  "further_information_requested_date",
+  "further_information_received_date",
+  "withdrawal_date",
+  "appeal_lodged_date",
+  "appeal_decision_date",
+  "dispatch_date",
+  "appeal_notify_date",
+  "ward",
+  "area_ids",
+  "ward_ids",
+  "parish_ids",
+  "grid_reference",
+  "grid_easting",
+  "grid_northing",
+  "pending_amendment",
+  "eircode",
+  "eircode_prefix",
+]
 
 if (!supabaseUrl || !serviceRoleKey) {
   console.error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY")
@@ -90,7 +135,7 @@ async function defaultDateRange() {
   const to = todayUtc()
   const from = addDays(to, -DEFAULT_RANGE_DAYS)
   console.log(
-    `Defaulting Cork planning import to the bounded recent window ${formatDate(from)} through ${formatDate(to)}.`
+    `Defaulting ${LOCAL_AUTHORITY} planning import to the bounded recent window ${formatDate(from)} through ${formatDate(to)}.`
   )
   return { from, to }
 }
@@ -127,11 +172,7 @@ function normaliseIdArray(value) {
 }
 
 function applicationDetailUrl(row) {
-  const reference = row.reference
-  if (!reference) return SOURCE_URL
-
-  const criteria = encodeURIComponent(JSON.stringify({ query: reference }))
-  return `https://planning.agileapplications.ie/corkcoco/search-applications/results?criteria=${criteria}`
+  return corkAgileApplicationUrl(authorityConfig, row.reference) || SOURCE_URL
 }
 
 function mapApplication(row) {
@@ -404,6 +445,7 @@ async function ingestPlanningApplications({ from, to, windowDays = DEFAULT_WINDO
       from: formatDate(from),
       to: formatDate(to),
       preserveUnobservedFields: ["decision_due_date"],
+      preserveWeakerFields: PRESERVE_WEAKER_SOURCE_FIELDS,
     }
   )
   const enrichedChangedRecords = await enrichChangedApplicationDetails(changedRecords)
@@ -427,7 +469,7 @@ async function ingestPlanningApplications({ from, to, windowDays = DEFAULT_WINDO
   const importedRows = Math.max(0, countAfter - countBefore)
 
   console.log(
-    `Done. Read ${records.length} Cork County planning applications, upserted ${processed} changed/new rows, skipped ${unchangedCount} unchanged rows, imported ${importedRows} new rows (${countAfter} total in range).`
+    `Done. Read ${records.length} ${LOCAL_AUTHORITY} planning applications, upserted ${processed} changed/new rows, skipped ${unchangedCount} unchanged rows, imported ${importedRows} new rows (${countAfter} total in range).`
   )
 
   return {
@@ -451,7 +493,7 @@ async function fetchPlanningApplications({ from, to, windowDays = DEFAULT_WINDOW
 
   const records = await fetchApplicationRecords({ from, to, windowDays })
   console.log(
-    `Done. Fetched ${records.length} Cork County planning applications from ${formatDate(from)} to ${formatDate(to)}.`
+    `Done. Fetched ${records.length} ${LOCAL_AUTHORITY} planning applications from ${formatDate(from)} to ${formatDate(to)}.`
   )
 
   return {
@@ -465,7 +507,7 @@ async function fetchPlanningApplications({ from, to, windowDays = DEFAULT_WINDOW
 const isDirectRun = import.meta.url === `file://${process.argv[1]}`
 
 if (isDirectRun) {
-  const args = process.argv.slice(2)
+  const args = cliArgs
   const dryRun = args.includes("--dry-run")
   const windowDaysIndex = args.indexOf("--window-days")
   const windowDays =
@@ -476,8 +518,10 @@ if (isDirectRun) {
   const positionalArgs = args.filter(
     (arg, index) =>
       arg !== "--dry-run" &&
+      arg !== "--authority" &&
       arg !== "--window-days" &&
-      index !== windowDaysIndex + 1
+      (authorityIndex < 0 || index !== authorityIndex + 1) &&
+      (windowDaysIndex < 0 || index !== windowDaysIndex + 1)
   )
   const from = parseDateArg(positionalArgs[0])
   const to = parseDateArg(positionalArgs[1])

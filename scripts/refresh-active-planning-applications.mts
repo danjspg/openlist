@@ -17,6 +17,10 @@ import {
   planningRecordChangedFields,
 } from "../lib/planning-ingestion-diff.mjs"
 import {
+  CORK_CITY_AGILE_START_DATE,
+  corkAgileApplicationConfig,
+} from "../lib/cork-agile-authorities.mjs"
+import {
   AUTHORITIES,
   enrichChangedNationalRecords,
   mapApplication,
@@ -35,7 +39,7 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const pageSize = 1000
 const nationalBatchSize = 150
-const corkAuthorityCode = "CORKCOCO"
+const corkCountyAuthorityCode = "CORKCOCO"
 const nationalFeatureUrl =
   "https://services.arcgis.com/NzlPQPKn5QF9v2US/ArcGIS/rest/services/IrishPlanningApplications/FeatureServer/0/query"
 const rangeDelayMs = Math.max(
@@ -193,7 +197,7 @@ async function refreshNationalExact(candidates: CandidateRow[]) {
   const fallback: CandidateRow[] = []
 
   for (const candidate of candidates) {
-    if (candidate.local_authority_code === corkAuthorityCode) {
+    if (corkAgileApplicationConfig(candidate)) {
       fallback.push(candidate)
       continue
     }
@@ -288,16 +292,42 @@ async function refreshRange(
   from: string,
   to: string
 ) {
-  if (localAuthorityCode === corkAuthorityCode) {
+  const runCorkAgileRange = async (rangeFrom: string, rangeTo: string) => {
     const args = [
       "scripts/ingest-cork-planning-applications.mjs",
-      from,
-      to,
+      rangeFrom,
+      rangeTo,
       "--window-days",
       "7",
+      "--authority",
+      localAuthorityCode,
     ]
     if (dryRun) args.push("--dry-run")
     await runChild(args)
+  }
+
+  if (localAuthorityCode === corkCountyAuthorityCode) {
+    await runCorkAgileRange(from, to)
+    return
+  }
+
+  if (localAuthorityCode === "CORKCITY" && to >= CORK_CITY_AGILE_START_DATE) {
+    if (from < CORK_CITY_AGILE_START_DATE) {
+      await runChild([
+        "scripts/ingest-national-planning-applications.mjs",
+        "--from",
+        from,
+        "--to",
+        subtractUtcDays(CORK_CITY_AGILE_START_DATE, 1),
+        "--authority",
+        localAuthorityCode,
+        ...(dryRun ? ["--dry-run"] : []),
+      ])
+    }
+    await runCorkAgileRange(
+      from < CORK_CITY_AGILE_START_DATE ? CORK_CITY_AGILE_START_DATE : from,
+      to
+    )
     return
   }
 

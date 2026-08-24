@@ -1,6 +1,10 @@
 import { createClient } from "@supabase/supabase-js"
 
 import { parseCorkCouncilDate } from "../lib/cork-planning-source.mjs"
+import {
+  CORK_AGILE_AUTHORITIES,
+  corkAgileApplicationConfig,
+} from "../lib/cork-agile-authorities.mjs"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -12,7 +16,7 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
   auth: { persistSession: false, autoRefreshToken: false },
 })
 
-const AUTHORITY_CODE = "CORKCOCO"
+const AUTHORITY_CODES = [...CORK_AGILE_AUTHORITIES.keys()]
 const DETAIL_URL = "https://planningapi.agileapplications.ie/api/application"
 const ACTIVE_STATUSES = [
   "pre_validation",
@@ -29,19 +33,15 @@ const RETRYABLE = new Set([408, 425, 429, 500, 502, 503, 504])
 const PAGE_SIZE = 500
 const dryRun = process.argv.includes("--dry-run")
 
-const HEADERS = {
-  "User-Agent": "OpenList active Cork planning detail refresh",
-  "x-client": AUTHORITY_CODE,
-  "x-product": "CITIZENPORTAL",
-  "x-service": "PA",
-}
-
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 type Candidate = {
   id: string
+  local_authority_code: string
   reference: string
   source_application_id: number
+  source_url: string | null
+  registration_date: string | null
   proposal: string | null
   decision_due_date: string | null
 }
@@ -51,8 +51,8 @@ async function loadCandidates() {
   for (let offset = 0; ; offset += PAGE_SIZE) {
     const { data, error } = await supabase
       .from("planning_applications")
-      .select("id,reference,source_application_id,proposal,decision_due_date")
-      .eq("local_authority_code", AUTHORITY_CODE)
+      .select("id,local_authority_code,reference,source_application_id,source_url,registration_date,proposal,decision_due_date")
+      .in("local_authority_code", AUTHORITY_CODES)
       .in("normalized_status", ACTIVE_STATUSES)
       .not("source_application_id", "is", null)
       .is("decision_date", null)
@@ -62,7 +62,11 @@ async function loadCandidates() {
       .order("id", { ascending: true })
       .range(offset, offset + PAGE_SIZE - 1)
     if (error) throw error
-    rows.push(...((data || []) as Candidate[]))
+    rows.push(
+      ...((data || []) as Candidate[]).filter((candidate) =>
+        Boolean(corkAgileApplicationConfig(candidate))
+      )
+    )
     if (!data || data.length < PAGE_SIZE) break
   }
   return rows
@@ -78,13 +82,20 @@ function isNetworkFailure(error: unknown) {
 }
 
 async function fetchDetail(candidate: Candidate) {
+  const config = corkAgileApplicationConfig(candidate)
+  if (!config) return null
   if (REQUEST_DELAY_MS > 0) await sleep(REQUEST_DELAY_MS)
   let lastError: Error | null = null
 
   for (let attempt = 1; attempt <= 5; attempt += 1) {
     try {
       const response = await fetch(`${DETAIL_URL}/${candidate.source_application_id}`, {
-        headers: HEADERS,
+        headers: {
+          "User-Agent": "OpenList active Cork planning detail refresh",
+          "x-client": config.code,
+          "x-product": "CITIZENPORTAL",
+          "x-service": "PA",
+        },
       })
       if (response.ok) return await response.json()
       if (response.status === 404) return null
@@ -170,7 +181,7 @@ async function main() {
         revalidation_pending: true,
       })
       .eq("id", candidate.id)
-      .eq("local_authority_code", AUTHORITY_CODE)
+      .eq("local_authority_code", candidate.local_authority_code)
       .eq("reference", candidate.reference)
     if (error) throw error
     console.log(`${candidate.reference}: updated ${Object.keys(updates).join(", ")}`)

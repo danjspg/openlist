@@ -157,3 +157,40 @@ test("Cork search absence preserves an existing detail-only decision due field",
   })
   assert.equal(changed.changedRecords[0].decision_due_date, "2026-09-10")
 })
+
+test("transition ingestion keeps stronger existing values when Agile fields are empty", async () => {
+  const existing = {
+    local_authority_code: "CORKCITY",
+    reference: "25/44444",
+    source_application_id: 100,
+    proposal: "A complete established proposal",
+    decision_date: "2026-01-12",
+    area_ids: [42],
+  }
+  const incoming = {
+    ...existing,
+    source_application_id: 200,
+    proposal: null,
+    decision_date: null,
+    area_ids: [],
+  }
+  const supabase = {
+    from() { return this },
+    select() { return this },
+    eq() { return this },
+    order() { return this },
+    range() { return Promise.resolve({ data: [existing], error: null }) },
+  }
+
+  const result = await filterChangedPlanningRecords(supabase, [incoming], {
+    authorityCode: "CORKCITY",
+    preserveWeakerFields: ["proposal", "decision_date", "area_ids"],
+  })
+
+  assert.equal(result.changedRecords.length, 1)
+  assert.equal(result.changedRecords[0].source_application_id, 200)
+  assert.equal(result.changedRecords[0].proposal, existing.proposal)
+  assert.equal(result.changedRecords[0].decision_date, existing.decision_date)
+  assert.deepEqual(result.changedRecords[0].area_ids, existing.area_ids)
+  assert.deepEqual(result.changeFieldCounts, { source_application_id: 1 })
+})
