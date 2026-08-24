@@ -32,7 +32,7 @@ const getHomepagePlanningSummaryCached = unstable_cache(
       latestRegistrationDate: summary.latestRegistrationDate ?? null,
     }
   },
-  ["homepage-planning-summary", "v2-snapshot"],
+  ["homepage-planning-summary", "v3-dataset-publication"],
   { revalidate: 60 * 60 * 6, tags: [PLANNING_DATASET_CACHE_TAG] }
 )
 
