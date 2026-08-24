@@ -67,10 +67,10 @@ test("Cork City is wired into ingestion, daily refresh, detail refresh, and aler
       source(".github/workflows/planning-refresh.yml"),
     ])
 
-  assert.match(importer, /--authority must be CORKCOCO\/cork or CORKCITY\/cork-city/)
+  assert.match(importer, /--authority must identify a configured Agile planning authority/)
   assert.match(importer, /preserveWeakerFields: PRESERVE_WEAKER_SOURCE_FIELDS/)
   assert.match(activeRefresh, /corkAgileApplicationConfig\(candidate\)/)
-  assert.match(activeRefresh, /CORK_CITY_AGILE_START_DATE/)
+  assert.match(activeRefresh, /agileConfig\?\.agileStartDate/)
   assert.match(detailRefresh, /corkAgileApplicationConfig\(candidate\)/)
   assert.match(watcher, /const corkConfig = corkAgileApplicationConfig\(app\)/)
   assert.match(watcher, /"x-client": config\.code/)

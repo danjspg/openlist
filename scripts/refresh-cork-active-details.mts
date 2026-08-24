@@ -4,6 +4,7 @@ import { parseCorkCouncilDate } from "../lib/cork-planning-source.mjs"
 import {
   CORK_AGILE_AUTHORITIES,
   corkAgileApplicationConfig,
+  corkAgileSourceApplicationId,
 } from "../lib/cork-agile-authorities.mjs"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -84,12 +85,14 @@ function isNetworkFailure(error: unknown) {
 async function fetchDetail(candidate: Candidate) {
   const config = corkAgileApplicationConfig(candidate)
   if (!config) return null
+  const sourceApplicationId = corkAgileSourceApplicationId(config, candidate)
+  if (!sourceApplicationId) return null
   if (REQUEST_DELAY_MS > 0) await sleep(REQUEST_DELAY_MS)
   let lastError: Error | null = null
 
   for (let attempt = 1; attempt <= 5; attempt += 1) {
     try {
-      const response = await fetch(`${DETAIL_URL}/${candidate.source_application_id}`, {
+      const response = await fetch(`${DETAIL_URL}/${sourceApplicationId}`, {
         headers: {
           "User-Agent": "OpenList active Cork planning detail refresh",
           "x-client": config.code,

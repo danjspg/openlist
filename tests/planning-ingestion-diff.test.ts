@@ -194,3 +194,23 @@ test("transition ingestion keeps stronger existing values when Agile fields are 
   assert.deepEqual(result.changedRecords[0].area_ids, existing.area_ids)
   assert.deepEqual(result.changeFieldCounts, { source_application_id: 1 })
 })
+
+test("transition ingestion can preserve an established registration date", async () => {
+  const existing = {
+    local_authority_code: "WEXFORD",
+    reference: "20251227",
+    registration_date: "2025-09-29",
+    status: "Registered Application",
+  }
+  const incoming = { ...existing, registration_date: "2026-08-07", status: "Decision Made" }
+  const supabase = {
+    from() { return this }, select() { return this }, eq() { return this }, order() { return this },
+    range() { return Promise.resolve({ data: [existing], error: null }) },
+  }
+  const result = await filterChangedPlanningRecords(supabase, [incoming], {
+    authorityCode: "WEXFORD",
+    preserveExistingFields: ["registration_date"],
+  })
+  assert.equal(result.changedRecords[0].registration_date, "2025-09-29")
+  assert.deepEqual(result.changeFieldCounts, { status: 1 })
+})
