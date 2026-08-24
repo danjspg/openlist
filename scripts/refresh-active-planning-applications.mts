@@ -17,8 +17,8 @@ import {
   planningRecordChangedFields,
 } from "../lib/planning-ingestion-diff.mjs"
 import {
-  CORK_CITY_AGILE_START_DATE,
   corkAgileApplicationConfig,
+  corkAgileAuthorityConfig,
 } from "../lib/cork-agile-authorities.mjs"
 import {
   AUTHORITIES,
@@ -39,7 +39,6 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const pageSize = 1000
 const nationalBatchSize = 150
-const corkCountyAuthorityCode = "CORKCOCO"
 const nationalFeatureUrl =
   "https://services.arcgis.com/NzlPQPKn5QF9v2US/ArcGIS/rest/services/IrishPlanningApplications/FeatureServer/0/query"
 const rangeDelayMs = Math.max(
@@ -306,26 +305,28 @@ async function refreshRange(
     await runChild(args)
   }
 
-  if (localAuthorityCode === corkCountyAuthorityCode) {
+  const agileConfig = corkAgileAuthorityConfig(localAuthorityCode)
+  if (agileConfig && !agileConfig.agileStartDate) {
     await runCorkAgileRange(from, to)
     return
   }
 
-  if (localAuthorityCode === "CORKCITY" && to >= CORK_CITY_AGILE_START_DATE) {
-    if (from < CORK_CITY_AGILE_START_DATE) {
+  const agileStartDate = agileConfig?.agileStartDate
+  if (agileStartDate && to >= agileStartDate) {
+    if (from < agileStartDate) {
       await runChild([
         "scripts/ingest-national-planning-applications.mjs",
         "--from",
         from,
         "--to",
-        subtractUtcDays(CORK_CITY_AGILE_START_DATE, 1),
+        subtractUtcDays(agileStartDate, 1),
         "--authority",
         localAuthorityCode,
         ...(dryRun ? ["--dry-run"] : []),
       ])
     }
     await runCorkAgileRange(
-      from < CORK_CITY_AGILE_START_DATE ? CORK_CITY_AGILE_START_DATE : from,
+      from < agileStartDate ? agileStartDate : from,
       to
     )
     return

@@ -33,6 +33,22 @@ jobs:
       - name: Test active refresh range planning
         run: node --import tsx --test tests/active-planning-refresh.test.ts
 
+      - name: Ingest recent Kildare, Wicklow, and Wexford applications
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          PLANNING_API_REQUEST_DELAY_MS: "1000"
+        run: |
+          node scripts/ingest-kildare-planning-applications.mjs
+          node scripts/ingest-national-planning-applications.mjs --days 180 --authority WICKLOW
+          node scripts/ingest-cork-planning-applications.mjs --authority WEXFORD
+
+      - name: Revalidate repaired authority planning pages
+        env:
+          PLANNING_REVALIDATION_URL: ${{ secrets.PLANNING_REVALIDATION_URL }}
+          PLANNING_REVALIDATION_SECRET: ${{ secrets.PLANNING_REVALIDATION_SECRET }}
+        run: node scripts/drain-planning-revalidation.mjs
+
       - name: Ingest recent Cork City applications
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}

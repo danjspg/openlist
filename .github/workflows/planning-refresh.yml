@@ -37,7 +37,14 @@ jobs:
           echo "Starting Cork Agile planning applications refresh job"
           node scripts/ingest-cork-planning-applications.mjs --authority CORKCOCO
           node scripts/ingest-cork-planning-applications.mjs --authority CORKCITY
+          node scripts/ingest-cork-planning-applications.mjs --authority WEXFORD
           echo "Cork Agile planning applications refresh job completed"
+
+      - name: Refresh Kildare official planning applications
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/ingest-kildare-planning-applications.mjs
 
       - name: Refresh rolling national planning applications
         env:

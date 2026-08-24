@@ -13,8 +13,10 @@ import {
   parseCorkCouncilDate,
 } from "../lib/cork-planning-source.mjs"
 import {
+  corkAgileAcceptsReference,
   corkAgileApplicationUrl,
   corkAgileAuthorityConfig,
+  corkAgileCanonicalReference,
 } from "../lib/cork-agile-authorities.mjs"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -28,7 +30,7 @@ const authorityConfig = corkAgileAuthorityConfig(
   authorityIndex >= 0 ? cliArgs[authorityIndex + 1] : "CORKCOCO"
 )
 if (!authorityConfig) {
-  throw new Error("--authority must be CORKCOCO/cork or CORKCITY/cork-city")
+  throw new Error("--authority must identify a configured Agile planning authority")
 }
 const SOURCE_URL = `https://planning.agileapplications.ie/${authorityConfig.tenant}/search-applications/`
 const LOCAL_AUTHORITY = authorityConfig.name
@@ -148,8 +150,12 @@ async function resolveDateRange(from, to) {
   }
 
   const defaults = await defaultDateRange()
+  const configuredStart = authorityConfig.agileStartDate
+    ? new Date(`${authorityConfig.agileStartDate}T00:00:00Z`)
+    : null
+  const resolvedFrom = from || defaults.from
   return {
-    from: from || defaults.from,
+    from: configuredStart && resolvedFrom < configuredStart ? configuredStart : resolvedFrom,
     to: to || defaults.to,
   }
 }
@@ -176,6 +182,9 @@ function applicationDetailUrl(row) {
 }
 
 function mapApplication(row) {
+  if (!corkAgileAcceptsReference(authorityConfig, row.reference)) return null
+  const reference = corkAgileCanonicalReference(authorityConfig, row.reference)
+  if (!reference) return null
   const grid = parseIrishGridReference(row.gridReference)
   const decisionDue = row.decisionDueDate !== undefined
     ? { decision_due_date: parseCorkCouncilDate(row.decisionDueDate) }
@@ -185,8 +194,8 @@ function mapApplication(row) {
     local_authority: LOCAL_AUTHORITY,
     local_authority_code: LOCAL_AUTHORITY_CODE,
     source_application_id: Number.isInteger(row.id) ? row.id : null,
-    reference: row.reference,
-    web_reference: row.webReference || null,
+    reference,
+    web_reference: row.webReference || row.reference || null,
     application_type: row.applicationType || null,
     proposal: row.proposal || null,
     location: row.location || null,
@@ -241,15 +250,36 @@ function shouldRefreshCorkDecisionDue(record) {
 
 function decisionDueFromDetail(detail, existingValue) {
   if (!Object.hasOwn(detail, "decisionDueDate") || detail.decisionDueDate === undefined) return existingValue
+  if (detail.decisionDueDate === null && authorityConfig.preserveNullDetailFields) return existingValue
   if (detail.decisionDueDate === null) return null
   return parseCorkCouncilDate(detail.decisionDueDate) || existingValue
 }
 
 function mergeCorkApplicationDetail(record, detail) {
+  const detailDate = (sourceField, canonicalField) => {
+    if (!Object.hasOwn(detail, sourceField)) return record[canonicalField]
+    return parseCorkCouncilDate(detail[sourceField]) || record[canonicalField]
+  }
   return {
     ...record,
     proposal: authoritativeCorkProposal(record.proposal, detail.fullProposal),
     decision_due_date: decisionDueFromDetail(detail, record.decision_due_date),
+    status:
+      detail.statusOwner || detail.statusDescription || detail.statusNonOwner || record.status,
+    decision_text: detail.decisionText || record.decision_text,
+    decision_date: detailDate("decisionDate", "decision_date"),
+    final_grant_date: detailDate("finalGrantDate", "final_grant_date"),
+    further_information_requested_date: detailDate(
+      "furtherInfoRequestedDate",
+      "further_information_requested_date"
+    ),
+    further_information_received_date: detailDate(
+      "furtherInfoReceivedDate",
+      "further_information_received_date"
+    ),
+    withdrawal_date: detailDate("withdrawnDate", "withdrawal_date"),
+    appeal_lodged_date: detailDate("appealLodgedDate", "appeal_lodged_date"),
+    appeal_decision_date: detailDate("appealDecisionDate", "appeal_decision_date"),
   }
 }
 
@@ -357,7 +387,8 @@ async function enrichChangedApplicationDetails(records) {
   for (const record of records) {
     if (
       !Number.isInteger(record.source_application_id) ||
-      (!isLikelyTruncatedCorkSearchProposal(record.proposal) &&
+      (!authorityConfig.refreshAllChangedDetails &&
+        !isLikelyTruncatedCorkSearchProposal(record.proposal) &&
         !shouldRefreshCorkDecisionDue(record))
     ) {
       enriched.push(record)
@@ -373,7 +404,7 @@ async function enrichChangedApplicationDetails(records) {
   }
 
   if (detailRequests > 0) {
-    console.log(`Fetched ${detailRequests} authoritative Cork application details.`)
+    console.log(`Fetched ${detailRequests} authoritative Agile application details.`)
   }
   return enriched
 }
@@ -418,6 +449,7 @@ async function fetchApplicationRecords({ from, to, windowDays = DEFAULT_WINDOW_D
       for (const row of data.results) {
         if (!row.reference) continue
         const record = mapApplication(row)
+        if (!record) continue
         recordsByReference.set(record.reference, record)
       }
     }
@@ -442,9 +474,13 @@ async function ingestPlanningApplications({ from, to, windowDays = DEFAULT_WINDO
     records,
     {
       authorityCode: LOCAL_AUTHORITY_CODE,
-      from: formatDate(from),
-      to: formatDate(to),
+      ...(authorityConfig.preserveExistingRegistrationDate
+        ? {}
+        : { from: formatDate(from), to: formatDate(to) }),
       preserveUnobservedFields: ["decision_due_date"],
+      preserveExistingFields: authorityConfig.preserveExistingRegistrationDate
+        ? ["registration_date"]
+        : [],
       preserveWeakerFields: PRESERVE_WEAKER_SOURCE_FIELDS,
     }
   )
