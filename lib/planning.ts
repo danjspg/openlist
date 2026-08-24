@@ -126,7 +126,7 @@ export type PlanningSearchParams = {
 
 const PLANNING_CACHE_REVALIDATE_SECONDS = 60 * 60 * 6
 const PLANNING_DETAIL_CACHE_REVALIDATE = false
-const PLANNING_AGGREGATE_CACHE_VERSION = "v10-council-activity-live"
+const PLANNING_AGGREGATE_CACHE_VERSION = "v11-dataset-publication"
 export const PLANNING_APPLICATION_SELECT =
   "id,local_authority,local_authority_code,reference,web_reference,application_type,proposal,location,eircode,applicant_name,agent_name,status,normalized_status,decision_text,registration_date,valid_date,decision_date,decision_due_date,final_grant_date,expiry_date,further_information_requested_date,further_information_received_date,withdrawal_date,appeal_lodged_date,appeal_decision_date,dispatch_date,appeal_notify_date,ward,grid_reference,grid_easting,grid_northing,source_url,updated_at"
 
