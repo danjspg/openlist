@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import test from "node:test"
 import { shouldShowMyViewings } from "@/lib/account-navigation"
+import { DEFAULT_ACCOUNT_PATH, getSafeRedirectPath } from "@/lib/site-url"
 
 async function source(path: string) {
   return readFile(new URL(`../${path}`, import.meta.url), "utf8")
@@ -31,4 +32,27 @@ test("session navigation state checks the same viewing owner field as My Viewing
   assert.match(sessionRoute, /\.eq\("owner_user_id", user\.id\)/)
   assert.doesNotMatch(sessionRoute, /\.eq\("user_id", user\.id\)/)
   assert.match(myViewingsPage, /\.eq\("owner_user_id", currentUser\.id\)/)
+})
+
+test("generic sign-in lands on alerts while explicit viewing flows stay on viewings", async () => {
+  const [signInPage, authCallback, authForm, nav, viewingsPage] =
+    await Promise.all([
+      source("app/sign-in/page.tsx"),
+      source("app/auth/callback/route.ts"),
+      source("components/AuthEmailForm.tsx"),
+      source("components/Nav.tsx"),
+      source("app/viewings/page.tsx"),
+    ])
+
+  assert.equal(DEFAULT_ACCOUNT_PATH, "/my-alerts")
+  assert.equal(getSafeRedirectPath(undefined), "/my-alerts")
+  assert.equal(getSafeRedirectPath("/my-viewings"), "/my-viewings")
+  assert.match(signInPage, /getSafeRedirectPath\(redirectTo, DEFAULT_ACCOUNT_PATH\)/)
+  assert.match(authCallback, /getSafeRedirectPath\([\s\S]*DEFAULT_ACCOUNT_PATH\s*\)/)
+  assert.match(authForm, /getSafeRedirectPath\(redirectTo, DEFAULT_ACCOUNT_PATH\)/)
+  assert.equal(
+    nav.match(/href="\/sign-in\?redirectTo=%2Fmy-alerts"/g)?.length,
+    2
+  )
+  assert.match(viewingsPage, /const signInHref = "\/sign-in\?redirectTo=%2Fmy-viewings"/)
 })

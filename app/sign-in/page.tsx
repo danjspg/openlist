@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import AuthEmailForm from "@/components/AuthEmailForm"
-import { getSafeRedirectPath } from "@/lib/site-url"
+import { DEFAULT_ACCOUNT_PATH, getSafeRedirectPath } from "@/lib/site-url"
 
 export const metadata: Metadata = {
   title: "Sign in | OpenList",
@@ -16,7 +16,7 @@ export default async function SignInPage({
   searchParams: Promise<{ redirectTo?: string; error?: string }>
 }) {
   const { redirectTo, error } = await searchParams
-  const next = getSafeRedirectPath(redirectTo, "/my-viewings")
+  const next = getSafeRedirectPath(redirectTo, DEFAULT_ACCOUNT_PATH)
 
   return (
     <main className="min-h-screen bg-stone-50">

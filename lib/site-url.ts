@@ -7,7 +7,12 @@ export function getPublicSiteUrl() {
   return configuredUrl.replace(/\/+$/, "")
 }
 
-export function getSafeRedirectPath(value: string | null | undefined, fallback = "/my-viewings") {
+export const DEFAULT_ACCOUNT_PATH = "/my-alerts"
+
+export function getSafeRedirectPath(
+  value: string | null | undefined,
+  fallback = DEFAULT_ACCOUNT_PATH
+) {
   if (!value) return fallback
   if (!value.startsWith("/")) return fallback
   if (value.startsWith("//")) return fallback
@@ -25,7 +30,7 @@ export function getSafeRedirectPath(value: string | null | undefined, fallback =
 }
 
 export function getAuthRedirectUrl(nextPath: string, origin?: string) {
-  const safeNextPath = getSafeRedirectPath(nextPath, "/my-viewings")
+  const safeNextPath = getSafeRedirectPath(nextPath, DEFAULT_ACCOUNT_PATH)
   const baseUrl = (origin || getPublicSiteUrl()).replace(/\/+$/, "")
   return `${baseUrl}/auth/callback?next=${encodeURIComponent(safeNextPath)}`
 }
