@@ -48,7 +48,7 @@ export function PlanningApplicationList({
           : application.status
         const statusClasses = hasFinalDecision
           ? getDecisionBadgeClasses(application.decision)
-          : "border-emerald-200 bg-emerald-50 text-emerald-800"
+          : getLifecycleBadgeClasses(application.status)
 
         return (
           <article
@@ -98,7 +98,7 @@ export function PlanningApplicationList({
                 {currentStatus ? (
                   <div>
                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
-                      Current status
+                      {hasFinalDecision ? "Decision" : "Current status"}
                     </p>
                     <p className={`mt-1.5 inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${statusClasses}`}>
                       {currentStatus}
@@ -165,11 +165,11 @@ function getDecisionBadgeClasses(decision: string | null) {
   const normalised = normaliseLabel(decision)
 
   if (normalised.includes("refus")) {
-    return "border-red-200 bg-red-50 text-red-800"
+    return "border-red-700 bg-red-700 text-white"
   }
 
   if (normalised.includes("grant")) {
-    return "border-emerald-200 bg-emerald-50 text-emerald-800"
+    return "border-emerald-700 bg-emerald-700 text-white"
   }
 
   if (
@@ -177,10 +177,32 @@ function getDecisionBadgeClasses(decision: string | null) {
     normalised.includes("invalid") ||
     normalised.includes("incomplete")
   ) {
-    return "border-amber-200 bg-amber-50 text-amber-900"
+    return "border-red-200 bg-red-50 text-red-800"
   }
 
   return "border-stone-300 bg-stone-100 text-stone-800"
+}
+
+function getLifecycleBadgeClasses(status: string | null) {
+  const normalised = normaliseLabel(status)
+
+  if (
+    normalised.includes("invalid") ||
+    normalised.includes("incomplete") ||
+    normalised.includes("withdraw")
+  ) {
+    return "border-red-200 bg-red-50 text-red-800"
+  }
+
+  if (
+    normalised.includes("further information") ||
+    normalised.includes("clarification") ||
+    normalised.includes("additional information")
+  ) {
+    return "border-amber-300 bg-amber-50 text-amber-900"
+  }
+
+  return "border-stone-300 bg-stone-100 text-stone-700"
 }
 
 function formatDate(value: string | null) {
