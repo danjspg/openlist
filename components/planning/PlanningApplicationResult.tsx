@@ -168,7 +168,11 @@ function getDecisionBadgeClasses(decision: string | null) {
     return "border-red-700 bg-red-700 text-white"
   }
 
-  if (normalised.includes("grant")) {
+  if (
+    normalised.includes("grant") ||
+    normalised.includes("conditional") ||
+    normalised.includes("condition")
+  ) {
     return "border-emerald-700 bg-emerald-700 text-white"
   }
 
