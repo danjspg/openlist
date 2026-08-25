@@ -24,6 +24,11 @@ import {
   planningProposalTitle,
   presentPlanningProposal,
 } from "@/lib/planning-presentation"
+import {
+  planningSemanticState,
+  planningStatePanelClasses,
+  planningStateTextClasses,
+} from "@/lib/planning-state-presentation"
 import { getPublicSiteUrl } from "@/lib/site-url"
 import { planningStatusLabel } from "@/lib/planning-status"
 import { PlanningTimeline } from "@/components/PlanningTimeline"
@@ -86,6 +91,11 @@ export default async function PlanningApplicationPage({ params }: Props) {
   const councilStatus = councilStatusPresentation(application.status, application.normalized_status)
   const currentStatus = planningStatusLabel(application.normalized_status)
   const decision = meaningfulPlanningValue(application.decision_text)
+  const state = planningSemanticState({
+    normalizedStatus: application.normalized_status,
+    statusLabel: currentStatus,
+    decision,
+  })
   const decisionDue = decisionDuePresentation(application)
 
   const canonicalSlug = planningReferenceSlug(application.reference)
@@ -159,58 +169,47 @@ export default async function PlanningApplicationPage({ params }: Props) {
               </p>
             </div>
 
-            {currentStatus || application.source_url ? (
-            <div data-planning-lifecycle-card className="rounded-2xl border border-stone-200 bg-stone-50 p-5">
-              {currentStatus ? (
-                <div data-planning-lifecycle-status>
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">Current status</p>
-                  <p className="mt-3 text-2xl font-semibold tracking-tight text-stone-950">
-                    {currentStatus}
-                  </p>
-                  {councilStatus ? (
-                    <p className="mt-2 text-xs leading-5 text-stone-500">
-                      Council status: {councilStatus}
+            {state || decisionDue || application.source_url ? (
+              <div
+                data-planning-lifecycle-card
+                className={`rounded-2xl border p-5 ${planningStatePanelClasses(state?.tone ?? "neutral")}`}
+              >
+                {state ? (
+                  <div data-planning-lifecycle-status>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">{state.heading}</p>
+                    <p className={`mt-3 text-2xl font-semibold tracking-tight ${planningStateTextClasses(state.tone)}`}>
+                      {state.label}
                     </p>
-                  ) : null}
-                </div>
-              ) : null}
-              {decision || decisionDue ? (
-                <div data-planning-lifecycle-decision>
-                  {decision ? (
-                    <div data-planning-lifecycle-decision-item className={`${currentStatus ? "mt-5 border-t border-stone-200 pt-5" : ""}`}>
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">
-                    Decision
-                  </p>
-                  <p className="mt-2 text-lg font-semibold tracking-tight text-stone-950">
-                    {decision}
-                  </p>
-                    </div>
-                  ) : null}
-                  {decisionDue ? (
-                    <div data-planning-lifecycle-decision-item className={`${currentStatus || decision ? "mt-5 border-t border-stone-200 pt-5" : ""}`}>
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">
-                    Decision due
-                  </p>
-                  <time
-                    dateTime={decisionDue.date}
-                    className="mt-2 block text-lg font-semibold tracking-tight text-stone-950"
-                  >
-                    {decisionDue.formattedDate}
-                  </time>
-                  <DecisionDueRelativeText date={decisionDue.date} />
-                  <p className="mt-2 text-xs leading-5 text-stone-500">
-                    Council record currently gives this as the decision due date.
-                  </p>
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-              <PlanningAlertActions
-                applicationId={application.id}
-                returnPath={canonicalPath}
-                councilUrl={application.source_url}
-              />
-            </div>
+                    {councilStatus ? (
+                      <p className="mt-2 text-xs leading-5 text-stone-500">
+                        Council status: {councilStatus}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+                {decisionDue ? (
+                  <div data-planning-lifecycle-decision className={`${state ? "mt-5 border-t border-stone-200 pt-5" : ""}`}>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">
+                      Decision due
+                    </p>
+                    <time
+                      dateTime={decisionDue.date}
+                      className="mt-2 block text-lg font-semibold tracking-tight text-stone-950"
+                    >
+                      {decisionDue.formattedDate}
+                    </time>
+                    <DecisionDueRelativeText date={decisionDue.date} />
+                    <p className="mt-2 text-xs leading-5 text-stone-500">
+                      Council record currently gives this as the decision due date.
+                    </p>
+                  </div>
+                ) : null}
+                <PlanningAlertActions
+                  applicationId={application.id}
+                  returnPath={canonicalPath}
+                  councilUrl={application.source_url}
+                />
+              </div>
             ) : null}
           </div>
         </div>
