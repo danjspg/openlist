@@ -12,6 +12,7 @@ import {
   decisionDuePresentation,
   planningProposalSummary,
 } from "@/lib/planning-presentation"
+import { planningSemanticState, planningStateBadgeClasses } from "@/lib/planning-state-presentation"
 import { planningStatusLabel, type PlanningStatus } from "@/lib/planning-status"
 import { planningApplicationPath } from "@/lib/property-intelligence"
 import { getServerSupabase } from "@/lib/supabase"
@@ -33,6 +34,7 @@ type AlertApplication = {
   proposal: string | null
   location: string | null
   normalized_status: PlanningStatus
+  decision_text: string | null
   decision_due_date: string | null
   decision_date: string | null
   final_grant_date: string | null
@@ -71,7 +73,7 @@ export default async function MyAlertsPage() {
   const supabase = getServerSupabase()
   const { data, error } = await supabase
     .from("planning_alert_subscriptions")
-    .select("id,application_id,enabled,created_at,planning_applications(reference,local_authority,local_authority_code,proposal,location,normalized_status,decision_due_date,decision_date,final_grant_date,appeal_decision_date,withdrawal_date)")
+    .select("id,application_id,enabled,created_at,planning_applications(reference,local_authority,local_authority_code,proposal,location,normalized_status,decision_text,decision_due_date,decision_date,final_grant_date,appeal_decision_date,withdrawal_date)")
     .eq("user_id", currentUser.id)
     .order("created_at", { ascending: false })
 
@@ -152,6 +154,13 @@ function AlertCard({
     : null
   const latestEvent = latestMeaningfulAlertEvent(events, alert.created_at)
   const decisionDue = application ? decisionDuePresentation(application) : null
+  const state = application
+    ? planningSemanticState({
+        normalizedStatus: application.normalized_status,
+        statusLabel: planningStatusLabel(application.normalized_status),
+        decision: application.decision_text,
+      })
+    : null
 
   return (
     <article className="rounded-2xl border border-stone-200 bg-white px-5 py-5 shadow-sm sm:px-6">
@@ -181,10 +190,10 @@ function AlertCard({
 
       <div className="mt-4 grid gap-3 border-y border-stone-100 py-3 sm:grid-cols-2">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-500">Current status</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-500">{state?.heading ?? "Current status"}</p>
           <div className="mt-1.5 flex flex-wrap items-center gap-2">
-            <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800 ring-1 ring-inset ring-emerald-200">
-              {application ? planningStatusLabel(application.normalized_status) : "Status unavailable"}
+            <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${planningStateBadgeClasses(state?.tone ?? "neutral")}`}>
+              {state?.label ?? "Status unavailable"}
             </span>
             {decisionDue ? (
               <span className="text-xs font-medium text-stone-600">
