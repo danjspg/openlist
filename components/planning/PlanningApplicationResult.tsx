@@ -40,6 +40,15 @@ export function PlanningApplicationList({
         const showProposal = Boolean(
           application.proposal && application.proposal !== primaryTitle
         )
+        const hasFinalDecision = Boolean(
+          application.decision && normaliseLabel(application.status) === "decision made"
+        )
+        const currentStatus = hasFinalDecision
+          ? application.decision
+          : application.status
+        const statusClasses = hasFinalDecision
+          ? getDecisionBadgeClasses(application.decision)
+          : "border-emerald-200 bg-emerald-50 text-emerald-800"
 
         return (
           <article
@@ -80,19 +89,19 @@ export function PlanningApplicationList({
               </p>
             ) : null}
 
-            {application.status || application.latestEvent ? (
+            {currentStatus || application.latestEvent ? (
               <div
                 className={`mt-4 grid gap-3 border-y border-stone-100 py-3 ${
                   application.latestEvent ? "sm:grid-cols-2" : ""
                 }`}
               >
-                {application.status ? (
+                {currentStatus ? (
                   <div>
                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
                       Current status
                     </p>
-                    <p className="mt-1.5 inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
-                      {application.status}
+                    <p className={`mt-1.5 inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${statusClasses}`}>
+                      {currentStatus}
                     </p>
                   </div>
                 ) : null}
@@ -108,7 +117,7 @@ export function PlanningApplicationList({
                         {" · "}{formatDate(application.latestEvent.date)}
                       </span>
                     </p>
-                    {application.latestEvent.detail ? (
+                    {application.latestEvent.detail && !hasFinalDecision ? (
                       <p className="mt-1 line-clamp-2 text-xs leading-5 text-stone-500">
                         {application.latestEvent.detail}
                       </p>
@@ -119,7 +128,7 @@ export function PlanningApplicationList({
             ) : null}
 
             {application.applicationType || application.applicant ||
-            (application.decision && application.latestEvent?.label !== "Decision") ? (
+            (application.decision && application.latestEvent?.label !== "Decision" && !hasFinalDecision) ? (
               <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-xs leading-5 text-stone-500">
                 {application.applicationType ? (
                   <span>{application.applicationType}</span>
@@ -127,7 +136,7 @@ export function PlanningApplicationList({
                 {application.applicant ? (
                   <span>Applicant: {application.applicant}</span>
                 ) : null}
-                {application.decision && application.latestEvent?.label !== "Decision" ? (
+                {application.decision && application.latestEvent?.label !== "Decision" && !hasFinalDecision ? (
                   <span>Decision: {application.decision}</span>
                 ) : null}
               </div>
@@ -146,6 +155,32 @@ export function PlanningApplicationList({
       })}
     </div>
   )
+}
+
+function normaliseLabel(value: string | null) {
+  return value?.trim().toLowerCase() ?? ""
+}
+
+function getDecisionBadgeClasses(decision: string | null) {
+  const normalised = normaliseLabel(decision)
+
+  if (normalised.includes("refus")) {
+    return "border-red-200 bg-red-50 text-red-800"
+  }
+
+  if (normalised.includes("grant")) {
+    return "border-emerald-200 bg-emerald-50 text-emerald-800"
+  }
+
+  if (
+    normalised.includes("withdraw") ||
+    normalised.includes("invalid") ||
+    normalised.includes("incomplete")
+  ) {
+    return "border-amber-200 bg-amber-50 text-amber-900"
+  }
+
+  return "border-stone-300 bg-stone-100 text-stone-800"
 }
 
 function formatDate(value: string | null) {
