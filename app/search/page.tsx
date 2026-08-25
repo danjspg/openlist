@@ -7,6 +7,11 @@ import { getPlanningAuthorityByCode } from "@/lib/planning-authorities"
 import { planningApplicationPath } from "@/lib/property-intelligence"
 import { planningProposalTitle } from "@/lib/planning-presentation"
 import {
+  planningSemanticState,
+  planningStateBadgeClasses,
+} from "@/lib/planning-state-presentation"
+import { planningStatusLabel } from "@/lib/planning-status"
+import {
   searchPropertyIntelligence,
   type UnifiedSearchResults,
 } from "@/lib/unified-search"
@@ -334,6 +339,11 @@ function PlanningRow({
 }) {
   const authority = getPlanningAuthorityByCode(application.local_authority_code)
   const href = authority ? planningApplicationPath(authority, application.reference) : "/planning"
+  const state = planningSemanticState({
+    normalizedStatus: application.normalized_status,
+    statusLabel: planningStatusLabel(application.normalized_status),
+    decision: application.decision_text,
+  })
   return (
     <Link href={href} className="block border-t border-stone-200 px-1 py-4 transition hover:bg-stone-50 sm:px-3">
       {badge ? <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-emerald-800">{badge}</p> : null}
@@ -343,7 +353,14 @@ function PlanningRow({
       </div>
       <p className="mt-2 line-clamp-3 font-semibold leading-6 text-stone-950">{planningProposalTitle(application.proposal, "Proposal not recorded")}</p>
       <p className="mt-1 text-sm leading-6 text-stone-500">{application.location || application.local_authority}</p>
-      {distanceKm !== undefined ? <p className="mt-1 text-xs font-medium text-stone-500">{formatDistance(distanceKm)} away</p> : null}
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        {state ? (
+          <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${planningStateBadgeClasses(state.tone)}`}>
+            {state.label}
+          </span>
+        ) : null}
+        {distanceKm !== undefined ? <span className="text-xs font-medium text-stone-500">{formatDistance(distanceKm)} away</span> : null}
+      </div>
     </Link>
   )
 }
