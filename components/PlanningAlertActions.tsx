@@ -4,236 +4,29 @@ import Link from "next/link"
 import { useCallback, useEffect, useState, useSyncExternalStore, useTransition } from "react"
 import { useAuthState } from "@/components/AuthStateProvider"
 import type { PlanningAlertSubscription } from "@/lib/planning-alerts"
-import {
-  disablePlanningAlert,
-  enablePlanningAlert,
-} from "@/app/my-alerts/actions"
+import { disablePlanningAlert, enablePlanningAlert } from "@/app/my-alerts/actions"
 import { shouldShowPlanningAlertControls } from "@/lib/planning-alert-visibility"
 
-type Props = {
-  applicationId: string
-  returnPath: string
-  councilUrl: string | null
-}
-
-const alertButtonClass =
-  "group inline-flex min-h-14 w-full items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-emerald-700 bg-emerald-700 px-4 text-center text-sm font-semibold text-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-emerald-800 hover:bg-emerald-800 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 active:translate-y-0 active:shadow-sm disabled:pointer-events-none disabled:opacity-60 sm:min-h-12 sm:w-auto"
-
-const councilButtonClass =
-  "inline-flex min-h-14 w-full items-center justify-center whitespace-nowrap rounded-xl border border-stone-300 bg-white px-4 text-center text-sm font-semibold text-stone-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-stone-400 hover:text-stone-950 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-400 focus-visible:ring-offset-2 active:translate-y-0 active:shadow-sm sm:min-h-12 sm:w-auto"
-
-function MailIcon() {
-  return (
-    <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-white/15 text-white transition group-hover:bg-white/20" aria-hidden="true">
-      <svg viewBox="0 0 24 24" fill="none" className="size-3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M4 6.75h16v10.5H4z" />
-        <path d="m4.5 7.5 7.5 5.25 7.5-5.25" />
-      </svg>
-    </span>
-  )
-}
-
-function AlertButtonContents() {
-  return (
-    <>
-      <MailIcon />
-      <span>Get email updates</span>
-    </>
-  )
-}
-
-function EnabledStatusContents() {
-  return (
-    <>
-      <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-800" aria-hidden="true">
-        <svg viewBox="0 0 20 20" fill="none" className="size-3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="m5.5 10 3 3 6-6" />
-        </svg>
-      </span>
-      <span>Email updates on</span>
-    </>
-  )
-}
-
+type Props = { applicationId: string; returnPath: string; councilUrl: string | null; allowNewAlerts?: boolean }
+const alertButtonClass = "group inline-flex min-h-14 w-full items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-emerald-700 bg-emerald-700 px-4 text-center text-sm font-semibold text-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-emerald-800 hover:bg-emerald-800 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 active:translate-y-0 active:shadow-sm disabled:pointer-events-none disabled:opacity-60 sm:min-h-12 sm:w-auto"
+const councilButtonClass = "inline-flex min-h-14 w-full items-center justify-center whitespace-nowrap rounded-xl border border-stone-300 bg-white px-4 text-center text-sm font-semibold text-stone-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-stone-400 hover:text-stone-950 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-400 focus-visible:ring-offset-2 active:translate-y-0 active:shadow-sm sm:min-h-12 sm:w-auto"
+function MailIcon() { return <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-white/15 text-white transition group-hover:bg-white/20" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" className="size-3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 6.75h16v10.5H4z" /><path d="m4.5 7.5 7.5 5.25 7.5-5.25" /></svg></span> }
+function AlertButtonContents() { return <><MailIcon /><span>Get email updates</span></> }
+function EnabledStatusContents() { return <><span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-800" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" className="size-3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m5.5 10 3 3 6-6" /></svg></span><span>Email updates on</span></> }
 export function PlanningAlertActions(props: Props) {
   const { isAuthenticated, isResolved } = useAuthState()
   const publicAlertsEnabled = process.env.NEXT_PUBLIC_PLANNING_EMAIL_ALERTS_ENABLED === "true"
-
-  if (!shouldShowPlanningAlertControls(publicAlertsEnabled, isAuthenticated, isResolved)) {
-    return <CouncilOnlyAction councilUrl={props.councilUrl} />
-  }
-
+  if (props.allowNewAlerts === false) return <CouncilOnlyAction councilUrl={props.councilUrl} />
+  if (!shouldShowPlanningAlertControls(publicAlertsEnabled, isAuthenticated, isResolved)) return <CouncilOnlyAction councilUrl={props.councilUrl} />
   return <EnabledPlanningAlertActions {...props} />
 }
-
-function CouncilOnlyAction({ councilUrl }: { councilUrl: string | null }) {
-  return (
-    <div data-planning-lifecycle-actions className="mt-5">
-      {councilUrl ? (
-        <a
-          href={councilUrl}
-          target="_blank"
-          rel="noreferrer"
-          className={councilButtonClass}
-        >
-          Council record
-        </a>
-      ) : (
-        <p className="text-sm leading-6 text-stone-500">
-          An official council link is not available for this recorded application.
-        </p>
-      )}
-    </div>
-  )
-}
-
+function CouncilOnlyAction({ councilUrl }: { councilUrl: string | null }) { return <div data-planning-lifecycle-actions className="mt-5">{councilUrl ? <a href={councilUrl} target="_blank" rel="noreferrer" className={councilButtonClass}>Council record</a> : <p className="text-sm leading-6 text-stone-500">An official council link is not available for this recorded application.</p>}</div> }
 function EnabledPlanningAlertActions({ applicationId, returnPath, councilUrl }: Props) {
-  const { isAuthenticated, isResolved } = useAuthState()
-  const [subscription, setSubscription] = useState<PlanningAlertSubscription | null>(null)
-  const [error, setError] = useState("")
-  const [isPending, startTransition] = useTransition()
-  const signInHref = `/sign-in?redirectTo=${encodeURIComponent(`${returnPath}?alert=1`)}`
-  const alertIntent = useSyncExternalStore(
-    () => () => {},
-    () => new URLSearchParams(window.location.search).get("alert") === "1",
-    () => false
-  )
-
-  const loadSubscription = useCallback(async () => {
-    if (!isAuthenticated) {
-      setSubscription(null)
-      return
-    }
-
-    const response = await fetch(`/api/planning-alerts/${applicationId}`, {
-      cache: "no-store",
-      credentials: "same-origin",
-    })
-    if (!response.ok) throw new Error("Could not load your alert.")
-    const payload = (await response.json()) as { subscription: PlanningAlertSubscription | null }
-    setSubscription(payload.subscription)
-  }, [applicationId, isAuthenticated])
-
-  useEffect(() => {
-    if (!isResolved || !isAuthenticated) return
-    let active = true
-
-    fetch(`/api/planning-alerts/${applicationId}`, {
-      cache: "no-store",
-      credentials: "same-origin",
-    })
-      .then(async (response) => {
-        if (!response.ok) throw new Error("Could not load your alert.")
-        return response.json() as Promise<{ subscription: PlanningAlertSubscription | null }>
-      })
-      .then((payload) => {
-        if (active) setSubscription(payload.subscription)
-      })
-      .catch((loadError) => {
-        if (active) setError(loadError instanceof Error ? loadError.message : "Could not load your alert.")
-      })
-
-    return () => {
-      active = false
-    }
-  }, [applicationId, isAuthenticated, isResolved])
-
-  function handleEnable(formData: FormData) {
-    setError("")
-    startTransition(async () => {
-      try {
-        await enablePlanningAlert(formData)
-        await loadSubscription()
-      } catch (actionError) {
-        setError(actionError instanceof Error ? actionError.message : "Could not start email updates.")
-      }
-    })
-  }
-
-  function handleDisable(formData: FormData) {
-    setError("")
-    startTransition(async () => {
-      try {
-        await disablePlanningAlert(formData)
-        await loadSubscription()
-      } catch (actionError) {
-        setError(actionError instanceof Error ? actionError.message : "Could not stop email updates.")
-      }
-    })
-  }
-
-  return (
-    <div data-planning-lifecycle-actions className="mt-5">
-      {subscription?.enabled ? (
-        <div>
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-nowrap sm:items-center sm:justify-end sm:gap-2">
-            <div className="inline-flex min-h-14 w-full items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-emerald-200 bg-emerald-50 px-4 text-sm font-semibold text-emerald-900 shadow-sm sm:min-h-12 sm:w-auto">
-              <EnabledStatusContents />
-            </div>
-            {councilUrl ? (
-              <a href={councilUrl} target="_blank" rel="noreferrer" className={councilButtonClass}>
-                Council record
-              </a>
-            ) : null}
-          </div>
-
-          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm sm:justify-end">
-            <form action={handleDisable} className="inline-flex">
-              <input type="hidden" name="subscriptionId" value={subscription.id} />
-              <input type="hidden" name="returnPath" value={returnPath} />
-              <button type="submit" disabled={isPending} className="font-medium text-stone-600 underline underline-offset-4 transition hover:text-stone-950 disabled:opacity-60">
-                Stop email updates
-              </button>
-            </form>
-            <span aria-hidden="true" className="text-stone-300">·</span>
-            <Link href="/my-alerts" className="font-medium text-stone-600 underline underline-offset-4 transition hover:text-stone-950">
-              Manage my alerts
-            </Link>
-          </div>
-
-          {!councilUrl ? (
-            <p className="mt-3 text-sm leading-6 text-stone-500 sm:text-right">
-              An official council link is not available for this recorded application.
-            </p>
-          ) : null}
-        </div>
-      ) : (
-        <div>
-          {alertIntent && isAuthenticated ? (
-            <p className="mb-3 text-sm font-medium text-emerald-800">
-              You&apos;re signed in. Confirm to start updates for this application.
-            </p>
-          ) : null}
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-nowrap sm:items-center sm:justify-end sm:gap-2">
-            {isAuthenticated ? (
-              <form action={handleEnable} className="w-full sm:w-auto">
-                <input type="hidden" name="applicationId" value={applicationId} />
-                <input type="hidden" name="returnPath" value={returnPath} />
-                <button type="submit" disabled={isPending} className={alertButtonClass}>
-                  <AlertButtonContents />
-                </button>
-              </form>
-            ) : (
-              <Link href={signInHref} className={alertButtonClass}>
-                <AlertButtonContents />
-              </Link>
-            )}
-            {councilUrl ? (
-              <a href={councilUrl} target="_blank" rel="noreferrer" className={councilButtonClass}>
-                Council record
-              </a>
-            ) : null}
-          </div>
-
-          {!councilUrl ? (
-            <p className="mt-4 text-sm leading-6 text-stone-500">
-              An official council link is not available for this recorded application.
-            </p>
-          ) : null}
-        </div>
-      )}
-
-      {error ? <p className="mt-3 text-sm text-red-700">{error}</p> : null}
-    </div>
-  )
+  const { isAuthenticated, isResolved } = useAuthState(); const [subscription, setSubscription] = useState<PlanningAlertSubscription | null>(null); const [error, setError] = useState(""); const [isPending, startTransition] = useTransition(); const signInHref = `/sign-in?redirectTo=${encodeURIComponent(`${returnPath}?alert=1`)}`
+  const alertIntent = useSyncExternalStore(() => () => {}, () => new URLSearchParams(window.location.search).get("alert") === "1", () => false)
+  const loadSubscription = useCallback(async () => { if (!isAuthenticated) { setSubscription(null); return } const response = await fetch(`/api/planning-alerts/${applicationId}`, { cache: "no-store", credentials: "same-origin" }); if (!response.ok) throw new Error("Could not load your alert."); const payload = (await response.json()) as { subscription: PlanningAlertSubscription | null }; setSubscription(payload.subscription) }, [applicationId, isAuthenticated])
+  useEffect(() => { if (!isResolved || !isAuthenticated) return; let active = true; fetch(`/api/planning-alerts/${applicationId}`, { cache: "no-store", credentials: "same-origin" }).then(async response => { if (!response.ok) throw new Error("Could not load your alert."); return response.json() as Promise<{ subscription: PlanningAlertSubscription | null }> }).then(payload => { if (active) setSubscription(payload.subscription) }).catch(loadError => { if (active) setError(loadError instanceof Error ? loadError.message : "Could not load your alert.") }); return () => { active = false } }, [applicationId, isAuthenticated, isResolved])
+  function handleEnable(formData: FormData) { setError(""); startTransition(async () => { try { await enablePlanningAlert(formData); await loadSubscription() } catch (actionError) { setError(actionError instanceof Error ? actionError.message : "Could not start email updates.") } }) }
+  function handleDisable(formData: FormData) { setError(""); startTransition(async () => { try { await disablePlanningAlert(formData); await loadSubscription() } catch (actionError) { setError(actionError instanceof Error ? actionError.message : "Could not stop email updates.") } }) }
+  return <div data-planning-lifecycle-actions className="mt-5">{subscription?.enabled ? <div><div className="flex flex-col gap-3 sm:flex-row sm:flex-nowrap sm:items-center sm:justify-end sm:gap-2"><div className="inline-flex min-h-14 w-full items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-emerald-200 bg-emerald-50 px-4 text-sm font-semibold text-emerald-900 shadow-sm sm:min-h-12 sm:w-auto"><EnabledStatusContents /></div>{councilUrl ? <a href={councilUrl} target="_blank" rel="noreferrer" className={councilButtonClass}>Council record</a> : null}</div><div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm sm:justify-end"><form action={handleDisable} className="inline-flex"><input type="hidden" name="subscriptionId" value={subscription.id} /><input type="hidden" name="returnPath" value={returnPath} /><button type="submit" disabled={isPending} className="font-medium text-stone-600 underline underline-offset-4 transition hover:text-stone-950 disabled:opacity-60">Stop email updates</button></form><span aria-hidden="true" className="text-stone-300">·</span><Link href="/my-alerts" className="font-medium text-stone-600 underline underline-offset-4 transition hover:text-stone-950">Manage my alerts</Link></div>{!councilUrl ? <p className="mt-3 text-sm leading-6 text-stone-500 sm:text-right">An official council link is not available for this recorded application.</p> : null}</div> : <div>{alertIntent && isAuthenticated ? <p className="mb-3 text-sm font-medium text-emerald-800">You&apos;re signed in. Confirm to start updates for this application.</p> : null}<div className="flex flex-col gap-3 sm:flex-row sm:flex-nowrap sm:items-center sm:justify-end sm:gap-2">{isAuthenticated ? <form action={handleEnable} className="w-full sm:w-auto"><input type="hidden" name="applicationId" value={applicationId} /><input type="hidden" name="returnPath" value={returnPath} /><button type="submit" disabled={isPending} className={alertButtonClass}><AlertButtonContents /></button></form> : <Link href={signInHref} className={alertButtonClass}><AlertButtonContents /></Link>}{councilUrl ? <a href={councilUrl} target="_blank" rel="noreferrer" className={councilButtonClass}>Council record</a> : null}</div>{!councilUrl ? <p className="mt-4 text-sm leading-6 text-stone-500">An official council link is not available for this recorded application.</p> : null}</div>}{error ? <p className="mt-3 text-sm text-red-700">{error}</p> : null}</div>
 }
