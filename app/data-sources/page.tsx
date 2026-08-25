@@ -74,6 +74,53 @@ export default function DataSourcesPage() {
             </div>
           </SourceSection>
 
+          <SourceSection title="Direct planning-register sources">
+            <p>
+              To keep active applications and lifecycle information current, OpenList also reads selected public planning-register pages and official council search services directly. These sources supplement the national dataset; the relevant local authority remains the publisher and authoritative source of the planning record.
+            </p>
+            <p>
+              OpenList uses the LGMA ePlan service for participating authorities including Carlow, Cavan, Clare, Donegal, Galway County, Galway City, Kildare, Kilkenny, Kerry, Laois, Limerick, Leitrim, Longford, Louth, Mayo, Meath, Monaghan, Waterford, Offaly, Roscommon, Sligo, Tipperary, Westmeath and Wicklow. ePlan identifies itself as a service provided by the Local Government Management Agency (LGMA) on behalf of local authorities.
+            </p>
+            <p className="rounded-xl border border-stone-200 bg-stone-50 p-4 text-stone-700">
+              ePlan planning-register information: source © the relevant participating local authority; ePlan service provided by the Local Government Management Agency (LGMA). Reused subject to applicable public-sector information terms and other applicable law.
+            </p>
+            <p>
+              OpenList also uses official public planning-search services operated for Kildare County Council and the Citizens Portal / Agile planning systems used by Cork County Council, Cork City Council and Wexford County Council. Where a technology supplier operates a portal, OpenList attributes the underlying planning information to the relevant council rather than treating the supplier as the owner of the council&apos;s planning register.
+            </p>
+            <p>
+              Council PSI policies commonly distinguish reusable public-sector information from material that is merely displayed for statutory public inspection. OpenList therefore treats its direct-source reuse as applying to planning-register metadata such as references, proposals, locations, statuses, dates and decision outcomes. We do not rely on that general permission to republish applicant-uploaded drawings, plans, reports, photographs, maps, submissions or other third-party material.
+            </p>
+            <p>
+              Personal data appearing in a statutory planning register is not treated as automatically open licensed merely because it is publicly visible. Its handling is governed separately by applicable data-protection law and OpenList&apos;s Privacy Notice. OpenList does not use planning-register personal data for direct marketing.
+            </p>
+            <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
+              <a
+                href="https://www.lgma.ie/en/publications/corporate/reuse-of-public-sector-information.pdf"
+                target="_blank"
+                rel="noreferrer"
+                className={externalLinkClass}
+              >
+                LGMA PSI policy
+              </a>
+              <a
+                href="https://www.eplanning.ie"
+                target="_blank"
+                rel="noreferrer"
+                className={externalLinkClass}
+              >
+                ePlan
+              </a>
+              <a
+                href="https://webgeo.kildarecoco.ie/planningenquiry"
+                target="_blank"
+                rel="noreferrer"
+                className={externalLinkClass}
+              >
+                Kildare planning enquiry
+              </a>
+            </div>
+          </SourceSection>
+
           <SourceSection title="Residential sold prices">
             <p>
               OpenList uses residential sale information published through the Residential Property Price Register maintained by the Property Services Regulatory Authority (PSRA). The register contains sale date, price and address information for residential properties, based on information declared to the Revenue Commissioners for stamp-duty purposes.
@@ -137,7 +184,7 @@ export default function DataSourcesPage() {
               Public datasets can contain omissions, delays, inconsistent status wording and other errors. OpenList can also make mistakes when importing, matching or normalising information. The relevant planning authority remains the authoritative source for a planning application, and the PSRA remains the authoritative publisher of the Residential Property Price Register.
             </p>
             <p>
-              If information matters to a planning, property, legal or financial decision, check the official source before relying on it. OpenList is an independent service and is not affiliated with, sponsored by or endorsed by the Department of Housing, Local Government and Heritage, any local authority, the PSRA or OpenStreetMap.
+              If information matters to a planning, property, legal or financial decision, check the official source before relying on it. OpenList is an independent service and is not affiliated with, sponsored by or endorsed by the Department of Housing, Local Government and Heritage, the LGMA, any local authority, the PSRA, Agile Applications or OpenStreetMap.
             </p>
           </SourceSection>
 
