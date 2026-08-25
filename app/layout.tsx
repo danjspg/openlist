@@ -119,6 +119,9 @@ export default function RootLayout({
                   <Link href="/about#data-methodology" className="transition hover:text-stone-900">
                     Data methodology
                   </Link>
+                  <Link href="/data-sources" className="transition hover:text-stone-900">
+                    Data sources &amp; licensing
+                  </Link>
                   <Link href="/privacy" className="transition hover:text-stone-900">
                     Privacy
                   </Link>
