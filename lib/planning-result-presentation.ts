@@ -15,6 +15,7 @@ export function planningResultRecord(application: PlanningApplication): Planning
     registrationDate: application.registration_date,
     decisionDate: application.decision_date,
     status: planningStatusLabel(application.normalized_status),
+    normalizedStatus: application.normalized_status,
     proposal: planningProposalTitle(application.proposal, "No proposal text recorded"),
     authority: application.local_authority,
     location: planningResultLocation(application.location),
