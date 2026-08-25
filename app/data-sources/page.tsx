@@ -4,7 +4,7 @@ import Link from "next/link"
 export const metadata: Metadata = {
   title: "Data Sources & Licensing | OpenList",
   description:
-    "Official data sources, attribution, licensing and reuse information for planning, sold-price and mapping data used by OpenList.",
+    "Official data sources, attribution, licensing and reuse information for planning, construction, sold-price and mapping data used by OpenList.",
   alternates: {
     canonical: "/data-sources",
   },
@@ -47,28 +47,13 @@ export default function DataSourcesPage() {
               Ireland&apos;s standard Public Sector Information licence permits copying, adaptation, publication, distribution and commercial reuse, subject to conditions including source acknowledgement. Where an individual information provider specifies a different or more restrictive licence for particular material, those specific terms take precedence for that material.
             </p>
             <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
-              <a
-                href="https://data.gov.ie/dataset/national-planning-applications"
-                target="_blank"
-                rel="noreferrer"
-                className={externalLinkClass}
-              >
+              <a href="https://data.gov.ie/dataset/national-planning-applications" target="_blank" rel="noreferrer" className={externalLinkClass}>
                 National Planning Applications dataset
               </a>
-              <a
-                href="https://creativecommons.org/licenses/by/4.0/"
-                target="_blank"
-                rel="noreferrer"
-                className={externalLinkClass}
-              >
+              <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer" className={externalLinkClass}>
                 CC BY 4.0 licence
               </a>
-              <a
-                href="https://circulars.gov.ie/pdf/circular/per/2016/12.pdf"
-                target="_blank"
-                rel="noreferrer"
-                className={externalLinkClass}
-              >
+              <a href="https://circulars.gov.ie/pdf/circular/per/2016/12.pdf" target="_blank" rel="noreferrer" className={externalLinkClass}>
                 Irish PSI licence
               </a>
             </div>
@@ -94,29 +79,37 @@ export default function DataSourcesPage() {
               Personal data appearing in a statutory planning register is not treated as automatically open licensed merely because it is publicly visible. Its handling is governed separately by applicable data-protection law and OpenList&apos;s Privacy Notice. OpenList does not use planning-register personal data for direct marketing.
             </p>
             <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
-              <a
-                href="https://www.lgma.ie/en/publications/corporate/reuse-of-public-sector-information.pdf"
-                target="_blank"
-                rel="noreferrer"
-                className={externalLinkClass}
-              >
+              <a href="https://www.lgma.ie/en/publications/corporate/reuse-of-public-sector-information.pdf" target="_blank" rel="noreferrer" className={externalLinkClass}>
                 LGMA PSI policy
               </a>
-              <a
-                href="https://www.eplanning.ie"
-                target="_blank"
-                rel="noreferrer"
-                className={externalLinkClass}
-              >
+              <a href="https://www.eplanning.ie" target="_blank" rel="noreferrer" className={externalLinkClass}>
                 ePlan
               </a>
-              <a
-                href="https://webgeo.kildarecoco.ie/planningenquiry"
-                target="_blank"
-                rel="noreferrer"
-                className={externalLinkClass}
-              >
+              <a href="https://webgeo.kildarecoco.ie/planningenquiry" target="_blank" rel="noreferrer" className={externalLinkClass}>
                 Kildare planning enquiry
+              </a>
+            </div>
+          </SourceSection>
+
+          <SourceSection title="Construction commencement &amp; completion">
+            <p>
+              OpenList uses the National Building Control Office&apos;s Building Commencement and Completion Data 2014–Present dataset to add post-planning construction context. The dataset contains details of Commencement Notices and Certificates of Compliance on Completion submitted through the Building Control Management System (BCMS) to all 31 Building Control Authorities since 2014.
+            </p>
+            <p>
+              This dataset is published by the National Building Control Office on Ireland&apos;s Open Data Portal under the Creative Commons Attribution 4.0 International licence (CC BY 4.0). OpenList may match and transform these records to connect construction commencement or completion evidence with planning and property records; those matches and derived labels are OpenList processing rather than statements made by the source publisher.
+            </p>
+            <p className="rounded-xl border border-stone-200 bg-stone-50 p-4 text-stone-700">
+              Building commencement and completion information: source National Building Control Office, derived from BCMS records submitted to Building Control Authorities. Licensed under Creative Commons Attribution 4.0 International (CC BY 4.0).
+            </p>
+            <p>
+              A Commencement Notice indicates that the statutory building-control commencement process has been initiated; it is not, by itself, proof that every element of a development was physically started or completed. Likewise, OpenList only presents completion where supported by the published Certificate of Compliance on Completion data and does not infer completion solely from planning status.
+            </p>
+            <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
+              <a href="https://data.gov.ie/dataset/bcnccc" target="_blank" rel="noreferrer" className={externalLinkClass}>
+                Building Commencement and Completion dataset
+              </a>
+              <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer" className={externalLinkClass}>
+                CC BY 4.0 licence
               </a>
             </div>
           </SourceSection>
@@ -135,20 +128,10 @@ export default function DataSourcesPage() {
               OpenList does not claim ownership of the underlying PSRA information. OpenList&apos;s own search, presentation, normalisation and derived analysis are separate from the source register.
             </p>
             <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
-              <a
-                href="https://www.psr.ie/psra-registers/"
-                target="_blank"
-                rel="noreferrer"
-                className={externalLinkClass}
-              >
+              <a href="https://www.psr.ie/psra-registers/" target="_blank" rel="noreferrer" className={externalLinkClass}>
                 PSRA public registers
               </a>
-              <a
-                href="https://www.psr.ie/re-use-of-public-sector-information/"
-                target="_blank"
-                rel="noreferrer"
-                className={externalLinkClass}
-              >
+              <a href="https://www.psr.ie/re-use-of-public-sector-information/" target="_blank" rel="noreferrer" className={externalLinkClass}>
                 PSRA reuse terms
               </a>
             </div>
@@ -159,12 +142,7 @@ export default function DataSourcesPage() {
               Where OpenList displays an OpenStreetMap map, map data is provided by OpenStreetMap contributors. OpenStreetMap data is available under the Open Data Commons Open Database Licence (ODbL). Map attribution is also shown on the map itself where supplied by the embedded map service.
             </p>
             <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
-              <a
-                href="https://www.openstreetmap.org/copyright"
-                target="_blank"
-                rel="noreferrer"
-                className={externalLinkClass}
-              >
+              <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer" className={externalLinkClass}>
                 © OpenStreetMap contributors
               </a>
             </div>
@@ -172,7 +150,7 @@ export default function DataSourcesPage() {
 
           <SourceSection title="What OpenList changes">
             <p>
-              OpenList does not simply republish source pages. We clean and standardise data for search, reconcile fields across authorities, classify planning lifecycle states, connect planning and sold-price context, and may calculate or derive presentation fields from the underlying records. A derived or normalised OpenList value can therefore differ in wording from the source record even where it represents the same underlying information.
+              OpenList does not simply republish source pages. We clean and standardise data for search, reconcile fields across authorities, classify planning lifecycle states, connect planning, construction and sold-price context, and may calculate or derive presentation fields from the underlying records. A derived or normalised OpenList value can therefore differ in wording from the source record even where it represents the same underlying information.
             </p>
             <p>
               We aim to distinguish source facts from OpenList-derived presentation and to avoid implying endorsement by any public authority. Government and local-authority names are used to identify the source of public records; official crests, logos and branding are not used to imply affiliation.
@@ -181,10 +159,10 @@ export default function DataSourcesPage() {
 
           <SourceSection title="Accuracy and authoritative records">
             <p>
-              Public datasets can contain omissions, delays, inconsistent status wording and other errors. OpenList can also make mistakes when importing, matching or normalising information. The relevant planning authority remains the authoritative source for a planning application, and the PSRA remains the authoritative publisher of the Residential Property Price Register.
+              Public datasets can contain omissions, delays, inconsistent status wording and other errors. OpenList can also make mistakes when importing, matching or normalising information. The relevant planning authority remains the authoritative source for a planning application, the National Building Control Office and relevant Building Control Authority remain authoritative for BCMS-derived commencement and completion information, and the PSRA remains the authoritative publisher of the Residential Property Price Register.
             </p>
             <p>
-              If information matters to a planning, property, legal or financial decision, check the official source before relying on it. OpenList is an independent service and is not affiliated with, sponsored by or endorsed by the Department of Housing, Local Government and Heritage, the LGMA, any local authority, the PSRA, Agile Applications or OpenStreetMap.
+              If information matters to a planning, property, legal or financial decision, check the official source before relying on it. OpenList is an independent service and is not affiliated with, sponsored by or endorsed by the Department of Housing, Local Government and Heritage, the LGMA, the National Building Control Office, any local authority or Building Control Authority, the PSRA, Agile Applications or OpenStreetMap.
             </p>
           </SourceSection>
 
