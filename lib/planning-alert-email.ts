@@ -1,6 +1,11 @@
 import { getPlanningAuthorityByCode } from "@/lib/planning-authorities"
 import { planningAlertEventTitle } from "@/lib/planning-alert-delivery-rules"
 import { createPlanningAlertUnsubscribeToken } from "@/lib/planning-alert-unsubscribe"
+import {
+  planningDecisionTone,
+  planningLifecycleTone,
+  type PlanningStateTone,
+} from "@/lib/planning-state-presentation"
 import { countyForPlanningAuthority, planningApplicationPath } from "@/lib/property-intelligence"
 import { getResendClient } from "@/lib/resend"
 import { getPublicSiteUrl } from "@/lib/site-url"
@@ -77,6 +82,53 @@ function emailLinks(delivery: PlanningAlertEmailDelivery) {
   return { applicationUrl, unsubscribeUrl }
 }
 
+function emailState(delivery: PlanningAlertEmailDelivery) {
+  const cleanNewValue = delivery.new_value?.replace(/\s+/g, " ").trim() || null
+  const cleanLabel = delivery.event_label?.replace(/\s+/g, " ").trim() || null
+
+  if (["decision_made", "decision_changed", "appeal_decided"].includes(delivery.event_type)) {
+    const label = cleanNewValue || cleanLabel
+    if (!label) return null
+    return {
+      heading: delivery.event_type === "appeal_decided" ? "Appeal decision" : "Decision",
+      label,
+      tone: planningDecisionTone(label),
+    }
+  }
+
+  if (delivery.event_type === "final_grant") {
+    return { heading: "Current status", label: cleanLabel || "Final grant", tone: "positive" as const }
+  }
+  if (delivery.event_type === "withdrawn") {
+    return { heading: "Current status", label: cleanLabel || "Withdrawn", tone: "negative" as const }
+  }
+  if (delivery.event_type === "further_information_requested") {
+    return { heading: "Current status", label: cleanLabel || "Further information requested", tone: "warning" as const }
+  }
+  if (delivery.event_type === "status_changed" && cleanNewValue) {
+    return {
+      heading: "Current status",
+      label: cleanLabel || cleanNewValue.replace(/_/g, " "),
+      tone: planningLifecycleTone(cleanNewValue, cleanLabel),
+    }
+  }
+
+  return null
+}
+
+function emailToneStyle(tone: PlanningStateTone) {
+  switch (tone) {
+    case "positive":
+      return { border: "#a7f3d0", background: "#ecfdf5", text: "#065f46" }
+    case "negative":
+      return { border: "#fecaca", background: "#fef2f2", text: "#991b1b" }
+    case "warning":
+      return { border: "#fde68a", background: "#fffbeb", text: "#78350f" }
+    default:
+      return { border: "#d6d3d1", background: "#f5f5f4", text: "#292524" }
+  }
+}
+
 export function renderPlanningAlertEmail(delivery: PlanningAlertEmailDelivery) {
   const title = planningAlertEventTitle(delivery.event_type, delivery.event_label)
   const { applicationUrl, unsubscribeUrl } = emailLinks(delivery)
@@ -89,9 +141,12 @@ export function renderPlanningAlertEmail(delivery: PlanningAlertEmailDelivery) {
   const detail = rawDetail && rawDetail.toLocaleLowerCase("en-IE") !== normalisedTitle.toLocaleLowerCase("en-IE")
     ? escapeHtml(rawDetail)
     : null
+  const state = emailState(delivery)
+  const tone = state ? emailToneStyle(state.tone) : null
   const subject = planningAlertSubject(normalisedTitle, delivery.location, delivery.local_authority_code)
   const text = [
     title,
+    state ? `${state.heading}: ${state.label}` : "",
     `Planning reference: ${delivery.application_reference}`,
     `Update date: ${formatDate(delivery.event_date)}`,
     detail ? rawDetail : "",
@@ -113,6 +168,7 @@ export function renderPlanningAlertEmail(delivery: PlanningAlertEmailDelivery) {
             <h1 style="margin:10px 0 0; font-size:26px; line-height:1.25; color:#1c1917;">${escapeHtml(title)}</h1>
           </div>
           <div style="padding:26px 28px;">
+            ${state && tone ? `<div style="margin:0 0 22px; padding:17px 18px; border:1px solid ${tone.border}; border-radius:14px; background:${tone.background}; color:${tone.text};"><div style="font-size:11px; letter-spacing:0.12em; text-transform:uppercase; font-weight:700;">${escapeHtml(state.heading)}</div><div style="margin-top:6px; font-size:20px; line-height:1.35; font-weight:700;">${escapeHtml(state.label)}</div></div>` : ""}
             ${detail ? `<p style="margin:0; font-size:15px; line-height:1.7; color:#1c1917;">${detail}</p>` : ""}
             <div style="margin:22px 0; padding:18px; border:1px solid #e7e5e4; border-radius:14px; background:#fafaf9;">
               <div style="font-size:12px; text-transform:uppercase; font-weight:700; color:#78716c;">Planning reference</div>
