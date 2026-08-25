@@ -13,6 +13,10 @@ import { getPublicSiteUrl } from "@/lib/site-url"
 const authoritativeSourceDisclaimer =
   "OpenList helps you follow this application. The relevant local authority remains the authoritative source for the planning record."
 const PLANNING_ALERT_SUBJECT_MAX_LENGTH = 78
+const UNAVAILABLE_ALERT_VALUES = new Set([
+  "", "-", "n/a", "na", "none", "null", "not applicable", "not available",
+  "not recorded", "not supplied", "undefined", "unknown",
+])
 
 export type PlanningAlertEmailDelivery = {
   delivery_id: string
@@ -46,6 +50,11 @@ function formatDate(value: string) {
     year: "numeric",
     timeZone: "Europe/Dublin",
   }).format(date)
+}
+
+function meaningfulAlertValue(value: string | null | undefined) {
+  const cleaned = value?.replace(/\s+/g, " ").trim() || ""
+  return UNAVAILABLE_ALERT_VALUES.has(cleaned.toLowerCase()) ? null : cleaned
 }
 
 function compactPlanningLocation(location: string | null, authorityCode: string) {
@@ -83,11 +92,11 @@ function emailLinks(delivery: PlanningAlertEmailDelivery) {
 }
 
 function emailState(delivery: PlanningAlertEmailDelivery) {
-  const cleanNewValue = delivery.new_value?.replace(/\s+/g, " ").trim() || null
-  const cleanLabel = delivery.event_label?.replace(/\s+/g, " ").trim() || null
+  const cleanNewValue = meaningfulAlertValue(delivery.new_value)
+  const cleanLabel = meaningfulAlertValue(delivery.event_label)
 
   if (["decision_made", "decision_changed", "appeal_decided"].includes(delivery.event_type)) {
-    const label = cleanNewValue || cleanLabel
+    const label = cleanNewValue
     if (!label) return null
     return {
       heading: delivery.event_type === "appeal_decided" ? "Appeal decision" : "Decision",
@@ -136,7 +145,7 @@ export function renderPlanningAlertEmail(delivery: PlanningAlertEmailDelivery) {
   const reference = escapeHtml(plainReference)
   const proposal = delivery.proposal?.trim() ? escapeHtml(delivery.proposal.trim()) : null
   const location = delivery.location?.trim() ? escapeHtml(delivery.location.trim()) : null
-  const rawDetail = delivery.event_label?.replace(/\s+/g, " ").trim() || ""
+  const rawDetail = meaningfulAlertValue(delivery.event_label) || ""
   const normalisedTitle = title.replace(/\s+/g, " ").trim()
   const detail = rawDetail && rawDetail.toLocaleLowerCase("en-IE") !== normalisedTitle.toLocaleLowerCase("en-IE")
     ? escapeHtml(rawDetail)
