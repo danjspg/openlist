@@ -10,34 +10,33 @@ function isRetryablePlanningUpsertError(error) {
   )
 }
 
-async function enqueuePlanningRevalidation(supabase, batch, label, attempt = 1) {
-  if (batch.length === 0) return []
+async function enqueuePlanningRevalidation(supabase, rows, label, attempt = 1) {
+  if (rows.length === 0) return []
 
-  const queuedAt = new Date().toISOString()
-  const queueRows = batch.map((record) => ({
-    local_authority_code: record.local_authority_code,
-    reference: record.reference,
-    created_at: queuedAt,
+  const requestedAt = new Date().toISOString()
+  const queueRows = rows.map((row) => ({
+    application_id: row.id,
+    requested_at: requestedAt,
   }))
 
   const { error } = await supabase
     .from("planning_revalidation_queue")
-    .upsert(queueRows, { onConflict: "local_authority_code,reference" })
+    .upsert(queueRows, { onConflict: "application_id" })
 
   if (!error) {
-    return batch.map((record) => ({
-      localAuthorityCode: record.local_authority_code,
-      reference: record.reference,
+    return rows.map((row) => ({
+      localAuthorityCode: row.local_authority_code,
+      reference: row.reference,
     }))
   }
 
   if (isRetryablePlanningUpsertError(error) && attempt < 4) {
     const delayMs = attempt * 1000
     console.warn(
-      `${label}: transient Planning revalidation enqueue failure; retrying ${batch.length} rows in ${delayMs}ms (attempt ${attempt}/3).`
+      `${label}: transient Planning revalidation enqueue failure; retrying ${rows.length} rows in ${delayMs}ms (attempt ${attempt}/3).`
     )
     await sleep(delayMs)
-    return enqueuePlanningRevalidation(supabase, batch, label, attempt + 1)
+    return enqueuePlanningRevalidation(supabase, rows, label, attempt + 1)
   }
 
   throw error
@@ -49,15 +48,16 @@ export async function upsertPlanningBatch(
   label,
   attempt = 1
 ) {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("planning_applications")
     .upsert(batch, { onConflict: "local_authority_code,reference" })
+    .select("id,local_authority_code,reference")
 
   if (!error) {
-    // Normal ingestion uses the exact authority/reference queue so revalidation
-    // does not need to flip a marker on the large planning_applications table.
-    // Historical event backfills deliberately bypass this ingestion path.
-    return enqueuePlanningRevalidation(supabase, batch, label)
+    // Normal ingestion writes the durable exact-path queue directly. The
+    // legacy revalidation_pending flag remains readable for compatibility but
+    // no longer needs to be flipped on the large planning_applications table.
+    return enqueuePlanningRevalidation(supabase, data || [], label)
   }
 
   if (error.code === "57014" && batch.length > 10) {
