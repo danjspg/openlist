@@ -10,6 +10,8 @@ type DecisionDueMilestone = {
   formattedDate: string
 }
 
+const ACP_EVENT_SOURCE = "an_coimisiun_pleanala_open_data"
+
 export function PlanningTimeline({
   events,
   decisionDue,
@@ -17,9 +19,12 @@ export function PlanningTimeline({
   events: PlanningEvent[]
   decisionDue?: DecisionDueMilestone | null
 }) {
-  const visibleEvents = preparePublicPlanningTimelineEvents(events)
+  const visibleEvents = preferAuthoritativeAppealMilestones(
+    preparePublicPlanningTimelineEvents(events)
+  )
   if (visibleEvents.length === 0 && !decisionDue) return null
   const hasConstructionInformation = visibleEvents.some(isConstructionPlanningEvent)
+  const hasAppealInformation = visibleEvents.some(isAcpAppealEvent)
   const hasPlanningOutcome = visibleEvents.some(isPlanningOutcomeEvent)
   const firstConstructionEventKey = hasConstructionInformation && !hasPlanningOutcome
     ? visibleEvents.find(isConstructionPlanningEvent)?.event_key ?? null
@@ -38,14 +43,17 @@ export function PlanningTimeline({
       </h2>
       <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">
         {hasConstructionInformation
-          ? "Key dated milestones from planning and official building-control records."
-          : "Key dated milestones from the planning record."}
+          ? "Key dated milestones from planning, appeal and official building-control records."
+          : hasAppealInformation
+            ? "Key dated milestones from the council planning record and An Coimisiún Pleanála appeal records."
+            : "Key dated milestones from the planning record."}
       </p>
 
       <ol className="mt-6 space-y-0">
         {visibleEvents.map((event) => {
           const isImportant = isImportantOutcome(event)
           const showPlanningGap = event.event_key === firstConstructionEventKey
+          const appealUrl = acpCaseUrl(event)
           return (
             <React.Fragment key={event.id || event.event_key}>
               {showPlanningGap ? (
@@ -87,6 +95,18 @@ export function PlanningTimeline({
                     <time dateTime={event.event_date}>{formatEventDate(event.event_date)}</time>
                     {isConstructionPlanningEvent(event) ? (
                       <span>Official NBCO/BCMS data</span>
+                    ) : isAcpAppealEvent(event) ? (
+                      <span>Official An Coimisiún Pleanála data</span>
+                    ) : null}
+                    {appealUrl ? (
+                      <a
+                        href={appealUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-semibold text-emerald-800 underline decoration-emerald-300 underline-offset-2 hover:text-emerald-950"
+                      >
+                        View appeal case
+                      </a>
                     ) : null}
                   </div>
                 </div>
@@ -123,6 +143,31 @@ export function PlanningTimeline({
       </ol>
     </section>
   )
+}
+
+function preferAuthoritativeAppealMilestones(events: PlanningEvent[]) {
+  const authoritativeKeys = new Set(
+    events
+      .filter(isAcpAppealEvent)
+      .map((event) => `${event.event_type}:${event.event_date}`)
+  )
+  return events.filter((event) => {
+    if (!["appeal_lodged", "appeal_decided"].includes(event.event_type)) return true
+    const key = `${event.event_type}:${event.event_date}`
+    return !authoritativeKeys.has(key) || isAcpAppealEvent(event)
+  })
+}
+
+function isAcpAppealEvent(event: PlanningEvent) {
+  return event.event_source === ACP_EVENT_SOURCE &&
+    ["appeal_lodged", "appeal_decided"].includes(event.event_type)
+}
+
+function acpCaseUrl(event: PlanningEvent) {
+  if (!isAcpAppealEvent(event)) return null
+  const caseNumber = event.event_key.match(/^acp:([^:]+):/)?.[1]
+  const numeric = caseNumber?.match(/\d{5,}/)?.[0]
+  return numeric ? `https://www.pleanala.ie/en-ie/case/${numeric}` : null
 }
 
 function isImportantOutcome(event: PlanningEvent) {
