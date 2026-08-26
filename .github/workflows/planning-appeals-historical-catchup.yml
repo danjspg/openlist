@@ -1,0 +1,67 @@
+name: Catch Up Historical Planning Appeals
+
+on:
+  schedule:
+    # Pace historical ACP case-page lookups across roughly three weeks.
+    # Four small batches per day avoids bursty traffic and never re-fetches the bulk ACP dataset.
+    - cron: "17 0,6,12,18 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: planning-appeals-historical-catchup
+  cancel-in-progress: false
+
+jobs:
+  lookup:
+    name: Lookup historical ACP references
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Enrich bounded historical appeal batch
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ACP_HISTORICAL_LOOKUP_LIMIT: "250"
+          ACP_HISTORICAL_LOOKUP_DELAY_MS: "750"
+        run: node scripts/enrich-historical-planning-appeals.mjs
+
+  process:
+    name: Process stored appeal changes
+    needs: lookup
+    if: ${{ always() && needs.lookup.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Process durable ACP queue
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ACP_PROCESS_BATCH_SIZE: "100"
+          ACP_PROCESS_MAX_BATCHES: "10"
+        run: node scripts/process-planning-appeals.mjs
+      - name: Revalidate changed planning detail pages
+        env:
+          PLANNING_REVALIDATION_URL: ${{ secrets.PLANNING_REVALIDATION_URL }}
+          PLANNING_REVALIDATION_SECRET: ${{ secrets.PLANNING_REVALIDATION_SECRET }}
+        run: node scripts/drain-planning-revalidation.mjs
