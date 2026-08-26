@@ -1,5 +1,7 @@
 name: Refresh Planning Appeals
 
+# The publisher declares a weekly cadence. Push runs are limited to integration
+# files so source/parser changes are exercised immediately before the next schedule.
 on:
   schedule:
     - cron: "37 6 * * 2"
