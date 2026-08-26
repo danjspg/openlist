@@ -6,11 +6,6 @@ on:
     # around 21:54, so run the following morning rather than before the source update.
     - cron: "0 6 * * 4"
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths:
-      - ".github/workflows/ppr-refresh.yml"
 
 permissions:
   contents: read
@@ -20,7 +15,36 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  refresh:
+  source:
+    name: Fetch PPR source snapshot
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      year: ${{ steps.meta.outputs.year }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Resolve current PPR year
+        id: meta
+        run: echo "year=$(date -u +%Y)" >> "$GITHUB_OUTPUT"
+
+      - name: Download source once
+        env:
+          PPR_ALLOW_INSECURE_TLS: ${{ secrets.PPR_ALLOW_INSECURE_TLS || '1' }}
+        run: node scripts/download-ppr-csvs.mjs --force "${{ steps.meta.outputs.year }}"
+
+      - name: Preserve source snapshot for recoverable processing
+        uses: actions/upload-artifact@v4
+        with:
+          name: ppr-source-${{ steps.meta.outputs.year }}-${{ github.run_id }}
+          path: data/ppr/PPR-${{ steps.meta.outputs.year }}.csv
+          if-no-files-found: error
+          retention-days: 14
+
+  process:
+    name: Process staged PPR snapshot
+    needs: source
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -30,28 +54,34 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Refresh sold-prices data
+      - name: Restore source snapshot
+        uses: actions/download-artifact@v4
+        with:
+          name: ppr-source-${{ needs.source.outputs.year }}-${{ github.run_id }}
+          path: data/ppr
+
+      - name: Ingest staged sold-prices data
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          PPR_ALLOW_INSECURE_TLS: ${{ secrets.PPR_ALLOW_INSECURE_TLS || '1' }}
-          PPR_DEFER_DERIVED_REFRESH: "1"
-        run: |
-          echo "Starting PPR refresh job"
-          node scripts/refresh-ppr.mjs
-          node scripts/refresh-ppr-dublin-district-insights.mjs
-          echo "PPR refresh job completed"
+        run: node scripts/process-ppr-snapshot.mjs "data/ppr/PPR-${{ needs.source.outputs.year }}.csv"
+
+      - name: Refresh Dublin district insights
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/refresh-ppr-dublin-district-insights.mjs
 
   publish-snapshots:
     name: Publish current sold-price counts
     if: ${{ always() }}
-    needs: refresh
+    needs: process
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
