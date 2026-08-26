@@ -23,37 +23,131 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Refresh Cork Agile planning applications
+      - name: Refresh Cork County planning applications
+        id: cork_county
+        continue-on-error: true
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          echo "Starting Cork Agile planning applications refresh job"
-          node scripts/ingest-cork-planning-applications.mjs --authority CORKCOCO
-          node scripts/ingest-cork-planning-applications.mjs --authority CORKCITY
-          node scripts/ingest-cork-planning-applications.mjs --authority WEXFORD
-          echo "Cork Agile planning applications refresh job completed"
+          retry() {
+            local attempt=1
+            local max_attempts=4
+            local delay=5
+            until "$@"; do
+              if (( attempt >= max_attempts )); then
+                echo "Command failed after ${attempt} attempts: $*" >&2
+                return 1
+              fi
+              echo "Attempt ${attempt} failed; retrying in ${delay}s: $*" >&2
+              sleep "$delay"
+              attempt=$((attempt + 1))
+              delay=$((delay * 2))
+            done
+          }
+          retry node scripts/ingest-cork-planning-applications.mjs --authority CORKCOCO
+
+      - name: Refresh Cork City planning applications
+        id: cork_city
+        continue-on-error: true
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          retry() {
+            local attempt=1
+            local max_attempts=4
+            local delay=5
+            until "$@"; do
+              if (( attempt >= max_attempts )); then
+                echo "Command failed after ${attempt} attempts: $*" >&2
+                return 1
+              fi
+              echo "Attempt ${attempt} failed; retrying in ${delay}s: $*" >&2
+              sleep "$delay"
+              attempt=$((attempt + 1))
+              delay=$((delay * 2))
+            done
+          }
+          retry node scripts/ingest-cork-planning-applications.mjs --authority CORKCITY
+
+      - name: Refresh Wexford planning applications
+        id: wexford
+        continue-on-error: true
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          retry() {
+            local attempt=1
+            local max_attempts=4
+            local delay=5
+            until "$@"; do
+              if (( attempt >= max_attempts )); then
+                echo "Command failed after ${attempt} attempts: $*" >&2
+                return 1
+              fi
+              echo "Attempt ${attempt} failed; retrying in ${delay}s: $*" >&2
+              sleep "$delay"
+              attempt=$((attempt + 1))
+              delay=$((delay * 2))
+            done
+          }
+          retry node scripts/ingest-cork-planning-applications.mjs --authority WEXFORD
 
       - name: Refresh Kildare official planning applications
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: node scripts/ingest-kildare-planning-applications.mjs
-
-      - name: Refresh rolling national planning applications
+        id: kildare
+        continue-on-error: true
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          echo "Starting rolling national planning applications refresh job"
-          node scripts/ingest-national-planning-applications.mjs
-          echo "Rolling national planning applications refresh job completed"
+          retry() {
+            local attempt=1
+            local max_attempts=4
+            local delay=5
+            until "$@"; do
+              if (( attempt >= max_attempts )); then
+                echo "Command failed after ${attempt} attempts: $*" >&2
+                return 1
+              fi
+              echo "Attempt ${attempt} failed; retrying in ${delay}s: $*" >&2
+              sleep "$delay"
+              attempt=$((attempt + 1))
+              delay=$((delay * 2))
+            done
+          }
+          retry node scripts/ingest-kildare-planning-applications.mjs
+
+      - name: Refresh rolling national planning applications
+        id: national
+        continue-on-error: true
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          retry() {
+            local attempt=1
+            local max_attempts=4
+            local delay=5
+            until "$@"; do
+              if (( attempt >= max_attempts )); then
+                echo "Command failed after ${attempt} attempts: $*" >&2
+                return 1
+              fi
+              echo "Attempt ${attempt} failed; retrying in ${delay}s: $*" >&2
+              sleep "$delay"
+              attempt=$((attempt + 1))
+              delay=$((delay * 2))
+            done
+          }
+          retry node scripts/ingest-national-planning-applications.mjs
 
       - name: Revalidate changed planning detail pages
         if: ${{ always() }}
@@ -63,13 +157,52 @@ jobs:
         run: node scripts/drain-planning-revalidation.mjs
 
       - name: Refresh bounded historical planning statuses
+        id: historical
+        if: ${{ always() }}
+        continue-on-error: true
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          echo "Starting bounded historical planning status refresh"
-          node scripts/refresh-historical-planning-statuses.mjs
-          echo "Bounded historical planning status refresh completed"
+          retry() {
+            local attempt=1
+            local max_attempts=3
+            local delay=5
+            until "$@"; do
+              if (( attempt >= max_attempts )); then
+                echo "Command failed after ${attempt} attempts: $*" >&2
+                return 1
+              fi
+              echo "Attempt ${attempt} failed; retrying in ${delay}s: $*" >&2
+              sleep "$delay"
+              attempt=$((attempt + 1))
+              delay=$((delay * 2))
+            done
+          }
+          retry node scripts/refresh-historical-planning-statuses.mjs
+
+      - name: Report source refresh failures
+        if: ${{ always() }}
+        env:
+          CORK_COUNTY: ${{ steps.cork_county.outcome }}
+          CORK_CITY: ${{ steps.cork_city.outcome }}
+          WEXFORD: ${{ steps.wexford.outcome }}
+          KILDARE: ${{ steps.kildare.outcome }}
+          NATIONAL: ${{ steps.national.outcome }}
+          HISTORICAL: ${{ steps.historical.outcome }}
+        run: |
+          failed=0
+          for source in CORK_COUNTY CORK_CITY WEXFORD KILDARE NATIONAL HISTORICAL; do
+            outcome="${!source}"
+            echo "${source}: ${outcome}"
+            if [[ "$outcome" != "success" ]]; then
+              failed=1
+            fi
+          done
+          if (( failed )); then
+            echo "One or more planning sources failed after retries. Other sources were still allowed to complete." >&2
+            exit 1
+          fi
 
   publish-snapshots:
     name: Publish current Planning counts
