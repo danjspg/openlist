@@ -29,29 +29,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Each importer owns retry/backoff at the individual HTTP request level.
+      # Do not wrap a whole importer in workflow retries: a downstream/database
+      # failure must not cause OpenList to repeat an already-successful source crawl.
       - name: Refresh Cork County planning applications
         id: cork_county
         continue-on-error: true
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: |
-          retry() {
-            local attempt=1
-            local max_attempts=4
-            local delay=5
-            until "$@"; do
-              if (( attempt >= max_attempts )); then
-                echo "Command failed after ${attempt} attempts: $*" >&2
-                return 1
-              fi
-              echo "Attempt ${attempt} failed; retrying in ${delay}s: $*" >&2
-              sleep "$delay"
-              attempt=$((attempt + 1))
-              delay=$((delay * 2))
-            done
-          }
-          retry node scripts/ingest-cork-planning-applications.mjs --authority CORKCOCO
+        run: node scripts/ingest-cork-planning-applications.mjs --authority CORKCOCO
 
       - name: Refresh Cork City planning applications
         id: cork_city
@@ -59,23 +46,7 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: |
-          retry() {
-            local attempt=1
-            local max_attempts=4
-            local delay=5
-            until "$@"; do
-              if (( attempt >= max_attempts )); then
-                echo "Command failed after ${attempt} attempts: $*" >&2
-                return 1
-              fi
-              echo "Attempt ${attempt} failed; retrying in ${delay}s: $*" >&2
-              sleep "$delay"
-              attempt=$((attempt + 1))
-              delay=$((delay * 2))
-            done
-          }
-          retry node scripts/ingest-cork-planning-applications.mjs --authority CORKCITY
+        run: node scripts/ingest-cork-planning-applications.mjs --authority CORKCITY
 
       - name: Refresh Wexford planning applications
         id: wexford
@@ -83,23 +54,7 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: |
-          retry() {
-            local attempt=1
-            local max_attempts=4
-            local delay=5
-            until "$@"; do
-              if (( attempt >= max_attempts )); then
-                echo "Command failed after ${attempt} attempts: $*" >&2
-                return 1
-              fi
-              echo "Attempt ${attempt} failed; retrying in ${delay}s: $*" >&2
-              sleep "$delay"
-              attempt=$((attempt + 1))
-              delay=$((delay * 2))
-            done
-          }
-          retry node scripts/ingest-cork-planning-applications.mjs --authority WEXFORD
+        run: node scripts/ingest-cork-planning-applications.mjs --authority WEXFORD
 
       - name: Refresh Kildare official planning applications
         id: kildare
@@ -107,23 +62,7 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: |
-          retry() {
-            local attempt=1
-            local max_attempts=4
-            local delay=5
-            until "$@"; do
-              if (( attempt >= max_attempts )); then
-                echo "Command failed after ${attempt} attempts: $*" >&2
-                return 1
-              fi
-              echo "Attempt ${attempt} failed; retrying in ${delay}s: $*" >&2
-              sleep "$delay"
-              attempt=$((attempt + 1))
-              delay=$((delay * 2))
-            done
-          }
-          retry node scripts/ingest-kildare-planning-applications.mjs
+        run: node scripts/ingest-kildare-planning-applications.mjs
 
       - name: Refresh rolling national planning applications
         id: national
@@ -131,23 +70,7 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: |
-          retry() {
-            local attempt=1
-            local max_attempts=4
-            local delay=5
-            until "$@"; do
-              if (( attempt >= max_attempts )); then
-                echo "Command failed after ${attempt} attempts: $*" >&2
-                return 1
-              fi
-              echo "Attempt ${attempt} failed; retrying in ${delay}s: $*" >&2
-              sleep "$delay"
-              attempt=$((attempt + 1))
-              delay=$((delay * 2))
-            done
-          }
-          retry node scripts/ingest-national-planning-applications.mjs
+        run: node scripts/ingest-national-planning-applications.mjs
 
       - name: Revalidate changed planning detail pages
         if: ${{ always() }}
@@ -163,23 +86,7 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: |
-          retry() {
-            local attempt=1
-            local max_attempts=3
-            local delay=5
-            until "$@"; do
-              if (( attempt >= max_attempts )); then
-                echo "Command failed after ${attempt} attempts: $*" >&2
-                return 1
-              fi
-              echo "Attempt ${attempt} failed; retrying in ${delay}s: $*" >&2
-              sleep "$delay"
-              attempt=$((attempt + 1))
-              delay=$((delay * 2))
-            done
-          }
-          retry node scripts/refresh-historical-planning-statuses.mjs
+        run: node scripts/refresh-historical-planning-statuses.mjs
 
       - name: Report source refresh failures
         if: ${{ always() }}
@@ -200,7 +107,7 @@ jobs:
             fi
           done
           if (( failed )); then
-            echo "One or more planning sources failed after retries. Other sources were still allowed to complete." >&2
+            echo "One or more planning stages failed. Successful sources were not repeated and other sources were still allowed to complete." >&2
             exit 1
           fi
 
