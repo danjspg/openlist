@@ -7,13 +7,19 @@ import { planningApplicationPath, planningGridToWgs84 } from "@/lib/property-int
 
 export function planningResultRecord(application: PlanningApplication): PlanningResultRecord {
   const authority = getPlanningAuthorityByCode(application.local_authority_code)
-  const decision = planningResultDecision(application.decision_text)
+  const councilDecision = planningResultDecision(application.decision_text)
+  const appealDecision = planningResultDecision(application.appeal_decision_text)
+  const decision = application.normalized_status === "appeal_decided"
+    ? appealDecision
+    : councilDecision
 
   return {
     id: application.id,
     reference: application.reference,
     registrationDate: application.registration_date,
-    decisionDate: application.decision_date,
+    decisionDate: application.normalized_status === "appeal_decided"
+      ? application.appeal_decision_date
+      : application.decision_date,
     status: planningStatusLabel(application.normalized_status),
     normalizedStatus: application.normalized_status,
     proposal: planningProposalTitle(application.proposal, "No proposal text recorded"),
@@ -22,7 +28,7 @@ export function planningResultRecord(application: PlanningApplication): Planning
     applicant: application.applicant_name,
     applicationType: planningResultApplicationType(application.application_type),
     decision,
-    latestEvent: latestPlanningLifecycleEvent(application, decision),
+    latestEvent: latestPlanningLifecycleEvent(application, councilDecision, appealDecision),
     detailHref: authority ? planningApplicationPath(authority, application.reference) : null,
     coordinates: planningGridToWgs84(application),
   }
@@ -67,13 +73,14 @@ export function planningResultDecision(value: string | null) {
 
 function latestPlanningLifecycleEvent(
   application: PlanningApplication,
-  decision: string | null
+  councilDecision: string | null,
+  appealDecision: string | null
 ): PlanningResultRecord["latestEvent"] {
   type LifecycleEvent = NonNullable<PlanningResultRecord["latestEvent"]>
 
   const events: Array<LifecycleEvent | null> = [
     application.appeal_decision_date
-      ? { label: "Appeal decision", date: application.appeal_decision_date, detail: null }
+      ? { label: "Appeal decision", date: application.appeal_decision_date, detail: appealDecision }
       : null,
     application.final_grant_date
       ? { label: "Final grant", date: application.final_grant_date, detail: null }
@@ -85,7 +92,7 @@ function latestPlanningLifecycleEvent(
       ? {
           label: "Decision",
           date: application.decision_date,
-          detail: decision,
+          detail: councilDecision,
         }
       : null,
     application.appeal_lodged_date
