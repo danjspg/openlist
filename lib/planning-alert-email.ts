@@ -17,6 +17,7 @@ const UNAVAILABLE_ALERT_VALUES = new Set([
   "", "-", "n/a", "na", "none", "null", "not applicable", "not available",
   "not recorded", "not supplied", "undefined", "unknown",
 ])
+const ISO_DATE_VALUE = /^\d{4}-\d{2}-\d{2}$/
 
 export type PlanningAlertEmailDelivery = {
   delivery_id: string
@@ -95,13 +96,28 @@ function emailState(delivery: PlanningAlertEmailDelivery) {
   const cleanNewValue = meaningfulAlertValue(delivery.new_value)
   const cleanLabel = meaningfulAlertValue(delivery.event_label)
 
-  if (["decision_made", "decision_changed", "appeal_decided"].includes(delivery.event_type)) {
+  if (["decision_made", "decision_changed"].includes(delivery.event_type)) {
     const label = cleanNewValue
     if (!label) return null
     return {
-      heading: delivery.event_type === "appeal_decided" ? "Appeal decision" : "Decision",
+      heading: "Decision",
       label,
       tone: planningDecisionTone(label),
+    }
+  }
+
+  if (delivery.event_type === "appeal_decided") {
+    if (cleanNewValue && !ISO_DATE_VALUE.test(cleanNewValue)) {
+      return {
+        heading: "Appeal decision",
+        label: cleanNewValue,
+        tone: planningDecisionTone(cleanNewValue),
+      }
+    }
+    return {
+      heading: "Current status",
+      label: "Appeal decided",
+      tone: "neutral" as const,
     }
   }
 
