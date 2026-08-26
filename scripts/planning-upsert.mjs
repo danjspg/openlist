@@ -10,6 +10,39 @@ function isRetryablePlanningUpsertError(error) {
   )
 }
 
+async function enqueuePlanningRevalidation(supabase, batch, label, attempt = 1) {
+  if (batch.length === 0) return []
+
+  const queuedAt = new Date().toISOString()
+  const queueRows = batch.map((record) => ({
+    local_authority_code: record.local_authority_code,
+    reference: record.reference,
+    created_at: queuedAt,
+  }))
+
+  const { error } = await supabase
+    .from("planning_revalidation_queue")
+    .upsert(queueRows, { onConflict: "local_authority_code,reference" })
+
+  if (!error) {
+    return batch.map((record) => ({
+      localAuthorityCode: record.local_authority_code,
+      reference: record.reference,
+    }))
+  }
+
+  if (isRetryablePlanningUpsertError(error) && attempt < 4) {
+    const delayMs = attempt * 1000
+    console.warn(
+      `${label}: transient Planning revalidation enqueue failure; retrying ${batch.length} rows in ${delayMs}ms (attempt ${attempt}/3).`
+    )
+    await sleep(delayMs)
+    return enqueuePlanningRevalidation(supabase, batch, label, attempt + 1)
+  }
+
+  throw error
+}
+
 export async function upsertPlanningBatch(
   supabase,
   batch,
@@ -18,19 +51,13 @@ export async function upsertPlanningBatch(
 ) {
   const { error } = await supabase
     .from("planning_applications")
-    .upsert(
-      batch.map((record) => ({ ...record, revalidation_pending: true })),
-      { onConflict: "local_authority_code,reference" }
-    )
+    .upsert(batch, { onConflict: "local_authority_code,reference" })
 
   if (!error) {
-    // Issue #4 can enqueue these exact authority/reference pairs for
-    // revalidatePath immediately after this committed batch. Historical event
-    // backfills deliberately bypass this ingestion path.
-    return batch.map((record) => ({
-      localAuthorityCode: record.local_authority_code,
-      reference: record.reference,
-    }))
+    // Normal ingestion uses the exact authority/reference queue so revalidation
+    // does not need to flip a marker on the large planning_applications table.
+    // Historical event backfills deliberately bypass this ingestion path.
+    return enqueuePlanningRevalidation(supabase, batch, label)
   }
 
   if (error.code === "57014" && batch.length > 10) {
