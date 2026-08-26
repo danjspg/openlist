@@ -52,14 +52,13 @@ async function fetchAllFeatures() {
   for (let offset = 0; ; offset += PAGE_SIZE) {
     const params = new URLSearchParams({
       where: "1=1",
-      outFields: "OBJECTID,ABPCASEID,DEVDESC,DEVADDRESS,LODGON,LODGEDON,DECISION,DECIDED_ON,LINKABPWEB,PLANINGATY,CATEGORY,UPDATED_ON",
+      outFields: "OBJECTID,ABPCASEID,DEVDESC,DEVADDRESS,LODGEDON,DECISION,DECIDED_ON,LINKABPWEB,PLANINGATY,CATEGORY,UPDATED_ON",
       returnGeometry: "false",
       orderByFields: "OBJECTID ASC",
       resultOffset: String(offset),
       resultRecordCount: String(PAGE_SIZE),
       f: "json",
     })
-    // LODGON is intentionally harmless if the source ignores unknown outFields; LODGEDON is the canonical field.
     const data = await fetchWithRetry(`${ACP_QUERY_URL}?${params.toString()}`)
     if (data?.error) throw new Error(data.error.message || JSON.stringify(data.error))
     const features = data?.features || []
