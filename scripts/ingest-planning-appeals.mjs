@@ -104,8 +104,9 @@ async function enrichCasePages() {
   if (ENRICH_LIMIT === 0) return { attempted: 0, enriched: 0, failures: 0 }
   const { data, error } = await supabase
     .from("planning_appeal_cases")
-    .select("id,acp_case_number,source_url,planning_authority_case_reference,case_type,source_updated_at,received_date")
-    .or("planning_authority_case_reference.is.null,case_type.is.null")
+    .select("id,acp_case_number,source_url,planning_authority_case_reference,source_updated_at,received_date,category")
+    .ilike("category", "Appeals%")
+    .is("planning_authority_case_reference", null)
     .not("source_url", "is", null)
     .order("source_updated_at", { ascending: false, nullsFirst: false })
     .order("received_date", { ascending: false, nullsFirst: false })
@@ -119,12 +120,14 @@ async function enrichCasePages() {
       const html = await fetchWithRetry(row.source_url, { json: false, retries: 3 })
       if (!html) continue
       const parsed = parseAcpCasePage(html)
-      const updates = {}
-      if (parsed.planningAuthorityCaseReference) updates.planning_authority_case_reference = parsed.planningAuthorityCaseReference
-      if (parsed.caseType) updates.case_type = parsed.caseType
-      if (Object.keys(updates).length) {
-        updates.updated_at = new Date().toISOString()
-        const { error: updateError } = await supabase.from("planning_appeal_cases").update(updates).eq("id", row.id)
+      if (parsed.planningAuthorityCaseReference) {
+        const { error: updateError } = await supabase
+          .from("planning_appeal_cases")
+          .update({
+            planning_authority_case_reference: parsed.planningAuthorityCaseReference,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", row.id)
         if (updateError) throw updateError
         enriched += 1
       }
