@@ -79,15 +79,6 @@ jobs:
           PLANNING_REVALIDATION_SECRET: ${{ secrets.PLANNING_REVALIDATION_SECRET }}
         run: node scripts/drain-planning-revalidation.mjs
 
-      - name: Refresh bounded historical planning statuses
-        id: historical
-        if: ${{ always() }}
-        continue-on-error: true
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: node scripts/refresh-historical-planning-statuses.mjs
-
       - name: Report source refresh failures
         if: ${{ always() }}
         env:
@@ -96,10 +87,9 @@ jobs:
           WEXFORD: ${{ steps.wexford.outcome }}
           KILDARE: ${{ steps.kildare.outcome }}
           NATIONAL: ${{ steps.national.outcome }}
-          HISTORICAL: ${{ steps.historical.outcome }}
         run: |
           failed=0
-          for source in CORK_COUNTY CORK_CITY WEXFORD KILDARE NATIONAL HISTORICAL; do
+          for source in CORK_COUNTY CORK_CITY WEXFORD KILDARE NATIONAL; do
             outcome="${!source}"
             echo "${source}: ${outcome}"
             if [[ "$outcome" != "success" ]]; then
