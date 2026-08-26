@@ -4,8 +4,10 @@ import { EPLAN_AUTHORITIES, fetchEplanApplication } from "../lib/eplan-planning-
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
 })
-const limit = Math.max(1, Math.min(Number(process.env.EPLAN_ACTIVE_ENRICH_LIMIT || 500), 500))
-const delayMs = Math.max(500, Number(process.env.EPLAN_ACTIVE_ENRICH_DELAY_MS || 750))
+const catchupMode = process.env.EPLAN_CATCHUP_MODE === "historical"
+const defaultLimit = catchupMode ? 80 : 500
+const limit = Math.max(1, Math.min(Number(process.env.EPLAN_ACTIVE_ENRICH_LIMIT || defaultLimit), catchupMode ? 200 : 500))
+const delayMs = Math.max(500, Number(process.env.EPLAN_ACTIVE_ENRICH_DELAY_MS || (catchupMode ? 1000 : 750)))
 const afterId = process.env.EPLAN_ACTIVE_ENRICH_AFTER_ID || ""
 const dryRun = process.argv.includes("--dry-run")
 
@@ -39,20 +41,12 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
 async function persistLifecycleUpdates(candidate, updates) {
   const { error } = await supabase.from("planning_applications")
-    // Do not flip revalidation_pending here. That partial-index change turns
-    // an otherwise HOT lifecycle update into a 13s rewrite across the large
-    // Planning GIN indexes. Timeline events remain the durable change record.
     .update(updates)
     .eq("id", candidate.id)
     .eq("reference", candidate.reference)
     .eq("local_authority_code", candidate.local_authority_code)
   if (!error) return { ok: true, slowPath: false }
 
-  // A small number of very large legacy rows cannot finish their index writes
-  // within PostgREST's normal request statement timeout. Keep ordinary writes
-  // on the fast table path, but complete just those rows through a narrowly
-  // privileged, 60-second function. This prevents one outlier from aborting a
-  // whole authority and does not raise the global/API timeout.
   if (error.code !== "57014") return { ok: false, error }
   const { error: fallbackError } = await supabase.rpc("openlist_apply_eplan_lifecycle_update", {
     p_id: candidate.id,
@@ -70,13 +64,13 @@ async function persistLifecycleUpdates(candidate, updates) {
 }
 
 async function loadCandidates() {
+  if (catchupMode) {
+    const { data, error } = await supabase.rpc("openlist_eplan_lifecycle_catchup_candidates", { p_limit: limit })
+    if (error) throw error
+    return (data || []).filter((row) => authorityCodes.includes(row.local_authority_code))
+  }
+
   const selected = `id,reference,local_authority_code,normalized_status,${lifecycleFields.join(",")}`
-  // PostgREST predicates combining status and several `is null` fields caused
-  // statement timeouts on the production corpus. Load a compact active cohort
-  // through the existing status/authority indexes, then apply the actionable-gap
-  // rules locally. Do not order by UUID here: the extra sort also exceeds the
-  // API statement timeout. Per-authority runs remain below PostgREST's 1,000-row
-  // response cap and the worker still sends at most `limit` pages.
   let query = supabase.from("planning_applications")
     .select(selected)
     .in("local_authority_code", authorityCodes)
@@ -95,8 +89,23 @@ async function loadCandidates() {
     .slice(0, limit)
 }
 
+async function recordCatchupAttempt(candidate, outcome, fieldsAdded = 0, lastError = null) {
+  if (!catchupMode || dryRun) return
+  const now = new Date().toISOString()
+  const { error } = await supabase.from("eplan_lifecycle_catchup_attempts").upsert({
+    application_id: candidate.id,
+    attempted_at: now,
+    outcome,
+    fields_added: fieldsAdded,
+    last_error: lastError,
+    updated_at: now,
+  }, { onConflict: "application_id" })
+  if (error) throw error
+}
+
 const candidates = await loadCandidates()
 const report = {
+  mode: catchupMode ? "historical_catchup" : "active",
   authorities: authorityCodes,
   selected: candidates.length,
   fetched: 0,
@@ -109,46 +118,67 @@ const report = {
   fields: {},
 }
 for (const candidate of candidates) {
-  const result = await fetchEplanApplication(candidate.local_authority_code, candidate.reference)
-  if (!result.ok) {
-    report[result.reason === "not_found" ? "notFound" : "errors"] += 1
-    console.warn(`${candidate.local_authority_code} ${candidate.reference}: ${result.reason}`)
-  } else {
-    report.fetched += 1
-    const updates = {}
-    for (const field of enrichmentFields) {
-      const incoming = result[field]
-      if (!incoming) continue
-      if (candidate[field]) {
-        if (candidate[field] !== incoming) report.conflicts += 1
-        continue
+  let attemptOutcome = "no_change"
+  let attemptFieldsAdded = 0
+  let attemptError = null
+  try {
+    const result = await fetchEplanApplication(candidate.local_authority_code, candidate.reference)
+    if (!result.ok) {
+      if (result.reason === "not_found") {
+        report.notFound += 1
+        attemptOutcome = "not_found"
+      } else {
+        report.errors += 1
+        attemptOutcome = "error"
+        attemptError = result.reason || "source_error"
       }
-      updates[field] = incoming
-      report.fields[field] = (report.fields[field] || 0) + 1
-    }
-    if (Object.keys(updates).length) {
-      report.changed += 1
-      let persistedOk = true
-      if (!dryRun) {
-        const persisted = await persistLifecycleUpdates(candidate, updates)
-        if (!persisted.ok) {
-          persistedOk = false
-          report.errors += 1
-          report.changed -= 1
-          for (const field of Object.keys(updates)) report.fields[field] -= 1
-          console.warn(`${candidate.local_authority_code} ${candidate.reference}: write_failed ${persisted.error.code || persisted.error.message}`)
-        } else if (persisted.slowPath) {
-          report.slowPathWrites += 1
+      console.warn(`${candidate.local_authority_code} ${candidate.reference}: ${result.reason}`)
+    } else {
+      report.fetched += 1
+      const updates = {}
+      for (const field of enrichmentFields) {
+        const incoming = result[field]
+        if (!incoming) continue
+        if (candidate[field]) {
+          if (candidate[field] !== incoming) report.conflicts += 1
+          continue
         }
+        updates[field] = incoming
+        report.fields[field] = (report.fields[field] || 0) + 1
       }
-      if (persistedOk) {
-        if (
+      attemptFieldsAdded = Object.keys(updates).length
+      if (attemptFieldsAdded) {
+        report.changed += 1
+        attemptOutcome = "enriched"
+        let persistedOk = true
+        if (!dryRun) {
+          const persisted = await persistLifecycleUpdates(candidate, updates)
+          if (!persisted.ok) {
+            persistedOk = false
+            report.errors += 1
+            report.changed -= 1
+            attemptOutcome = "error"
+            attemptError = persisted.error.code || persisted.error.message || "write_failed"
+            attemptFieldsAdded = 0
+            for (const field of Object.keys(updates)) report.fields[field] -= 1
+            console.warn(`${candidate.local_authority_code} ${candidate.reference}: write_failed ${attemptError}`)
+          } else if (persisted.slowPath) {
+            report.slowPathWrites += 1
+          }
+        }
+        if (persistedOk && (
           (updates.further_information_requested_date && candidate.normalized_status !== "further_information_requested") ||
           (updates.further_information_received_date && candidate.normalized_status !== "further_information_received")
-        ) report.statusLagged += 1
+        )) report.statusLagged += 1
       }
     }
+  } catch (error) {
+    report.errors += 1
+    attemptOutcome = "error"
+    attemptError = error instanceof Error ? error.message : String(error)
+    console.warn(`${candidate.local_authority_code} ${candidate.reference}: ${attemptError}`)
   }
+  await recordCatchupAttempt(candidate, attemptOutcome, attemptFieldsAdded, attemptError)
   await sleep(delayMs)
 }
 console.log(JSON.stringify({ ...report, nextAfterId: candidates.at(-1)?.id || null, dryRun }, null, 2))
