@@ -42,6 +42,9 @@ export type PlanningApplication = {
   withdrawal_date: string | null
   appeal_lodged_date: string | null
   appeal_decision_date: string | null
+  appeal_decision_text: string | null
+  appeal_lodged_source?: string | null
+  appeal_decision_source?: string | null
   dispatch_date: string | null
   appeal_notify_date: string | null
   ward: string | null
@@ -128,7 +131,7 @@ const PLANNING_CACHE_REVALIDATE_SECONDS = 60 * 60 * 6
 const PLANNING_DETAIL_CACHE_REVALIDATE = false
 const PLANNING_AGGREGATE_CACHE_VERSION = "v11-dataset-publication"
 export const PLANNING_APPLICATION_SELECT =
-  "id,local_authority,local_authority_code,reference,web_reference,application_type,proposal,location,eircode,applicant_name,agent_name,status,normalized_status,decision_text,registration_date,valid_date,decision_date,decision_due_date,final_grant_date,expiry_date,further_information_requested_date,further_information_received_date,withdrawal_date,appeal_lodged_date,appeal_decision_date,dispatch_date,appeal_notify_date,ward,grid_reference,grid_easting,grid_northing,source_url,updated_at"
+  "id,local_authority,local_authority_code,reference,web_reference,application_type,proposal,location,eircode,applicant_name,agent_name,status,normalized_status,decision_text,registration_date,valid_date,decision_date,decision_due_date,final_grant_date,expiry_date,further_information_requested_date,further_information_received_date,withdrawal_date,appeal_lodged_date,appeal_decision_date,appeal_decision_text,appeal_lodged_source,appeal_decision_source,dispatch_date,appeal_notify_date,ward,grid_reference,grid_easting,grid_northing,source_url,updated_at"
 
 export function formatPlanningDate(value: string | null | undefined) {
   if (!value) return "Not recorded"
@@ -437,7 +440,6 @@ export async function getPlanningSitemapApplications(limit = 5000) {
   )
   const applications: PlanningSitemapApplication[] = []
   const pageSize = 1000
-
   for (let from = 0; from < boundedLimit; from += pageSize) {
     const to = Math.min(from + pageSize - 1, boundedLimit - 1)
     const { data, error } = await serverSupabase
