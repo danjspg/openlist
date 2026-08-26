@@ -33,16 +33,18 @@ test("planning source failures throw instead of becoming missing records or empt
   assert.doesNotMatch(planning, /Planning timeline query failed\.[\s\S]{0,120}return \[\]/)
 })
 
-test("normal upserts enqueue only changed/new records and the queue migration is bounded", async () => {
-  const [upsert, diff, migration] = await Promise.all([
+test("normal upserts use the dedicated exact-path revalidation queue", async () => {
+  const [upsert, diff] = await Promise.all([
     source("scripts/planning-upsert.mjs"),
     source("lib/planning-ingestion-diff.mjs"),
-    source("supabase/migrations/20260819110000_add_planning_revalidation_queue.sql"),
   ])
-  assert.match(upsert, /revalidation_pending: true/)
+  assert.doesNotMatch(upsert, /revalidation_pending: true/)
+  assert.match(upsert, /\.from\("planning_revalidation_queue"\)/)
+  assert.match(upsert, /application_id: row\.id/)
+  assert.match(upsert, /requested_at: requestedAt/)
+  assert.match(upsert, /onConflict: "application_id"/)
+  assert.match(upsert, /\.select\("id,local_authority_code,reference"\)/)
   assert.doesNotMatch(diff, /revalidation_pending/)
-  assert.match(migration, /revalidation_pending boolean not null default false/)
-  assert.match(migration, /where revalidation_pending = true/)
 })
 
 test("revalidation worker is exact-path, bounded, race-safe, and leaves failures pending", async () => {
@@ -53,8 +55,8 @@ test("revalidation worker is exact-path, bounded, race-safe, and leaves failures
     source("scripts/drain-planning-revalidation.mjs"),
   ])
   assert.match(worker, /Math\.min\(batchSize, 100\)/)
-  assert.match(worker, /invalidatePath\(planningApplicationPath\(authority, row\.reference\)\)/)
-  assert.match(worker, /\.eq\("updated_at", row\.updated_at\)/)
+  assert.match(worker, /invalidatePath\(planningApplicationPath\(authority, related\.reference\)\)/)
+  assert.match(worker, /\.eq\("requested_at", item\.requested_at\)/)
   assert.match(worker, /if \(cleared\?\.length\) invalidated \+= 1/)
   assert.match(route, /PLANNING_REVALIDATION_SECRET/)
   assert.match(route, /revalidatePath/)
