@@ -1,0 +1,116 @@
+name: Planning lifecycle consistency audit
+
+on:
+  schedule:
+    - cron: "45 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: planning-lifecycle-consistency
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Audit planning lifecycle consistency
+        id: audit
+        continue-on-error: true
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/audit-planning-lifecycle-consistency.mjs
+
+      - name: Publish result to job summary
+        if: always()
+        run: |
+          echo "## Planning lifecycle consistency" >> "$GITHUB_STEP_SUMMARY"
+          echo >> "$GITHUB_STEP_SUMMARY"
+          if [ -f planning-lifecycle-consistency-audit.json ]; then
+            node - <<'NODE' >> "$GITHUB_STEP_SUMMARY"
+            const fs = require('fs')
+            const report = JSON.parse(fs.readFileSync('planning-lifecycle-consistency-audit.json', 'utf8'))
+            console.log(`High severity: **${report.high_count}**  `)
+            console.log(`Warnings: **${report.warning_count}**  `)
+            console.log(`Total: **${report.anomaly_count}**`)
+            console.log('')
+            console.log('| Type | Count |')
+            console.log('|---|---:|')
+            for (const [type, count] of Object.entries(report.counts || {})) console.log(`| ${type} | ${count} |`)
+            if ((report.anomalies || []).length) {
+              console.log('')
+              console.log('### Sample anomalies')
+              console.log('| Severity | Council | Reference | Type | Detail |')
+              console.log('|---|---|---|---|---|')
+              for (const row of report.anomalies.slice(0, 25)) {
+                const detail = String(row.detail || '').replace(/\|/g, '\\|')
+                console.log(`| ${row.severity} | ${row.local_authority_code} | ${row.reference} | ${row.anomaly_type} | ${detail} |`)
+              }
+            }
+            NODE
+          else
+            echo "Audit did not produce a report. Inspect the failed audit step." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Create or update high-severity lifecycle alert
+        if: always() && steps.audit.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs')
+            const owner = context.repo.owner
+            const repo = context.repo.repo
+            const title = '[Automated] Planning lifecycle inconsistency detected'
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`
+            let body = `Planning lifecycle consistency audit failed. Inspect ${runUrl}`
+            if (fs.existsSync('planning-lifecycle-consistency-audit.json')) {
+              const report = JSON.parse(fs.readFileSync('planning-lifecycle-consistency-audit.json', 'utf8'))
+              const high = (report.anomalies || []).filter(row => row.severity === 'high').slice(0, 50)
+              const rows = high.map(row => `| ${row.local_authority_code} | ${row.reference} | ${row.anomaly_type} | ${String(row.detail || '').replace(/\|/g, '\\|')} |`).join('\n')
+              body = [
+                'The daily Planning lifecycle consistency audit found high-confidence contradictions between canonical current state and lifecycle facts.',
+                '',
+                `Latest run: ${runUrl}`,
+                `High severity: ${report.high_count}`,
+                `Warnings: ${report.warning_count}`,
+                '',
+                '| Council | Reference | Type | Detail |',
+                '|---|---|---|---|',
+                rows || '| n/a | n/a | audit failure | no report rows |',
+                '',
+                'This issue is maintained automatically and will close after a clean high-severity audit.'
+              ].join('\n')
+            }
+            const { data: issues } = await github.rest.issues.listForRepo({ owner, repo, state: 'open', per_page: 100 })
+            const existing = issues.find(issue => !issue.pull_request && issue.title === title)
+            if (existing) {
+              await github.rest.issues.update({ owner, repo, issue_number: existing.number, body })
+            } else {
+              await github.rest.issues.create({ owner, repo, title, body, assignees: [owner] })
+            }
+
+      - name: Close resolved lifecycle alert
+        if: steps.audit.outcome == 'success'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner
+            const repo = context.repo.repo
+            const title = '[Automated] Planning lifecycle inconsistency detected'
+            const { data: issues } = await github.rest.issues.listForRepo({ owner, repo, state: 'open', per_page: 100 })
+            const existing = issues.find(issue => !issue.pull_request && issue.title === title)
+            if (existing) {
+              await github.rest.issues.createComment({ owner, repo, issue_number: existing.number, body: `Lifecycle consistency is healthy again after run ${context.runId}. Closing automatically.` })
+              await github.rest.issues.update({ owner, repo, issue_number: existing.number, state: 'closed' })
+            }
+
+      - name: Fail workflow on high-severity contradictions
+        if: steps.audit.outcome == 'failure'
+        run: exit 1
