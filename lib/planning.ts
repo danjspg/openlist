@@ -385,7 +385,7 @@ export const getPlanningApplication = cache(async function getPlanningApplicatio
 const getPlanningApplicationEventsCached = unstable_cache(
   async function getPlanningApplicationEventsUncached(applicationId: string) {
     const { data, error } = await getServerSupabase()
-      .from("planning_application_events")
+      .from("planning_canonical_events")
       .select(
         "id,application_id,event_type,event_date,detected_at,event_source,source_field,label,old_value,new_value,raw_source_value,provenance,event_key"
       )
@@ -398,7 +398,7 @@ const getPlanningApplicationEventsCached = unstable_cache(
     if (error) throw new Error(`Planning timeline query failed: ${error.message}`)
     return (data ?? []) as PlanningEvent[]
   },
-  ["planning-application-events", "v1"],
+  ["planning-application-events", "v2-canonical"],
   { revalidate: PLANNING_DETAIL_CACHE_REVALIDATE }
 )
 
