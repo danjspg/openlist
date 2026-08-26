@@ -58,10 +58,7 @@ function preferredCaseRow(current, candidate) {
 function deduplicateCases(rows) {
   const byCaseNumber = new Map()
   for (const row of rows) {
-    byCaseNumber.set(
-      row.acp_case_number,
-      preferredCaseRow(byCaseNumber.get(row.acp_case_number), row)
-    )
+    byCaseNumber.set(row.acp_case_number, preferredCaseRow(byCaseNumber.get(row.acp_case_number), row))
   }
   return [...byCaseNumber.values()]
 }
@@ -100,22 +97,47 @@ async function upsertCases(rows) {
   }
 }
 
-async function enrichCasePages() {
-  if (ENRICH_LIMIT === 0) return { attempted: 0, enriched: 0, failures: 0 }
-  const { data, error } = await supabase
+async function selectEnrichmentRows() {
+  // Current unresolved appeals are the highest-value records for OpenList users.
+  // Exhaust that set before spending the bounded lookup budget on decided/history cases.
+  const baseSelect = "id,acp_case_number,source_url,planning_authority_case_reference,source_updated_at,received_date,category,decision_date"
+  const { data: openRows, error: openError } = await supabase
     .from("planning_appeal_cases")
-    .select("id,acp_case_number,source_url,planning_authority_case_reference,source_updated_at,received_date,category")
+    .select(baseSelect)
     .ilike("category", "Appeals%")
+    .is("decision_date", null)
     .is("planning_authority_case_reference", null)
     .not("source_url", "is", null)
     .order("source_updated_at", { ascending: false, nullsFirst: false })
     .order("received_date", { ascending: false, nullsFirst: false })
     .limit(ENRICH_LIMIT)
-  if (error) throw new Error(`ACP enrichment selection failed: ${error.message}`)
+  if (openError) throw new Error(`ACP open-appeal enrichment selection failed: ${openError.message}`)
+
+  if ((openRows || []).length >= ENRICH_LIMIT) return { rows: openRows || [], openSelected: (openRows || []).length }
+
+  const remaining = ENRICH_LIMIT - (openRows || []).length
+  const { data: otherRows, error: otherError } = await supabase
+    .from("planning_appeal_cases")
+    .select(baseSelect)
+    .ilike("category", "Appeals%")
+    .not("decision_date", "is", null)
+    .is("planning_authority_case_reference", null)
+    .not("source_url", "is", null)
+    .order("decision_date", { ascending: false, nullsFirst: false })
+    .order("source_updated_at", { ascending: false, nullsFirst: false })
+    .limit(remaining)
+  if (otherError) throw new Error(`ACP historical enrichment selection failed: ${otherError.message}`)
+
+  return { rows: [...(openRows || []), ...(otherRows || [])], openSelected: (openRows || []).length }
+}
+
+async function enrichCasePages() {
+  if (ENRICH_LIMIT === 0) return { attempted: 0, openAttempted: 0, enriched: 0, failures: 0 }
+  const { rows, openSelected } = await selectEnrichmentRows()
 
   let enriched = 0
   let failures = 0
-  for (const row of data || []) {
+  for (const row of rows) {
     try {
       const html = await fetchWithRetry(row.source_url, { json: false, retries: 3 })
       if (!html) continue
@@ -123,10 +145,7 @@ async function enrichCasePages() {
       if (parsed.planningAuthorityCaseReference) {
         const { error: updateError } = await supabase
           .from("planning_appeal_cases")
-          .update({
-            planning_authority_case_reference: parsed.planningAuthorityCaseReference,
-            updated_at: new Date().toISOString(),
-          })
+          .update({ planning_authority_case_reference: parsed.planningAuthorityCaseReference, updated_at: new Date().toISOString() })
           .eq("id", row.id)
         if (updateError) throw updateError
         enriched += 1
@@ -137,15 +156,11 @@ async function enrichCasePages() {
     }
     if (ENRICH_DELAY_MS) await sleep(ENRICH_DELAY_MS)
   }
-  return { attempted: (data || []).length, enriched, failures }
+  return { attempted: rows.length, openAttempted: openSelected, enriched, failures }
 }
 
 async function updateSourceState(values) {
-  const { error } = await supabase.from("planning_appeal_source_state").upsert({
-    source_key: SOURCE_KEY,
-    ...values,
-    updated_at: new Date().toISOString(),
-  })
+  const { error } = await supabase.from("planning_appeal_source_state").upsert({ source_key: SOURCE_KEY, ...values, updated_at: new Date().toISOString() })
   if (error) throw new Error(`ACP source state update failed: ${error.message}`)
 }
 
@@ -168,12 +183,7 @@ async function main() {
       matched_case_count: Number(rebuilt?.links || 0),
       matched_application_count: Number(rebuilt?.matchedApplications || 0),
       last_error: null,
-      metadata: {
-        enrichment,
-        rebuild: rebuilt,
-        maxRecordCount: metadata.maxRecordCount,
-        duplicateSourceRows: Math.max(0, sourceRecordCount - cases.length),
-      },
+      metadata: { enrichment, rebuild: rebuilt, maxRecordCount: metadata.maxRecordCount, duplicateSourceRows: Math.max(0, sourceRecordCount - cases.length) },
     })
     console.log(JSON.stringify({ sourceRecords: sourceRecordCount, uniqueCases: cases.length, enrichment, rebuild: rebuilt }, null, 2))
   } catch (error) {
