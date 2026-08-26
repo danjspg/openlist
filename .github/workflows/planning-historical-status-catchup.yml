@@ -14,7 +14,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  catch-up:
+  source:
+    name: Refresh bounded historical status buckets
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
@@ -31,8 +32,21 @@ jobs:
           PLANNING_STATUS_BUCKET_LIMIT: "16"
           PLANNING_API_REQUEST_DELAY_MS: "1000"
         run: node scripts/refresh-historical-planning-statuses.mjs
+
+  finalize:
+    name: Revalidate historical status changes
+    needs: source
+    if: ${{ always() && needs.source.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
       - name: Revalidate changed Planning detail pages
-        if: ${{ always() }}
         env:
           PLANNING_REVALIDATION_URL: ${{ secrets.PLANNING_REVALIDATION_URL }}
           PLANNING_REVALIDATION_SECRET: ${{ secrets.PLANNING_REVALIDATION_SECRET }}
