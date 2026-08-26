@@ -1,7 +1,8 @@
 import { createClient } from "@supabase/supabase-js"
 
-const DATASET_API = "https://data.nbco.gov.ie/api/3/action/package_show?id=04ab003b-3452-4025-a70a-a775fcccdb1b"
+const DATASET_API = "https://data.nbco.gov.ie/api/3/action/package_show?id=bcnccc"
 const RESOURCE_ID = "0774e781-7af8-46da-b623-872e74cf541e"
+const REQUEST_TIMEOUT_MS = Math.max(1000, Number(process.env.BCMS_SOURCE_PROBE_TIMEOUT_MS || 15000))
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -27,6 +28,7 @@ async function main() {
   try {
     const response = await fetch(DATASET_API, {
       headers: { "user-agent": "OpenList-BCMS-source-probe/1.0" },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     })
     if (!response.ok) throw new Error(`NBCO metadata request failed: ${response.status}`)
 
@@ -47,7 +49,7 @@ async function main() {
 
     const sourceHash = resource.hash || null
     const sourceSize = asInteger(resource.size)
-    const recordCount = asInteger(resource.datastore_active ? resource.total_record_count : resource.total_record_count)
+    const recordCount = asInteger(resource.total_record_count)
     const lastModified = resource.last_modified || null
 
     const changed = previous

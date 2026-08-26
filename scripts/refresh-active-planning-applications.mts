@@ -45,7 +45,25 @@ const rangeDelayMs = Math.max(
   0,
   Number(process.env.PLANNING_ACTIVE_REFRESH_RANGE_DELAY_MS || 500)
 )
+const requestTimeoutMs = Math.max(
+  5_000,
+  Number(process.env.PLANNING_ACTIVE_REFRESH_REQUEST_TIMEOUT_MS || 30_000)
+)
+const childTimeoutMs = Math.max(
+  60_000,
+  Number(process.env.PLANNING_ACTIVE_REFRESH_CHILD_TIMEOUT_MS || 12 * 60_000)
+)
 const dryRun = process.argv.includes("--dry-run")
+const authorityArgIndex = process.argv.indexOf("--authority")
+const targetAuthority =
+  authorityArgIndex >= 0 ? String(process.argv[authorityArgIndex + 1] || "").trim().toUpperCase() : null
+
+if (authorityArgIndex >= 0 && !targetAuthority) {
+  throw new Error("--authority requires a local authority code")
+}
+if (targetAuthority && !AUTHORITIES.some((authority: any) => authority.code === targetAuthority)) {
+  throw new Error(`Unknown Planning authority: ${targetAuthority}`)
+}
 
 const preserveWhenSourceNull = [
   "registration_date",
@@ -79,6 +97,10 @@ function chunks<T>(items: T[], size: number) {
   return result
 }
 
+function elapsedSeconds(startedAt: number) {
+  return ((Date.now() - startedAt) / 1000).toFixed(1)
+}
+
 type CandidateRow = ActivePlanningRefreshCandidate & Record<string, any>
 
 const candidateSelect = Array.from(
@@ -96,6 +118,7 @@ async function fetchPagedCandidates(
       .select(candidateSelect)
       .order("id", { ascending: true })
       .range(offset, offset + pageSize - 1)
+    if (targetAuthority) query = query.eq("local_authority_code", targetAuthority)
     query = configure(query)
     const { data, error } = await query
     if (error) throw new Error(`${label}: ${error.message}`)
@@ -174,6 +197,7 @@ async function fetchNationalFeatures(sourceIds: number[]) {
     try {
       const response = await fetch(`${nationalFeatureUrl}?${params.toString()}`, {
         headers: { "User-Agent": "OpenList daily active planning refresh" },
+        signal: AbortSignal.timeout(requestTimeoutMs),
       })
       if (response.ok) {
         const data = await response.json()
@@ -216,13 +240,18 @@ async function refreshNationalExact(candidates: CandidateRow[]) {
 
   for (const [authorityCode, authorityCandidates] of Array.from(candidatesByAuthority.entries()).sort()) {
     const authority: any = authorityByCode.get(authorityCode)
+    const authorityStartedAt = Date.now()
     console.log(
       `${authorityCode}: exact authoritative refresh for ${authorityCandidates.length} active/follow-up applications.`
     )
 
-    for (const batch of chunks(authorityCandidates, nationalBatchSize)) {
+    for (const [batchIndex, batch] of chunks(authorityCandidates, nationalBatchSize).entries()) {
+      const batchStartedAt = Date.now()
       const sourceIds = batch.map((row) => Number(row.source_application_id))
       const sourceRows = await fetchNationalFeatures(sourceIds)
+      console.log(
+        `${authorityCode}: exact batch ${batchIndex + 1} fetched ${sourceRows.length}/${batch.length} source rows in ${elapsedSeconds(batchStartedAt)}s.`
+      )
       const sourceIdsReturned = new Set(sourceRows.map((row: any) => Number(row.OBJECTID)))
       const missing = batch.filter(
         (candidate) => !sourceIdsReturned.has(Number(candidate.source_application_id))
@@ -266,6 +295,9 @@ async function refreshNationalExact(candidates: CandidateRow[]) {
         }
       }
     }
+    console.log(
+      `${authorityCode}: exact authoritative refresh completed in ${elapsedSeconds(authorityStartedAt)}s.`
+    )
   }
 
   return { checked, changed, changeFieldCounts, fallback }
@@ -278,8 +310,23 @@ async function runChild(args: string[]) {
       env: process.env,
       stdio: "inherit",
     })
-    child.on("error", reject)
+    let settled = false
+    const timeout = setTimeout(() => {
+      if (settled) return
+      settled = true
+      child.kill("SIGTERM")
+      reject(new Error(`${args.join(" ")} exceeded ${Math.round(childTimeoutMs / 1000)}s timeout`))
+    }, childTimeoutMs)
+    child.on("error", (error) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timeout)
+      reject(error)
+    })
     child.on("exit", (code) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timeout)
       if (code === 0) resolve()
       else reject(new Error(`${args.join(" ")} exited with code ${code}`))
     })
@@ -345,7 +392,34 @@ async function refreshRange(
   await runChild(args)
 }
 
+type RefreshRange = ReturnType<typeof buildActivePlanningRefreshRanges>[number]
+
+async function runRanges(ranges: RefreshRange[]) {
+  const failures: { range: RefreshRange; error: Error }[] = []
+  for (const [index, range] of ranges.entries()) {
+    const startedAt = Date.now()
+    console.log(
+      `[${index + 1}/${ranges.length}] ${range.localAuthorityCode} ${range.from} to ${range.to}: ${range.candidateCount} tracked candidates across ${range.monthCount} active month(s).`
+    )
+    try {
+      await refreshRange(range.localAuthorityCode, range.from, range.to)
+      console.log(
+        `${range.localAuthorityCode} ${range.from} to ${range.to}: completed in ${elapsedSeconds(startedAt)}s.`
+      )
+    } catch (error) {
+      const normalized = error instanceof Error ? error : new Error(String(error))
+      failures.push({ range, error: normalized })
+      console.error(
+        `${range.localAuthorityCode} ${range.from} to ${range.to}: failed after ${elapsedSeconds(startedAt)}s: ${normalized.message}`
+      )
+    }
+    if (rangeDelayMs > 0 && index < ranges.length - 1) await sleep(rangeDelayMs)
+  }
+  return failures
+}
+
 async function main() {
+  const runStartedAt = Date.now()
   const today = todayUtc()
   const cohort = await loadCandidates(today)
   const exact = await refreshNationalExact(cohort.candidates)
@@ -353,9 +427,10 @@ async function main() {
   const fallbackCandidates = Array.from(fallbackById.values())
   const ranges = buildActivePlanningRefreshRanges(fallbackCandidates, today)
   const untargetable = fallbackCandidates.filter((row) => !row.registration_date)
+  const scope = targetAuthority || "ALL"
 
   console.log(
-    `Daily active Planning refresh ${dryRun ? "dry run" : "run"}: ${cohort.candidates.length} unique candidates.`
+    `Daily active Planning refresh ${dryRun ? "dry run" : "run"} [${scope}]: ${cohort.candidates.length} unique candidates.`
   )
   console.log(
     `Cohort composition: ${cohort.activeCount} live-status rows; ${cohort.recentDecisionCount} decision-made follow-up rows since ${cohort.decisionCutoff}; ${cohort.recentUnknownCount} recent unclassified rows since ${cohort.unknownCutoff}.`
@@ -372,16 +447,20 @@ async function main() {
     )
   }
 
-  for (const [index, range] of ranges.entries()) {
-    console.log(
-      `[${index + 1}/${ranges.length}] ${range.localAuthorityCode} ${range.from} to ${range.to}: ${range.candidateCount} tracked candidates across ${range.monthCount} active month(s).`
-    )
-    await refreshRange(range.localAuthorityCode, range.from, range.to)
-    if (rangeDelayMs > 0 && index < ranges.length - 1) await sleep(rangeDelayMs)
+  const failures = await runRanges(ranges)
+  if (failures.length > 0) {
+    console.warn(`Retrying ${failures.length} failed active Planning source range(s) once.`)
+    const retryFailures = await runRanges(failures.map(({ range }) => range))
+    if (retryFailures.length > 0) {
+      const summary = retryFailures
+        .map(({ range, error }) => `${range.localAuthorityCode} ${range.from}..${range.to}: ${error.message}`)
+        .join("; ")
+      throw new Error(`Active Planning refresh completed with ${retryFailures.length} unresolved range failure(s): ${summary}`)
+    }
   }
 
   console.log(
-    `Daily active Planning refresh completed: ${cohort.candidates.length} candidates; ${exact.checked} exact national checks; ${ranges.length} fallback/source ranges.`
+    `Daily active Planning refresh completed [${scope}] in ${elapsedSeconds(runStartedAt)}s: ${cohort.candidates.length} candidates; ${exact.checked} exact national checks; ${ranges.length} fallback/source ranges.`
   )
 }
 
