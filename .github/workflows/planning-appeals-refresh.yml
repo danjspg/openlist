@@ -1,0 +1,60 @@
+name: Refresh Planning Appeals
+
+on:
+  schedule:
+    - cron: "37 6 * * 2"
+  workflow_dispatch:
+  push:
+    paths:
+      - "lib/acp-appeals-source.mjs"
+      - "scripts/ingest-planning-appeals.mjs"
+      - ".github/workflows/planning-appeals-refresh.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: planning-appeals-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Refresh An Coimisiún Pleanála appeal cases
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ACP_APPEAL_ENRICH_LIMIT: "500"
+          ACP_APPEAL_ENRICH_DELAY_MS: "150"
+        run: |
+          attempt=1
+          until node scripts/ingest-planning-appeals.mjs; do
+            if (( attempt >= 3 )); then
+              echo "ACP appeal refresh failed after ${attempt} attempts" >&2
+              exit 1
+            fi
+            delay=$((attempt * 15))
+            echo "ACP appeal refresh attempt ${attempt} failed; retrying in ${delay}s" >&2
+            sleep "$delay"
+            attempt=$((attempt + 1))
+          done
+
+      - name: Revalidate changed planning detail pages
+        env:
+          PLANNING_REVALIDATION_URL: ${{ secrets.PLANNING_REVALIDATION_URL }}
+          PLANNING_REVALIDATION_SECRET: ${{ secrets.PLANNING_REVALIDATION_SECRET }}
+        run: node scripts/drain-planning-revalidation.mjs
