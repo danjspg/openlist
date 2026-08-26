@@ -1,0 +1,39 @@
+name: Catch Up Historical Planning Statuses
+
+on:
+  schedule:
+    # 16 authority-month buckets per day. At the current backlog this is about 7.5 weeks.
+    - cron: "41 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: planning-historical-status-catchup
+  cancel-in-progress: false
+
+jobs:
+  catch-up:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Refresh bounded historical status buckets
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          PLANNING_STATUS_BUCKET_LIMIT: "16"
+          PLANNING_API_REQUEST_DELAY_MS: "1000"
+        run: node scripts/refresh-historical-planning-statuses.mjs
+      - name: Revalidate changed Planning detail pages
+        if: ${{ always() }}
+        env:
+          PLANNING_REVALIDATION_URL: ${{ secrets.PLANNING_REVALIDATION_URL }}
+          PLANNING_REVALIDATION_SECRET: ${{ secrets.PLANNING_REVALIDATION_SECRET }}
+        run: node scripts/drain-planning-revalidation.mjs
