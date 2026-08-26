@@ -1,0 +1,40 @@
+name: Catch Up Historical ePlan Lifecycle
+
+on:
+  schedule:
+    # 80 source-page checks per day, deliberately paced over about six weeks.
+    - cron: "23 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eplan-lifecycle-historical-catchup
+  cancel-in-progress: false
+
+jobs:
+  catch-up:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Enrich bounded ePlan lifecycle backlog
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          EPLAN_CATCHUP_MODE: "historical"
+          EPLAN_ACTIVE_ENRICH_LIMIT: "80"
+          EPLAN_ACTIVE_ENRICH_DELAY_MS: "1000"
+        run: node scripts/refresh-eplan-active-lifecycle.mjs
+      - name: Revalidate changed Planning detail pages
+        if: ${{ always() }}
+        env:
+          PLANNING_REVALIDATION_URL: ${{ secrets.PLANNING_REVALIDATION_URL }}
+          PLANNING_REVALIDATION_SECRET: ${{ secrets.PLANNING_REVALIDATION_SECRET }}
+        run: node scripts/drain-planning-revalidation.mjs
