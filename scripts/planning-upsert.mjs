@@ -10,27 +10,54 @@ function isRetryablePlanningUpsertError(error) {
   )
 }
 
+async function enqueuePlanningRevalidation(supabase, rows, label, attempt = 1) {
+  if (rows.length === 0) return []
+
+  const requestedAt = new Date().toISOString()
+  const queueRows = rows.map((row) => ({
+    application_id: row.id,
+    requested_at: requestedAt,
+  }))
+
+  const { error } = await supabase
+    .from("planning_revalidation_queue")
+    .upsert(queueRows, { onConflict: "application_id" })
+
+  if (!error) {
+    return rows.map((row) => ({
+      localAuthorityCode: row.local_authority_code,
+      reference: row.reference,
+    }))
+  }
+
+  if (isRetryablePlanningUpsertError(error) && attempt < 4) {
+    const delayMs = attempt * 1000
+    console.warn(
+      `${label}: transient Planning revalidation enqueue failure; retrying ${rows.length} rows in ${delayMs}ms (attempt ${attempt}/3).`
+    )
+    await sleep(delayMs)
+    return enqueuePlanningRevalidation(supabase, rows, label, attempt + 1)
+  }
+
+  throw error
+}
+
 export async function upsertPlanningBatch(
   supabase,
   batch,
   label,
   attempt = 1
 ) {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("planning_applications")
-    .upsert(
-      batch.map((record) => ({ ...record, revalidation_pending: true })),
-      { onConflict: "local_authority_code,reference" }
-    )
+    .upsert(batch, { onConflict: "local_authority_code,reference" })
+    .select("id,local_authority_code,reference")
 
   if (!error) {
-    // Issue #4 can enqueue these exact authority/reference pairs for
-    // revalidatePath immediately after this committed batch. Historical event
-    // backfills deliberately bypass this ingestion path.
-    return batch.map((record) => ({
-      localAuthorityCode: record.local_authority_code,
-      reference: record.reference,
-    }))
+    // Normal ingestion writes the durable exact-path queue directly. The
+    // legacy revalidation_pending flag remains readable for compatibility but
+    // no longer needs to be flipped on the large planning_applications table.
+    return enqueuePlanningRevalidation(supabase, data || [], label)
   }
 
   if (error.code === "57014" && batch.length > 10) {
