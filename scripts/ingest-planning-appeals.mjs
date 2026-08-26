@@ -57,9 +57,7 @@ function preferredCaseRow(current, candidate) {
 
 function deduplicateCases(rows) {
   const byCaseNumber = new Map()
-  for (const row of rows) {
-    byCaseNumber.set(row.acp_case_number, preferredCaseRow(byCaseNumber.get(row.acp_case_number), row))
-  }
+  for (const row of rows) byCaseNumber.set(row.acp_case_number, preferredCaseRow(byCaseNumber.get(row.acp_case_number), row))
   return [...byCaseNumber.values()]
 }
 
@@ -98,57 +96,39 @@ async function upsertCases(rows) {
 }
 
 async function selectEnrichmentRows() {
-  // Current unresolved appeals are the highest-value records for OpenList users.
-  // Exhaust that set before spending the bounded lookup budget on decided/history cases.
   const baseSelect = "id,acp_case_number,source_url,planning_authority_case_reference,source_updated_at,received_date,category,decision_date"
   const { data: openRows, error: openError } = await supabase
-    .from("planning_appeal_cases")
-    .select(baseSelect)
-    .ilike("category", "Appeals%")
-    .is("decision_date", null)
-    .is("planning_authority_case_reference", null)
-    .not("source_url", "is", null)
-    .order("source_updated_at", { ascending: false, nullsFirst: false })
-    .order("received_date", { ascending: false, nullsFirst: false })
-    .limit(ENRICH_LIMIT)
+    .from("planning_appeal_cases").select(baseSelect).ilike("category", "Appeals%")
+    .is("decision_date", null).is("planning_authority_case_reference", null).not("source_url", "is", null)
+    .order("source_updated_at", { ascending: false, nullsFirst: false }).order("received_date", { ascending: false, nullsFirst: false }).limit(ENRICH_LIMIT)
   if (openError) throw new Error(`ACP open-appeal enrichment selection failed: ${openError.message}`)
-
   if ((openRows || []).length >= ENRICH_LIMIT) return { rows: openRows || [], openSelected: (openRows || []).length }
 
   const remaining = ENRICH_LIMIT - (openRows || []).length
   const { data: otherRows, error: otherError } = await supabase
-    .from("planning_appeal_cases")
-    .select(baseSelect)
-    .ilike("category", "Appeals%")
-    .not("decision_date", "is", null)
-    .is("planning_authority_case_reference", null)
-    .not("source_url", "is", null)
-    .order("decision_date", { ascending: false, nullsFirst: false })
-    .order("source_updated_at", { ascending: false, nullsFirst: false })
-    .limit(remaining)
+    .from("planning_appeal_cases").select(baseSelect).ilike("category", "Appeals%")
+    .not("decision_date", "is", null).is("planning_authority_case_reference", null).not("source_url", "is", null)
+    .order("decision_date", { ascending: false, nullsFirst: false }).order("source_updated_at", { ascending: false, nullsFirst: false }).limit(remaining)
   if (otherError) throw new Error(`ACP historical enrichment selection failed: ${otherError.message}`)
-
   return { rows: [...(openRows || []), ...(otherRows || [])], openSelected: (openRows || []).length }
 }
 
 async function enrichCasePages() {
   if (ENRICH_LIMIT === 0) return { attempted: 0, openAttempted: 0, enriched: 0, failures: 0 }
   const { rows, openSelected } = await selectEnrichmentRows()
-
   let enriched = 0
   let failures = 0
   for (const row of rows) {
     try {
       const html = await fetchWithRetry(row.source_url, { json: false, retries: 3 })
-      if (!html) continue
-      const parsed = parseAcpCasePage(html)
-      if (parsed.planningAuthorityCaseReference) {
-        const { error: updateError } = await supabase
-          .from("planning_appeal_cases")
-          .update({ planning_authority_case_reference: parsed.planningAuthorityCaseReference, updated_at: new Date().toISOString() })
-          .eq("id", row.id)
-        if (updateError) throw updateError
-        enriched += 1
+      if (html) {
+        const parsed = parseAcpCasePage(html)
+        if (parsed.planningAuthorityCaseReference) {
+          const { error } = await supabase.from("planning_appeal_cases")
+            .update({ planning_authority_case_reference: parsed.planningAuthorityCaseReference, updated_at: new Date().toISOString() }).eq("id", row.id)
+          if (error) throw error
+          enriched += 1
+        }
       }
     } catch (error) {
       failures += 1
@@ -171,8 +151,9 @@ async function main() {
     const { sourceRecordCount, cases } = await fetchAllFeatures()
     await upsertCases(cases)
     const enrichment = await enrichCasePages()
-    const { data: rebuilt, error: rebuildError } = await supabase.rpc("openlist_rebuild_acp_appeal_links_and_events")
-    if (rebuildError) throw new Error(`ACP link rebuild failed: ${rebuildError.message}`)
+    const { count: pendingProcessing, error: queueError } = await supabase
+      .from("planning_appeal_processing_queue").select("appeal_case_id", { count: "exact", head: true }).in("status", ["pending", "failed"])
+    if (queueError) throw queueError
     await updateSourceState({
       last_checked_at: checkedAt,
       last_successful_sync_at: new Date().toISOString(),
@@ -180,12 +161,10 @@ async function main() {
       source_record_count: sourceRecordCount,
       ingested_count: cases.length,
       enriched_count: enrichment.enriched,
-      matched_case_count: Number(rebuilt?.links || 0),
-      matched_application_count: Number(rebuilt?.matchedApplications || 0),
       last_error: null,
-      metadata: { enrichment, rebuild: rebuilt, maxRecordCount: metadata.maxRecordCount, duplicateSourceRows: Math.max(0, sourceRecordCount - cases.length) },
+      metadata: { enrichment, pendingProcessing: pendingProcessing ?? 0, maxRecordCount: metadata.maxRecordCount, duplicateSourceRows: Math.max(0, sourceRecordCount - cases.length) },
     })
-    console.log(JSON.stringify({ sourceRecords: sourceRecordCount, uniqueCases: cases.length, enrichment, rebuild: rebuilt }, null, 2))
+    console.log(JSON.stringify({ sourceRecords: sourceRecordCount, uniqueCases: cases.length, enrichment, pendingProcessing }, null, 2))
   } catch (error) {
     await updateSourceState({ last_checked_at: checkedAt, last_error: error instanceof Error ? error.message : String(error) }).catch(() => {})
     throw error
