@@ -42,13 +42,19 @@ test("ACP ArcGIS features map source facts without inventing a local planning re
 
 test("official ACP case page parser extracts the planning-authority reference and case type", () => {
   const parsed = parseAcpCasePage(`
-    <section>
-      <div>Case Type:</div><div>Planning Appeal</div>
-      <div>Planning Authority Case Reference:</div><div>SD20A/0198</div>
-    </section>
+    <main>
+      <h3>An Coimisiún Pleanála - Case reference: PL09.317471</h3>
+      <p>Planning Authority Case Reference: 23423</p>
+      <dl>
+        <dt>Case type</dt>
+        <dd>Planning Appeal</dd>
+        <dt>Decision</dt>
+        <dd>Refuse Permission</dd>
+      </dl>
+    </main>
   `)
   assert.equal(parsed.caseType, "Planning Appeal")
-  assert.equal(parsed.planningAuthorityCaseReference, "SD20A/0198")
+  assert.equal(parsed.planningAuthorityCaseReference, "23423")
 })
 
 test("ACP case URLs are canonicalised from a case number", () => {
