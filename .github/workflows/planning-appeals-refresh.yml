@@ -10,12 +10,6 @@ on:
         required: false
         default: false
         type: boolean
-  push:
-    paths:
-      - "lib/acp-appeals-source.mjs"
-      - "scripts/ingest-planning-appeals.mjs"
-      - "scripts/process-planning-appeals.mjs"
-      - ".github/workflows/planning-appeals-refresh.yml"
 
 permissions:
   contents: read
