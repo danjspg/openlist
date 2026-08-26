@@ -1,15 +1,20 @@
 name: Refresh Planning Appeals
 
-# The publisher declares a weekly cadence. Push runs are limited to integration
-# files so source/parser changes are exercised immediately before the next schedule.
 on:
   schedule:
     - cron: "37 6 * * 2"
   workflow_dispatch:
+    inputs:
+      process_only:
+        description: "Skip ACP network fetch and resume internal processing only"
+        required: false
+        default: false
+        type: boolean
   push:
     paths:
       - "lib/acp-appeals-source.mjs"
       - "scripts/ingest-planning-appeals.mjs"
+      - "scripts/process-planning-appeals.mjs"
       - ".github/workflows/planning-appeals-refresh.yml"
 
 permissions:
@@ -20,41 +25,50 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  refresh:
+  source:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.process_only != true }}
     runs-on: ubuntu-latest
-    timeout-minutes: 75
+    timeout-minutes: 45
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-
       - name: Install dependencies
         run: npm ci
-
-      - name: Refresh An Coimisiún Pleanála appeal cases
+      - name: Fetch and store An Coimisiún Pleanála source data
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           ACP_APPEAL_ENRICH_LIMIT: "500"
           ACP_APPEAL_ENRICH_DELAY_MS: "150"
-        run: |
-          attempt=1
-          until node scripts/ingest-planning-appeals.mjs; do
-            if (( attempt >= 3 )); then
-              echo "ACP appeal refresh failed after ${attempt} attempts" >&2
-              exit 1
-            fi
-            delay=$((attempt * 15))
-            echo "ACP appeal refresh attempt ${attempt} failed; retrying in ${delay}s" >&2
-            sleep "$delay"
-            attempt=$((attempt + 1))
-          done
+        run: node scripts/ingest-planning-appeals.mjs
 
+  process:
+    needs: [source]
+    if: ${{ always() && (needs.source.result == 'success' || needs.source.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Process stored ACP changes
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ACP_PROCESS_BATCH_SIZE: "100"
+          ACP_PROCESS_MAX_BATCHES: "400"
+        run: node scripts/process-planning-appeals.mjs
       - name: Revalidate changed planning detail pages
         env:
           PLANNING_REVALIDATION_URL: ${{ secrets.PLANNING_REVALIDATION_URL }}
