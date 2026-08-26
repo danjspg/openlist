@@ -34,21 +34,28 @@ jobs:
       - name: Test active refresh range planning
         run: node --import tsx --test tests/active-planning-refresh.test.ts
 
-      - name: Ingest recent Kildare, Wicklow, and Wexford applications
+      # Source discovery only. Internal cache publication/revalidation is performed
+      # later so a downstream failure does not cause these external calls to repeat.
+      - name: Ingest recent Kildare applications
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           PLANNING_API_REQUEST_DELAY_MS: "1000"
-        run: |
-          node scripts/ingest-kildare-planning-applications.mjs
-          node scripts/ingest-national-planning-applications.mjs --days 180 --authority WICKLOW
-          node scripts/ingest-cork-planning-applications.mjs --authority WEXFORD
+        run: node scripts/ingest-kildare-planning-applications.mjs
 
-      - name: Revalidate repaired authority planning pages
+      - name: Ingest recent Wicklow applications
         env:
-          PLANNING_REVALIDATION_URL: ${{ secrets.PLANNING_REVALIDATION_URL }}
-          PLANNING_REVALIDATION_SECRET: ${{ secrets.PLANNING_REVALIDATION_SECRET }}
-        run: node scripts/drain-planning-revalidation.mjs
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          PLANNING_API_REQUEST_DELAY_MS: "1000"
+        run: node scripts/ingest-national-planning-applications.mjs --days 180 --authority WICKLOW
+
+      - name: Ingest recent Wexford applications
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          PLANNING_API_REQUEST_DELAY_MS: "1000"
+        run: node scripts/ingest-cork-planning-applications.mjs --authority WEXFORD
 
       - name: Ingest recent Cork City applications
         env:
@@ -56,12 +63,6 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           PLANNING_API_REQUEST_DELAY_MS: "1000"
         run: node scripts/ingest-cork-planning-applications.mjs --authority CORKCITY
-
-      - name: Revalidate changed Cork City planning pages
-        env:
-          PLANNING_REVALIDATION_URL: ${{ secrets.PLANNING_REVALIDATION_URL }}
-          PLANNING_REVALIDATION_SECRET: ${{ secrets.PLANNING_REVALIDATION_SECRET }}
-        run: node scripts/drain-planning-revalidation.mjs
 
   refresh-active:
     name: Refresh ${{ matrix.authority }} active Planning
@@ -126,14 +127,14 @@ jobs:
           PLANNING_ACTIVE_REFRESH_CHILD_TIMEOUT_MS: "720000"
         run: node --import tsx scripts/refresh-active-planning-applications.mts --authority "${{ matrix.authority }}"
 
-  post-refresh:
-    name: Complete active Planning refresh
+  enrich-source:
+    name: Complete authoritative active Planning source enrichment
     if: ${{ always() && needs.prepare.result == 'success' }}
     needs:
       - prepare
       - refresh-active
     runs-on: ubuntu-latest
-    timeout-minutes: 55
+    timeout-minutes: 45
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -162,6 +163,28 @@ jobs:
           EPLAN_ACTIVE_ENRICH_DELAY_MS: "750"
         run: node scripts/refresh-eplan-active-lifecycle.mjs
 
+  finalize:
+    name: Finalize active Planning refresh
+    if: ${{ always() && needs.prepare.result == 'success' }}
+    needs:
+      - prepare
+      - refresh-active
+      - enrich-source
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
       - name: Audit active Planning titles and descriptions
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
@@ -177,18 +200,19 @@ jobs:
 
   report-failure:
     name: Report active refresh failure
-    if: ${{ always() && (needs.prepare.result != 'success' || needs.refresh-active.result != 'success' || needs.post-refresh.result != 'success') }}
+    if: ${{ always() && (needs.prepare.result != 'success' || needs.refresh-active.result != 'success' || needs.enrich-source.result != 'success' || needs.finalize.result != 'success') }}
     needs:
       - prepare
       - refresh-active
-      - post-refresh
+      - enrich-source
+      - finalize
     runs-on: ubuntu-latest
     steps:
       - name: Report active refresh failure
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh issue comment 10 --repo "$GITHUB_REPOSITORY" --body "Active Planning refresh had one or more failed authority/stage jobs on $(date -u '+%Y-%m-%d %H:%M UTC'). Successful authority slices were allowed to complete and the workflow attempted post-refresh processing where possible. Review run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          gh issue comment 10 --repo "$GITHUB_REPOSITORY" --body "Active Planning refresh had one or more failed authority/stage jobs on $(date -u '+%Y-%m-%d %H:%M UTC'). External source stages and internal finalization are separated so failed internal work can be retried without repeating successful source calls. Review run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
 
   publish-snapshots:
     name: Publish current Planning counts
@@ -196,7 +220,8 @@ jobs:
     needs:
       - prepare
       - refresh-active
-      - post-refresh
+      - enrich-source
+      - finalize
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
