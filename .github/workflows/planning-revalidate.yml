@@ -27,6 +27,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Drain bounded exact-path planning revalidation queue
+        # Temporary rollout drain is safe to repeat: the queue is durable and exact-path scoped.
         env:
           PLANNING_REVALIDATION_URL: ${{ secrets.PLANNING_REVALIDATION_URL }}
           PLANNING_REVALIDATION_SECRET: ${{ secrets.PLANNING_REVALIDATION_SECRET }}
