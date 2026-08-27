@@ -1,7 +1,9 @@
 name: Watch Planning alert applications
 on:
   schedule:
-    - cron: "0 5,6,12,13,19,20 * * *"
+    # Run every four hours. GitHub scheduled jobs can start late, so do not gate
+    # execution on the wall-clock hour at which the runner actually starts.
+    - cron: "0 */4 * * *"
   workflow_dispatch:
 permissions: { contents: read }
 concurrency: { group: planning-alert-watch, cancel-in-progress: false }
@@ -14,18 +16,13 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm }
       - run: npm ci
-      - name: Run only at the intended Europe/Dublin local hour
-        id: time
-        run: echo "run=$([[ $(TZ=Europe/Dublin date +%H) =~ ^(06|13|20)$ ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
-      - if: github.event_name == 'workflow_dispatch' || steps.time.outputs.run == 'true'
-        name: Poll watched official sources
+      - name: Poll watched official sources
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           PLANNING_ALERT_WATCH_DELAY_MS: "750"
         run: node scripts/watch-planning-alert-applications.mjs
-      - if: github.event_name == 'workflow_dispatch' || steps.time.outputs.run == 'true'
-        name: Revalidate changed Planning detail pages
+      - name: Revalidate changed Planning detail pages
         env:
           PLANNING_REVALIDATION_URL: ${{ secrets.PLANNING_REVALIDATION_URL }}
           PLANNING_REVALIDATION_SECRET: ${{ secrets.PLANNING_REVALIDATION_SECRET }}
