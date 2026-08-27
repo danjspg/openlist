@@ -1,0 +1,159 @@
+name: OpenList daily data integrity sweep
+
+on:
+  schedule:
+    - cron: "15 8 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: openlist-data-integrity
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Verify Planning snapshots
+        id: planning_snapshots
+        continue-on-error: true
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/verify-dataset-snapshots.mjs planning
+
+      - name: Verify sold-price snapshots and Dublin districts
+        id: ppr_snapshots
+        continue-on-error: true
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/verify-dataset-snapshots.mjs ppr
+
+      - name: Audit Planning lifecycle consistency
+        id: lifecycle
+        continue-on-error: true
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/audit-planning-lifecycle-consistency.mjs
+
+      - name: Audit Planning alert watcher health
+        id: watcher
+        continue-on-error: true
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/audit-planning-alert-watch-health.mjs
+
+      - name: Publish integrity summary
+        if: always()
+        env:
+          PLANNING_SNAPSHOTS: ${{ steps.planning_snapshots.outcome }}
+          PPR_SNAPSHOTS: ${{ steps.ppr_snapshots.outcome }}
+          LIFECYCLE: ${{ steps.lifecycle.outcome }}
+          WATCHER: ${{ steps.watcher.outcome }}
+        run: |
+          echo "## OpenList daily data integrity" >> "$GITHUB_STEP_SUMMARY"
+          echo >> "$GITHUB_STEP_SUMMARY"
+          echo "| Check | Result |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Planning snapshots | $PLANNING_SNAPSHOTS |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Sold-price snapshots / Dublin districts | $PPR_SNAPSHOTS |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Planning lifecycle consistency | $LIFECYCLE |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Alert watcher health | $WATCHER |" >> "$GITHUB_STEP_SUMMARY"
+          node - <<'NODE' >> "$GITHUB_STEP_SUMMARY"
+          const fs = require('fs')
+          for (const [title, file] of [
+            ['Planning lifecycle', 'planning-lifecycle-consistency-audit.json'],
+            ['Alert watcher', 'planning-alert-watch-health-audit.json'],
+          ]) {
+            if (!fs.existsSync(file)) continue
+            const r = JSON.parse(fs.readFileSync(file, 'utf8'))
+            console.log(`\n### ${title}\n`)
+            console.log(`High: **${r.high_count || 0}**  `)
+            console.log(`Warnings: **${r.warning_count || 0}**  `)
+            if (r.watched_application_count != null) console.log(`Watched applications: **${r.watched_application_count}**  `)
+            if (r.counts && Object.keys(r.counts).length) {
+              console.log('\n| Type | Count |')
+              console.log('|---|---:|')
+              for (const [type, count] of Object.entries(r.counts)) console.log(`| ${type} | ${count} |`)
+            }
+          }
+          NODE
+
+      - name: Create or update integrity alert
+        if: always() && (steps.planning_snapshots.outcome == 'failure' || steps.ppr_snapshots.outcome == 'failure' || steps.lifecycle.outcome == 'failure' || steps.watcher.outcome == 'failure')
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs')
+            const owner = context.repo.owner
+            const repo = context.repo.repo
+            const title = '[Automated] OpenList data integrity issue'
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`
+            const outcomes = {
+              'Planning snapshots': '${{ steps.planning_snapshots.outcome }}',
+              'Sold-price snapshots / Dublin districts': '${{ steps.ppr_snapshots.outcome }}',
+              'Planning lifecycle consistency': '${{ steps.lifecycle.outcome }}',
+              'Planning alert watcher health': '${{ steps.watcher.outcome }}',
+            }
+            const lines = [
+              'The daily OpenList integrity sweep found one or more high-confidence problems.',
+              '',
+              `Latest run: ${runUrl}`,
+              '',
+              '| Check | Result |',
+              '|---|---|',
+              ...Object.entries(outcomes).map(([name, outcome]) => `| ${name} | ${outcome} |`),
+            ]
+            for (const [label, file] of [
+              ['Lifecycle anomalies', 'planning-lifecycle-consistency-audit.json'],
+              ['Watcher anomalies', 'planning-alert-watch-health-audit.json'],
+            ]) {
+              if (!fs.existsSync(file)) continue
+              const report = JSON.parse(fs.readFileSync(file, 'utf8'))
+              const high = (report.anomalies || []).filter(row => row.severity === 'high').slice(0, 40)
+              if (!high.length) continue
+              lines.push('', `### ${label}`, '', '| Council | Reference | Type | Detail |', '|---|---|---|---|')
+              for (const row of high) {
+                lines.push(`| ${row.local_authority_code || 'n/a'} | ${row.reference || 'n/a'} | ${row.anomaly_type} | ${String(row.detail || '').replace(/\|/g, '\\|')} |`)
+              }
+            }
+            lines.push('', 'This issue is maintained automatically and will close after a clean sweep.')
+            const { data: issues } = await github.rest.issues.listForRepo({ owner, repo, state: 'open', per_page: 100 })
+            const existing = issues.find(issue => !issue.pull_request && issue.title === title)
+            if (existing) await github.rest.issues.update({ owner, repo, issue_number: existing.number, body: lines.join('\n') })
+            else await github.rest.issues.create({ owner, repo, title, body: lines.join('\n'), assignees: [owner] })
+
+      - name: Close resolved integrity alert
+        if: steps.planning_snapshots.outcome == 'success' && steps.ppr_snapshots.outcome == 'success' && steps.lifecycle.outcome == 'success' && steps.watcher.outcome == 'success'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner
+            const repo = context.repo.repo
+            const title = '[Automated] OpenList data integrity issue'
+            const { data: issues } = await github.rest.issues.listForRepo({ owner, repo, state: 'open', per_page: 100 })
+            const existing = issues.find(issue => !issue.pull_request && issue.title === title)
+            if (existing) {
+              await github.rest.issues.createComment({ owner, repo, issue_number: existing.number, body: `Daily integrity sweep is healthy again after run ${context.runId}. Closing automatically.` })
+              await github.rest.issues.update({ owner, repo, issue_number: existing.number, state: 'closed' })
+            }
+
+      - name: Fail on integrity problems
+        if: steps.planning_snapshots.outcome == 'failure' || steps.ppr_snapshots.outcome == 'failure' || steps.lifecycle.outcome == 'failure' || steps.watcher.outcome == 'failure'
+        run: exit 1
