@@ -72,12 +72,6 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: node scripts/process-ppr-snapshot.mjs "data/ppr/PPR-${{ needs.source.outputs.year }}.csv"
 
-      - name: Refresh Dublin district insights
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: node scripts/refresh-ppr-dublin-district-insights.mjs
-
   publish-snapshots:
     name: Publish current sold-price counts
     if: ${{ always() }}
@@ -104,6 +98,12 @@ jobs:
         run: |
           node scripts/rebuild-ppr-summaries.mjs
           node scripts/rebuild-ppr-phase1-analytics.mjs
+
+      - name: Refresh Dublin district insights
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/refresh-ppr-dublin-district-insights.mjs
 
       - name: Verify sold-price snapshot freshness
         env:
