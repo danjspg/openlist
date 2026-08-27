@@ -16,6 +16,29 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
   auth: { persistSession: false, autoRefreshToken: false },
 })
 
+const DUBLIN_DISTRICT_SLUGS = [
+  "dublin-1",
+  "dublin-2",
+  "dublin-3",
+  "dublin-4",
+  "dublin-5",
+  "dublin-6",
+  "dublin-6w",
+  "dublin-7",
+  "dublin-8",
+  "dublin-9",
+  "dublin-10",
+  "dublin-11",
+  "dublin-12",
+  "dublin-13",
+  "dublin-14",
+  "dublin-15",
+  "dublin-16",
+  "dublin-18",
+  "dublin-22",
+  "dublin-24",
+]
+
 async function exactCountAndLatest(table, dateColumn, authorityCode) {
   let countQuery = supabase.from(table).select("id", { count: "exact", head: true })
   let latestQuery = supabase
@@ -102,6 +125,31 @@ async function verifyPlanningSnapshots() {
   )
 }
 
+async function verifyDublinDistrictSnapshots() {
+  const { data, error } = await supabase
+    .from("ppr_market_insights")
+    .select("market_slug,total_sales_count,last_sale_date")
+    .eq("range_key", "last-year")
+    .in("market_slug", DUBLIN_DISTRICT_SLUGS)
+
+  if (error) throw error
+
+  const snapshotBySlug = new Map((data ?? []).map((row) => [row.market_slug, row]))
+  const missing = DUBLIN_DISTRICT_SLUGS.filter((slug) => !snapshotBySlug.has(slug))
+  if (missing.length > 0) {
+    throw new Error(`Missing Dublin district PPR snapshots: ${missing.join(", ")}`)
+  }
+
+  const empty = DUBLIN_DISTRICT_SLUGS.filter(
+    (slug) => Number(snapshotBySlug.get(slug)?.total_sales_count ?? 0) <= 0
+  )
+  if (empty.length > 0) {
+    throw new Error(`Empty Dublin district PPR snapshots: ${empty.join(", ")}`)
+  }
+
+  console.log(`Dublin district snapshots verified: ${DUBLIN_DISTRICT_SLUGS.length} populated districts.`)
+}
+
 async function verifyPprSnapshots() {
   const [{ data: snapshot, error: snapshotError }, actual] = await Promise.all([
     supabase
@@ -115,6 +163,7 @@ async function verifyPprSnapshots() {
   if (!snapshot) throw new Error("Missing all-time PPR national snapshot")
 
   assertSnapshotMatches("PPR national", snapshot, actual)
+  await verifyDublinDistrictSnapshots()
   console.log(`PPR snapshot verified: ${actual.count} sales through ${actual.latestDate}.`)
 }
 
