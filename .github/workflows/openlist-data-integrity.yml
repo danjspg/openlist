@@ -16,7 +16,7 @@ concurrency:
 jobs:
   audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -27,8 +27,10 @@ jobs:
 
       - run: npm ci
 
+      # Phase 1: detect. These checks deliberately continue so the sweep can
+      # collect a complete picture before attempting only approved repairs.
       - name: Verify Planning snapshots
-        id: planning_snapshots
+        id: planning_snapshots_initial
         continue-on-error: true
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
@@ -36,7 +38,7 @@ jobs:
         run: node scripts/verify-dataset-snapshots.mjs planning
 
       - name: Verify sold-price snapshots and Dublin districts
-        id: ppr_snapshots
+        id: ppr_snapshots_initial
         continue-on-error: true
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
@@ -44,7 +46,7 @@ jobs:
         run: node scripts/verify-dataset-snapshots.mjs ppr
 
       - name: Audit Planning lifecycle consistency
-        id: lifecycle
+        id: lifecycle_initial
         continue-on-error: true
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
@@ -52,29 +54,123 @@ jobs:
         run: node scripts/audit-planning-lifecycle-consistency.mjs
 
       - name: Audit Planning alert watcher health
-        id: watcher
+        id: watcher_initial
         continue-on-error: true
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: node scripts/audit-planning-alert-watch-health.mjs
 
-      - name: Publish integrity summary
+      # Phase 2: classify and run only known-safe repair playbooks. These
+      # actions rebuild derived state or re-poll authoritative sources. They do
+      # not invent planning facts, infer outcomes, or change source mappings.
+      - name: Auto-repair Planning snapshots
+        id: repair_planning_snapshots
+        if: steps.planning_snapshots_initial.outcome == 'failure'
+        continue-on-error: true
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          PLANNING_REVALIDATION_URL: ${{ secrets.PLANNING_REVALIDATION_URL }}
+          PLANNING_REVALIDATION_SECRET: ${{ secrets.PLANNING_REVALIDATION_SECRET }}
+        run: |
+          echo "Repair playbook: rebuild Planning dashboard snapshots and publish caches"
+          node scripts/refresh-planning-dashboard-snapshots.mjs
+          node scripts/revalidate-dataset-caches.mjs planning
+
+      - name: Auto-repair sold-price derived snapshots
+        id: repair_ppr_snapshots
+        if: steps.ppr_snapshots_initial.outcome == 'failure'
+        continue-on-error: true
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          PLANNING_REVALIDATION_URL: ${{ secrets.PLANNING_REVALIDATION_URL }}
+          PLANNING_REVALIDATION_SECRET: ${{ secrets.PLANNING_REVALIDATION_SECRET }}
+        run: |
+          echo "Repair playbook: rebuild PPR derived analytics, Dublin districts and publish caches"
+          node scripts/rebuild-ppr-summaries.mjs
+          node scripts/rebuild-ppr-phase1-analytics.mjs
+          node scripts/refresh-ppr-dublin-district-insights.mjs
+          node scripts/revalidate-dataset-caches.mjs ppr
+
+      - name: Auto-repair stale or failed alert watchers
+        id: repair_watcher
+        if: steps.watcher_initial.outcome == 'failure'
+        continue-on-error: true
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          PLANNING_ALERT_WATCH_DELAY_MS: "250"
+          PLANNING_REVALIDATION_URL: ${{ secrets.PLANNING_REVALIDATION_URL }}
+          PLANNING_REVALIDATION_SECRET: ${{ secrets.PLANNING_REVALIDATION_SECRET }}
+          PLANNING_REVALIDATION_QUEUE: dedicated
+        run: |
+          echo "Repair playbook: re-poll every enabled watched application from its configured authoritative source"
+          node scripts/watch-planning-alert-applications.mjs
+          node scripts/drain-planning-revalidation.mjs
+
+      # A watcher repair can also resolve lifecycle contradictions on watched
+      # applications, so refresh the lifecycle report before final verification.
+      - name: Re-audit Planning lifecycle after safe repairs
+        id: lifecycle_final
+        continue-on-error: true
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/audit-planning-lifecycle-consistency.mjs
+
+      # Phase 3: verify every repaired area from scratch. The final state, not
+      # the initial failure, controls whether an incident remains open.
+      - name: Re-verify Planning snapshots
+        id: planning_snapshots_final
+        continue-on-error: true
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/verify-dataset-snapshots.mjs planning
+
+      - name: Re-verify sold-price snapshots and Dublin districts
+        id: ppr_snapshots_final
+        continue-on-error: true
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/verify-dataset-snapshots.mjs ppr
+
+      - name: Re-audit Planning alert watcher health
+        id: watcher_final
+        continue-on-error: true
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/audit-planning-alert-watch-health.mjs
+
+      - name: Publish integrity and remediation summary
         if: always()
         env:
-          PLANNING_SNAPSHOTS: ${{ steps.planning_snapshots.outcome }}
-          PPR_SNAPSHOTS: ${{ steps.ppr_snapshots.outcome }}
-          LIFECYCLE: ${{ steps.lifecycle.outcome }}
-          WATCHER: ${{ steps.watcher.outcome }}
+          PLANNING_INITIAL: ${{ steps.planning_snapshots_initial.outcome }}
+          PPR_INITIAL: ${{ steps.ppr_snapshots_initial.outcome }}
+          LIFECYCLE_INITIAL: ${{ steps.lifecycle_initial.outcome }}
+          WATCHER_INITIAL: ${{ steps.watcher_initial.outcome }}
+          PLANNING_REPAIR: ${{ steps.repair_planning_snapshots.outcome }}
+          PPR_REPAIR: ${{ steps.repair_ppr_snapshots.outcome }}
+          WATCHER_REPAIR: ${{ steps.repair_watcher.outcome }}
+          PLANNING_FINAL: ${{ steps.planning_snapshots_final.outcome }}
+          PPR_FINAL: ${{ steps.ppr_snapshots_final.outcome }}
+          LIFECYCLE_FINAL: ${{ steps.lifecycle_final.outcome }}
+          WATCHER_FINAL: ${{ steps.watcher_final.outcome }}
         run: |
           echo "## OpenList daily data integrity" >> "$GITHUB_STEP_SUMMARY"
           echo >> "$GITHUB_STEP_SUMMARY"
-          echo "| Check | Result |" >> "$GITHUB_STEP_SUMMARY"
-          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Planning snapshots | $PLANNING_SNAPSHOTS |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Sold-price snapshots / Dublin districts | $PPR_SNAPSHOTS |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Planning lifecycle consistency | $LIFECYCLE |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Alert watcher health | $WATCHER |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Check | Initial | Repair | Final |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Planning snapshots | $PLANNING_INITIAL | ${PLANNING_REPAIR:-not needed} | $PLANNING_FINAL |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Sold-price snapshots / Dublin districts | $PPR_INITIAL | ${PPR_REPAIR:-not needed} | $PPR_FINAL |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Planning lifecycle consistency | $LIFECYCLE_INITIAL | safe source refresh only | $LIFECYCLE_FINAL |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Alert watcher health | $WATCHER_INITIAL | ${WATCHER_REPAIR:-not needed} | $WATCHER_FINAL |" >> "$GITHUB_STEP_SUMMARY"
+          echo >> "$GITHUB_STEP_SUMMARY"
+          echo "Automatic remediation is intentionally limited to deterministic derived-state rebuilds, cache publication and authoritative-source re-polls. Unknown semantic contradictions are escalated without mutation." >> "$GITHUB_STEP_SUMMARY"
           node - <<'NODE' >> "$GITHUB_STEP_SUMMARY"
           const fs = require('fs')
           for (const [title, file] of [
@@ -95,8 +191,8 @@ jobs:
           }
           NODE
 
-      - name: Create or update integrity alert
-        if: always() && (steps.planning_snapshots.outcome == 'failure' || steps.ppr_snapshots.outcome == 'failure' || steps.lifecycle.outcome == 'failure' || steps.watcher.outcome == 'failure')
+      - name: Create or update unresolved integrity alert
+        if: always() && (steps.planning_snapshots_final.outcome == 'failure' || steps.ppr_snapshots_final.outcome == 'failure' || steps.lifecycle_final.outcome == 'failure' || steps.watcher_final.outcome == 'failure')
         uses: actions/github-script@v7
         with:
           script: |
@@ -106,19 +202,21 @@ jobs:
             const title = '[Automated] OpenList data integrity issue'
             const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`
             const outcomes = {
-              'Planning snapshots': '${{ steps.planning_snapshots.outcome }}',
-              'Sold-price snapshots / Dublin districts': '${{ steps.ppr_snapshots.outcome }}',
-              'Planning lifecycle consistency': '${{ steps.lifecycle.outcome }}',
-              'Planning alert watcher health': '${{ steps.watcher.outcome }}',
+              'Planning snapshots': ['${{ steps.planning_snapshots_initial.outcome }}', '${{ steps.repair_planning_snapshots.outcome }}', '${{ steps.planning_snapshots_final.outcome }}'],
+              'Sold-price snapshots / Dublin districts': ['${{ steps.ppr_snapshots_initial.outcome }}', '${{ steps.repair_ppr_snapshots.outcome }}', '${{ steps.ppr_snapshots_final.outcome }}'],
+              'Planning lifecycle consistency': ['${{ steps.lifecycle_initial.outcome }}', 'safe source refresh only', '${{ steps.lifecycle_final.outcome }}'],
+              'Planning alert watcher health': ['${{ steps.watcher_initial.outcome }}', '${{ steps.repair_watcher.outcome }}', '${{ steps.watcher_final.outcome }}'],
             }
             const lines = [
-              'The daily OpenList integrity sweep found one or more high-confidence problems.',
+              'The daily OpenList integrity sweep found a problem that remained after the approved automatic repair playbooks ran.',
               '',
               `Latest run: ${runUrl}`,
               '',
-              '| Check | Result |',
-              '|---|---|',
-              ...Object.entries(outcomes).map(([name, outcome]) => `| ${name} | ${outcome} |`),
+              '| Check | Initial | Repair | Final |',
+              '|---|---|---|---|',
+              ...Object.entries(outcomes).map(([name, values]) => `| ${name} | ${values[0] || 'n/a'} | ${values[1] || 'not needed'} | ${values[2] || 'n/a'} |`),
+              '',
+              'Automatic writes stop here. OpenList will not invent planning facts, infer decision outcomes/dates, add source mappings, or modify ingestion semantics automatically.',
             ]
             for (const [label, file] of [
               ['Lifecycle anomalies', 'planning-lifecycle-consistency-audit.json'],
@@ -133,27 +231,31 @@ jobs:
                 lines.push(`| ${row.local_authority_code || 'n/a'} | ${row.reference || 'n/a'} | ${row.anomaly_type} | ${String(row.detail || '').replace(/\|/g, '\\|')} |`)
               }
             }
-            lines.push('', 'This issue is maintained automatically and will close after a clean sweep.')
             const { data: issues } = await github.rest.issues.listForRepo({ owner, repo, state: 'open', per_page: 100 })
             const existing = issues.find(issue => !issue.pull_request && issue.title === title)
             if (existing) await github.rest.issues.update({ owner, repo, issue_number: existing.number, body: lines.join('\n') })
             else await github.rest.issues.create({ owner, repo, title, body: lines.join('\n'), assignees: [owner] })
 
-      - name: Close resolved integrity alert
-        if: steps.planning_snapshots.outcome == 'success' && steps.ppr_snapshots.outcome == 'success' && steps.lifecycle.outcome == 'success' && steps.watcher.outcome == 'success'
+      - name: Record successful auto-remediation and close incident
+        if: steps.planning_snapshots_final.outcome == 'success' && steps.ppr_snapshots_final.outcome == 'success' && steps.lifecycle_final.outcome == 'success' && steps.watcher_final.outcome == 'success'
         uses: actions/github-script@v7
         with:
           script: |
             const owner = context.repo.owner
             const repo = context.repo.repo
             const title = '[Automated] OpenList data integrity issue'
+            const repaired = []
+            if ('${{ steps.planning_snapshots_initial.outcome }}' === 'failure') repaired.push('Planning snapshots')
+            if ('${{ steps.ppr_snapshots_initial.outcome }}' === 'failure') repaired.push('sold-price snapshots / Dublin districts')
+            if ('${{ steps.watcher_initial.outcome }}' === 'failure') repaired.push('Planning alert watcher health')
             const { data: issues } = await github.rest.issues.listForRepo({ owner, repo, state: 'open', per_page: 100 })
             const existing = issues.find(issue => !issue.pull_request && issue.title === title)
             if (existing) {
-              await github.rest.issues.createComment({ owner, repo, issue_number: existing.number, body: `Daily integrity sweep is healthy again after run ${context.runId}. Closing automatically.` })
+              const repairText = repaired.length ? ` Approved automatic repair succeeded for: ${repaired.join(', ')}.` : ''
+              await github.rest.issues.createComment({ owner, repo, issue_number: existing.number, body: `Daily integrity sweep is healthy again after run ${context.runId}.${repairText} Closing automatically.` })
               await github.rest.issues.update({ owner, repo, issue_number: existing.number, state: 'closed' })
             }
 
-      - name: Fail on integrity problems
-        if: steps.planning_snapshots.outcome == 'failure' || steps.ppr_snapshots.outcome == 'failure' || steps.lifecycle.outcome == 'failure' || steps.watcher.outcome == 'failure'
+      - name: Fail only on unresolved integrity problems
+        if: steps.planning_snapshots_final.outcome == 'failure' || steps.ppr_snapshots_final.outcome == 'failure' || steps.lifecycle_final.outcome == 'failure' || steps.watcher_final.outcome == 'failure'
         run: exit 1
