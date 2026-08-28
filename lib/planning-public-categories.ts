@@ -136,6 +136,16 @@ async function loadApplications(ids: string[]) {
   return new Map(applications.map((application) => [application.id, application]))
 }
 
+export async function getPlanningPublicCategorySummary(slug: string) {
+  const category = PLANNING_PUBLIC_CATEGORIES.find((item) => item.slug === slug)
+  if (!category) return null
+  const rows = await loadPriorityNotableIndex()
+  return {
+    category,
+    totalCount: rows.filter((row) => matchesCategory(slug, row)).length,
+  }
+}
+
 export async function getPlanningPublicCategory(slug: string) {
   const category = PLANNING_PUBLIC_CATEGORIES.find((item) => item.slug === slug)
   if (!category) return null
