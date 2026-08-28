@@ -1,5 +1,4 @@
 import { createClient } from "@supabase/supabase-js"
-import { getPlanningAuthorityByCode } from "../lib/planning-authorities"
 import { authoritativeCorkProposal } from "../lib/cork-planning-source.mjs"
 import { corkAgileApplicationConfig, corkAgileSourceApplicationId } from "../lib/cork-agile-authorities.mjs"
 import { authoritativeNationalProposal, cleanNationalPlanningText } from "../lib/national-planning-source.mjs"
@@ -21,6 +20,7 @@ export const hasExternalStatusPrecedence = (row: Record<string, unknown>) => {
   const source = compact(row.status_source).toLowerCase()
   return source === "eplan" || source.includes("acp") || Boolean(row.appeal_decision_source) || Boolean(row.appeal_decision_date)
 }
+export const nationalAuthorityForCode = (code: string) => AUTHORITIES.find(item => item.code === code) || null
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 const chunks = <T>(values: T[], size: number) => {
@@ -107,44 +107,51 @@ async function loadNationalSources(rows: PlanningRow[]) {
     byAuthority.set(row.local_authority_code, existing)
   }
   for (const [code, authorityRows] of byAuthority) {
-    const authority = getPlanningAuthorityByCode(code)
+    const authority = nationalAuthorityForCode(code)
     if (!authority) continue
     for (const batch of chunks(authorityRows, 50)) {
       const refs = batch.map(row => `'${sql(row.reference)}'`).join(",")
+      const sourceIds = batch
+        .map(row => Number(row.source_application_id))
+        .filter(value => Number.isInteger(value) && value > 0)
+      const clauses = [`PlanningAuthority = '${sql(authority.sourceName)}' AND ApplicationNumber IN (${refs})`]
+      if (sourceIds.length > 0) clauses.unshift(`OBJECTID IN (${sourceIds.join(",")})`)
       const params = new URLSearchParams({
-        where: `PlanningAuthority = '${sql(authority.name)}' AND ApplicationNumber IN (${refs})`,
-        outFields: "ApplicationNumber,DevelopmentDescription,ApplicationStatus",
-        returnGeometry: "false", f: "json", resultRecordCount: "100",
+        where: `(${clauses.join(") OR (")})`,
+        outFields: "OBJECTID,ApplicationNumber,DevelopmentDescription,ApplicationStatus",
+        returnGeometry: "false", f: "json", resultRecordCount: "200",
       })
       const json = await fetchJson(`${ARC_QUERY}?${params}`, `${code} ArcGIS batch`)
-      const exact = new Map<string, Record<string, unknown>>()
+      const byObjectId = new Map<number, Record<string, unknown>>()
+      const byReference = new Map<string, Record<string, unknown>>()
       for (const feature of json.features || []) {
         const attrs = feature.attributes || {}
-        exact.set(compact(attrs.ApplicationNumber), attrs)
+        const objectId = Number(attrs.OBJECTID)
+        if (Number.isInteger(objectId)) byObjectId.set(objectId, attrs)
+        byReference.set(compact(attrs.ApplicationNumber), attrs)
       }
       for (const row of batch) {
-        const attrs = exact.get(compact(row.reference))
+        const sourceId = Number(row.source_application_id)
+        const attrs = (Number.isInteger(sourceId) ? byObjectId.get(sourceId) : undefined) || byReference.get(compact(row.reference))
         if (!attrs) continue
         sources.set(row.id, {
           proposal: cleanNationalPlanningText(attrs.DevelopmentDescription),
           status: cleanNationalPlanningText(attrs.ApplicationStatus),
-          source: "national_arcgis",
+          source: Number.isInteger(sourceId) && byObjectId.has(sourceId) ? "national_arcgis_objectid" : "national_arcgis_reference",
         })
       }
     }
     if (!SPECIAL_AGILE.has(code)) continue
-    const ingestAuthority = AUTHORITIES.find(item => item.code === code)
-    if (!ingestAuthority) continue
     for (const row of authorityRows) {
       if (compact(row.proposal).length >= 180) continue
-      const details = await fetchAgileDetailsByReference(ingestAuthority, [row], { failureMode: "best-effort" })
+      const details = await fetchAgileDetailsByReference(authority, [row], { failureMode: "best-effort" })
       const current = sources.get(row.id) || { source: "national_arcgis" }
       const full = details.get(row.reference)?.fullProposal
       if (!full) continue
       sources.set(row.id, {
         ...current,
         proposal: authoritativeNationalProposal(row.proposal, full) || current.proposal,
-        source: "agile_detail+national_arcgis",
+        source: `${current.source}+agile_detail`,
       })
     }
   }
