@@ -82,7 +82,10 @@ jobs:
         run: |
           mkdir -p artifacts
           if [[ "$RUN_MODE" == "validate" ]]; then
-            node scripts/reconcile-planning-notable-classification.mjs --validate --output=artifacts/planning-notable-classification.json
+            # Validation intentionally uses the same bounded RPC pagination as reconciliation.
+            # It remains read-only because --apply is omitted. This avoids the former
+            # whole-cohort validation query timing out in Postgres.
+            node scripts/reconcile-planning-notable-classification.mjs --full-window --batch-size=250 --max-batches=100 --output=artifacts/planning-notable-classification.json
           elif [[ "$RUN_MODE" == "sweep" ]]; then
             node scripts/reconcile-planning-notable-classification.mjs --recent-changed-days=3 --batch-size=250 --max-batches=8 --apply --output=artifacts/planning-notable-classification.json
           else
