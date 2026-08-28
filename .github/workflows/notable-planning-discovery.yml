@@ -4,16 +4,39 @@ on:
   schedule:
     - cron: "40 5 * * *"
   workflow_dispatch:
+  pull_request:
+    paths:
+      - "scripts/discover-notable-planning.mjs"
+      - "tests/notable-planning-discovery.test.mjs"
+      - ".github/workflows/notable-planning-discovery.yml"
 
 permissions:
   contents: read
 
 concurrency:
-  group: notable-planning-discovery
+  group: notable-planning-discovery-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Test notable Planning matching and aliases
+        run: node --test tests/notable-planning-discovery.test.mjs
+
   discover:
+    if: ${{ github.event_name != 'pull_request' }}
+    needs: test
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
