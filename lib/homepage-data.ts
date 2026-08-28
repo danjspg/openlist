@@ -7,6 +7,19 @@ export type HomepagePlanningSummary = {
   latestRegistrationDate: string | null
 }
 
+export type HomepageNotablePlanningItem = {
+  applicationId: string
+  reference: string
+  location: string | null
+  proposal: string | null
+  status: string | null
+  decisionText: string | null
+  registrationDate: string | null
+  decisionDate: string | null
+  displayName: string | null
+  categories: string[]
+}
+
 type PlanningAggregatePayload = {
   totalCount?: number | string | null
   latestRegistrationDate?: string | null
@@ -36,6 +49,50 @@ const getHomepagePlanningSummaryCached = unstable_cache(
   { revalidate: 60 * 60 * 6, tags: [PLANNING_DATASET_CACHE_TAG] }
 )
 
+const getHomepageNotablePlanningCached = unstable_cache(async (): Promise<HomepageNotablePlanningItem[]> => {
+  const supabase = getServerSupabase()
+  const { data: notable, error: notableError } = await supabase
+    .from("planning_seo_notable")
+    .select("application_id,display_name,notable_categories")
+    .eq("active", true)
+    .eq("priority_eligible", true)
+    .order("discovered_at", { ascending: false })
+    .limit(120)
+
+  if (notableError) throw new Error(`Homepage notable lookup failed: ${notableError.message}`)
+  if (!notable?.length) return []
+
+  const ids = notable.map((row) => row.application_id)
+  const { data: applications, error: applicationsError } = await supabase
+    .from("planning_applications")
+    .select("id,reference,location,proposal,status,decision_text,registration_date,decision_date")
+    .in("id", ids)
+
+  if (applicationsError) throw new Error(`Homepage notable application lookup failed: ${applicationsError.message}`)
+  const byId = new Map((applications ?? []).map((row) => [row.id, row]))
+
+  return notable.flatMap((row) => {
+    const application = byId.get(row.application_id)
+    if (!application) return []
+    return [{
+      applicationId: row.application_id,
+      reference: application.reference,
+      location: application.location,
+      proposal: application.proposal,
+      status: application.status,
+      decisionText: application.decision_text,
+      registrationDate: application.registration_date,
+      decisionDate: application.decision_date,
+      displayName: row.display_name,
+      categories: Array.isArray(row.notable_categories) ? row.notable_categories.map(String) : [],
+    }]
+  })
+}, ["homepage-notable-planning", "v1"], { revalidate: 60 * 60 * 6, tags: [PLANNING_DATASET_CACHE_TAG] })
+
 export async function getHomepagePlanningSummary() {
   return getHomepagePlanningSummaryCached()
+}
+
+export async function getHomepageNotablePlanning() {
+  return getHomepageNotablePlanningCached()
 }
