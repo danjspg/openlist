@@ -5,6 +5,10 @@ import {
   DEFAULT_PLANNING_NOTABLE_THRESHOLDS,
 } from "../lib/planning-notable-classifier.mjs"
 import {
+  evaluatePlanningNotableEligibility,
+  planningNotableRetentionCutoff,
+} from "../lib/planning-notable-eligibility.mjs"
+import {
   buildDeterministicNotableMutation,
   classifyAndPersistPlanningApplications,
   mergePressNotableMetadata,
@@ -88,6 +92,76 @@ test("classifier output is deterministic and idempotent", () => {
   assert.deepEqual(classifyPlanningNotability(row), classifyPlanningNotability({ ...row }))
 })
 
+const eligibilityAsOf = "2026-08-28"
+
+for (const [name, proposal] of [
+  ["wind farm", "Development of a 6 turbine wind farm"],
+  ["supermarket", "Construction of a new supermarket"],
+  ["120-home scheme", "Development of 120 homes"],
+]) {
+  test(`active ${name} is priority eligible`, () => {
+    const row = application(proposal, { normalized_status: "under_assessment" })
+    const classification = classifyPlanningNotability(row)
+    const eligibility = evaluatePlanningNotableEligibility(row, null, {
+      structurallyNotable: classification.notable,
+      asOf: eligibilityAsOf,
+    })
+    assert.equal(eligibility.priorityEligible, true)
+    assert.equal(eligibility.reason, "active-structural")
+  })
+}
+
+for (const [monthsAgo, decisionDate, expected] of [
+  [3, "2026-05-28", true],
+  [11, "2025-09-28", true],
+  [13, "2025-07-28", false],
+]) {
+  test(`structurally notable decision ${monthsAgo} months ago has expected eligibility`, () => {
+    const row = application("Development of a 6 turbine wind farm", {
+      normalized_status: "final_grant",
+      decision_date: decisionDate,
+    })
+    const eligibility = evaluatePlanningNotableEligibility(row, null, {
+      structurallyNotable: true,
+      asOf: eligibilityAsOf,
+    })
+    assert.equal(eligibility.priorityEligible, expected)
+  })
+}
+
+test("retention uses the latest meaningful outcome and a configurable month cutoff", () => {
+  assert.equal(planningNotableRetentionCutoff(eligibilityAsOf, 12), "2025-08-28")
+  assert.equal(planningNotableRetentionCutoff("2026-08-31", 6), "2026-02-28")
+  const eligibility = evaluatePlanningNotableEligibility({
+    normalized_status: "appeal_decided",
+    decision_date: "2024-01-01",
+    appeal_decision_date: "2026-01-01",
+  }, null, { structurallyNotable: true, asOf: eligibilityAsOf })
+  assert.equal(eligibility.latestOutcomeDate, "2026-01-01")
+  assert.equal(eligibility.priorityEligible, true)
+})
+
+test("old structural classification expires unless press or manual metadata overrides it", () => {
+  const row = application("Development of a 6 turbine wind farm", {
+    normalized_status: "final_grant",
+    decision_date: "2020-01-01",
+  })
+  const oldStructural = buildDeterministicNotableMutation(row, null, undefined, { asOf: eligibilityAsOf })
+  assert.equal(oldStructural.row.active, true)
+  assert.equal(oldStructural.row.priority_eligible, false)
+  assert.ok(oldStructural.row.classification_reasons.deterministic)
+  assert.ok(oldStructural.row.notable_categories.includes("energy"))
+
+  const withPress = mergePressNotableMetadata(oldStructural.row, {
+    applicationId: row.id,
+    evidence: { stories: [{ url: "https://publisher.example/old-wind-farm" }] },
+  })
+  assert.equal(withPress.priority_eligible, true)
+  const rerun = buildDeterministicNotableMutation(row, withPress, undefined, { asOf: eligibilityAsOf })
+  assert.equal(rerun.row.priority_eligible, true)
+  assert.deepEqual(rerun.row.classification_sources, ["deterministic", "press"])
+})
+
 test("deterministic and press metadata coexist without losing enrichment", () => {
   const row = application("Development of 120 homes")
   const deterministic = buildDeterministicNotableMutation(row, null)
@@ -124,6 +198,7 @@ test("Cork City 26/44496 Boxd press and authoritative enrichment remain intact",
     reason: "Notable Planning application identified from Irish press coverage.",
     evidence: { stories: [{ headline: "Boxd coffee to open new Cork city location" }] },
     active: true,
+    priority_eligible: true,
     display_name: "Boxd Coffee",
     search_aliases: ["Boxd", "Boxd Coffee", "Boxd Washington Street"],
     notable_categories: ["press"],
@@ -177,4 +252,34 @@ test("persistence enqueues only material notable-state changes", async () => {
     application_id: row.id,
     requested_at: "2026-08-28T10:00:00.000Z",
   }])
+})
+
+test("structural expiry is idempotent and queues only the material priority change", async () => {
+  const active = application("Development of a 6 turbine wind farm", {
+    normalized_status: "under_assessment",
+  })
+  const existing = buildDeterministicNotableMutation(active, null, undefined, {
+    asOf: eligibilityAsOf,
+  }).row
+  const expired = {
+    ...active,
+    normalized_status: "final_grant",
+    decision_date: "2025-07-28",
+  }
+
+  const changedDb = mockSupabase([existing])
+  const changed = await classifyAndPersistPlanningApplications(changedDb, [expired], {
+    now: () => "2026-08-28T10:00:00.000Z",
+  })
+  assert.equal(changed.changed, 1)
+  assert.equal(changedDb.writes.notable[0].priority_eligible, false)
+  assert.ok(changedDb.writes.notable[0].classification_reasons.deterministic)
+  assert.deepEqual(changedDb.writes.queue.map((row) => row.application_id), [active.id])
+
+  const unchangedDb = mockSupabase([changedDb.writes.notable[0]])
+  const unchanged = await classifyAndPersistPlanningApplications(unchangedDb, [expired], {
+    now: () => "2026-08-28T10:00:00.000Z",
+  })
+  assert.equal(unchanged.changed, 0)
+  assert.deepEqual(unchangedDb.writes.queue, [])
 })

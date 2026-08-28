@@ -53,7 +53,7 @@ export async function upsertPlanningBatch(
   const { data, error } = await supabase
     .from("planning_applications")
     .upsert(batch, { onConflict: "local_authority_code,reference" })
-    .select("id,local_authority_code,reference,proposal,applicant_name,application_type")
+    .select("id,local_authority_code,reference,proposal,applicant_name,application_type,status,normalized_status,decision_date,final_grant_date,withdrawal_date,appeal_decision_date")
 
   if (!error) {
     try {
@@ -64,7 +64,7 @@ export async function upsertPlanningBatch(
       })
     } catch (classificationError) {
       // Classification is additive indexing metadata. Preserve ingestion
-      // availability; the bounded recent safety sweep repairs missed rows.
+      // availability; bounded active/recent reconciliation repairs missed rows.
       console.warn(
         `${label}: Planning notability classification failed for ${(data || []).length} rows; continuing ingestion.`,
         classificationError

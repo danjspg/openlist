@@ -1,4 +1,6 @@
 import {
+  ACTIVE_PLANNING_STATUSES,
+  isActivePlanningStatus as isActivePlanningStatusRuntime,
   isTerminalPlanningStatus as isTerminalPlanningStatusRuntime,
   isCanonicalPlanningStatus as isCanonicalPlanningStatusRuntime,
   normalisePlanningStatus as normalisePlanningStatusRuntime,
@@ -21,6 +23,10 @@ export const planningStatusKey = planningStatusKeyRuntime as (
 export const isTerminalPlanningStatus = isTerminalPlanningStatusRuntime as (
   value: PlanningStatus
 ) => boolean
+export const isActivePlanningStatus = isActivePlanningStatusRuntime as (
+  value: PlanningStatus
+) => boolean
+export { ACTIVE_PLANNING_STATUSES }
 export const isCanonicalPlanningStatus = isCanonicalPlanningStatusRuntime as (
   value: unknown
 ) => value is PlanningStatus

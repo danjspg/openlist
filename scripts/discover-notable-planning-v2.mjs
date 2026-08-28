@@ -350,7 +350,7 @@ function aliasesForStory(story, displayName) {
 
 async function upsertNotable(row, story, match) {
   const { data: existing, error: existingError } = await supabase.from("planning_seo_notable")
-    .select("source,reason,display_name,search_aliases,evidence,active,notable_categories,classification_reasons,classification_sources")
+    .select("source,reason,display_name,search_aliases,evidence,active,priority_eligible,notable_categories,classification_reasons,classification_sources")
     .eq("application_id", row.id).maybeSingle()
   if (existingError) throw existingError
   const displayName = existing?.display_name || displayNameCandidate(story)

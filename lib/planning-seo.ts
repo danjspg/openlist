@@ -5,9 +5,7 @@ import {
 } from "@/lib/property-intelligence"
 
 export const RECENT_PLANNING_SITEMAP_LIMIT = 5000
-export const NOTABLE_PLANNING_SITEMAP_LIMIT = 5000
-export const NOTABLE_PLANNING_SITEMAP_SHARD_LIMIT = 50000
-export const NOTABLE_PLANNING_SITEMAP_START_YEAR = 2012
+export const NOTABLE_PLANNING_SITEMAP_LIMIT = 50000
 
 export type PlanningSitemapApplication = {
   id: string
@@ -215,24 +213,6 @@ export function renderSitemapXml(entries: PlanningSitemapEntry[]) {
     '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
     ...rows,
     "</urlset>",
-  ].join("")
-}
-
-export function notablePlanningSitemapShardNames(currentYear = new Date().getUTCFullYear()) {
-  const years = []
-  for (let year = NOTABLE_PLANNING_SITEMAP_START_YEAR; year <= currentYear; year += 1) {
-    years.push(String(year))
-  }
-  return [...years.reverse(), "undated"]
-}
-
-export function renderSitemapIndexXml(urls: string[]) {
-  const rows = [...new Set(urls)].map((url) => `<sitemap><loc>${escapeXml(url)}</loc></sitemap>`)
-  return [
-    '<?xml version="1.0" encoding="UTF-8"?>',
-    '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
-    ...rows,
-    "</sitemapindex>",
   ].join("")
 }
 

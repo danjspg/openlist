@@ -459,8 +459,8 @@ export async function getPlanningSitemapApplications(limit = 5000) {
   return applications
 }
 
-export async function getNotablePlanningSitemapApplications(limit = 5000) {
-  const boundedLimit = Math.max(1, Math.min(limit, 5000))
+export async function getNotablePlanningSitemapApplications(limit = 50000) {
+  const boundedLimit = Math.max(1, Math.min(limit, 50000))
   const serverSupabase = getServerSupabase()
   const applications: PlanningSitemapApplication[] = []
 
@@ -472,31 +472,6 @@ export async function getNotablePlanningSitemapApplications(limit = 5000) {
     )
     if (error || !data) {
       console.warn("Notable planning sitemap selection failed.", error?.message)
-      return []
-    }
-    applications.push(...(data as PlanningSitemapApplication[]))
-    if (data.length < pageLimit) break
-  }
-
-  return applications
-}
-
-export async function getNotablePlanningSitemapApplicationsByYear(
-  year: number | null,
-  limit = 50000
-) {
-  const boundedLimit = Math.max(1, Math.min(limit, 50000))
-  const serverSupabase = getServerSupabase()
-  const applications: PlanningSitemapApplication[] = []
-
-  for (let offset = 0; offset < boundedLimit; offset += 1000) {
-    const pageLimit = Math.min(1000, boundedLimit - offset)
-    const { data, error } = await serverSupabase.rpc(
-      "openlist_planning_notable_sitemap_year",
-      { p_year: year, p_limit: pageLimit, p_offset: offset }
-    )
-    if (error || !data) {
-      console.warn("Year-partitioned notable Planning sitemap selection failed.", error?.message)
       return []
     }
     applications.push(...(data as PlanningSitemapApplication[]))

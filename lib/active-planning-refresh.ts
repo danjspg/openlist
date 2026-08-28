@@ -1,11 +1,6 @@
-export const DAILY_ACTIVE_PLANNING_STATUSES = [
-  "pre_validation",
-  "registered",
-  "under_assessment",
-  "further_information_requested",
-  "further_information_received",
-  "appealed",
-] as const
+import { ACTIVE_PLANNING_STATUSES } from "./planning-status"
+
+export const DAILY_ACTIVE_PLANNING_STATUSES = ACTIVE_PLANNING_STATUSES
 
 export const DECISION_MADE_FOLLOW_UP_DAYS = 90
 export const RECENT_UNKNOWN_FOLLOW_UP_DAYS = 365
