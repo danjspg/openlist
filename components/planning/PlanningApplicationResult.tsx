@@ -38,13 +38,9 @@ export function PlanningApplicationList({
   return (
     <div className="space-y-3 py-4">
       {applications.map((application) => {
-        const displayDate =
-          dateLabel === "Decision" ? application.decisionDate : application.registrationDate
-        const primaryTitle =
-          application.location || application.proposal || "Planning application"
-        const showProposal = Boolean(
-          application.proposal && application.proposal !== primaryTitle
-        )
+        const displayDate = dateLabel === "Decision" ? application.decisionDate : application.registrationDate
+        const primaryTitle = application.location || application.proposal || "Planning application"
+        const showProposal = Boolean(application.proposal && application.proposal !== primaryTitle)
         const state = planningSemanticState({
           normalizedStatus: application.normalizedStatus,
           statusLabel: application.status,
@@ -52,103 +48,57 @@ export function PlanningApplicationList({
         })
 
         return (
-          <article
-            key={application.id}
-            className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5"
-          >
-            <div className="flex flex-col gap-1.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
-              <p className="flex min-w-0 flex-wrap items-baseline gap-x-2 text-sm">
-                <span className="font-mono font-semibold text-emerald-800">
-                  {application.reference}
-                </span>
-                <span aria-hidden="true" className="text-stone-300">·</span>
-                <span className="font-semibold text-stone-700">
-                  {application.authority}
-                </span>
-              </p>
-              <p className="shrink-0 text-xs font-medium text-stone-500">
-                {dateLabel} {formatDate(displayDate)}
-              </p>
+          <article key={application.id} className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm transition hover:border-stone-300 sm:p-5">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-5">
+              <div className="min-w-0">
+                <h3 className="line-clamp-2 text-xl font-semibold leading-7 tracking-tight text-stone-950">
+                  {application.detailHref ? (
+                    <Link className="transition hover:text-emerald-800" href={application.detailHref}>{primaryTitle}</Link>
+                  ) : primaryTitle}
+                </h3>
+                <p className="mt-1.5 text-xs leading-5 text-stone-500">
+                  <span className="font-semibold text-stone-600">{application.authority}</span>
+                  <span aria-hidden="true" className="mx-1.5 text-stone-300">·</span>
+                  <span className="font-mono">{application.reference}</span>
+                  <span aria-hidden="true" className="mx-1.5 text-stone-300">·</span>
+                  {dateLabel} {formatDate(displayDate)}
+                </p>
+              </div>
+              {state ? (
+                <div className="shrink-0">
+                  <p className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${planningStateBadgeClasses(state.tone)}`}>
+                    {state.label}
+                  </p>
+                </div>
+              ) : null}
             </div>
 
-            <h3 className="mt-3 line-clamp-2 text-xl font-semibold leading-7 tracking-tight text-stone-950">
-              {application.detailHref ? (
-                <Link
-                  className="transition hover:text-emerald-800"
-                  href={application.detailHref}
-                >
-                  {primaryTitle}
-                </Link>
-              ) : (
-                primaryTitle
-              )}
-            </h3>
+            {showProposal ? <p className="mt-3 line-clamp-2 text-sm leading-6 text-stone-600">{application.proposal}</p> : null}
 
-            {showProposal ? (
-              <p className="mt-2 line-clamp-2 text-sm leading-6 text-stone-600">
-                {application.proposal}
-              </p>
-            ) : null}
-
-            {state || application.latestEvent ? (
-              <div
-                className={`mt-4 grid gap-3 border-y border-stone-100 py-3 ${
-                  application.latestEvent ? "sm:grid-cols-2" : ""
-                }`}
-              >
-                {state ? (
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
-                      {state.heading}
-                    </p>
-                    <p className={`mt-1.5 inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${planningStateBadgeClasses(state.tone)}`}>
-                      {state.label}
-                    </p>
-                  </div>
-                ) : null}
-
-                {application.latestEvent ? (
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
-                      Latest activity
-                    </p>
-                    <p className="mt-1.5 text-sm font-semibold leading-5 text-stone-800">
-                      {application.latestEvent.label}
-                      <span className="font-normal text-stone-500">
-                        {" · "}{formatDate(application.latestEvent.date)}
-                      </span>
-                    </p>
-                    {application.latestEvent.detail && !state?.promotedDecision ? (
-                      <p className="mt-1 line-clamp-2 text-xs leading-5 text-stone-500">
-                        {application.latestEvent.detail}
-                      </p>
-                    ) : null}
-                  </div>
+            {application.latestEvent ? (
+              <div className="mt-4 rounded-xl bg-stone-50 px-3.5 py-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-400">Latest activity</p>
+                <p className="mt-1 text-sm font-semibold leading-5 text-stone-800">
+                  {application.latestEvent.label}
+                  <span className="font-normal text-stone-500"> · {formatDate(application.latestEvent.date)}</span>
+                </p>
+                {application.latestEvent.detail && !state?.promotedDecision ? (
+                  <p className="mt-1 line-clamp-2 text-xs leading-5 text-stone-500">{application.latestEvent.detail}</p>
                 ) : null}
               </div>
             ) : null}
 
-            {application.applicationType || application.applicant ||
-            (application.decision && application.latestEvent?.label !== "Decision" && !state?.promotedDecision) ? (
-              <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-xs leading-5 text-stone-500">
-                {application.applicationType ? (
-                  <span>{application.applicationType}</span>
-                ) : null}
-                {application.applicant ? (
-                  <span>Applicant: {application.applicant}</span>
-                ) : null}
-                {application.decision && application.latestEvent?.label !== "Decision" && !state?.promotedDecision ? (
-                  <span>Decision: {application.decision}</span>
-                ) : null}
+            {application.applicationType || application.applicant || (application.decision && application.latestEvent?.label !== "Decision" && !state?.promotedDecision) ? (
+              <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs leading-5 text-stone-400">
+                {application.applicationType ? <span>{application.applicationType}</span> : null}
+                {application.applicant ? <span>Applicant: {application.applicant}</span> : null}
+                {application.decision && application.latestEvent?.label !== "Decision" && !state?.promotedDecision ? <span>Decision: {application.decision}</span> : null}
               </div>
             ) : null}
 
             {application.detailHref ? (
-              <Link
-                href={application.detailHref}
-                className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-full border border-emerald-700 bg-emerald-700 px-5 text-sm font-semibold text-white shadow-sm transition hover:border-emerald-800 hover:bg-emerald-800 sm:w-auto"
-              >
-                View application <span aria-hidden="true" className="ml-1.5">→</span>
+              <Link href={application.detailHref} className="mt-4 inline-flex min-h-10 items-center text-sm font-semibold text-emerald-800 transition hover:text-emerald-950">
+                View application <span aria-hidden="true" className="ml-1">→</span>
               </Link>
             ) : null}
           </article>
@@ -162,9 +112,5 @@ function formatDate(value: string | null) {
   if (!value) return "Not recorded"
   const date = new Date(`${value}T00:00:00`)
   if (Number.isNaN(date.getTime())) return "Not recorded"
-  return new Intl.DateTimeFormat("en-IE", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(date)
+  return new Intl.DateTimeFormat("en-IE", { day: "numeric", month: "short", year: "numeric" }).format(date)
 }
