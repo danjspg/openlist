@@ -1,6 +1,8 @@
 name: Notable Planning quality repair
 
 on:
+  schedule:
+    - cron: "35 6 * * *"
   pull_request:
     paths:
       - "scripts/audit-notable-planning-quality.mts"
@@ -56,6 +58,7 @@ jobs:
   audit:
     if: >-
       ${{
+        github.event_name == 'schedule' ||
         github.event_name == 'workflow_dispatch' ||
         (github.event_name == 'push' && contains(github.event.head_commit.message, '[run-notable-quality-repair]'))
       }}
@@ -74,27 +77,27 @@ jobs:
       - run: npm ci
       - name: Validate configuration
         env:
-          APPLY: ${{ github.event_name == 'push' || inputs.apply }}
-          CONFIRM: ${{ github.event_name == 'push' || inputs.confirm_apply }}
+          APPLY: ${{ github.event_name == 'schedule' || github.event_name == 'push' || inputs.apply }}
+          CONFIRM: ${{ github.event_name == 'schedule' || github.event_name == 'push' || inputs.confirm_apply }}
         run: |
           if [[ "$APPLY" == "true" && "$CONFIRM" != "true" ]]; then
             echo "Production repair requires confirm_apply=true" >&2
             exit 1
           fi
       - name: Kildare authoritative fallback
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.scope == 'unchecked-only' }}
+        if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.scope == 'unchecked-only') }}
         env:
-          APPLY: ${{ inputs.apply }}
-          CONFIRM_NOTABLE_QUALITY_REPAIR: ${{ inputs.confirm_apply && 'true' || 'false' }}
+          APPLY: ${{ github.event_name == 'schedule' || inputs.apply }}
+          CONFIRM_NOTABLE_QUALITY_REPAIR: ${{ github.event_name == 'schedule' && 'true' || inputs.confirm_apply && 'true' || 'false' }}
         run: |
           apply_flag=""
           if [[ "$APPLY" == "true" ]]; then apply_flag="--apply"; fi
           node --import tsx scripts/repair-kildare-notable-quality.mts $apply_flag
       - name: Audit and repair notable Planning quality
         env:
-          APPLY: ${{ github.event_name == 'push' || inputs.apply }}
-          SCOPE: ${{ github.event_name == 'push' && 'all' || inputs.scope }}
-          CONFIRM_NOTABLE_QUALITY_REPAIR: ${{ github.event_name == 'push' && 'true' || inputs.confirm_apply && 'true' || 'false' }}
+          APPLY: ${{ github.event_name == 'schedule' || github.event_name == 'push' || inputs.apply }}
+          SCOPE: ${{ github.event_name == 'schedule' && 'unchecked-only' || github.event_name == 'push' && 'all' || inputs.scope }}
+          CONFIRM_NOTABLE_QUALITY_REPAIR: ${{ (github.event_name == 'schedule' || github.event_name == 'push') && 'true' || inputs.confirm_apply && 'true' || 'false' }}
         run: |
           mkdir -p artifacts
           apply_flag=""
