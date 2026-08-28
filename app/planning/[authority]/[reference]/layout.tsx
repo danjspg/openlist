@@ -11,12 +11,26 @@ type Props = {
 export default async function PlanningApplicationLayout({ children, params }: Props) {
   const resolved = await params
   const authority = getPlanningAuthorityBySlug(resolved.authority)
-  const application = authority
-    ? await getPlanningApplication(authority, resolved.reference)
-    : null
-  const notable = application
-    ? await getPlanningNotableEnrichment(application.id)
-    : null
+  let application = null
+  let notable = null
+
+  if (authority) {
+    try {
+      application = await getPlanningApplication(authority, resolved.reference)
+    } catch (error) {
+      // This lookup exists only to decorate the detail page with public-name
+      // context. Never let an optional banner prevent the core page rendering.
+      console.warn("Planning notable layout lookup unavailable; rendering without banner.", error)
+    }
+  }
+
+  if (application) {
+    try {
+      notable = await getPlanningNotableEnrichment(application.id)
+    } catch (error) {
+      console.warn("Planning notable enrichment unavailable; rendering without banner.", error)
+    }
+  }
 
   return (
     <div className="planning-application-layout">
