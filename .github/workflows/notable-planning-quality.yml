@@ -1,0 +1,107 @@
+name: Notable Planning quality repair
+
+on:
+  pull_request:
+    paths:
+      - "scripts/audit-notable-planning-quality.mts"
+      - "tests/notable-planning-quality.test.mts"
+      - ".github/workflows/notable-planning-quality.yml"
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "Repair authoritative proposal/status mismatches"
+        type: boolean
+        default: false
+      confirm_apply:
+        description: "Required confirmation for production repair"
+        type: boolean
+        default: false
+  push:
+    branches: [main]
+    paths:
+      - "scripts/audit-notable-planning-quality.mts"
+      - ".github/workflows/notable-planning-quality.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: notable-planning-quality
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node --import tsx --test tests/notable-planning-quality.test.mts
+      - run: npx eslint scripts/audit-notable-planning-quality.mts tests/notable-planning-quality.test.mts
+
+  audit:
+    if: >-
+      ${{
+        github.event_name == 'workflow_dispatch' ||
+        (github.event_name == 'push' && contains(github.event.head_commit.message, '[run-notable-quality-repair]'))
+      }}
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Validate configuration
+        env:
+          APPLY: ${{ github.event_name == 'push' || inputs.apply }}
+          CONFIRM: ${{ github.event_name == 'push' || inputs.confirm_apply }}
+        run: |
+          if [[ "$APPLY" == "true" && "$CONFIRM" != "true" ]]; then
+            echo "Production repair requires confirm_apply=true" >&2
+            exit 1
+          fi
+      - name: Audit and repair notable Planning quality
+        env:
+          APPLY: ${{ github.event_name == 'push' || inputs.apply }}
+          CONFIRM_NOTABLE_QUALITY_REPAIR: ${{ github.event_name == 'push' && 'true' || inputs.confirm_apply && 'true' || 'false' }}
+        run: |
+          mkdir -p artifacts
+          apply_flag=""
+          if [[ "$APPLY" == "true" ]]; then apply_flag="--apply"; fi
+          node --import tsx scripts/audit-notable-planning-quality.mts $apply_flag --output artifacts/notable-planning-quality.json
+      - name: Summarise
+        if: always()
+        run: |
+          if [[ ! -f artifacts/notable-planning-quality.json ]]; then exit 0; fi
+          node - <<'NODE' >> "$GITHUB_STEP_SUMMARY"
+          const r = require('./artifacts/notable-planning-quality.json')
+          console.log('## Notable Planning quality')
+          console.log(`- Mode: **${r.mode}**`)
+          console.log(`- Complete: **${r.complete ? 'yes' : 'no'}**`)
+          console.log(`- Applications: **${r.total}**`)
+          console.log(`- Source checked: **${r.checked}**`)
+          console.log(`- Source failures: **${r.sourceFailures}**`)
+          console.log(`- Proposal repairs: **${r.proposalsRepaired}**`)
+          console.log(`- Status matches: **${r.statusesMatched}**`)
+          console.log(`- Status repairs: **${r.statusesRepaired}**`)
+          console.log(`- ACP/appeal overrides preserved: **${r.statusOverridesPreserved}**`)
+          console.log(`- Status unavailable from established exact source: **${r.statusesUnavailable}**`)
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: notable-planning-quality-${{ github.run_id }}
+          path: artifacts/notable-planning-quality.json
+          retention-days: 30
+          if-no-files-found: warn
