@@ -148,7 +148,7 @@ function referenceCandidates(text) {
 function capitalizedPhrases(text) {
   const phrases = new Set()
   const normalized = text.replace(/[|:;()]/g, " ")
-  for (const match of normalized.matchAll(/\b(?:[A-Z][A-Za-z0-9&'.-]*|[A-Z]{2,})(?:\s+(?:[A-Z][A-Za-z0-9&'.-]*|[a-z]{2,4})){0,4}/g)) {
+  for (const match of normalized.matchAll(/\b(?:[A-Z][A-Za-z0-9&'.-]*|[A-Z]{2,})(?:\s+(?:[A-Z][A-Za-z0-9&'.-]*|[a-z]{2,4})){0,4}\b/g)) {
     const phrase = clean(match[0])
     const words = phrase.split(" ")
     if (phrase.length < 5 || words.length > 5) continue
@@ -189,8 +189,10 @@ function scoreMatch(story, row, refs) {
   const applicantExact = applicant.length >= 5 && storyText.includes(applicant.toLowerCase())
   const locationOverlap = overlapRatio(row.location, storyTokens)
   const proposalOverlap = overlapRatio(row.proposal, storyTokens)
+  const locationTokenCount = tokens(row.location).size
   let score = locationOverlap * 0.55 + proposalOverlap * 0.25 + (applicantExact ? 0.35 : 0)
   if (clean(row.location).length >= 8 && storyText.includes(clean(row.location).toLowerCase())) score += 0.2
+  else if (locationTokenCount >= 3 && locationOverlap >= 0.75) score += 0.2
   score = Math.min(0.99, score)
   return {
     score,
@@ -343,7 +345,7 @@ async function auditNotableDescriptions() {
   for (let offset = 0; offset < ids.length; offset += 100) {
     const { data, error: rowsError } = await supabase
       .from("planning_applications")
-      .select("id,local_authority,local_authority_code,reference,proposal,location,applicant_name,source_application_id,source_url")
+      .select("id,local_authority,local_authority_code,reference,proposal,location,applicant_name,source_application_id,source_url,registration_date")
       .in("id", ids.slice(offset, offset + 100))
     if (rowsError) throw rowsError
     records.push(...(data || []))
