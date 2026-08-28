@@ -4,7 +4,9 @@ on:
   pull_request:
     paths:
       - "scripts/audit-notable-planning-quality.mts"
+      - "scripts/repair-kildare-notable-quality.mts"
       - "tests/notable-planning-quality.test.mts"
+      - "tests/kildare-notable-quality.test.mts"
       - ".github/workflows/notable-planning-quality.yml"
   workflow_dispatch:
     inputs:
@@ -27,6 +29,7 @@ on:
     branches: [main]
     paths:
       - "scripts/audit-notable-planning-quality.mts"
+      - "scripts/repair-kildare-notable-quality.mts"
       - ".github/workflows/notable-planning-quality.yml"
 
 permissions:
@@ -47,8 +50,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: node --import tsx --test tests/notable-planning-quality.test.mts
-      - run: npx eslint scripts/audit-notable-planning-quality.mts tests/notable-planning-quality.test.mts
+      - run: node --import tsx --test tests/notable-planning-quality.test.mts tests/kildare-notable-quality.test.mts
+      - run: npx eslint scripts/audit-notable-planning-quality.mts scripts/repair-kildare-notable-quality.mts tests/notable-planning-quality.test.mts tests/kildare-notable-quality.test.mts
 
   audit:
     if: >-
@@ -78,6 +81,15 @@ jobs:
             echo "Production repair requires confirm_apply=true" >&2
             exit 1
           fi
+      - name: Kildare authoritative fallback
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.scope == 'unchecked-only' }}
+        env:
+          APPLY: ${{ inputs.apply }}
+          CONFIRM_NOTABLE_QUALITY_REPAIR: ${{ inputs.confirm_apply && 'true' || 'false' }}
+        run: |
+          apply_flag=""
+          if [[ "$APPLY" == "true" ]]; then apply_flag="--apply"; fi
+          node --import tsx scripts/repair-kildare-notable-quality.mts $apply_flag
       - name: Audit and repair notable Planning quality
         env:
           APPLY: ${{ github.event_name == 'push' || inputs.apply }}
