@@ -415,6 +415,14 @@ async function enqueue(ids) {
   if (error) throw error
 }
 
+function autoMatch(best, second) {
+  if (!best) return false
+  if (best.score === 1) return true
+  if (best.score >= 0.62) return true
+  const gap = second ? best.score - second.score : 1
+  return best.score >= 0.5 && gap >= 0.03
+}
+
 async function main() {
   const discovered = await discoverStories()
   const seen = await seenStoryKeys(discovered)
@@ -434,12 +442,12 @@ async function main() {
     if (rows.length) funnel.storiesWithCandidates += 1
     const ranked = rows.map((row) => ({ row, ...scoreMatch(story, row, refs) })).sort((a, b) => b.score - a.score)
     const best = ranked[0], second = ranked[1]
-    const highConfidence = best && best.score >= 0.72 && (!second || best.score - second.score >= 0.08 || best.score === 1)
-    if (highConfidence && enriched.length < MAX_MATCHES) {
+    const likelyMatch = autoMatch(best, second)
+    if (likelyMatch && enriched.length < MAX_MATCHES) {
       const result = await upsertNotable(best.row, story, best)
       enriched.push({ authority: best.row.local_authority_code, reference: best.row.reference, score: Number(best.score.toFixed(3)), displayName: result.displayName, aliases: result.searchAliases, headline: story.title, publisher: story.publisher, url: story.resolvedUrl, existing: result.wasExisting, bodyExtracted: story.bodyExtracted })
       changedIds.push(best.row.id); funnel.confidentMatches += 1; await recordSeenStory(story, "matched", best)
-    } else if (best && best.score >= 0.42) {
+    } else if (best && best.score >= 0.35) {
       ambiguous.push({ headline: story.title, publisher: story.publisher, candidate: `${best.row.local_authority_code} ${best.row.reference}`, score: Number(best.score.toFixed(3)), runnerUp: second ? Number(second.score.toFixed(3)) : null, bodyExtracted: story.bodyExtracted })
       funnel.ambiguousMatches += 1; await recordSeenStory(story, "ambiguous", best)
     } else {
@@ -464,4 +472,4 @@ async function main() {
 
 if (import.meta.url === `file://${process.argv[1]}`) main().catch((error) => { console.error(error); process.exitCode = 1 })
 
-export { parseRss, isRepublicOfIrelandStory, extractReadableArticleText, referenceCandidates, scoreMatch, storyKey }
+export { parseRss, isRepublicOfIrelandStory, extractReadableArticleText, referenceCandidates, scoreMatch, storyKey, autoMatch }
