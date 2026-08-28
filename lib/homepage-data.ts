@@ -56,8 +56,8 @@ const getHomepageNotablePlanningCached = unstable_cache(async (): Promise<Homepa
     .select("application_id,display_name,notable_categories")
     .eq("active", true)
     .eq("priority_eligible", true)
-    .order("discovered_at", { ascending: false })
-    .limit(120)
+    .order("updated_at", { ascending: false })
+    .limit(300)
 
   if (notableError) throw new Error(`Homepage notable lookup failed: ${notableError.message}`)
   if (!notable?.length) return []
@@ -86,8 +86,12 @@ const getHomepageNotablePlanningCached = unstable_cache(async (): Promise<Homepa
       displayName: row.display_name,
       categories: Array.isArray(row.notable_categories) ? row.notable_categories.map(String) : [],
     }]
+  }).sort((left, right) => {
+    const leftDate = left.decisionDate || left.registrationDate || ""
+    const rightDate = right.decisionDate || right.registrationDate || ""
+    return rightDate.localeCompare(leftDate)
   })
-}, ["homepage-notable-planning", "v1"], { revalidate: 60 * 60 * 6, tags: [PLANNING_DATASET_CACHE_TAG] })
+}, ["homepage-notable-planning", "v2"], { revalidate: 60 * 60 * 6, tags: [PLANNING_DATASET_CACHE_TAG] })
 
 export async function getHomepagePlanningSummary() {
   return getHomepagePlanningSummaryCached()
