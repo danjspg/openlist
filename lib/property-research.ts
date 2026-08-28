@@ -56,20 +56,35 @@ const PLANNING_RESEARCH_CACHE_VERSION = "v2"
 export async function getPlanningResearchContext(
   application: PlanningApplication
 ): Promise<PlanningResearchContext> {
-  return getPlanningResearchContextCached(application)
+  try {
+    return await getPlanningResearchContextCached(application)
+  } catch (error) {
+    // Sold-price/location enrichment is supporting context, not a requirement
+    // for rendering the authoritative planning record. Keep deterministic
+    // county/Eircode/map context when Supabase/PPR enrichment is unavailable.
+    console.warn(
+      `Planning research context unavailable for ${application.local_authority_code}/${application.reference}; rendering core application.`,
+      error
+    )
+    return {
+      location: matchPlanningLocation(application, []),
+      coordinates: planningGridToWgs84(application),
+      nearbySales: [],
+    }
+  }
 }
 
 const getPlanningResearchContextCached = unstable_cache(
   async function getPlanningResearchContextUncached(
     application: PlanningApplication
   ): Promise<PlanningResearchContext> {
-  const county = countyForPlanningAuthority(application.local_authority_code)
-  const areas = county ? await getPprAreaCandidatesForCounty(county) : []
-  const location = matchPlanningLocation(application, areas)
-  const coordinates = planningGridToWgs84(application)
-  const nearbySales = await findNearbySales(location)
+    const county = countyForPlanningAuthority(application.local_authority_code)
+    const areas = county ? await getPprAreaCandidatesForCounty(county) : []
+    const location = matchPlanningLocation(application, areas)
+    const coordinates = planningGridToWgs84(application)
+    const nearbySales = await findNearbySales(location)
 
-  return { location, coordinates, nearbySales }
+    return { location, coordinates, nearbySales }
   },
   ["planning-research-context", PLANNING_RESEARCH_CACHE_VERSION],
   {

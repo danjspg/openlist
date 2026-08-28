@@ -6,6 +6,7 @@ import { formatPlanningCount } from "@/lib/planning-locality-presentation"
 import { planningResultRecord } from "@/lib/planning-result-presentation"
 import {
   getPlanningPublicCategory,
+  getPlanningPublicCategorySummary,
   getPlanningPublicCategorySummaries,
   PLANNING_PUBLIC_CATEGORIES,
 } from "@/lib/planning-public-categories"
@@ -21,12 +22,12 @@ export function generateStaticParams() {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { category: slug } = await params
-  const page = await getPlanningPublicCategory(slug)
-  if (!page || page.totalCount < 3) return { robots: { index: false, follow: true } }
+  const summary = await getPlanningPublicCategorySummary(slug)
+  if (!summary || summary.totalCount < 3) return { robots: { index: false, follow: true } }
   return {
-    title: `${page.category.label} | OpenList`,
-    description: `${page.category.description} Browse ${formatPlanningCount(page.totalCount)} current or recent priority planning applications.`,
-    alternates: { canonical: `/planning/categories/${page.category.slug}` },
+    title: `${summary.category.label} | OpenList`,
+    description: `${summary.category.description} Browse ${formatPlanningCount(summary.totalCount)} current or recent priority planning applications.`,
+    alternates: { canonical: `/planning/categories/${summary.category.slug}` },
     robots: { index: true, follow: true },
   }
 }
