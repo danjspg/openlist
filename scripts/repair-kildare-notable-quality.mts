@@ -151,4 +151,4 @@ async function main() {
   console.log(JSON.stringify({ total: rows.length, checked, repairedProposals, repairedStatuses, unresolved: unresolved.length, unresolvedReferences: unresolved }, null, 2))
 }
 
-await main()
+if (process.argv[1]?.endsWith("repair-kildare-notable-quality.mts")) await main()
