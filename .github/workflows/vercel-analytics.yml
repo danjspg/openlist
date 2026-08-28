@@ -1,0 +1,65 @@
+name: Vercel Analytics measurement
+
+on:
+  schedule:
+    - cron: "25 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vercel-analytics-measurement
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Capture Vercel Web Analytics
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: prj_B0Xv1saCD6kpikTddQIz7CIbsTVG
+          VERCEL_TEAM_ID: team_ETMDWzXyHeT4h44JaGEATZDn
+        run: |
+          mkdir -p artifacts
+          success=false
+          for attempt in 1 2 3; do
+            echo "Vercel Analytics attempt $attempt of 3"
+            node --import tsx scripts/report-vercel-analytics.mts | tee artifacts/vercel-analytics-report.txt
+
+            if ! grep -q '^Vercel Web Analytics: unavailable' artifacts/vercel-analytics-report.txt; then
+              success=true
+              break
+            fi
+
+            if [[ "$attempt" -lt 3 ]]; then
+              sleep $((attempt * 10))
+            fi
+          done
+
+          {
+            echo "## Vercel Web Analytics"
+            echo
+            cat artifacts/vercel-analytics-report.txt
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [[ "$success" != "true" ]]; then
+            echo "Vercel Analytics remained unavailable after 3 attempts." >&2
+            exit 1
+          fi
+      - name: Upload Vercel Analytics report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: vercel-analytics-report
+          path: artifacts/vercel-analytics-report.txt
+          retention-days: 30
+          if-no-files-found: warn
