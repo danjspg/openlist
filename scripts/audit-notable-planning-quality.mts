@@ -75,13 +75,16 @@ type Result = {
   error?: string
 }
 
-async function loadNotableRows(supabase: ReturnType<typeof createClient>) {
+export const qualityRetryScope = (uncheckedOnly: boolean) => uncheckedOnly ? "unchecked-only" : "all"
+
+async function loadNotableRows(supabase: ReturnType<typeof createClient>, uncheckedOnly = false) {
   const ids: string[] = []
   const pageSize = 1000
   for (let offset = 0; ; offset += pageSize) {
-    const { data, error } = await supabase.from("planning_seo_notable")
+    let query = supabase.from("planning_seo_notable")
       .select("application_id").eq("active", true).eq("priority_eligible", true)
-      .order("application_id", { ascending: true }).range(offset, offset + pageSize - 1)
+    if (uncheckedOnly) query = query.is("description_checked_at", null)
+    const { data, error } = await query.order("application_id", { ascending: true }).range(offset, offset + pageSize - 1)
     if (error) throw error
     ids.push(...(data || []).map(row => row.application_id))
     if (!data || data.length < pageSize) break
@@ -203,8 +206,8 @@ async function applyRow(supabase: ReturnType<typeof createClient>, row: Planning
   }
 }
 
-export async function runNotablePlanningQualityAudit({ supabase, apply = false }: { supabase: ReturnType<typeof createClient>; apply?: boolean }) {
-  const rows = await loadNotableRows(supabase)
+export async function runNotablePlanningQualityAudit({ supabase, apply = false, uncheckedOnly = false }: { supabase: ReturnType<typeof createClient>; apply?: boolean; uncheckedOnly?: boolean }) {
+  const rows = await loadNotableRows(supabase, uncheckedOnly)
   const nationalSources = await loadNationalSources(rows)
   const results: Result[] = []
   const failures: Result[] = []
@@ -241,7 +244,7 @@ export async function runNotablePlanningQualityAudit({ supabase, apply = false }
     statusesUnavailable: results.filter(item => item.status === "unavailable").length,
   }
   return {
-    generatedAt: new Date().toISOString(), mode: apply ? "apply" : "validate", complete: failures.length === 0,
+    generatedAt: new Date().toISOString(), mode: apply ? "apply" : "validate", scope: qualityRetryScope(uncheckedOnly), complete: failures.length === 0,
     ...counts, failures, repairs: results.filter(item => item.proposal === "repaired" || item.status === "repaired"), results,
   }
 }
@@ -251,11 +254,12 @@ async function main() {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!url || !key) throw new Error("Missing Supabase credentials")
   const apply = process.argv.includes("--apply")
+  const uncheckedOnly = process.argv.includes("--unchecked-only")
   if (apply && process.env.CONFIRM_NOTABLE_QUALITY_REPAIR !== "true") throw new Error("Production repair requires CONFIRM_NOTABLE_QUALITY_REPAIR=true")
   const outputIndex = process.argv.indexOf("--output")
   const output = outputIndex >= 0 ? process.argv[outputIndex + 1] : "artifacts/notable-planning-quality.json"
   const supabase = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } })
-  const report = await runNotablePlanningQualityAudit({ supabase, apply })
+  const report = await runNotablePlanningQualityAudit({ supabase, apply, uncheckedOnly })
   const { mkdir, writeFile } = await import("node:fs/promises")
   await mkdir(output.split("/").slice(0, -1).join("/") || ".", { recursive: true })
   await writeFile(output, `${JSON.stringify(report, null, 2)}\n`)
