@@ -14,9 +14,10 @@ test("status comparison ignores case and whitespace only", () => {
   assert.equal(compact("  a   b  "), "a b")
 })
 
-test("ACP or appeal decision precedence is preserved", () => {
+test("higher-priority ePlan, ACP, and appeal decision status is preserved", () => {
   assert.equal(hasExternalStatusPrecedence({ status_source: "acp_appeal" }), true)
   assert.equal(hasExternalStatusPrecedence({ appeal_decision_source: "acp" }), true)
   assert.equal(hasExternalStatusPrecedence({ appeal_decision_date: "2026-08-01" }), true)
-  assert.equal(hasExternalStatusPrecedence({ status_source: "eplan" }), false)
+  assert.equal(hasExternalStatusPrecedence({ status_source: "eplan" }), true)
+  assert.equal(hasExternalStatusPrecedence({ status_source: null }), false)
 })
