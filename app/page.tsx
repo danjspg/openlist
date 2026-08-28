@@ -3,313 +3,33 @@ import Image from "next/image"
 import Link from "next/link"
 import PprHomepageStatsBar from "@/components/ppr/PprHomepageStatsBar"
 import { getHomepageSoldPriceStats } from "@/lib/ppr-analytics"
-import {
-  buildPprDatasetDescription,
-  formatPprDate,
-  getPprDatasetSummary,
-} from "@/lib/ppr"
+import { getPprDatasetSummary } from "@/lib/ppr"
 import { formatPlanningDate } from "@/lib/planning"
-import { getHomepagePlanningSummary } from "@/lib/homepage-data"
+import { PLANNING_PUBLIC_CATEGORIES, getPlanningPublicCategorySummaries } from "@/lib/planning-public-categories"
+import { getHomepageNotablePlanning, getHomepagePlanningSummary, type HomepageNotablePlanningItem } from "@/lib/homepage-data"
 
-export const metadata: Metadata = {
-  title: "Planning Applications & Sold Prices Ireland | OpenList",
-  description:
-    "Search Irish sold prices and planning applications. Check recorded property sales, local market trends and development activity across Ireland.",
-  alternates: {
-    canonical: "/",
-  },
-}
-
+export const metadata: Metadata = { title: "Property Research Ireland: Planning & Sold Prices | OpenList", description: "Research any property or area in Ireland. See recorded sale prices, significant planning activity, recent decisions and how an area is changing.", alternates: { canonical: "/" } }
 export const revalidate = 21600
 
-// Keep homepage photography swappable by role instead of coupling copy or links to files.
-const homepageImages = {
-  establishedHousing: {
-    src: "/home-modern-irish-street.jpg",
-    alt: "A street of established Irish homes",
-    position: "object-center",
-  },
-  plannedDevelopment: {
-    src: "/home-planning-aerial-v2.jpg",
-    alt: "An Irish neighbourhood beside active housing construction",
-    position: "object-center",
-  },
-} as const
+const places = [["dublin","Dublin"],["cork","Cork"],["galway","Galway"],["limerick","Limerick"],["waterford","Waterford"],["kildare","Kildare"],["wicklow","Wicklow"],["meath","Meath"]] as const
+const categoryLabels: Record<string,string> = {"residential-large":"Large residential",energy:"Energy & renewables",infrastructure:"Infrastructure","data-centre":"Data centres",transport:"Transport",retail:"Retail",hospitality:"Hotels & restaurants",industrial:"Industrial & logistics",waste:"Waste & recycling",quarry:"Quarrying","student-accommodation":"Student accommodation",commercial:"Commercial"}
+function categoryLabel(item: HomepageNotablePlanningItem){return item.categories.map(c=>categoryLabels[c]).find(Boolean)??"Significant development"}
+function itemTitle(item: HomepageNotablePlanningItem){return item.displayName||item.location||item.proposal||`Planning ${item.reference}`}
+function shortText(value:string|null,max=165){if(!value)return null;const text=value.replace(/\s+/g," ").trim();return text.length>max?`${text.slice(0,max-1).trimEnd()}…`:text}
+function isDecision(item:HomepageNotablePlanningItem){const text=`${item.status??""} ${item.decisionText??""}`.toLowerCase();return Boolean(item.decisionDate)||/grant|permission|refus|withdraw|invalid|appeal|conditional/.test(text)}
+function diverseNotables(items:HomepageNotablePlanningItem[],limit:number){const selected:HomepageNotablePlanningItem[]=[];const seen=new Set<string>();for(const item of items){const c=categoryLabel(item);if(!seen.has(c)){selected.push(item);seen.add(c)}if(selected.length===limit)return selected}for(const item of items){if(!selected.some(x=>x.applicationId===item.applicationId))selected.push(item);if(selected.length===limit)break}return selected}
 
-export default async function HomePage() {
-  const [soldPriceStats, datasetSummary, planningSummary] = await Promise.all([
-    getHomepageSoldPriceStats(),
-    getPprDatasetSummary(),
-    getHomepagePlanningSummary().catch(() => ({
-      totalCount: 0,
-      latestRegistrationDate: null,
-    })),
-  ])
-  const homepageSoldPriceStats = soldPriceStats.filter(
-    (stat) => stat.eyebrow !== "Most affordable market"
-  )
-  const datasetDescription = buildPprDatasetDescription(datasetSummary)
-  const numberFormat = new Intl.NumberFormat("en-IE")
-
-  return (
-    <main className="min-h-screen bg-stone-50 text-stone-900">
-      <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16 lg:py-24">
-        <div className="grid gap-10 lg:grid-cols-[1.12fr_0.88fr] lg:items-start lg:gap-12">
-          <div className="max-w-[680px]">
-            <p className="text-sm uppercase tracking-[0.25em] text-stone-500">
-              PROPERTY RESEARCH FOR IRELAND
-            </p>
-
-            <h1 className="mt-4 max-w-3xl text-4xl font-semibold tracking-tight text-stone-900 sm:mt-5 sm:text-5xl md:text-[3.5rem] md:leading-[1.05]">
-              Planning &amp; Sold Prices Across Ireland
-            </h1>
-
-            <p className="mt-5 max-w-[36rem] text-base leading-7 text-stone-600 sm:mt-6 sm:text-lg sm:leading-8">
-              Search recorded property sales and planning applications across Ireland. Check what a home sold for, what is proposed nearby and how an area is changing.
-            </p>
-
-            <form action="/search" className="mt-7 flex max-w-xl gap-2 rounded-2xl border border-stone-300 bg-white p-2 shadow-sm">
-              <input
-                type="search"
-                name="q"
-                aria-label="Search property intelligence"
-                placeholder="Search an address, area, Eircode or planning reference"
-                className="min-h-12 min-w-0 flex-1 rounded-xl px-3 text-sm outline-none placeholder:text-stone-400 focus:bg-stone-50 sm:text-base"
-              />
-              <button type="submit" className="min-h-12 shrink-0 rounded-xl bg-stone-950 px-4 text-sm font-semibold text-white transition hover:bg-stone-700 sm:px-5">Search</button>
-            </form>
-
-            <div className="mt-8 flex flex-wrap gap-3 sm:mt-9 sm:gap-4">
-              <Link
-                href="/planning"
-                className="rounded-full bg-stone-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-stone-700 sm:px-6"
-              >
-                Search planning
-              </Link>
-              <Link
-                href="/sold-prices"
-                className="rounded-full border border-stone-300 px-5 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900 sm:px-6"
-              >
-                Search sold prices
-              </Link>
-            </div>
-
-            <div className="mt-7 grid gap-3 sm:grid-cols-2 lg:mt-8">
-              <Link
-                href="/planning"
-                className="group rounded-2xl border border-stone-200 bg-white/85 px-4 py-4 shadow-sm transition hover:-translate-y-0.5 hover:border-stone-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300"
-              >
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
-                  Planning
-                </p>
-                <h2 className="mt-1.5 text-base font-semibold tracking-tight text-stone-900">
-                  See what is proposed nearby
-                </h2>
-                {planningSummary.totalCount > 0 ? (
-                  <p className="mt-2 text-xs leading-5 text-stone-500">
-                    {numberFormat.format(planningSummary.totalCount)} applications
-                    {planningSummary.latestRegistrationDate
-                      ? ` · latest ${formatPlanningDate(planningSummary.latestRegistrationDate)}`
-                      : ""}
-                  </p>
-                ) : null}
-                <p className="mt-2.5 text-sm font-semibold text-stone-800">
-                  Search planning <span aria-hidden="true" className="transition group-hover:translate-x-0.5">→</span>
-                </p>
-              </Link>
-
-              <Link
-                href="/sold-prices"
-                className="group rounded-2xl border border-stone-200 bg-white/85 px-4 py-4 shadow-sm transition hover:-translate-y-0.5 hover:border-stone-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300"
-              >
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
-                  Sold prices
-                </p>
-                <h2 className="mt-1.5 text-base font-semibold tracking-tight text-stone-900">
-                  See what homes actually sold for
-                </h2>
-                <p className="mt-2 text-xs leading-5 text-stone-500">
-                  {numberFormat.format(datasetSummary.salesCount)} sales
-                  {datasetSummary.latestSaleDate
-                    ? ` · latest ${formatPprDate(datasetSummary.latestSaleDate)}`
-                    : ""}
-                </p>
-                <p className="mt-2.5 text-sm font-semibold text-stone-800">
-                  Search sold prices <span aria-hidden="true" className="transition group-hover:translate-x-0.5">→</span>
-                </p>
-              </Link>
-            </div>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:pt-1" aria-label="Irish housing and development photography">
-            <div className="relative h-[220px] overflow-hidden rounded-3xl bg-white shadow-sm sm:col-span-2 sm:h-[280px] lg:h-[360px]">
-              <Image
-                src={homepageImages.establishedHousing.src}
-                alt={homepageImages.establishedHousing.alt}
-                fill
-                priority
-                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 100vw, 50vw"
-                className={`object-cover ${homepageImages.establishedHousing.position}`}
-              />
-            </div>
-
-            <div className="relative hidden h-36 overflow-hidden rounded-3xl bg-white shadow-sm sm:col-span-2 sm:block sm:h-48 lg:h-60">
-              <Image
-                src={homepageImages.plannedDevelopment.src}
-                alt={homepageImages.plannedDevelopment.alt}
-                fill
-                sizes="(max-width: 1024px) 100vw, 50vw"
-                className={`object-cover ${homepageImages.plannedDevelopment.position}`}
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-6xl px-4 pb-10 sm:px-6 sm:pb-12">
-        <div className="max-w-2xl">
-          <p className="text-sm uppercase tracking-[0.2em] text-stone-500">
-            Ireland planning snapshot
-          </p>
-          <p className="mt-3 text-base leading-7 text-stone-600 sm:text-lg sm:leading-8">
-            A national view of planning coverage, freshness and the tools available to follow development activity.
-          </p>
-        </div>
-
-        <div className="mt-8 rounded-[32px] border border-stone-200 bg-white p-4 shadow-sm sm:mt-10 sm:p-5">
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <Link href="/planning" className="block h-full">
-              <div className="flex h-full flex-col rounded-[24px] border border-stone-200 bg-stone-50 px-4 py-4 transition hover:border-stone-300 hover:bg-white">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">Coverage</p>
-                <h2 className="mt-2 text-lg font-semibold tracking-tight text-stone-900">Planning applications</h2>
-                <p className="mt-5 text-2xl font-semibold tracking-tight text-stone-900">
-                  {planningSummary.totalCount > 0 ? numberFormat.format(planningSummary.totalCount) : "National"}
-                </p>
-                <p className="mt-auto pt-2 text-sm leading-6 text-stone-600">Search current and historic records across Ireland.</p>
-              </div>
-            </Link>
-
-            <Link href="/planning" className="block h-full">
-              <div className="flex h-full flex-col rounded-[24px] border border-stone-200 bg-stone-50 px-4 py-4 transition hover:border-stone-300 hover:bg-white">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">Freshness</p>
-                <h2 className="mt-2 text-lg font-semibold tracking-tight text-stone-900">Latest registered</h2>
-                <p className="mt-5 text-2xl font-semibold tracking-tight text-stone-900">
-                  {planningSummary.latestRegistrationDate ? formatPlanningDate(planningSummary.latestRegistrationDate) : "Updated regularly"}
-                </p>
-                <p className="mt-auto pt-2 text-sm leading-6 text-stone-600">Latest registration currently present in OpenList.</p>
-              </div>
-            </Link>
-
-            <Link href="/planning" className="block h-full">
-              <div className="flex h-full flex-col rounded-[24px] border border-stone-200 bg-stone-50 px-4 py-4 transition hover:border-stone-300 hover:bg-white">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">Research</p>
-                <h2 className="mt-2 text-lg font-semibold tracking-tight text-stone-900">Find the right application</h2>
-                <p className="mt-5 text-xl font-semibold tracking-tight text-stone-900">Address · area · reference</p>
-                <p className="mt-auto pt-2 text-sm leading-6 text-stone-600">Search by place, council or planning reference.</p>
-              </div>
-            </Link>
-
-            <Link href="/planning" className="block h-full">
-              <div className="flex h-full flex-col rounded-[24px] border border-stone-200 bg-stone-50 px-4 py-4 transition hover:border-stone-300 hover:bg-white">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">Lifecycle</p>
-                <h2 className="mt-2 text-lg font-semibold tracking-tight text-stone-900">Follow what changes</h2>
-                <p className="mt-5 text-xl font-semibold tracking-tight text-stone-900">Status · dates · decisions</p>
-                <p className="mt-auto pt-2 text-sm leading-6 text-stone-600">See key milestones and available application history.</p>
-              </div>
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-6xl px-4 pb-10 sm:px-6 sm:pb-12">
-        <div className="max-w-2xl">
-          <p className="text-sm uppercase tracking-[0.2em] text-stone-500">
-            Ireland market snapshot
-          </p>
-          <p className="mt-3 text-base leading-7 text-stone-600 sm:text-lg sm:leading-8">
-            A quick view of sale prices, activity and standout markets from recorded Property Price Register transactions.
-          </p>
-        </div>
-        <div className="mt-8 sm:mt-10">
-          <PprHomepageStatsBar stats={homepageSoldPriceStats} />
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16">
-        <div className="rounded-[32px] border border-stone-200 bg-white p-7 shadow-sm sm:p-8 md:p-10">
-          <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:gap-12">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-stone-500">
-                Explore sold prices
-              </p>
-              <h2 className="mt-2 text-3xl font-semibold tracking-tight text-stone-900 md:text-4xl">
-                Start with a place you know
-              </h2>
-              <p className="mt-4 max-w-2xl whitespace-pre-line text-base leading-7 text-stone-600 sm:text-lg sm:leading-8">
-                {datasetDescription}
-              </p>
-              <div className="mt-5 flex flex-wrap items-center gap-2 text-sm text-stone-600">
-                <span className="font-medium text-stone-700">Popular areas:</span>
-                {[
-                  ["/sold-prices/dublin", "Dublin"],
-                  ["/sold-prices/cork", "Cork"],
-                  ["/sold-prices/galway", "Galway"],
-                  ["/sold-prices/limerick", "Limerick"],
-                  ["/sold-prices/waterford", "Waterford"],
-                  ["/sold-prices/louth/drogheda", "Drogheda"],
-                  ["/sold-prices/dublin/swords", "Swords"],
-                  ["/sold-prices/wicklow/bray", "Bray"],
-                  ["/sold-prices/louth/dundalk", "Dundalk"],
-                  ["/sold-prices/meath/navan", "Navan"],
-                ].map(([href, label]) => (
-                  <Link
-                    key={href}
-                    href={href}
-                    className="rounded-full border border-stone-300 px-3 py-1.5 transition hover:border-stone-900 hover:text-stone-900"
-                  >
-                    {label}
-                  </Link>
-                ))}
-              </div>
-              <div className="mt-6">
-                <Link
-                  href="/sold-prices"
-                  className="inline-block rounded-full bg-stone-900 px-6 py-3 text-sm font-medium text-white transition hover:bg-stone-700"
-                >
-                  Explore sold prices
-                </Link>
-              </div>
-            </div>
-
-            <div className="border-t border-stone-200 pt-7 lg:border-l lg:border-t-0 lg:pl-10 lg:pt-0">
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-stone-500">
-                Explore planning
-              </p>
-              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">
-                Find an application or understand nearby development
-              </h2>
-              <p className="mt-4 text-sm leading-6 text-stone-600">
-                Search current and historic planning applications by address, area, council or reference. OpenList brings proposals, status, key dates and available lifecycle history together, with a link back to the official council record.
-              </p>
-              <p className="mt-4 text-sm leading-6 text-stone-600">
-                Useful for checking a specific application, researching a property or seeing what may change around an area.
-              </p>
-              <div className="mt-6">
-                <Link
-                  href="/planning"
-                  className="inline-block rounded-full border border-stone-300 px-6 py-3 text-sm font-medium text-stone-800 transition hover:border-stone-900"
-                >
-                  Search planning applications
-                </Link>
-              </div>
-            </div>
-          </div>
-
-          <p className="mt-8 border-t border-stone-200 pt-6 text-xs leading-5 text-stone-500">
-            OpenList uses public Property Price Register and Irish local-authority planning data. Always check the official source before relying on a record for a property decision.
-          </p>
-        </div>
-      </section>
-    </main>
-  )
+export default async function HomePage(){
+ const [soldPriceStats,datasetSummary,planningSummary,notableItems,categorySummaries]=await Promise.all([getHomepageSoldPriceStats(),getPprDatasetSummary(),getHomepagePlanningSummary().catch(()=>({totalCount:0,latestRegistrationDate:null})),getHomepageNotablePlanning().catch(()=>[]),getPlanningPublicCategorySummaries().catch(()=>[])])
+ const nf=new Intl.NumberFormat("en-IE");const live=diverseNotables(notableItems,6);const decisions=notableItems.filter(isDecision).sort((a,b)=>String(b.decisionDate||"").localeCompare(String(a.decisionDate||""))).slice(0,4)
+ const cats=PLANNING_PUBLIC_CATEGORIES.filter(c=>["large-residential","wind-farms","solar-energy","data-centres","retail","hotels-restaurants","infrastructure"].includes(c.slug)).map(c=>({...c,count:categorySummaries.find(s=>s.slug===c.slug)?.count??0})).filter(c=>c.count>=3)
+ const market=soldPriceStats.filter(s=>s.eyebrow!=="Most affordable market").slice(0,3)
+ return <main className="min-h-screen bg-stone-50 text-stone-900">
+  <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16 lg:py-20"><div className="grid gap-10 lg:grid-cols-[1.12fr_.88fr] lg:items-center lg:gap-12"><div className="max-w-[700px]"><p className="text-sm uppercase tracking-[.25em] text-stone-500">PROPERTY RESEARCH FOR IRELAND</p><h1 className="mt-4 text-4xl font-semibold tracking-tight sm:text-5xl md:text-[3.5rem] md:leading-[1.05]">Research any property or area in Ireland</h1><p className="mt-5 max-w-[39rem] text-base leading-7 text-stone-600 sm:text-lg sm:leading-8">See what sold nearby, what is proposed, the significant developments changing an area and the latest planning decisions.</p><form action="/search" className="mt-7 flex max-w-2xl gap-2 rounded-2xl border border-stone-300 bg-white p-2 shadow-sm"><input type="search" name="q" aria-label="Search OpenList" placeholder="Search an address, area, Eircode or planning reference" className="min-h-12 min-w-0 flex-1 rounded-xl px-3 text-sm outline-none placeholder:text-stone-400 focus:bg-stone-50 sm:text-base"/><button className="min-h-12 rounded-xl bg-stone-950 px-5 text-sm font-semibold text-white hover:bg-stone-700">Search</button></form><div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm font-medium text-stone-600"><Link href="/planning">Browse Planning →</Link><Link href="/sold-prices">Browse Sold Prices →</Link></div><div className="mt-7 flex flex-wrap gap-x-3 gap-y-1.5 border-y border-stone-200 py-4 text-sm text-stone-600">{planningSummary.totalCount>0&&<span><strong className="text-stone-900">{nf.format(planningSummary.totalCount)}</strong> planning applications</span>}<span>·</span><span><strong className="text-stone-900">{nf.format(datasetSummary.salesCount)}</strong> recorded sales</span><span>·</span><span>Updated regularly</span></div></div><div className="relative h-[270px] overflow-hidden rounded-[32px] bg-white shadow-sm sm:h-[360px] lg:h-[430px]"><Image src="/home-planning-aerial-v2.jpg" alt="Irish neighbourhood and active development" fill priority sizes="(max-width:1024px) 100vw,45vw" className="object-cover"/></div></div></section>
+  <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14"><div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-sm font-semibold uppercase tracking-[.18em] text-emerald-700">Live planning intelligence</p><h2 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">Significant planning activity</h2><p className="mt-3 max-w-2xl text-stone-600">Notable developments OpenList is tracking across Ireland, balanced across development types rather than routine household applications.</p></div><Link href="/planning/categories" className="text-sm font-semibold text-stone-700">Explore all categories →</Link></div>{cats.length>0&&<div className="mt-6 flex flex-wrap gap-2">{cats.map(c=><Link key={c.slug} href={`/planning/categories/${c.slug}`} className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-900">{c.shortLabel}<span className="ml-1.5 text-emerald-600">{c.count}</span></Link>)}</div>}{live.length>0?<div className="mt-7 grid gap-4 md:grid-cols-2 lg:grid-cols-3">{live.map(item=><Link key={item.applicationId} href={`/search?q=${encodeURIComponent(item.reference)}`} className="group flex min-h-52 flex-col rounded-3xl border border-stone-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"><div className="flex items-start justify-between gap-3"><span className="rounded-full bg-stone-100 px-2.5 py-1 text-xs font-semibold">{categoryLabel(item)}</span>{item.status&&<span className="text-xs font-medium text-stone-500">{item.status}</span>}</div><h3 className="mt-4 text-lg font-semibold tracking-tight group-hover:text-emerald-800">{shortText(itemTitle(item),90)}</h3>{item.displayName&&item.location&&<p className="mt-1 text-sm text-stone-500">{shortText(item.location,80)}</p>}<p className="mt-3 line-clamp-3 text-sm leading-6 text-stone-600">{shortText(item.proposal,180)||`Planning reference ${item.reference}`}</p><p className="mt-auto pt-4 text-xs font-medium text-stone-500">{item.registrationDate?`Registered ${formatPlanningDate(item.registrationDate)}`:item.reference} · View application →</p></Link>)}</div>:<div className="mt-7 rounded-3xl border border-stone-200 bg-white p-6 text-stone-600">Browse significant development by category while the live selection refreshes.</div>}</section>
+  {decisions.length>0&&<section className="mx-auto max-w-6xl px-4 py-10 sm:px-6"><div className="rounded-[32px] border border-stone-200 bg-white p-6 shadow-sm sm:p-8"><p className="text-sm font-semibold uppercase tracking-[.18em] text-stone-500">Recent notable decisions</p><h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">Important applications that just changed</h2><div className="mt-6 divide-y divide-stone-200">{decisions.map(item=><Link key={item.applicationId} href={`/search?q=${encodeURIComponent(item.reference)}`} className="grid gap-2 py-4 first:pt-0 last:pb-0 sm:grid-cols-[1fr_auto] sm:items-center"><div><div className="flex flex-wrap items-center gap-2"><span className="text-xs font-semibold uppercase tracking-[.12em] text-emerald-700">{categoryLabel(item)}</span>{item.status&&<span className="rounded-full bg-stone-100 px-2 py-.5 text-xs font-medium">{item.status}</span>}</div><h3 className="mt-1 font-semibold">{shortText(itemTitle(item),110)}</h3><p className="mt-1 text-sm text-stone-500">{item.decisionText||item.location||item.reference}</p></div><span className="text-sm font-medium text-stone-600">{item.decisionDate?formatPlanningDate(item.decisionDate):"View"} →</span></Link>)}</div></div></section>}
+  <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6"><div className="flex items-end justify-between gap-4"><div><p className="text-sm uppercase tracking-[.2em] text-stone-500">Ireland property market</p><h2 className="mt-2 text-3xl font-semibold tracking-tight">Market snapshot</h2></div><Link href="/sold-prices" className="text-sm font-semibold text-stone-700">Explore Sold Prices →</Link></div><div className="mt-7"><PprHomepageStatsBar stats={market}/></div></section>
+  <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16"><div className="rounded-[32px] border border-stone-200 bg-white p-7 shadow-sm sm:p-9"><p className="text-sm font-semibold uppercase tracking-[.18em] text-stone-500">Explore Ireland</p><h2 className="mt-2 text-3xl font-semibold tracking-tight">Start with a place</h2><p className="mt-3 max-w-2xl text-stone-600">Move naturally between planning activity and recorded sales for the places you care about.</p><div className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{places.map(([slug,label])=><div key={slug} className="rounded-2xl border border-stone-200 bg-stone-50 p-4"><h3 className="font-semibold">{label}</h3><div className="mt-3 flex gap-3 text-sm"><Link href={`/planning/${slug}`} className="font-medium text-stone-700">Planning →</Link><Link href={`/sold-prices/${slug}`} className="font-medium text-stone-700">Sold prices →</Link></div></div>)}</div></div></section>
+  <section className="mx-auto max-w-6xl px-4 pb-16 sm:px-6"><div className="border-t border-stone-200 pt-6 text-sm leading-6 text-stone-500"><strong className="font-semibold text-stone-700">Source & limitations.</strong> OpenList organises public planning and Property Price Register information for research. Planning records should be checked against the relevant authority for formal or legal purposes, and sold-price data is not a property valuation.</div></section>
+ </main>
 }
