@@ -4,6 +4,15 @@ on:
   schedule:
     - cron: "40 5 * * *"
   workflow_dispatch:
+    inputs:
+      news_days:
+        description: "Press lookback window in days (1-30)"
+        required: false
+        default: "7"
+      max_stories:
+        description: "Maximum press stories to inspect"
+        required: false
+        default: "200"
   pull_request:
     paths:
       - "scripts/discover-notable-planning.mjs"
@@ -38,7 +47,7 @@ jobs:
     if: ${{ github.event_name != 'pull_request' }}
     needs: test
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
 
@@ -53,9 +62,9 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          NOTABLE_PLANNING_NEWS_DAYS: "2"
-          NOTABLE_PLANNING_MAX_STORIES: "80"
-          NOTABLE_PLANNING_MAX_MATCHES: "10"
+          NOTABLE_PLANNING_NEWS_DAYS: ${{ github.event.inputs.news_days || '7' }}
+          NOTABLE_PLANNING_MAX_STORIES: ${{ github.event.inputs.max_stories || '200' }}
+          NOTABLE_PLANNING_MAX_MATCHES: "30"
           NOTABLE_PLANNING_REQUEST_TIMEOUT_MS: "12000"
         run: |
           mkdir -p artifacts
@@ -74,11 +83,18 @@ jobs:
           node - <<'NODE' >> "$GITHUB_STEP_SUMMARY"
           const fs = require('fs')
           const report = JSON.parse(fs.readFileSync('artifacts/notable-planning-discovery.json', 'utf8'))
+          const funnel = report.funnel || {}
           console.log('## Notable Planning discovery')
           console.log('')
+          console.log(`- Press window: **${report.newsWindowDays} days** across **${report.newsQueries || '?'} searches**`)
           console.log(`- Press stories checked: **${report.storiesChecked}**`)
+          console.log(`- Article bodies extracted: **${funnel.articleBodiesExtracted || 0}**`)
+          console.log(`- Stories with planning references: **${funnel.storiesWithReferences || 0}**`)
+          console.log(`- Stories producing OpenList candidates: **${funnel.storiesWithCandidates || 0}**`)
+          console.log(`- High-confidence matches: **${funnel.confidentMatches || 0}**`)
+          console.log(`- Ambiguous candidates: **${funnel.ambiguousMatches || 0}**`)
+          console.log(`- Unmatched stories: **${funnel.unmatched || 0}**`)
           console.log(`- Applications enriched/updated: **${report.enriched.length}**`)
-          console.log(`- Ambiguous candidates retained for review: **${report.ambiguous.length}**`)
           console.log(`- Active notable descriptions checked: **${report.descriptions.checked}**`)
           console.log(`- Fuller official descriptions repaired: **${report.descriptions.repaired.length}**`)
           console.log(`- Still incomplete/source-unavailable: **${report.descriptions.incomplete.length}**`)
@@ -92,7 +108,7 @@ jobs:
           if (report.ambiguous.length) {
             console.log('')
             console.log('### Ambiguous candidates')
-            for (const item of report.ambiguous.slice(0, 15)) {
+            for (const item of report.ambiguous.slice(0, 20)) {
               console.log(`- ${item.candidate} score ${item.score}: ${item.headline}`)
             }
           }
