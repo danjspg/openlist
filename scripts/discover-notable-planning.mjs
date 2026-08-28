@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto"
 import { createClient } from "@supabase/supabase-js"
 import { authoritativeCorkProposal } from "../lib/cork-planning-source.mjs"
 import {
@@ -30,6 +31,7 @@ const NEWS_WINDOW_DAYS = Math.min(30, Math.max(1, Number(process.env.NOTABLE_PLA
 const MAX_STORIES = Math.min(500, Math.max(20, Number(process.env.NOTABLE_PLANNING_MAX_STORIES || 200)))
 const MAX_MATCHES = Math.min(100, Math.max(1, Number(process.env.NOTABLE_PLANNING_MAX_MATCHES || 30)))
 const REQUEST_TIMEOUT_MS = Math.min(30000, Math.max(3000, Number(process.env.NOTABLE_PLANNING_REQUEST_TIMEOUT_MS || 12000)))
+const REPROCESS_SEEN = process.env.NOTABLE_PLANNING_REPROCESS_SEEN === "true"
 
 const NEWS_QUERIES = [
   '"planning permission" Ireland',
@@ -84,6 +86,12 @@ function stripTags(value) {
   return decodeEntities(String(value || "").replace(/<[^>]+>/g, " "))
 }
 
+function storyKey(story) {
+  return createHash("sha256")
+    .update(`${clean(story.title).toLowerCase()}|${clean(story.publisher).toLowerCase()}|${clean(story.publishedAt)}`)
+    .digest("hex")
+}
+
 async function fetchText(url, label) {
   const response = await fetch(url, {
     redirect: "follow",
@@ -134,6 +142,41 @@ async function discoverStories() {
   return [...stories.values()]
     .sort((a, b) => Date.parse(b.publishedAt || 0) - Date.parse(a.publishedAt || 0))
     .slice(0, MAX_STORIES)
+}
+
+async function seenStoryKeys(stories) {
+  if (REPROCESS_SEEN || stories.length === 0) return new Set()
+  const keys = stories.map(storyKey)
+  const seen = new Set()
+  for (let offset = 0; offset < keys.length; offset += 100) {
+    const { data, error } = await supabase
+      .from("planning_notable_press_seen")
+      .select("story_key")
+      .in("story_key", keys.slice(offset, offset + 100))
+    if (error) throw error
+    for (const row of data || []) seen.add(row.story_key)
+  }
+  return seen
+}
+
+async function recordSeenStory(story, outcome, best = null) {
+  if (dryRun) return
+  const payload = {
+    story_key: storyKey(story),
+    title: clean(story.title),
+    publisher: clean(story.publisher) || null,
+    url: story.resolvedUrl || story.link || null,
+    published_at: story.publishedAt ? new Date(story.publishedAt).toISOString() : null,
+    outcome,
+    application_id: best?.row?.id || null,
+    candidate: best?.row ? `${best.row.local_authority_code} ${best.row.reference}` : null,
+    score: best ? Number(best.score.toFixed(3)) : null,
+    last_seen_at: new Date().toISOString(),
+  }
+  const { error } = await supabase
+    .from("planning_notable_press_seen")
+    .upsert(payload, { onConflict: "story_key", ignoreDuplicates: false })
+  if (error) throw error
 }
 
 function extractJsonLdArticleBodies(html) {
@@ -494,12 +537,16 @@ async function enqueue(ids) {
 
 async function main() {
   const discovered = await discoverStories()
+  const seen = await seenStoryKeys(discovered)
+  const pendingStories = REPROCESS_SEEN ? discovered : discovered.filter((story) => !seen.has(storyKey(story)))
   const enriched = []
   const ambiguous = []
   const unmatched = []
   const changedIds = []
   const funnel = {
     storiesDiscovered: discovered.length,
+    previouslySeenSkipped: discovered.length - pendingStories.length,
+    storiesProcessed: pendingStories.length,
     articleBodiesExtracted: 0,
     storiesWithReferences: 0,
     storiesWithCandidates: 0,
@@ -508,7 +555,7 @@ async function main() {
     unmatched: 0,
   }
 
-  for (const rawStory of discovered) {
+  for (const rawStory of pendingStories) {
     const story = await enrichStoryText(rawStory)
     if (story.bodyExtracted) funnel.articleBodiesExtracted += 1
     const { rows, refs } = await candidateRowsForStory(story)
@@ -537,6 +584,7 @@ async function main() {
       })
       changedIds.push(best.row.id)
       funnel.confidentMatches += 1
+      await recordSeenStory(story, "matched", best)
     } else if (best && best.score >= 0.48) {
       ambiguous.push({
         headline: story.title,
@@ -547,6 +595,7 @@ async function main() {
         bodyExtracted: story.bodyExtracted,
       })
       funnel.ambiguousMatches += 1
+      await recordSeenStory(story, "ambiguous", best)
     } else {
       unmatched.push({
         headline: story.title,
@@ -556,6 +605,7 @@ async function main() {
         bodyExtracted: story.bodyExtracted,
       })
       funnel.unmatched += 1
+      await recordSeenStory(story, "unmatched", best || null)
     }
     await sleep(75)
   }
@@ -567,7 +617,7 @@ async function main() {
     dryRun,
     newsWindowDays: NEWS_WINDOW_DAYS,
     newsQueries: NEWS_QUERIES.length,
-    storiesChecked: discovered.length,
+    storiesChecked: pendingStories.length,
     funnel,
     enriched,
     ambiguous,
@@ -602,4 +652,5 @@ export {
   referenceCandidates,
   scoreMatch,
   searchPhrases,
+  storyKey,
 }
