@@ -1,0 +1,85 @@
+name: Notable Planning discovery
+
+on:
+  schedule:
+    - cron: "40 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: notable-planning-discovery
+  cancel-in-progress: false
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Discover and enrich notable Planning applications
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NOTABLE_PLANNING_NEWS_DAYS: "2"
+          NOTABLE_PLANNING_MAX_STORIES: "80"
+          NOTABLE_PLANNING_MAX_MATCHES: "10"
+          NOTABLE_PLANNING_REQUEST_TIMEOUT_MS: "12000"
+        run: |
+          mkdir -p artifacts
+          node scripts/discover-notable-planning.mjs --output artifacts/notable-planning-discovery.json
+
+      - name: Summarise discovery
+        if: ${{ always() }}
+        run: |
+          if [[ ! -f artifacts/notable-planning-discovery.json ]]; then
+            echo "## Notable Planning discovery" >> "$GITHUB_STEP_SUMMARY"
+            echo >> "$GITHUB_STEP_SUMMARY"
+            echo "No report was produced." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          node - <<'NODE' >> "$GITHUB_STEP_SUMMARY"
+          const fs = require('fs')
+          const report = JSON.parse(fs.readFileSync('artifacts/notable-planning-discovery.json', 'utf8'))
+          console.log('## Notable Planning discovery')
+          console.log('')
+          console.log(`- Press stories checked: **${report.storiesChecked}**`)
+          console.log(`- Applications enriched/updated: **${report.enriched.length}**`)
+          console.log(`- Ambiguous candidates retained for review: **${report.ambiguous.length}**`)
+          console.log(`- Active notable descriptions checked: **${report.descriptions.checked}**`)
+          console.log(`- Fuller official descriptions repaired: **${report.descriptions.repaired.length}**`)
+          console.log(`- Still incomplete/source-unavailable: **${report.descriptions.incomplete.length}**`)
+          if (report.enriched.length) {
+            console.log('')
+            console.log('### Enriched applications')
+            for (const item of report.enriched) {
+              console.log(`- ${item.authority} ${item.reference}: ${item.displayName || 'no display name'} — ${item.headline} (${item.publisher || 'unknown publisher'})`)
+            }
+          }
+          if (report.ambiguous.length) {
+            console.log('')
+            console.log('### Ambiguous candidates')
+            for (const item of report.ambiguous.slice(0, 15)) {
+              console.log(`- ${item.candidate} score ${item.score}: ${item.headline}`)
+            }
+          }
+          NODE
+
+      - name: Upload discovery report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: notable-planning-discovery
+          path: artifacts/notable-planning-discovery.json
+          retention-days: 30
+          if-no-files-found: warn
