@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { PlanningCategoryLinks } from "@/components/planning/PlanningCategoryLinks"
 import PlanningResultsView, {
   type PlanningResultRecord,
 } from "@/components/planning/PlanningResultsView"
@@ -45,9 +46,11 @@ export default function PlanningPage() {
 export async function PlanningApplicationsView({
   searchParams,
   authority,
+  showCategoryLinks = false,
 }: {
   searchParams?: Promise<PlanningSearchParams>
   authority?: PlanningAuthority
+  showCategoryLinks?: boolean
 }) {
   const rawSearchParams = await (searchParams || Promise.resolve({}))
   const filters = normalisePlanningSearchParams(rawSearchParams)
@@ -153,6 +156,10 @@ export async function PlanningApplicationsView({
               </Link>
             ) : null}
           </div>
+
+          {showCategoryLinks && !authority && !hasActiveSearch ? (
+            <PlanningCategoryLinks embedded />
+          ) : null}
 
           <form
             action={planningPath}
