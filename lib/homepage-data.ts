@@ -7,6 +7,11 @@ export type HomepagePlanningSummary = {
   latestRegistrationDate: string | null
 }
 
+export type HomepageCountyPlanningStat = {
+  slug: string
+  openCount: number
+}
+
 export type HomepageNotablePlanningItem = {
   applicationId: string
   reference: string
@@ -24,6 +29,17 @@ export type HomepageNotablePlanningItem = {
 type PlanningAggregatePayload = {
   totalCount?: number | string | null
   latestRegistrationDate?: string | null
+}
+
+const COUNTY_AUTHORITY_CODES: Record<string, string[]> = {
+  dublin: ["DUBLINCITY", "FINGAL", "SOUTHDUBLIN", "DLR"],
+  cork: ["CORKCOCO", "CORKCITY"],
+  galway: ["GALWAYCOCO", "GALWAYCITY"],
+  limerick: ["LIMERICK"],
+  waterford: ["WATERFORD"],
+  kildare: ["KILDARE"],
+  wicklow: ["WICKLOW"],
+  meath: ["MEATH"],
 }
 
 const getHomepagePlanningSummaryCached = unstable_cache(
@@ -47,6 +63,29 @@ const getHomepagePlanningSummaryCached = unstable_cache(
     }
   },
   ["homepage-planning-summary", "v3-dataset-publication"],
+  { revalidate: 60 * 60 * 6, tags: [PLANNING_DATASET_CACHE_TAG] }
+)
+
+const getHomepageCountyPlanningStatsCached = unstable_cache(
+  async (): Promise<HomepageCountyPlanningStat[]> => {
+    const supabase = getServerSupabase()
+    return Promise.all(
+      Object.entries(COUNTY_AUTHORITY_CODES).map(async ([slug, authorityCodes]) => {
+        const { count, error } = await supabase
+          .from("planning_applications")
+          .select("id", { count: "exact", head: true })
+          .in("local_authority_code", authorityCodes)
+          .is("decision_date", null)
+
+        if (error) {
+          throw new Error(`Homepage ${slug} planning count failed: ${error.message}`)
+        }
+
+        return { slug, openCount: count ?? 0 }
+      })
+    )
+  },
+  ["homepage-county-planning-stats", "v1"],
   { revalidate: 60 * 60 * 6, tags: [PLANNING_DATASET_CACHE_TAG] }
 )
 
@@ -97,6 +136,10 @@ const getHomepageNotablePlanningCached = unstable_cache(async (): Promise<Homepa
 
 export async function getHomepagePlanningSummary() {
   return getHomepagePlanningSummaryCached()
+}
+
+export async function getHomepageCountyPlanningStats() {
+  return getHomepageCountyPlanningStatsCached()
 }
 
 export async function getHomepageNotablePlanning() {
