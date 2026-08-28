@@ -5,8 +5,10 @@ import test from "node:test"
 import {
   buildPlanningSitemapEntries,
   normaliseInspectionResponse,
+  notablePlanningSitemapShardNames,
   parsePlanningDetailUrl,
   PlanningInspectionCandidate,
+  renderSitemapIndexXml,
   renderSitemapXml,
   selectInspectionSample,
 } from "../lib/planning-seo"
@@ -142,6 +144,17 @@ test("notable sitemap XML escapes values and remains standards-shaped", () => {
   assert.match(xml, /<lastmod>2026-08-10T12:00:00\.000Z<\/lastmod>/)
 })
 
+test("notable sitemap index is year-partitioned, deduplicated, and includes undated rows", () => {
+  assert.deepEqual(notablePlanningSitemapShardNames(2014), ["2014", "2013", "2012", "undated"])
+  const xml = renderSitemapIndexXml([
+    "https://www.openlist.ie/sitemaps/planning-notable/2026?a=1&b=2",
+    "https://www.openlist.ie/sitemaps/planning-notable/2026?a=1&b=2",
+  ])
+  assert.match(xml, /<sitemapindex/)
+  assert.match(xml, /a=1&amp;b=2/)
+  assert.equal((xml.match(/<sitemap>/g) || []).length, 1)
+})
+
 test("migration makes notable selection explicit and measurement idempotent", async () => {
   const migration = await source(
     "supabase/migrations/20260818120000_add_planning_seo_measurement.sql"
@@ -156,15 +169,39 @@ test("migration makes notable selection explicit and measurement idempotent", as
   assert.match(migration, /order by n\.created_at, p\.local_authority_code, p\.reference, p\.id/i)
 })
 
-test("robots and cached route expose the distinct notable sitemap", async () => {
-  const [robots, route, rootSitemap] = await Promise.all([
+test("robots and cached routes expose the partitioned permanent notable sitemap", async () => {
+  const [robots, route, shardRoute, planning, rootSitemap] = await Promise.all([
     source("app/robots.ts"),
     source("app/sitemaps/planning-notable.xml/route.ts"),
+    source("app/sitemaps/planning-notable/[year]/route.ts"),
+    source("lib/planning.ts"),
     source("app/sitemap.ts"),
   ])
   assert.match(robots, /\/sitemaps\/planning-notable\.xml/)
   assert.match(route, /revalidate = 86400/)
   assert.match(route, /stale-while-revalidate=604800/)
-  assert.match(route, /renderSitemapXml/)
+  assert.match(route, /renderSitemapIndexXml/)
+  assert.match(shardRoute, /renderSitemapXml/)
+  assert.match(shardRoute, /NOTABLE_PLANNING_SITEMAP_SHARD_LIMIT/)
+  assert.match(planning, /openlist_planning_notable_sitemap_year/)
   assert.doesNotMatch(rootSitemap, /getNotablePlanningSitemapApplications/)
+})
+
+test("classification migration preserves press enrichment and partitions beyond the old 5,000 cap", async () => {
+  const migration = await source(
+    "supabase/migrations/20260828105549_add_planning_notable_classification_metadata.sql"
+  )
+  assert.match(migration, /notable_categories text\[\]/)
+  assert.match(migration, /classification_reasons jsonb/)
+  assert.match(migration, /classification_sources text\[\]/)
+  assert.match(migration, /source = 'press'[\s\S]*array\['press'\]/)
+  assert.match(migration, /openlist_planning_notable_sitemap_year/)
+  assert.match(migration, /49999/)
+  assert.match(migration, /openlist_planning_notable_description_candidates/)
+  assert.match(migration, /interval '30 days'/)
+  assert.match(migration, /least\(coalesce\(p_limit, 30\), 100\)/)
+  assert.doesNotMatch(migration, /update public\.planning_applications/)
+  assert.doesNotMatch(migration, /display_name\s*=/)
+  assert.doesNotMatch(migration, /search_aliases\s*=/)
+  assert.doesNotMatch(migration, /evidence\s*=/)
 })

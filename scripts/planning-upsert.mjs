@@ -1,3 +1,5 @@
+import { classifyAndPersistPlanningApplications } from "../lib/planning-notable-persistence.mjs"
+
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
@@ -51,9 +53,23 @@ export async function upsertPlanningBatch(
   const { data, error } = await supabase
     .from("planning_applications")
     .upsert(batch, { onConflict: "local_authority_code,reference" })
-    .select("id,local_authority_code,reference")
+    .select("id,local_authority_code,reference,proposal,applicant_name,application_type")
 
   if (!error) {
+    try {
+      await classifyAndPersistPlanningApplications(supabase, data || [], {
+        // Every successful ingestion row is queued immediately below, so a
+        // second queue write for the deterministic state change is redundant.
+        enqueue: false,
+      })
+    } catch (classificationError) {
+      // Classification is additive indexing metadata. Preserve ingestion
+      // availability; the bounded recent safety sweep repairs missed rows.
+      console.warn(
+        `${label}: Planning notability classification failed for ${(data || []).length} rows; continuing ingestion.`,
+        classificationError
+      )
+    }
     // Normal ingestion writes the durable exact-path queue directly. The
     // legacy revalidation_pending flag remains readable for compatibility but
     // no longer needs to be flipped on the large planning_applications table.

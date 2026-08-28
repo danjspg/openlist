@@ -13,6 +13,7 @@ import {
   corkAgileApplicationConfig,
   corkAgileSourceApplicationId,
 } from "../lib/cork-agile-authorities.mjs"
+import { mergePressNotableMetadata } from "../lib/planning-notable-persistence.mjs"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -28,6 +29,7 @@ const dryRun = process.argv.includes("--dry-run")
 const NEWS_WINDOW_DAYS = Math.min(30, Math.max(1, Number(process.env.NOTABLE_PLANNING_NEWS_DAYS || 7)))
 const MAX_STORIES = Math.min(500, Math.max(20, Number(process.env.NOTABLE_PLANNING_MAX_STORIES || 200)))
 const MAX_MATCHES = Math.min(100, Math.max(1, Number(process.env.NOTABLE_PLANNING_MAX_MATCHES || 30)))
+const MAX_DESCRIPTION_CHECKS = Math.min(100, Math.max(1, Number(process.env.NOTABLE_PLANNING_DESCRIPTION_CHECKS || 30)))
 const REQUEST_TIMEOUT_MS = Math.min(30000, Math.max(3000, Number(process.env.NOTABLE_PLANNING_REQUEST_TIMEOUT_MS || 12000)))
 const REPROCESS_SEEN = process.env.NOTABLE_PLANNING_REPROCESS_SEEN === "true"
 
@@ -77,6 +79,15 @@ const STOPWORDS = new Set([
   "refused", "approved", "approval",
 ])
 const ADDRESS_WORDS = /\b(?:street|road|avenue|lane|quay|square|park|estate|centre|center|village|town|building|buildings|house|hotel|mall|retail|drive[- ]?thru|industrial|business|campus|harbour|harbor)\b/i
+const AUTHORITY_COUNTY = {
+  CORKCOCO: "cork", CORKCITY: "cork", DUBLINCITY: "dublin", FINGAL: "dublin", SOUTHDUBLIN: "dublin", DLR: "dublin",
+  KILDARE: "kildare", GALWAYCOCO: "galway", GALWAYCITY: "galway", MEATH: "meath", WICKLOW: "wicklow",
+  LIMERICK: "limerick", WATERFORD: "waterford", DONEGAL: "donegal", WEXFORD: "wexford", TIPPERARY: "tipperary",
+  KERRY: "kerry", MAYO: "mayo", CLARE: "clare", LOUTH: "louth", LAOIS: "laois", KILKENNY: "kilkenny",
+  OFFALY: "offaly", CAVAN: "cavan", ROSCOMMON: "roscommon", WESTMEATH: "westmeath", MONAGHAN: "monaghan",
+  LONGFORD: "longford", LEITRIM: "leitrim", SLIGO: "sligo", CARLOW: "carlow",
+}
+const COUNTY_TERMS = [...new Set(Object.values(AUTHORITY_COUNTY))]
 
 const clean = (value) => String(value || "").replace(/\s+/g, " ").trim()
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -289,6 +300,7 @@ async function candidateRowsForStory(story) {
 
 function scoreMatch(story, row, refs) {
   const normalizedRef = clean(row.reference).replace(/\s+/g, "").toLowerCase()
+  if (geographicContradiction(story, row)) return { score: 0.05, reason: "explicit geographic contradiction" }
   if (refs.some((ref) => ref.toLowerCase() === normalizedRef)) return { score: 1, reason: "exact planning reference" }
   const storyTokens = tokens(story.text)
   const storyText = story.text.toLowerCase()
@@ -306,32 +318,63 @@ function scoreMatch(story, row, refs) {
   return { score: Math.min(0.99, score), reason: applicantExact ? "applicant + location/text overlap" : "location/proposal/applicant overlap" }
 }
 
+function geographicContradiction(story, row) {
+  const summary = clean(`${story.title} ${story.description}`).toLowerCase()
+  const mentioned = COUNTY_TERMS.filter((county) => new RegExp(`\\b${county}\\b`, "i").test(summary))
+  if (!mentioned.length) return false
+  const candidateCounty = AUTHORITY_COUNTY[row.local_authority_code]
+  return Boolean(candidateCounty && !mentioned.includes(candidateCounty))
+}
+
+function usefulEnrichmentPhrase(value) {
+  const phrase = clean(value)
+  const folded = phrase.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+  if (phrase.length < 3 || phrase.length > 120) return false
+  if (/https?:\/\/|news\.google|bing\.com|\brss\b|\bprovider\b/.test(folded)) return false
+  if (/\b(?:coimisi\w*|plean\w*|planning permission|planning application|county council|city council|irish examiner|irish independent)\b/.test(folded)) return false
+  if (/\b[a-z0-9_-]{20,}\b/i.test(phrase)) return false
+  return true
+}
+
 function displayNameCandidate(story) {
-  const first = capitalizedPhrases(story.title)[0] || ""
-  return first && first.split(" ").length <= 4 ? first : null
+  for (const phrase of capitalizedPhrases(story.title)) {
+    const candidate = phrase.replace(/\s+(?:wins|gets|seeks|plans|applies|secures|granted|refused|approved)$/i, "")
+    if (candidate.split(" ").length <= 4 && usefulEnrichmentPhrase(candidate)) return candidate
+  }
+  return null
 }
 function aliasesForStory(story, displayName) {
-  return [...new Set([displayName, story.title, ...capitalizedPhrases(story.text).slice(0, 16), ...addressPhrases(story.text).slice(0, 8)].filter(Boolean))].slice(0, 40)
+  return [...new Set([displayName, story.title, ...capitalizedPhrases(story.text).slice(0, 16), ...addressPhrases(story.text).slice(0, 8)]
+    .filter((value) => value && usefulEnrichmentPhrase(value)))].slice(0, 40)
 }
 
 async function upsertNotable(row, story, match) {
-  const { data: existing } = await supabase.from("planning_seo_notable").select("display_name,search_aliases,evidence").eq("application_id", row.id).maybeSingle()
+  const { data: existing, error: existingError } = await supabase.from("planning_seo_notable")
+    .select("source,reason,display_name,search_aliases,evidence,active,notable_categories,classification_reasons,classification_sources")
+    .eq("application_id", row.id).maybeSingle()
+  if (existingError) throw existingError
   const displayName = existing?.display_name || displayNameCandidate(story)
-  const searchAliases = [...new Set([...(existing?.search_aliases || []), ...aliasesForStory(story, displayName), clean(row.applicant_name)].filter(Boolean))].slice(0, 50)
+  const searchAliases = [...new Set([...aliasesForStory(story, displayName), clean(row.applicant_name)].filter(usefulEnrichmentPhrase))].slice(0, 50)
   const priorStories = Array.isArray(existing?.evidence?.stories) ? existing.evidence.stories : []
   const evidence = {
     publisher: story.publisher || null, headline: story.title, published_at: story.publishedAt || null,
     url: story.resolvedUrl || story.link, match_score: Number(match.score.toFixed(3)), matched_by: match.reason,
   }
+  const mutation = mergePressNotableMetadata(existing, {
+    applicationId: row.id,
+    displayName,
+    searchAliases,
+    evidence: {
+      ...(existing?.evidence || {}),
+      stories: [evidence, ...priorStories.filter((item) => item?.url !== evidence.url)].slice(0, 15),
+      last_discovered_at: new Date().toISOString(),
+    },
+  })
   if (!dryRun) {
-    const { error } = await supabase.from("planning_seo_notable").upsert({
-      application_id: row.id, source: "press", reason: "Notable Planning application identified from Irish press coverage.",
-      evidence: { stories: [evidence, ...priorStories.filter((item) => item?.url !== evidence.url)].slice(0, 15), last_discovered_at: new Date().toISOString() },
-      active: true, display_name: displayName, search_aliases: searchAliases, updated_at: new Date().toISOString(),
-    }, { onConflict: "application_id" })
+    const { error } = await supabase.from("planning_seo_notable").upsert({ ...mutation, updated_at: new Date().toISOString() }, { onConflict: "application_id" })
     if (error) throw error
   }
-  return { displayName, searchAliases, wasExisting: Boolean(existing) }
+  return { displayName: mutation.display_name, searchAliases: mutation.search_aliases, wasExisting: Boolean(existing) }
 }
 
 async function recordSeenStory(story, outcome, best = null) {
@@ -377,36 +420,44 @@ async function officialProposal(row) {
 }
 
 async function auditNotableDescriptions() {
-  const { data: notable, error } = await supabase.from("planning_seo_notable").select("application_id").eq("active", true)
+  const { data: records, error } = await supabase.rpc(
+    "openlist_planning_notable_description_candidates",
+    { p_limit: MAX_DESCRIPTION_CHECKS }
+  )
   if (error) throw error
-  const ids = (notable || []).map((row) => row.application_id)
-  if (!ids.length) return { checked: 0, repaired: [], incomplete: [] }
-  const records = []
-  for (let offset = 0; offset < ids.length; offset += 100) {
-    const { data, error: rowsError } = await supabase.from("planning_applications")
-      .select("id,local_authority,local_authority_code,reference,proposal,location,applicant_name,source_application_id,source_url,registration_date")
-      .in("id", ids.slice(offset, offset + 100))
-    if (rowsError) throw rowsError
-    records.push(...(data || []))
-  }
+  const candidates = records || []
+  const eligibleEvidence = new Map(candidates.map((row) => [row.id, row.evidence || {}]))
   const repaired = [], incomplete = []
-  for (const row of records) {
+  for (const row of candidates) {
     try {
       const authoritative = clean(await officialProposal(row))
       const current = clean(row.proposal)
+      let outcome = "complete-no-change"
       if (authoritative && authoritative.length > current.length + 10) {
+        outcome = "repaired"
         if (!dryRun) {
           const { error: updateError } = await supabase.from("planning_applications").update({ proposal: authoritative, updated_at: new Date().toISOString() }).eq("id", row.id)
           if (updateError) throw updateError
           await supabase.from("planning_revalidation_queue").upsert({ application_id: row.id, requested_at: new Date().toISOString() }, { onConflict: "application_id" })
         }
         repaired.push({ authority: row.local_authority_code, reference: row.reference, before: current.length, after: authoritative.length })
-      } else if (current.length < 120) incomplete.push({ authority: row.local_authority_code, reference: row.reference, length: current.length })
+      } else if (current.length < 160) {
+        outcome = "still-incomplete"
+        incomplete.push({ authority: row.local_authority_code, reference: row.reference, length: current.length })
+      }
+      if (!dryRun) {
+        const priorEvidence = eligibleEvidence.get(row.id) || {}
+        const { error: auditError } = await supabase.from("planning_seo_notable").update({
+          evidence: { ...priorEvidence, description_audit: { checked_at: new Date().toISOString(), outcome } },
+          updated_at: new Date().toISOString(),
+        }).eq("application_id", row.id)
+        if (auditError) throw auditError
+      }
     } catch (error) {
       incomplete.push({ authority: row.local_authority_code, reference: row.reference, error: error instanceof Error ? error.message : String(error) })
     }
   }
-  return { checked: records.length, repaired, incomplete }
+  return { checked: candidates.length, candidates: candidates.length, repaired, incomplete }
 }
 
 async function enqueue(ids) {
@@ -472,4 +523,4 @@ async function main() {
 
 if (import.meta.url === `file://${process.argv[1]}`) main().catch((error) => { console.error(error); process.exitCode = 1 })
 
-export { parseRss, isRepublicOfIrelandStory, extractReadableArticleText, referenceCandidates, scoreMatch, storyKey, autoMatch }
+export { parseRss, isRepublicOfIrelandStory, extractReadableArticleText, referenceCandidates, scoreMatch, geographicContradiction, displayNameCandidate, aliasesForStory, storyKey, autoMatch }
