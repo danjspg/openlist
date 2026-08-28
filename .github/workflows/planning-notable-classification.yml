@@ -1,0 +1,129 @@
+name: Planning notable reconciliation
+
+on:
+  schedule:
+    - cron: "15 6 * * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Read-only cohort validation or bounded active/recent reconciliation"
+        type: choice
+        options: [validate, reconcile]
+        default: validate
+      apply:
+        description: "Persist a bounded reconciliation batch (leave false before migration/code is merged)"
+        type: boolean
+        default: false
+      cursor:
+        description: "Resume active/recent reconciliation after this UUID"
+        required: false
+        default: ""
+      max_batches:
+        description: "Maximum 250-row batches (1-100)"
+        required: false
+        default: "10"
+  pull_request:
+    paths:
+      - "lib/planning-notable-classifier.mjs"
+      - "lib/planning-notable-eligibility.mjs"
+      - "lib/planning-notable-persistence.mjs"
+      - "lib/planning-seo.ts"
+      - "lib/planning.ts"
+      - "app/sitemaps/planning-notable.xml/route.ts"
+      - "scripts/reconcile-planning-notable-classification.mjs"
+      - "scripts/planning-upsert.mjs"
+      - "tests/planning-notable-classifier.test.mjs"
+      - "tests/planning-seo.test.ts"
+      - "tests/planning-reliability.test.ts"
+      - "supabase/migrations/*planning_notable_classification*"
+      - ".github/workflows/planning-notable-classification.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: planning-notable-classification-${{ github.event_name }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node --test tests/planning-notable-classifier.test.mjs tests/notable-planning-discovery-v2.test.mjs
+      - run: node --import tsx --test tests/planning-seo.test.ts tests/planning-reliability.test.ts
+
+  classify:
+    if: ${{ github.event_name != 'pull_request' }}
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Run bounded classifier
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          RUN_MODE: ${{ github.event_name == 'schedule' && 'sweep' || inputs.mode }}
+          APPLY_RECONCILIATION: ${{ github.event_name == 'workflow_dispatch' && inputs.apply && 'true' || 'false' }}
+          RESUME_CURSOR: ${{ inputs.cursor || '' }}
+          MAX_BATCHES: ${{ inputs.max_batches || '10' }}
+        run: |
+          mkdir -p artifacts
+          if [[ "$RUN_MODE" == "validate" ]]; then
+            node scripts/reconcile-planning-notable-classification.mjs --validate --output=artifacts/planning-notable-classification.json
+          elif [[ "$RUN_MODE" == "sweep" ]]; then
+            node scripts/reconcile-planning-notable-classification.mjs --recent-changed-days=3 --batch-size=250 --max-batches=8 --apply --output=artifacts/planning-notable-classification.json
+          else
+            apply_flag=""
+            if [[ "$APPLY_RECONCILIATION" == "true" ]]; then apply_flag="--apply"; fi
+            node scripts/reconcile-planning-notable-classification.mjs --full-window --batch-size=250 --max-batches="$MAX_BATCHES" --cursor="$RESUME_CURSOR" $apply_flag --output=artifacts/planning-notable-classification.json
+          fi
+      - name: Summarise classifier
+        if: ${{ always() }}
+        run: |
+          if [[ ! -f artifacts/planning-notable-classification.json ]]; then
+            echo "## Planning notable classification" >> "$GITHUB_STEP_SUMMARY"
+            echo "No report was produced." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          node - <<'NODE' >> "$GITHUB_STEP_SUMMARY"
+          const report = require('./artifacts/planning-notable-classification.json')
+          console.log('## Planning notable reconciliation')
+          console.log('')
+          console.log(`- Mode: **${report.mode}** (${report.dryRun ? 'read-only' : 'applied'})`)
+          console.log(`- Rows scanned: **${report.totalRowsScanned ?? report.activeApplicationsScanned ?? 0}**`)
+          console.log(`- Active structural notable: **${report.activeStructurallyNotable ?? 'n/a'}**`)
+          console.log(`- Recent-outcome structural notable: **${report.recentOutcomeStructurallyNotable ?? 'n/a'}**`)
+          console.log(`- Projected sitemap eligible: **${report.totalSitemapEligible ?? 'n/a'}**`)
+          console.log(`- New notable rows: **${report.newNotableRows ?? 0}**`)
+          console.log(`- Existing notable rows updated: **${report.existingNotableRowsUpdated ?? report.existingNotableRows ?? 0}**`)
+          console.log(`- Batches completed: **${report.batchesCompleted ?? 0}**`)
+          console.log(`- Failures: **${report.failures?.length ?? 0}**`)
+          console.log(`- Remaining work: **${report.remainingWork ?? (report.complete ? 'complete' : 'resume required')}**`)
+          if (report.nextCursor) console.log(`- Resume cursor: \`${report.nextCursor}\``)
+          console.log('')
+          console.log('### Category distribution')
+          for (const [category, count] of Object.entries(report.categoryCounts || {}).sort((a, b) => b[1] - a[1])) console.log(`- ${category}: ${count}`)
+          console.log('')
+          console.log('### Authority distribution')
+          for (const [authority, count] of Object.entries(report.authorityCounts || {}).sort((a, b) => b[1] - a[1])) console.log(`- ${authority}: ${count}`)
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: planning-notable-classification-${{ github.run_id }}
+          path: artifacts/planning-notable-classification.json
+          retention-days: 30
+          if-no-files-found: warn

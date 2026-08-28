@@ -5,7 +5,7 @@ import {
 } from "@/lib/property-intelligence"
 
 export const RECENT_PLANNING_SITEMAP_LIMIT = 5000
-export const NOTABLE_PLANNING_SITEMAP_LIMIT = 5000
+export const NOTABLE_PLANNING_SITEMAP_LIMIT = 50000
 
 export type PlanningSitemapApplication = {
   id: string

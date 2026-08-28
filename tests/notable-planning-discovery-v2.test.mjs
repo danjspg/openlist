@@ -10,6 +10,9 @@ const {
   extractReadableArticleText,
   referenceCandidates,
   scoreMatch,
+  geographicContradiction,
+  displayNameCandidate,
+  aliasesForStory,
   storyKey,
   autoMatch,
 } = await import("../scripts/discover-notable-planning-v2.mjs")
@@ -58,6 +61,38 @@ test("exact planning references remain decisive", () => {
     proposal: "Coffee shop and signage",
   }, referenceCandidates(story.text))
   assert.equal(match.score, 1)
+})
+
+test("explicit impossible county matches are rejected without tightening global thresholds", () => {
+  const story = {
+    title: "Major hotel approved in Portlaoise, Laois",
+    description: "Laois County Council granted permission",
+    text: "Major hotel approved in Portlaoise, Laois. Laois County Council granted permission.",
+  }
+  const row = {
+    reference: "26/1234",
+    applicant_name: "Example Hotels Limited",
+    local_authority_code: "SOUTHDUBLIN",
+    local_authority: "South Dublin County Council",
+    location: "Tallaght, Dublin 24",
+    proposal: "Hotel development",
+  }
+  assert.equal(geographicContradiction(story, row), true)
+  assert.deepEqual(scoreMatch(story, row, ["26/1234"]), {
+    score: 0.05,
+    reason: "explicit geographic contradiction",
+  })
+})
+
+test("display names and aliases exclude institutional and provider metadata", () => {
+  const story = {
+    title: "Boxd Coffee wins permission after An Coimisiún Pleanála appeal",
+    text: "Boxd Coffee An Coimisiún Pleanála Planning Permission news.google.com ABCDEFGHIJKLMNOPQRSTUVWXYZ Washington Street Cork",
+  }
+  assert.equal(displayNameCandidate(story), "Boxd Coffee")
+  const aliases = aliasesForStory(story, "Boxd Coffee")
+  assert.ok(aliases.includes("Boxd Coffee"))
+  assert.equal(aliases.some((value) => /coimisi|news\.google|planning permission|ABCDEFGHIJKLMNOPQRSTUVWXYZ/i.test(value)), false)
 })
 
 test("recall-oriented policy auto-matches moderate clear winners", () => {

@@ -156,15 +156,43 @@ test("migration makes notable selection explicit and measurement idempotent", as
   assert.match(migration, /order by n\.created_at, p\.local_authority_code, p\.reference, p\.id/i)
 })
 
-test("robots and cached route expose the distinct notable sitemap", async () => {
-  const [robots, route, rootSitemap] = await Promise.all([
+test("robots and cached routes expose the bounded priority-eligible notable sitemap", async () => {
+  const [robots, route, planning, rootSitemap] = await Promise.all([
     source("app/robots.ts"),
     source("app/sitemaps/planning-notable.xml/route.ts"),
+    source("lib/planning.ts"),
     source("app/sitemap.ts"),
   ])
   assert.match(robots, /\/sitemaps\/planning-notable\.xml/)
   assert.match(route, /revalidate = 86400/)
   assert.match(route, /stale-while-revalidate=604800/)
   assert.match(route, /renderSitemapXml/)
+  assert.match(route, /NOTABLE_PLANNING_SITEMAP_LIMIT/)
+  assert.match(planning, /openlist_planning_notable_sitemap/)
+  assert.doesNotMatch(planning, /openlist_planning_notable_sitemap_year/)
   assert.doesNotMatch(rootSitemap, /getNotablePlanningSitemapApplications/)
+})
+
+test("classification migration preserves press enrichment and separates priority eligibility", async () => {
+  const migration = await source(
+    "supabase/migrations/20260828105549_add_planning_notable_classification_metadata.sql"
+  )
+  assert.match(migration, /notable_categories text\[\]/)
+  assert.match(migration, /classification_reasons jsonb/)
+  assert.match(migration, /classification_sources text\[\]/)
+  assert.match(migration, /priority_eligible boolean not null default true/)
+  assert.match(migration, /source = 'press'[\s\S]*array\['press'\]/)
+  assert.match(migration, /where n\.active and n\.priority_eligible/)
+  assert.match(migration, /openlist_planning_notable_reconciliation_candidates/)
+  assert.match(migration, /p_full_window/)
+  assert.match(migration, /p\.updated_at >= now\(\)/)
+  assert.match(migration, /49999/)
+  assert.match(migration, /openlist_planning_notable_description_candidates/)
+  assert.match(migration, /interval '30 days'/)
+  assert.match(migration, /least\(coalesce\(p_limit, 30\), 100\)/)
+  assert.doesNotMatch(migration, /update public\.planning_applications/)
+  assert.doesNotMatch(migration, /display_name\s*=/)
+  assert.doesNotMatch(migration, /search_aliases\s*=/)
+  assert.doesNotMatch(migration, /evidence\s*=/)
+  assert.doesNotMatch(migration, /update public\.planning_applications/)
 })

@@ -459,8 +459,8 @@ export async function getPlanningSitemapApplications(limit = 5000) {
   return applications
 }
 
-export async function getNotablePlanningSitemapApplications(limit = 5000) {
-  const boundedLimit = Math.max(1, Math.min(limit, 5000))
+export async function getNotablePlanningSitemapApplications(limit = 50000) {
+  const boundedLimit = Math.max(1, Math.min(limit, 50000))
   const serverSupabase = getServerSupabase()
   const applications: PlanningSitemapApplication[] = []
 
