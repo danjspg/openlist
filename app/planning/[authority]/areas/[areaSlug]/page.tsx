@@ -9,6 +9,7 @@ import {
   type PlanningCountStat,
 } from "@/lib/planning"
 import { getPlanningAuthorityBySlug } from "@/lib/planning-authorities"
+import { getPlanningLocalityNotableGroups } from "@/lib/planning-locality-notable"
 import {
   formatPlanningCount,
   latestRegistrationMonthLabel,
@@ -16,7 +17,10 @@ import {
 } from "@/lib/planning-locality-presentation"
 import { planningResultRecord } from "@/lib/planning-result-presentation"
 import { areaSlug } from "@/lib/ppr"
-import { countyForPlanningAuthority } from "@/lib/property-intelligence"
+import {
+  countyForPlanningAuthority,
+  planningApplicationPath,
+} from "@/lib/property-intelligence"
 
 export const revalidate = 21600
 export const dynamicParams = true
@@ -59,6 +63,7 @@ export default async function PlanningLocalityPage({ params }: Props) {
   if (!page) notFound()
 
   const { authority, locality, dashboard, recentDecisions, county } = page
+  const notableGroups = await getPlanningLocalityNotableGroups(authority.code, locality)
   const searchHref = localitySearchHref(authority.slug, locality)
   const decisionsHref = localitySearchHref(authority.slug, locality, "decision_made")
   const statusStats = localityStatusStats(dashboard.statusStats)
@@ -96,6 +101,60 @@ export default async function PlanningLocalityPage({ params }: Props) {
             ) : null}
           </nav>
         </header>
+
+        {notableGroups.length > 0 ? (
+          <section className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-5 shadow-sm sm:p-6" aria-labelledby="notable-local-development">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-800">
+              Significant local development
+            </p>
+            <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 id="notable-local-development" className="text-2xl font-semibold tracking-tight text-stone-950 sm:text-3xl">
+                  Notable planning activity in {locality}
+                </h2>
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-stone-600">
+                  Major residential, energy, retail, infrastructure and other locally significant applications identified from the planning record.
+                </p>
+              </div>
+              <Link className="inline-flex min-h-10 shrink-0 items-center text-sm font-semibold text-emerald-900 hover:underline" href={searchHref}>
+                Search all {locality} planning <span aria-hidden="true" className="ml-1">→</span>
+              </Link>
+            </div>
+
+            <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {notableGroups.map((group) => (
+                <article key={group.key} className="rounded-xl border border-emerald-100 bg-white p-4">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <h3 className="text-base font-semibold text-stone-950">{group.label}</h3>
+                    <span className="text-xs font-medium text-stone-500">
+                      {formatPlanningCount(group.applications.length)} shown
+                    </span>
+                  </div>
+                  <ul className="mt-3 divide-y divide-stone-100">
+                    {group.applications.map((item) => {
+                      const application = item.application
+                      return (
+                        <li key={application.id} className="py-3 first:pt-0 last:pb-0">
+                          <Link className="group block" href={planningApplicationPath(authority, application.reference)}>
+                            <p className="line-clamp-2 text-sm font-semibold leading-5 text-stone-900 group-hover:text-emerald-800 group-hover:underline">
+                              {item.displayName || application.proposal || application.location || application.reference}
+                            </p>
+                            {item.displayName && application.proposal ? (
+                              <p className="mt-1 line-clamp-2 text-xs leading-5 text-stone-500">{application.proposal}</p>
+                            ) : null}
+                            <p className="mt-1.5 text-xs text-stone-500">
+                              {application.location || locality} · {formatPlanningDate(application.registration_date)}
+                            </p>
+                          </Link>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </article>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         <dl className="grid divide-y divide-stone-200 border-b border-stone-200 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
           <Metric value={formatPlanningCount(dashboard.totalCount)} label="Recorded applications" />
