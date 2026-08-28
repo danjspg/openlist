@@ -10,6 +10,7 @@ export type HomepagePlanningSummary = {
 export type HomepageNotablePlanningItem = {
   applicationId: string
   reference: string
+  authorityCode: string | null
   location: string | null
   proposal: string | null
   status: string | null
@@ -65,7 +66,7 @@ const getHomepageNotablePlanningCached = unstable_cache(async (): Promise<Homepa
   const ids = notable.map((row) => row.application_id)
   const { data: applications, error: applicationsError } = await supabase
     .from("planning_applications")
-    .select("id,reference,location,proposal,status,decision_text,registration_date,decision_date")
+    .select("id,reference,local_authority_code,location,proposal,status,decision_text,registration_date,decision_date")
     .in("id", ids)
 
   if (applicationsError) throw new Error(`Homepage notable application lookup failed: ${applicationsError.message}`)
@@ -77,6 +78,7 @@ const getHomepageNotablePlanningCached = unstable_cache(async (): Promise<Homepa
     return [{
       applicationId: row.application_id,
       reference: application.reference,
+      authorityCode: application.local_authority_code,
       location: application.location,
       proposal: application.proposal,
       status: application.status,
@@ -91,7 +93,7 @@ const getHomepageNotablePlanningCached = unstable_cache(async (): Promise<Homepa
     const rightDate = right.decisionDate || right.registrationDate || ""
     return rightDate.localeCompare(leftDate)
   })
-}, ["homepage-notable-planning", "v2"], { revalidate: 60 * 60 * 6, tags: [PLANNING_DATASET_CACHE_TAG] })
+}, ["homepage-notable-planning", "v3-authority"], { revalidate: 60 * 60 * 6, tags: [PLANNING_DATASET_CACHE_TAG] })
 
 export async function getHomepagePlanningSummary() {
   return getHomepagePlanningSummaryCached()
