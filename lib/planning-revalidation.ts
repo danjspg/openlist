@@ -17,11 +17,41 @@ type QueuedApplication = {
 
 type QueueClient = ReturnType<typeof getServerSupabase>
 
+type SupabaseMutationResult<T> = {
+  data: T | null
+  error: { code?: string; message?: string } | null
+}
+
 export type PlanningRevalidationResult = {
   selected: number
   invalidated: number
   remaining: number
   failures: number
+}
+
+function isTransientMutationError(error: { code?: string; message?: string } | null) {
+  if (!error) return false
+  const message = String(error.message ?? "").toLowerCase()
+  return (
+    error.code === "57014" ||
+    error.code === "55P03" ||
+    message.includes("statement timeout") ||
+    message.includes("lock timeout") ||
+    message.includes("timed out") ||
+    message.includes("connection pool")
+  )
+}
+
+async function retryTransientMutation<T>(
+  operation: () => PromiseLike<SupabaseMutationResult<T>>,
+  attempts = 3
+) {
+  let result = await operation()
+  for (let attempt = 1; attempt < attempts && isTransientMutationError(result.error); attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 150 * attempt))
+    result = await operation()
+  }
+  return result
 }
 
 export async function drainPlanningRevalidationQueue(
@@ -54,12 +84,14 @@ export async function drainPlanningRevalidationQueue(
 
     try {
       invalidatePath(planningApplicationPath(authority, related.reference))
-      const { data: cleared, error: clearError } = await supabase
-        .from("planning_revalidation_queue")
-        .delete()
-        .eq("application_id", item.application_id)
-        .eq("requested_at", item.requested_at)
-        .select("application_id")
+      const { data: cleared, error: clearError } = await retryTransientMutation(() =>
+        supabase
+          .from("planning_revalidation_queue")
+          .delete()
+          .eq("application_id", item.application_id)
+          .eq("requested_at", item.requested_at)
+          .select("application_id")
+      )
       if (clearError) throw clearError
       if (cleared?.length) invalidated += 1
     } catch (error) {
@@ -90,13 +122,15 @@ export async function drainPlanningRevalidationQueue(
 
     try {
       invalidatePath(planningApplicationPath(authority, row.reference))
-      const { data: cleared, error: clearError } = await supabase
-        .from("planning_applications")
-        .update({ revalidation_pending: false })
-        .eq("id", row.id)
-        .eq("updated_at", row.updated_at)
-        .eq("revalidation_pending", true)
-        .select("id")
+      const { data: cleared, error: clearError } = await retryTransientMutation(() =>
+        supabase
+          .from("planning_applications")
+          .update({ revalidation_pending: false })
+          .eq("id", row.id)
+          .eq("updated_at", row.updated_at)
+          .eq("revalidation_pending", true)
+          .select("id")
+      )
       if (clearError) throw clearError
       if (cleared?.length) invalidated += 1
     } catch (error) {
@@ -106,8 +140,8 @@ export async function drainPlanningRevalidationQueue(
   }
 
   const { count: queueCount, error: queueCountError } = await supabase
-      .from("planning_revalidation_queue")
-      .select("application_id", { count: "exact", head: true })
+    .from("planning_revalidation_queue")
+    .select("application_id", { count: "exact", head: true })
   if (queueCountError) throw new Error(`Planning exact-path queue count failed: ${queueCountError.message}`)
 
   let legacyCount = 0
