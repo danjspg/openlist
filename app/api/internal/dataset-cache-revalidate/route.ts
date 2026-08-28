@@ -23,11 +23,25 @@ export async function POST(request: NextRequest) {
 
   const tag =
     dataset === "planning" ? PLANNING_DATASET_CACHE_TAG : PPR_DATASET_CACHE_TAG
+  const datasetPath = dataset === "planning" ? "/planning" : "/sold-prices"
 
   revalidateTag(tag)
   revalidatePath("/", "page")
   revalidatePath("/search", "page")
-  revalidatePath(dataset === "planning" ? "/planning" : "/sold-prices", "layout")
 
-  return NextResponse.json({ dataset, revalidated: true, tag })
+  // Keep aggregate entry pages immediately fresh without invalidating the
+  // entire dataset route tree. Descendant Planning detail pages are refreshed
+  // by the durable exact-path queue when their source record changes; other
+  // descendants retain their normal tag/TTL freshness. Layout invalidation
+  // here would make crawler visits regenerate large numbers of unchanged ISR
+  // pages and needlessly increase ISR writes and function CPU.
+  revalidatePath(datasetPath, "page")
+
+  return NextResponse.json({
+    dataset,
+    revalidated: true,
+    tag,
+    paths: ["/", "/search", datasetPath],
+    scope: "entry-pages",
+  })
 }
