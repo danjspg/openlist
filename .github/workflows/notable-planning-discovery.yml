@@ -13,10 +13,20 @@ on:
         description: "Maximum press stories to inspect"
         required: false
         default: "200"
+      month_backfill:
+        description: "Run a one-off 30-day / 500-story backfill"
+        required: false
+        type: boolean
+        default: false
+      reprocess_seen:
+        description: "Reprocess stories already recorded by earlier discovery runs"
+        required: false
+        type: boolean
+        default: false
   pull_request:
     paths:
-      - "scripts/discover-notable-planning.mjs"
-      - "tests/notable-planning-discovery.test.mjs"
+      - "scripts/discover-notable-planning-v2.mjs"
+      - "tests/notable-planning-discovery-v2.test.mjs"
       - ".github/workflows/notable-planning-discovery.yml"
 
 permissions:
@@ -32,43 +42,42 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-
       - run: npm ci
-
-      - name: Test notable Planning matching and aliases
-        run: node --test tests/notable-planning-discovery.test.mjs
+      - name: Test notable Planning news discovery
+        run: node --test tests/notable-planning-discovery-v2.test.mjs
 
   discover:
     if: ${{ github.event_name != 'pull_request' }}
     needs: test
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-
       - run: npm ci
 
       - name: Discover and enrich notable Planning applications
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          NOTABLE_PLANNING_NEWS_DAYS: ${{ github.event.inputs.news_days || '7' }}
-          NOTABLE_PLANNING_MAX_STORIES: ${{ github.event.inputs.max_stories || '200' }}
-          NOTABLE_PLANNING_MAX_MATCHES: "30"
+          NOTABLE_PLANNING_NEWS_DAYS: ${{ github.event_name == 'workflow_dispatch' && inputs.month_backfill && '30' || (github.event_name == 'workflow_dispatch' && inputs.news_days || '7') }}
+          NOTABLE_PLANNING_MAX_STORIES: ${{ github.event_name == 'workflow_dispatch' && inputs.month_backfill && '500' || (github.event_name == 'workflow_dispatch' && inputs.max_stories || '200') }}
+          NOTABLE_PLANNING_REPROCESS_SEEN: ${{ github.event_name == 'workflow_dispatch' && (inputs.month_backfill || inputs.reprocess_seen) && 'true' || 'false' }}
+          NOTABLE_PLANNING_MAX_MATCHES: "60"
           NOTABLE_PLANNING_REQUEST_TIMEOUT_MS: "12000"
         run: |
           mkdir -p artifacts
-          node scripts/discover-notable-planning.mjs --output artifacts/notable-planning-discovery.json
+          echo "Configured press window: ${NOTABLE_PLANNING_NEWS_DAYS} days"
+          echo "Configured max stories: ${NOTABLE_PLANNING_MAX_STORIES}"
+          echo "Reprocess seen: ${NOTABLE_PLANNING_REPROCESS_SEEN}"
+          node scripts/discover-notable-planning-v2.mjs --output artifacts/notable-planning-discovery.json
 
       - name: Summarise discovery
         if: ${{ always() }}
@@ -79,15 +88,16 @@ jobs:
             echo "No report was produced." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-
           node - <<'NODE' >> "$GITHUB_STEP_SUMMARY"
           const fs = require('fs')
           const report = JSON.parse(fs.readFileSync('artifacts/notable-planning-discovery.json', 'utf8'))
           const funnel = report.funnel || {}
           console.log('## Notable Planning discovery')
           console.log('')
-          console.log(`- Press window: **${report.newsWindowDays} days** across **${report.newsQueries || '?'} searches**`)
-          console.log(`- Press stories checked: **${report.storiesChecked}**`)
+          console.log(`- Press window: **${report.newsWindowDays} days** across **${report.newsQueries || '?'} search families**`)
+          console.log(`- Stories discovered: **${funnel.storiesDiscovered || 0}**`)
+          console.log(`- Previously seen skipped: **${funnel.previouslySeenSkipped || 0}**`)
+          console.log(`- Direct publisher links: **${funnel.directPublisherLinks || 0}**`)
           console.log(`- Article bodies extracted: **${funnel.articleBodiesExtracted || 0}**`)
           console.log(`- Stories with planning references: **${funnel.storiesWithReferences || 0}**`)
           console.log(`- Stories producing OpenList candidates: **${funnel.storiesWithCandidates || 0}**`)
@@ -101,16 +111,12 @@ jobs:
           if (report.enriched.length) {
             console.log('')
             console.log('### Enriched applications')
-            for (const item of report.enriched) {
-              console.log(`- ${item.authority} ${item.reference}: ${item.displayName || 'no display name'} — ${item.headline} (${item.publisher || 'unknown publisher'})`)
-            }
+            for (const item of report.enriched) console.log(`- ${item.authority} ${item.reference}: ${item.displayName || 'no display name'} — ${item.headline} (${item.publisher || 'unknown publisher'})`)
           }
           if (report.ambiguous.length) {
             console.log('')
             console.log('### Ambiguous candidates')
-            for (const item of report.ambiguous.slice(0, 20)) {
-              console.log(`- ${item.candidate} score ${item.score}: ${item.headline}`)
-            }
+            for (const item of report.ambiguous.slice(0, 25)) console.log(`- ${item.candidate} score ${item.score}: ${item.headline}`)
           }
           NODE
 
