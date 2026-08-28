@@ -13,6 +13,12 @@ function increment(target, key, amount = 1) {
   target[key || "UNKNOWN"] = (target[key || "UNKNOWN"] || 0) + amount
 }
 
+function mergeCounts(target, source) {
+  for (const [key, value] of Object.entries(source || {})) {
+    increment(target, key, Number(value) || 0)
+  }
+}
+
 export function normaliseResumeCursor(value) {
   return String(value || "").trim() || ZERO_UUID
 }
@@ -121,7 +127,109 @@ export async function runPlanningNotableReconciliation({
     authorityCounts,
     failures,
     batchesCompleted,
+    finalCursor: cursor,
     nextCursor,
+    complete,
+    remainingWork: complete ? "complete" : "resume required",
+  }
+}
+
+export async function runPlanningNotableApplyFull({
+  supabase,
+  startCursor = ZERO_UUID,
+  batchSize = 250,
+  batchesPerChunk = 20,
+  maxChunks = 20,
+  retentionMonths = DEFAULT_PLANNING_NOTABLE_RETENTION_MONTHS,
+  recentChangedDays = 3,
+  confirmed = false,
+  apply = false,
+  persist = classifyAndPersistPlanningApplications,
+  onChunk = async () => {},
+} = {}) {
+  if (!confirmed || !apply) {
+    throw new Error("apply-full requires explicit confirmation and apply=true")
+  }
+
+  const initialCursor = normaliseResumeCursor(startCursor)
+  let cursor = initialCursor
+  let chunksCompleted = 0
+  let complete = false
+  const aggregate = {
+    batches: 0,
+    scanned: 0,
+    notable: 0,
+    created: 0,
+    updated: 0,
+    changed: 0,
+  }
+  const categoryCounts = {}
+  const authorityCounts = {}
+  const failures = []
+
+  while (!complete && chunksCompleted < maxChunks) {
+    const chunk = await runPlanningNotableReconciliation({
+      supabase,
+      startCursor: cursor,
+      batchSize,
+      maxBatches: batchesPerChunk,
+      retentionMonths,
+      recentChangedDays,
+      fullWindow: true,
+      apply: true,
+      persist,
+    })
+
+    aggregate.batches += chunk.batchesCompleted
+    aggregate.scanned += chunk.totalRowsScanned
+    aggregate.notable += chunk.totalStructurallyNotable
+    aggregate.created += chunk.newNotableRows
+    aggregate.updated += chunk.existingNotableRowsUpdated
+    aggregate.changed += chunk.materiallyChangedRows
+    mergeCounts(categoryCounts, chunk.categoryCounts)
+    mergeCounts(authorityCounts, chunk.authorityCounts)
+    failures.push(...chunk.failures.map((failure) => ({
+      chunk: chunksCompleted + 1,
+      ...failure,
+    })))
+    chunksCompleted += 1
+
+    // finalCursor is always the last successfully persisted row. A failed
+    // batch therefore leaves this at the safe resume point before that batch.
+    cursor = chunk.finalCursor
+    complete = chunk.complete
+    await onChunk({
+      chunk: chunksCompleted,
+      batchesCompleted: aggregate.batches,
+      totalRowsScanned: aggregate.scanned,
+      safeCursor: cursor,
+      complete,
+      failures: failures.length,
+    })
+    if (chunk.failures.length) break
+  }
+
+  return {
+    mode: "active-recent-apply-full",
+    dryRun: false,
+    startCursor: initialCursor,
+    finalCursor: cursor,
+    nextCursor: complete ? null : cursor,
+    retentionMonths,
+    recentChangedDays,
+    batchSize,
+    batchesPerChunk,
+    maxChunks,
+    chunksCompleted,
+    batchesCompleted: aggregate.batches,
+    totalRowsScanned: aggregate.scanned,
+    totalStructurallyNotable: aggregate.notable,
+    newNotableRows: aggregate.created,
+    existingNotableRowsUpdated: aggregate.updated,
+    materiallyChangedRows: aggregate.changed,
+    categoryCounts,
+    authorityCounts,
+    failures,
     complete,
     remainingWork: complete ? "complete" : "resume required",
   }
@@ -147,6 +255,7 @@ export async function runCli(argv = process.argv.slice(2), env = process.env) {
   if (!supabaseUrl || !serviceRoleKey) throw new Error("Missing Supabase credentials")
 
   const validate = args.has("--validate")
+  const applyFull = args.has("--apply-full")
   const outputPath = valueFor(argv, "--output", "")
   const retentionMonths = boundedInt(
     argv,
@@ -161,18 +270,37 @@ export async function runCli(argv = process.argv.slice(2), env = process.env) {
 
   const report = {
     generatedAt: new Date().toISOString(),
-    ...await runPlanningNotableReconciliation({
-      supabase,
-      startCursor: valueFor(argv, "--cursor", ZERO_UUID),
-      batchSize: boundedInt(argv, "--batch-size", 250, 10, 1000),
-      maxBatches: boundedInt(argv, "--max-batches", 10, 1, 100),
-      retentionMonths,
-      recentChangedDays: boundedInt(argv, "--recent-changed-days", 3, 1, 30),
-      fullWindow: args.has("--full-window"),
-      validate,
-      // --validate always wins over --apply inside the runner.
-      apply: args.has("--apply"),
-    }),
+    ...(applyFull
+      ? await runPlanningNotableApplyFull({
+        supabase,
+        startCursor: valueFor(argv, "--cursor", ZERO_UUID),
+        batchSize: boundedInt(argv, "--batch-size", 250, 10, 1000),
+        batchesPerChunk: boundedInt(argv, "--max-batches", 20, 1, 100),
+        maxChunks: boundedInt(argv, "--max-chunks", 20, 1, 100),
+        retentionMonths,
+        recentChangedDays: boundedInt(argv, "--recent-changed-days", 3, 1, 30),
+        confirmed: args.has("--confirm-apply-full"),
+        apply: args.has("--apply"),
+        onChunk: async (progress) => {
+          console.log(
+            `Apply-full chunk ${progress.chunk}: ${progress.totalRowsScanned} rows, `
+            + `${progress.batchesCompleted} batches; safe cursor ${progress.safeCursor}; `
+            + `complete=${progress.complete}; failures=${progress.failures}`
+          )
+        },
+      })
+      : await runPlanningNotableReconciliation({
+        supabase,
+        startCursor: valueFor(argv, "--cursor", ZERO_UUID),
+        batchSize: boundedInt(argv, "--batch-size", 250, 10, 1000),
+        maxBatches: boundedInt(argv, "--max-batches", 10, 1, 100),
+        retentionMonths,
+        recentChangedDays: boundedInt(argv, "--recent-changed-days", 3, 1, 30),
+        fullWindow: args.has("--full-window"),
+        validate,
+        // --validate always wins over --apply inside the runner.
+        apply: args.has("--apply"),
+      })),
   }
   const rendered = JSON.stringify(report, null, 2)
   console.log(rendered)
@@ -184,5 +312,8 @@ export async function runCli(argv = process.argv.slice(2), env = process.env) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  await runCli()
+  const report = await runCli()
+  if (report.mode === "active-recent-apply-full" && (!report.complete || report.failures.length)) {
+    process.exitCode = 1
+  }
 }
