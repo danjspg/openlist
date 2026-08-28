@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { compact, hasExternalStatusPrecedence, qualityRetryScope, sameStatus, shouldRepairProposal } from "../scripts/audit-notable-planning-quality.mts"
+import { compact, hasExternalStatusPrecedence, nationalAuthorityForCode, qualityRetryScope, sameStatus, shouldRepairProposal } from "../scripts/audit-notable-planning-quality.mts"
 
 test("proposal repair only accepts a materially fuller source", () => {
   assert.equal(shouldRepairProposal("Short proposal", "Short proposal with materially more authoritative detail"), true)
@@ -25,4 +25,11 @@ test("higher-priority ePlan, ACP, and appeal decision status is preserved", () =
 test("quality retry scope clearly distinguishes full and unresolved-only runs", () => {
   assert.equal(qualityRetryScope(false), "all")
   assert.equal(qualityRetryScope(true), "unchecked-only")
+})
+
+test("quality source lookups use the national feed source authority names", () => {
+  assert.equal(nationalAuthorityForCode("LIMERICK")?.sourceName, "Limerick County Council")
+  assert.equal(nationalAuthorityForCode("DLR")?.sourceName, "Dun Laoghaire Rathdown County Council")
+  assert.equal(nationalAuthorityForCode("KILDARE")?.sourceName, "Kildare County Council")
+  assert.equal(nationalAuthorityForCode("UNKNOWN"), null)
 })
