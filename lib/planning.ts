@@ -407,7 +407,17 @@ const getPlanningApplicationEventsCached = unstable_cache(
 
 export const getPlanningApplicationEvents = cache(
   async function getPlanningApplicationEvents(applicationId: string) {
-    return getPlanningApplicationEventsCached(applicationId)
+    try {
+      return await getPlanningApplicationEventsCached(applicationId)
+    } catch (error) {
+      // Timeline history is supporting context. The current canonical application
+      // must remain readable if event-history storage has a transient problem.
+      console.warn(
+        `Planning timeline unavailable for ${applicationId}; rendering core application.`,
+        error
+      )
+      return [] as PlanningEvent[]
+    }
   }
 )
 
