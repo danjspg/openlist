@@ -132,17 +132,17 @@ async function loadNationalSources(rows: PlanningRow[]) {
     if (!SPECIAL_AGILE.has(code)) continue
     const ingestAuthority = AUTHORITIES.find(item => item.code === code)
     if (!ingestAuthority) continue
-    for (const batch of chunks(authorityRows, 25)) {
-      const details = await fetchAgileDetailsByReference(ingestAuthority, batch, { failureMode: "warn" })
-      for (const row of batch) {
-        const current = sources.get(row.id) || { source: "national_arcgis" }
-        const full = details.get(row.reference)?.fullProposal
-        sources.set(row.id, {
-          ...current,
-          proposal: authoritativeNationalProposal(row.proposal, full) || current.proposal,
-          source: full ? "agile_detail+national_arcgis" : current.source,
-        })
-      }
+    for (const row of authorityRows) {
+      if (compact(row.proposal).length >= 180) continue
+      const details = await fetchAgileDetailsByReference(ingestAuthority, [row], { failureMode: "best-effort" })
+      const current = sources.get(row.id) || { source: "national_arcgis" }
+      const full = details.get(row.reference)?.fullProposal
+      if (!full) continue
+      sources.set(row.id, {
+        ...current,
+        proposal: authoritativeNationalProposal(row.proposal, full) || current.proposal,
+        source: "agile_detail+national_arcgis",
+      })
     }
   }
   return sources
