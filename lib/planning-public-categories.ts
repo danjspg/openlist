@@ -30,11 +30,11 @@ export const PLANNING_PUBLIC_CATEGORIES: PlanningPublicCategory[] = [
 
 type PlanningPublicCategoryIndexRow = {
   applicationId: string
-  proposal: string | null
   localAuthorityCode: string
   registrationDate: string | null
   displayName: string | null
   categories: string[]
+  keywordFlags: number
 }
 
 export type PlanningPublicCategoryApplication = {
@@ -43,15 +43,29 @@ export type PlanningPublicCategoryApplication = {
   categories: string[]
 }
 
-function matchesCategory(slug: string, row: { proposal: string | null; categories: string[] }) {
-  const proposal = (row.proposal || "").toLowerCase()
+const KEYWORD_PADEL = 1 << 0
+const KEYWORD_WIND = 1 << 1
+const KEYWORD_SOLAR = 1 << 2
+const KEYWORD_BATTERY = 1 << 3
+
+function keywordFlags(proposal: string | null) {
+  const text = (proposal || "").toLowerCase()
+  let flags = 0
+  if (/\bpadel\b/.test(text)) flags |= KEYWORD_PADEL
+  if (/\bwind farm\b|\bwind turbine/.test(text)) flags |= KEYWORD_WIND
+  if (/\bsolar farm\b|\bsolar energy\b|\bphotovoltaic\b/.test(text)) flags |= KEYWORD_SOLAR
+  if (/\bbattery energy storage\b|\bbess\b|\bgrid[- ]scale battery\b/.test(text)) flags |= KEYWORD_BATTERY
+  return flags
+}
+
+function matchesCategory(slug: string, row: PlanningPublicCategoryIndexRow) {
   const categories = new Set(row.categories)
-  if (slug === "padel") return /\bpadel\b/.test(proposal)
+  if (slug === "padel") return Boolean(row.keywordFlags & KEYWORD_PADEL)
   if (slug === "large-residential") return categories.has("residential-large")
   if (slug === "student-accommodation") return categories.has("student-accommodation")
-  if (slug === "wind-farms") return categories.has("energy") && /\bwind farm\b|\bwind turbine/.test(proposal)
-  if (slug === "solar-energy") return categories.has("energy") && /\bsolar farm\b|\bsolar energy\b|\bphotovoltaic\b/.test(proposal)
-  if (slug === "battery-storage") return categories.has("energy") && /\bbattery energy storage\b|\bbess\b|\bgrid[- ]scale battery\b/.test(proposal)
+  if (slug === "wind-farms") return categories.has("energy") && Boolean(row.keywordFlags & KEYWORD_WIND)
+  if (slug === "solar-energy") return categories.has("energy") && Boolean(row.keywordFlags & KEYWORD_SOLAR)
+  if (slug === "battery-storage") return categories.has("energy") && Boolean(row.keywordFlags & KEYWORD_BATTERY)
   if (slug === "retail") return categories.has("retail")
   if (slug === "hotels-restaurants") return categories.has("hospitality")
   if (slug === "data-centres") return categories.has("data-centre")
@@ -97,15 +111,15 @@ const loadPriorityNotableIndex = unstable_cache(async (): Promise<PlanningPublic
       const notable = notableById.get(application.id)!
       return {
         applicationId: application.id,
-        proposal: application.proposal,
         localAuthorityCode: application.local_authority_code,
         registrationDate: application.registration_date,
         displayName: notable.display_name,
         categories: Array.isArray(notable.notable_categories) ? notable.notable_categories.map(String) : [],
+        keywordFlags: keywordFlags(application.proposal),
       }
     })
     .sort((a, b) => String(b.registrationDate || "").localeCompare(String(a.registrationDate || "")))
-}, ["planning-public-categories", "v2"], { revalidate: 60 * 60 * 6, tags: [PLANNING_DATASET_CACHE_TAG] })
+}, ["planning-public-categories", "v3"], { revalidate: 60 * 60 * 6, tags: [PLANNING_DATASET_CACHE_TAG] })
 
 async function loadApplications(ids: string[]) {
   if (!ids.length) return new Map<string, PlanningApplication>()
