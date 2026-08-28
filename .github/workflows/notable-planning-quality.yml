@@ -8,6 +8,13 @@ on:
       - ".github/workflows/notable-planning-quality.yml"
   workflow_dispatch:
     inputs:
+      scope:
+        description: "Audit scope"
+        type: choice
+        options:
+          - all
+          - unchecked-only
+        default: all
       apply:
         description: "Repair authoritative proposal/status mismatches"
         type: boolean
@@ -74,12 +81,15 @@ jobs:
       - name: Audit and repair notable Planning quality
         env:
           APPLY: ${{ github.event_name == 'push' || inputs.apply }}
+          SCOPE: ${{ github.event_name == 'push' && 'all' || inputs.scope }}
           CONFIRM_NOTABLE_QUALITY_REPAIR: ${{ github.event_name == 'push' && 'true' || inputs.confirm_apply && 'true' || 'false' }}
         run: |
           mkdir -p artifacts
           apply_flag=""
+          scope_flag=""
           if [[ "$APPLY" == "true" ]]; then apply_flag="--apply"; fi
-          node --import tsx scripts/audit-notable-planning-quality.mts $apply_flag --output artifacts/notable-planning-quality.json
+          if [[ "$SCOPE" == "unchecked-only" ]]; then scope_flag="--unchecked-only"; fi
+          node --import tsx scripts/audit-notable-planning-quality.mts $apply_flag $scope_flag --output artifacts/notable-planning-quality.json
       - name: Summarise
         if: always()
         run: |
@@ -88,6 +98,7 @@ jobs:
           const r = require('./artifacts/notable-planning-quality.json')
           console.log('## Notable Planning quality')
           console.log(`- Mode: **${r.mode}**`)
+          console.log(`- Scope: **${r.scope || 'all'}**`)
           console.log(`- Complete: **${r.complete ? 'yes' : 'no'}**`)
           console.log(`- Applications: **${r.total}**`)
           console.log(`- Source checked: **${r.checked}**`)
