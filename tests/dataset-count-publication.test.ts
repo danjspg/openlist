@@ -26,7 +26,7 @@ test("planning and sold-price count caches share dataset invalidation tags", asy
   assert.match(unifiedSearch, /tags: \[PLANNING_DATASET_CACHE_TAG, PPR_DATASET_CACHE_TAG\]/)
 })
 
-test("dataset invalidation is authenticated and covers shared entry pages", async () => {
+test("dataset invalidation is authenticated and refreshes only shared entry pages", async () => {
   const [route, caller] = await Promise.all([
     source("app/api/internal/dataset-cache-revalidate/route.ts"),
     source("scripts/revalidate-dataset-caches.mjs"),
@@ -36,7 +36,10 @@ test("dataset invalidation is authenticated and covers shared entry pages", asyn
   assert.match(route, /revalidateTag\(tag\)/)
   assert.match(route, /revalidatePath\("\/", "page"\)/)
   assert.match(route, /revalidatePath\("\/search", "page"\)/)
-  assert.match(route, /"\/planning" : "\/sold-prices"/)
+  assert.match(route, /const datasetPath = dataset === "planning" \? "\/planning" : "\/sold-prices"/)
+  assert.match(route, /revalidatePath\(datasetPath, "page"\)/)
+  assert.doesNotMatch(route, /revalidatePath\([^\n]*"layout"/)
+  assert.match(route, /scope: "entry-pages"/)
   assert.match(caller, /method: "POST"/)
   assert.match(caller, /authorization: `Bearer \$\{secret\}`/)
 })
