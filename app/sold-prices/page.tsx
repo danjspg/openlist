@@ -25,17 +25,11 @@ export const revalidate = 21600
 
 export async function generateMetadata(): Promise<Metadata> {
   const summary = await getPprDatasetSummary()
-
   return {
     title: "Ireland House Prices | Sold Prices & Market Trends",
     description: `See what homes are selling for across Ireland. ${buildPprDatasetDescription(summary)} View recent sale prices, market trends and county comparisons.`,
-    alternates: {
-      canonical: "/sold-prices",
-    },
-    robots: {
-      index: true,
-      follow: true,
-    },
+    alternates: { canonical: "/sold-prices" },
+    robots: { index: true, follow: true },
   }
 }
 
@@ -44,8 +38,7 @@ export default async function SoldPricesPage({
 }: {
   searchParams?: Promise<{ dateRange?: string }>
 }) {
-  const resolvedSearchParams: { dateRange?: string } =
-    await (searchParams || Promise.resolve({}))
+  const resolvedSearchParams = await (searchParams || Promise.resolve({} as { dateRange?: string }))
   const selectedRange = (resolvedSearchParams.dateRange || "last-year") as PprDateRangeValue
   const analyticsRange = getAnalyticsRange(selectedRange)
   const [datasetSummary, quickAreas, monthlyActivity, homepageStats, nationalSnapshot, allTimeSnapshot] = await Promise.all([
@@ -56,405 +49,189 @@ export default async function SoldPricesPage({
     getNationalOverviewSnapshot(selectedRange),
     getNationalOverviewSnapshot("all"),
   ])
-  const featuredMarkets = Array.from(
-    new Set([
-      ...FEATURED_PPR_MARKETS,
-      "waterford",
-      "naas",
-      "carrigaline",
-      "ballincollig",
-      "oranmore",
-      "castletroy",
-      "tramore",
-      "greystones",
-      "galway",
-      "limerick",
-      "kinsale",
-    ])
-  )
+
+  const featuredMarkets = Array.from(new Set([
+    ...FEATURED_PPR_MARKETS,
+    "waterford", "naas", "carrigaline", "ballincollig", "oranmore", "castletroy", "tramore", "greystones", "galway", "limerick", "kinsale",
+  ]))
     .map((slug) => PPR_MARKETS.find((market) => market.slug === slug))
     .filter((market): market is (typeof PPR_MARKETS)[number] => Boolean(market))
   const featuredMarketLinks = featuredMarkets
     .map((market) => {
-      if (market.marketType !== "town_suburb") {
-        return { href: `/sold-prices/${market.slug}`, label: pprMarketLabel(market) }
-      }
-
+      if (market.marketType !== "town_suburb") return { href: `/sold-prices/${market.slug}`, label: pprMarketLabel(market) }
       const redirectPath = getShortTownRedirect(market.slug)
-      if (!redirectPath) return null
-
-      return { href: redirectPath, label: pprMarketLabel(market) }
+      return redirectPath ? { href: redirectPath, label: pprMarketLabel(market) } : null
     })
     .filter((link): link is { href: string; label: string } => Boolean(link))
+
   const marketReportGroups = [
     {
-      title: "Core markets",
+      title: "Compare places",
       links: [
-        { href: "/sold-prices/counties-compared", label: "Counties Compared" },
-        { href: "/sold-prices/dublin-compared", label: "Dublin Market" },
-        { href: "/sold-prices/cork-compared", label: "Cork Market" },
-        { href: "/sold-prices/limerick-compared", label: "Limerick Market" },
-        { href: "/sold-prices/galway-compared", label: "Galway Market" },
-        { href: "/sold-prices/waterford-compared", label: "Waterford Market" },
-        { href: "/sold-prices/commuter-towns", label: "Dublin Commuter Towns" },
+        ["/sold-prices/counties-compared", "Counties Compared"],
+        ["/sold-prices/dublin-compared", "Dublin Market"],
+        ["/sold-prices/cork-compared", "Cork Market"],
+        ["/sold-prices/limerick-compared", "Limerick Market"],
+        ["/sold-prices/galway-compared", "Galway Market"],
+        ["/sold-prices/waterford-compared", "Waterford Market"],
+        ["/sold-prices/commuter-towns", "Dublin Commuter Towns"],
       ],
     },
     {
-      title: "Price + activity",
+      title: "Price & activity",
       links: [
-        { href: "/sold-prices/affordable-markets", label: "Affordable Markets" },
-        { href: "/sold-prices/high-value-markets", label: "Premium Markets" },
-        { href: "/sold-prices/most-active-markets", label: "Most Active Markets" },
-        { href: "/sold-prices/least-active-markets", label: "Least Active Markets" },
+        ["/sold-prices/affordable-markets", "Affordable Markets"],
+        ["/sold-prices/high-value-markets", "Premium Markets"],
+        ["/sold-prices/most-active-markets", "Most Active Markets"],
+        ["/sold-prices/least-active-markets", "Least Active Markets"],
       ],
     },
     {
       title: "Trends",
       links: [
-        { href: "/sold-prices/rising-markets", label: "Rising Markets" },
-        { href: "/sold-prices/falling-markets", label: "Falling Markets" },
-        { href: "/sold-prices/hottest-markets", label: "Hottest Markets" },
-        { href: "/sold-prices/coolest-markets", label: "Coolest Markets" },
+        ["/sold-prices/rising-markets", "Rising Markets"],
+        ["/sold-prices/falling-markets", "Falling Markets"],
+        ["/sold-prices/hottest-markets", "Hottest Markets"],
+        ["/sold-prices/coolest-markets", "Coolest Markets"],
       ],
     },
-  ]
-  const spreadLine =
-    nationalSnapshot.p25 !== undefined && nationalSnapshot.p75 !== undefined
-      ? `Most homes sold between ${formatPprCurrency(nationalSnapshot.p25)} and ${formatPprCurrency(
-          nationalSnapshot.p75
-        )}.`
-      : null
-  const risingSpotlight = homepageStats.find(
-    (stat) => stat.eyebrow === "Fastest-rising tracked market"
-  )
-  const affordableSpotlight = homepageStats.find(
-    (stat) => stat.eyebrow === "Most affordable market"
-  )
+  ] as const
+
+  const risingSpotlight = homepageStats.find((stat) => stat.eyebrow === "Fastest-rising tracked market")
+  const affordableSpotlight = homepageStats.find((stat) => stat.eyebrow === "Most affordable market")
 
   return (
     <main className="min-h-screen bg-stone-50">
-      <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-12">
-        <div className="overflow-hidden rounded-[32px] border border-stone-200 bg-white shadow-sm">
-          <div className="bg-gradient-to-br from-stone-50 via-white to-stone-100 px-5 py-8 sm:px-8 md:px-10 md:py-12">
-            <p className="text-sm font-medium uppercase tracking-[0.24em] text-stone-500">
-              PUBLIC SOLD PRICES
-            </p>
-            <h1 className="mt-3 max-w-4xl text-4xl font-semibold tracking-tight text-stone-900 sm:text-5xl">
-              House prices and sold prices across Ireland
-            </h1>
-            <p className="mt-5 max-w-3xl whitespace-pre-line text-base leading-7 text-stone-600 sm:text-lg sm:leading-8">
-              Search over {new Intl.NumberFormat("en-IE").format(allTimeSnapshot.salesCount)} recorded
-              property sales to see what homes are selling for across Ireland.
-            </p>
-            <p className="mt-4 max-w-3xl text-sm leading-6 text-stone-700">
-              Use the sold-prices hub to browse county house prices, local property prices and
-              comparison pages built from recorded Property Price Register transactions.
-            </p>
-            <p className="mt-3 text-sm text-stone-600">
-              {datasetSummary.latestSaleDate ? `Latest recorded sale: ${formatPprDate(datasetSummary.latestSaleDate)} · ` : ""}
-              Source: Property Price Register
-            </p>
+      <section className="border-b border-stone-200 bg-white">
+        <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:py-14">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-400">Public sold prices</p>
+          <h1 className="mt-3 max-w-4xl text-4xl font-semibold tracking-tight text-stone-950 sm:text-5xl">
+            House prices and sold prices across Ireland
+          </h1>
+          <p className="mt-4 max-w-3xl text-lg leading-8 text-stone-600">
+            Search {new Intl.NumberFormat("en-IE").format(allTimeSnapshot.salesCount)} recorded property sales, then compare local markets and recent trends.
+          </p>
+          <p className="mt-3 text-sm text-stone-500">
+            {datasetSummary.latestSaleDate ? `Latest recorded sale: ${formatPprDate(datasetSummary.latestSaleDate)} · ` : ""}Source: Property Price Register
+          </p>
+
+          <div className="mt-7 rounded-2xl border border-stone-300 bg-stone-50 p-4 shadow-sm sm:flex sm:items-center sm:justify-between sm:gap-5 sm:p-5">
+            <div>
+              <p className="text-sm font-semibold text-stone-900">Start with an area</p>
+              <p className="mt-1 text-sm leading-6 text-stone-600">Search a town, suburb or county to see recorded sales and local market context.</p>
+            </div>
+            <Link href="/sold-prices/search" className="mt-4 inline-flex min-h-12 items-center justify-center rounded-full bg-stone-950 px-6 text-sm font-semibold text-white transition hover:bg-stone-700 sm:mt-0">
+              Search sold prices
+            </Link>
           </div>
         </div>
+      </section>
 
-        <div className="mt-6">
-          <div className="rounded-[28px] border border-stone-200 bg-white p-5 shadow-sm sm:p-6">
-            <p className="text-sm font-medium uppercase tracking-[0.2em] text-stone-500">
-              Market snapshot
-            </p>
-            <p className="mt-2 text-sm text-stone-600">Showing data for: {analyticsRange.label}</p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              <div className="rounded-[24px] border border-stone-200 bg-white px-5 py-5">
-                <p className="text-sm text-stone-500">Median sale price</p>
-                <p className="mt-3 text-3xl font-semibold tracking-tight text-stone-900">
-                  {formatPprCurrency(nationalSnapshot.medianPrice)}
-                </p>
-                {spreadLine && <p className="mt-2 text-sm leading-6 text-stone-600">{spreadLine}</p>}
-              </div>
-              <div className="rounded-[24px] border border-stone-200 bg-white px-5 py-5">
-                <p className="text-sm text-stone-500">Year-on-year price change</p>
-                <p
-                  className={`mt-3 text-3xl font-semibold tracking-tight ${
-                    nationalSnapshot.yoyChangePct !== undefined
-                      ? nationalSnapshot.yoyChangePct > 0
-                        ? "text-emerald-700"
-                        : nationalSnapshot.yoyChangePct < 0
-                          ? "text-rose-700"
-                          : "text-stone-900"
-                      : "text-stone-900"
-                  }`}
-                >
-                  {nationalSnapshot.yoyChangePct !== undefined
-                    ? nationalSnapshot.yoyChangePct > 0
-                      ? `↑ ${signedPercent(nationalSnapshot.yoyChangePct)}`
-                      : nationalSnapshot.yoyChangePct < 0
-                        ? `↓ ${signedPercent(nationalSnapshot.yoyChangePct)}`
-                        : "No change"
-                    : "Limited data"}
-                </p>
-                <p className="mt-2 text-sm leading-6 text-stone-600">
-                  {nationalSnapshot.yoyChangePct !== undefined
-                    ? "Median sale price vs the previous 12 months"
-                    : "Shown when both 12-month periods have enough sales"}
-                </p>
-              </div>
-              <div className="rounded-[22px] border border-stone-200 bg-stone-50 px-4 py-4">
-                <p className="text-sm text-stone-500">Sales activity</p>
-                <p
-                  className={`mt-2 text-2xl font-semibold tracking-tight ${
-                    monthlyActivity.yoyChangePct !== undefined
-                      ? monthlyActivity.yoyChangePct > 0
-                        ? "text-emerald-700"
-                        : monthlyActivity.yoyChangePct < 0
-                          ? "text-rose-700"
-                          : "text-stone-900"
-                      : "text-stone-900"
-                  }`}
-                >
-                  {monthlyActivity.yoyChangePct !== undefined
-                    ? `${monthlyActivity.yoyChangePct > 0 ? "↑ " : monthlyActivity.yoyChangePct < 0 ? "↓ " : ""}${signedPercent(monthlyActivity.yoyChangePct)}`
-                    : "Limited data"}
-                </p>
-                <p className="mt-2 text-sm leading-6 text-stone-600">
-                  {monthlyActivity.currentPeriodLabel} vs {monthlyActivity.previousPeriodLabel}
-                </p>
-                <p className="text-xs leading-5 text-stone-500">
-                  {new Intl.NumberFormat("en-IE").format(monthlyActivity.currentCount)} vs{" "}
-                  {new Intl.NumberFormat("en-IE").format(monthlyActivity.previousCount)} recorded sales
-                </p>
-              </div>
-              <div className="rounded-[22px] border border-stone-200 bg-stone-50 px-4 py-4">
-                <p className="text-sm text-stone-500">Typical price range</p>
-                <p className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">
-                  {nationalSnapshot.p25 !== undefined && nationalSnapshot.p75 !== undefined
-                    ? `${formatPprCurrency(nationalSnapshot.p25)} - ${formatPprCurrency(
-                        nationalSnapshot.p75
-                      )}`
-                    : "Limited data"}
-                </p>
-                <p className="mt-2 text-sm leading-6 text-stone-600">
-                  {nationalSnapshot.p25 !== undefined && nationalSnapshot.p75 !== undefined
-                    ? "Middle 50% of sales"
-                    : "Shown when enough recent sales are available."}
-                </p>
-              </div>
-              <div className="rounded-[22px] border border-stone-200 bg-stone-50 px-4 py-4">
-                <p className="text-sm text-stone-500">Fastest-rising market</p>
-                <p className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">
-                  {risingSpotlight?.titleHref ? (
-                    <Link
-                      href={risingSpotlight.titleHref}
-                      className="rounded-sm transition hover:text-stone-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300"
-                    >
-                      {risingSpotlight.title}
-                    </Link>
-                  ) : (
-                    risingSpotlight?.title || "—"
-                  )}
-                </p>
-                <p className="mt-2 text-sm font-medium leading-6 text-stone-600">
-                  {risingSpotlight
-                    ? `${risingSpotlight.value} year on year.`
-                    : "Shown when enough recent sales data is available."}
-                </p>
-              </div>
-              <div className="rounded-[22px] border border-stone-200 bg-stone-50 px-4 py-4">
-                <p className="text-sm text-stone-500">Most affordable market</p>
-                <p className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">
-                  {affordableSpotlight?.titleHref ? (
-                    <Link
-                      href={affordableSpotlight.titleHref}
-                      className="rounded-sm transition hover:text-stone-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300"
-                    >
-                      {affordableSpotlight.title}
-                    </Link>
-                  ) : (
-                    affordableSpotlight?.title || "—"
-                  )}
-                </p>
-                <p className="mt-2 text-sm font-medium leading-6 text-stone-600">
-                  {affordableSpotlight?.value !== "Limited data"
-                    ? `${affordableSpotlight?.value} median price over the last 12 months.`
-                    : affordableSpotlight?.detail || "Shown when enough recent sales data is available."}
-                </p>
-              </div>
-            </div>
-            <div className="mt-4 space-y-1 text-sm leading-6 text-stone-600">
-              <p>
-                Based on {new Intl.NumberFormat("en-IE").format(allTimeSnapshot.salesCount)} recorded sales.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-4 rounded-[28px] border border-stone-200 bg-white px-5 py-4 shadow-sm sm:px-6 sm:py-4">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between md:gap-6">
-            <div className="min-w-0 max-w-2xl">
-              <p className="text-sm font-medium uppercase tracking-[0.2em] text-stone-500">
-                FIND SALES BY AREA
-              </p>
-              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">
-                Search by area
-              </h2>
-              <p className="mt-2 text-sm leading-6 text-stone-600">
-                Search recorded sales for a specific area, from recent transactions to the full available history.
-              </p>
-            </div>
-            <div className="flex shrink-0 items-start md:items-end">
-              <Link
-                href="/sold-prices/search"
-                className="inline-flex rounded-full bg-stone-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-stone-700"
-              >
-                Search by area
-              </Link>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-5 rounded-[28px] border border-stone-200 bg-stone-50/70 p-5 shadow-sm sm:p-6">
+      <section className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:py-10">
+        <section>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-sm font-medium uppercase tracking-[0.2em] text-stone-500">
-                Explore Markets
-              </p>
-              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">
-                Explore market reports
-              </h2>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-400">Market snapshot</p>
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-950">Ireland at a glance</h2>
             </div>
-            <p className="max-w-2xl text-sm leading-6 text-stone-600">
-              Browse market reports by price, activity and trends.
-            </p>
+            <p className="text-sm text-stone-500">{analyticsRange.label}</p>
+          </div>
+          <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <SnapshotCard label="Median sale price" value={formatPprCurrency(nationalSnapshot.medianPrice)} detail={nationalSnapshot.p25 !== undefined && nationalSnapshot.p75 !== undefined ? `Middle 50%: ${formatPprCurrency(nationalSnapshot.p25)} to ${formatPprCurrency(nationalSnapshot.p75)}` : "Recent recorded sales"} />
+            <SnapshotCard label="Year-on-year price change" value={nationalSnapshot.yoyChangePct !== undefined ? signedPercent(nationalSnapshot.yoyChangePct) : "Limited data"} detail="Median sale price vs previous 12 months" tone={nationalSnapshot.yoyChangePct} />
+            <SnapshotCard label="Sales activity" value={monthlyActivity.yoyChangePct !== undefined ? signedPercent(monthlyActivity.yoyChangePct) : "Limited data"} detail={`${monthlyActivity.currentPeriodLabel} vs ${monthlyActivity.previousPeriodLabel}`} tone={monthlyActivity.yoyChangePct} />
+            <SnapshotCard label="Fastest-rising tracked market" value={risingSpotlight?.title || "Limited data"} detail={risingSpotlight ? `${risingSpotlight.value} year on year` : "Shown when enough data is available"} href={risingSpotlight?.titleHref} />
+            <SnapshotCard label="Most affordable market" value={affordableSpotlight?.title || "Limited data"} detail={affordableSpotlight?.value !== "Limited data" ? `${affordableSpotlight?.value} median price` : affordableSpotlight?.detail || "Shown when enough data is available"} href={affordableSpotlight?.titleHref} />
+            <SnapshotCard label="Recorded sales" value={new Intl.NumberFormat("en-IE").format(allTimeSnapshot.salesCount)} detail="Available Property Price Register history" />
+          </div>
+        </section>
+
+        <section className="mt-9 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm sm:p-6">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-400">Explore markets</p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-950">Compare places, prices and trends</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-stone-600">One place to browse the main market reports, instead of several competing entry points.</p>
           </div>
           <div className="mt-5 grid gap-4 lg:grid-cols-3">
             {marketReportGroups.map((group) => (
-              <div
-                key={group.title}
-                className="rounded-[24px] border border-stone-200 bg-white px-4 py-4"
-              >
-                <p className="text-sm font-medium uppercase tracking-[0.18em] text-stone-500">
-                  {group.title}
-                </p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {group.links.map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className="inline-flex min-h-11 items-center rounded-full border border-stone-200 bg-stone-50 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-300 hover:bg-white hover:text-stone-900"
-                    >
-                      {item.label}
+              <div key={group.title} className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
+                <p className="text-sm font-semibold text-stone-900">{group.title}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {group.links.map(([href, label]) => (
+                    <Link key={href} href={href} className="inline-flex min-h-10 items-center rounded-full border border-stone-200 bg-white px-3 text-sm font-semibold text-stone-700 transition hover:border-stone-400 hover:text-stone-950">
+                      {label}
                     </Link>
                   ))}
                 </div>
               </div>
             ))}
           </div>
-        </div>
+        </section>
 
-        <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_360px]">
+        <div className="mt-9 grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
           <section>
-            <div className="mb-8">
-              <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-stone-500">
-                    Browse sold prices
-                  </p>
-                  <p className="mt-2 text-sm leading-6 text-stone-500">
-                    Sold prices shown are for general information only and are
-                    not a valuation.
-                  </p>
-                  <h2 className="mt-2 text-3xl font-semibold tracking-tight text-stone-900">
-                    Start with a place you know.
-                  </h2>
-                  <p className="mt-2 text-sm text-stone-500">
-                    Start with counties or jump into a scoped area search.
-                  </p>
-                </div>
-              </div>
-
-              <div className="rounded-[28px] border border-stone-200 bg-white p-6 shadow-sm sm:p-8">
-                <div className="grid gap-4 sm:grid-cols-1">
-                  <Link
-                    href="/sold-prices/counties-compared"
-                    className="rounded-[24px] border border-stone-200 bg-stone-50 px-5 py-5 transition hover:border-stone-300 hover:bg-white"
-                  >
-                    <p className="text-sm text-stone-500">Compare counties</p>
-                    <p className="mt-2 text-xl font-semibold tracking-tight text-stone-900">
-                      Compare counties
-                    </p>
-                    <p className="mt-2 text-sm leading-6 text-stone-600">
-                      Use the county comparison page to pick a county, then drill into its market page.
-                    </p>
-                  </Link>
-                </div>
-              </div>
-            </div>
-
             <div className="flex items-end justify-between gap-4">
               <div>
-                <p className="text-sm font-medium uppercase tracking-[0.2em] text-stone-500">
-                  Quick areas
-                </p>
-                <h2 className="mt-2 text-3xl font-semibold tracking-tight text-stone-900">
-                  Popular areas
-                </h2>
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-400">Popular areas</p>
+                <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-950">Jump into a local market</h2>
               </div>
+              <Link href="/sold-prices/counties-compared" className="text-sm font-semibold text-emerald-800 hover:text-emerald-950">Compare counties →</Link>
             </div>
 
             {quickAreas.length > 0 ? (
-              <div className="mt-6 grid gap-4 sm:grid-cols-2">
+              <div className="mt-5 grid gap-4 sm:grid-cols-2">
                 {quickAreas.map((area) => (
-                  <Link
-                    key={`${area.county}-${area.area_slug}`}
-                    href={`/sold-prices/${encodeURIComponent(String(area.county || "").toLowerCase())}/${area.area_slug}`}
-                    className="rounded-[24px] border border-stone-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-                  >
-                    <p className="text-sm uppercase tracking-[0.18em] text-stone-500">
-                      {formatPprCountyDisplayName(area.county)}
-                    </p>
-                    <h3 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">
-                      {areaNameFromSlug(area.area_slug || "")}
-                    </h3>
-                    <div className="mt-4 flex flex-wrap gap-2 text-sm text-stone-600">
-                      <span>{area.sales_count || 0} sales</span>
-                      <span>·</span>
-                      <span>{formatPprCurrency(area.median_price_eur)} median</span>
-                    </div>
+                  <Link key={`${area.county}-${area.area_slug}`} href={`/sold-prices/${encodeURIComponent(String(area.county || "").toLowerCase())}/${area.area_slug}`} className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-stone-300 hover:shadow-md">
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-stone-400">{formatPprCountyDisplayName(area.county)}</p>
+                    <h3 className="mt-2 text-xl font-semibold tracking-tight text-stone-950">{areaNameFromSlug(area.area_slug || "")}</h3>
+                    <p className="mt-3 text-sm text-stone-500">{area.sales_count || 0} sales · {formatPprCurrency(area.median_price_eur)} median</p>
                   </Link>
                 ))}
               </div>
-            ) : (
-              <div className="mt-6 rounded-[28px] border border-stone-200 bg-white p-8 text-stone-600 shadow-sm">
-                Area links will appear once Property Price Register data has
-                been ingested.
-              </div>
-            )}
-
+            ) : <p className="mt-5 rounded-2xl border border-stone-200 bg-white p-6 text-sm text-stone-600">Area links will appear once data is available.</p>}
           </section>
 
           <aside className="space-y-5">
-            <PprDisclaimer />
-            <div className="rounded-[24px] border border-stone-200 bg-white p-5 shadow-sm">
-              <p className="text-sm font-medium uppercase tracking-[0.2em] text-stone-500">
-                Tracked markets
-              </p>
-              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">
-                Tracked markets
-              </h2>
-              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-400">Tracked markets</p>
+              <div className="mt-4 flex flex-wrap gap-2">
                 {featuredMarketLinks.map((market) => (
-                  <Link
-                    key={market.href}
-                    href={market.href}
-                    className="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-300 hover:bg-white hover:text-stone-900"
-                  >
+                  <Link key={market.href} href={market.href} className="inline-flex min-h-9 items-center rounded-full border border-stone-200 bg-stone-50 px-3 text-sm font-semibold text-stone-700 transition hover:border-stone-400 hover:bg-white">
                     {market.label}
                   </Link>
                 ))}
               </div>
             </div>
+            <PprDisclaimer compact />
           </aside>
         </div>
       </section>
     </main>
+  )
+}
+
+function SnapshotCard({
+  label,
+  value,
+  detail,
+  tone,
+  href,
+}: {
+  label: string
+  value: string
+  detail: string
+  tone?: number
+  href?: string
+}) {
+  const valueClass = tone === undefined ? "text-stone-950" : tone > 0 ? "text-emerald-700" : tone < 0 ? "text-rose-700" : "text-stone-950"
+  const content = <span className={valueClass}>{value}</span>
+  return (
+    <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
+      <p className="text-sm text-stone-500">{label}</p>
+      <p className="mt-2 text-2xl font-semibold tracking-tight">
+        {href ? <Link href={href} className="transition hover:text-emerald-800">{content}</Link> : content}
+      </p>
+      <p className="mt-2 text-sm leading-6 text-stone-500">{detail}</p>
+    </div>
   )
 }
