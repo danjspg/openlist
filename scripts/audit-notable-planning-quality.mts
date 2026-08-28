@@ -1,11 +1,10 @@
 import { createClient } from "@supabase/supabase-js"
-import { PLANNING_AUTHORITIES, getPlanningAuthorityByCode } from "../lib/planning-authorities"
+import { getPlanningAuthorityByCode } from "../lib/planning-authorities"
 import { authoritativeCorkProposal } from "../lib/cork-planning-source.mjs"
 import { corkAgileApplicationConfig, corkAgileSourceApplicationId } from "../lib/cork-agile-authorities.mjs"
 import { authoritativeNationalProposal, cleanNationalPlanningText } from "../lib/national-planning-source.mjs"
 import { AUTHORITIES, fetchAgileDetailsByReference } from "./ingest-national-planning-applications.mjs"
 
-const ZERO = "00000000-0000-0000-0000-000000000000"
 const ARC_QUERY = "https://services.arcgis.com/NzlPQPKn5QF9v2US/ArcGIS/rest/services/IrishPlanningApplications/FeatureServer/0/query"
 const CORK_DETAIL = "https://planningapi.agileapplications.ie/api/application"
 const SPECIAL_AGILE = new Set(["DLR", "FINGAL", "WEXFORD"])
@@ -20,7 +19,7 @@ export const shouldRepairProposal = (currentValue: unknown, sourceValue: unknown
 }
 export const hasExternalStatusPrecedence = (row: Record<string, unknown>) => {
   const source = compact(row.status_source).toLowerCase()
-  return source.includes("acp") || Boolean(row.appeal_decision_source) || Boolean(row.appeal_decision_date)
+  return source === "eplan" || source.includes("acp") || Boolean(row.appeal_decision_source) || Boolean(row.appeal_decision_date)
 }
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
@@ -62,7 +61,6 @@ type PlanningRow = Record<string, unknown> & {
   appeal_decision_date?: string | null
 }
 type Source = { proposal?: string | null; status?: string | null; source: string }
-
 type Result = {
   id: string
   authority: string
@@ -82,11 +80,8 @@ async function loadNotableRows(supabase: ReturnType<typeof createClient>) {
   const pageSize = 1000
   for (let offset = 0; ; offset += pageSize) {
     const { data, error } = await supabase.from("planning_seo_notable")
-      .select("application_id")
-      .eq("active", true)
-      .eq("priority_eligible", true)
-      .order("application_id", { ascending: true })
-      .range(offset, offset + pageSize - 1)
+      .select("application_id").eq("active", true).eq("priority_eligible", true)
+      .order("application_id", { ascending: true }).range(offset, offset + pageSize - 1)
     if (error) throw error
     ids.push(...(data || []).map(row => row.application_id))
     if (!data || data.length < pageSize) break
@@ -108,7 +103,6 @@ async function loadNationalSources(rows: PlanningRow[]) {
     existing.push(row)
     byAuthority.set(row.local_authority_code, existing)
   }
-
   for (const [code, authorityRows] of byAuthority) {
     const authority = getPlanningAuthorityByCode(code)
     if (!authority) continue
@@ -117,9 +111,7 @@ async function loadNationalSources(rows: PlanningRow[]) {
       const params = new URLSearchParams({
         where: `PlanningAuthority = '${sql(authority.name)}' AND ApplicationNumber IN (${refs})`,
         outFields: "ApplicationNumber,DevelopmentDescription,ApplicationStatus",
-        returnGeometry: "false",
-        f: "json",
-        resultRecordCount: "100",
+        returnGeometry: "false", f: "json", resultRecordCount: "100",
       })
       const json = await fetchJson(`${ARC_QUERY}?${params}`, `${code} ArcGIS batch`)
       const exact = new Map<string, Record<string, unknown>>()
@@ -137,21 +129,19 @@ async function loadNationalSources(rows: PlanningRow[]) {
         })
       }
     }
-
-    if (SPECIAL_AGILE.has(code)) {
-      const ingestAuthority = AUTHORITIES.find(item => item.code === code)
-      if (!ingestAuthority) continue
-      for (const batch of chunks(authorityRows, 25)) {
-        const details = await fetchAgileDetailsByReference(ingestAuthority, batch, { failureMode: "warn" })
-        for (const row of batch) {
-          const current = sources.get(row.id) || { source: "national_arcgis" }
-          const full = details.get(row.reference)?.fullProposal
-          sources.set(row.id, {
-            ...current,
-            proposal: authoritativeNationalProposal(row.proposal, full) || current.proposal,
-            source: full ? "agile_detail+national_arcgis" : current.source,
-          })
-        }
+    if (!SPECIAL_AGILE.has(code)) continue
+    const ingestAuthority = AUTHORITIES.find(item => item.code === code)
+    if (!ingestAuthority) continue
+    for (const batch of chunks(authorityRows, 25)) {
+      const details = await fetchAgileDetailsByReference(ingestAuthority, batch, { failureMode: "warn" })
+      for (const row of batch) {
+        const current = sources.get(row.id) || { source: "national_arcgis" }
+        const full = details.get(row.reference)?.fullProposal
+        sources.set(row.id, {
+          ...current,
+          proposal: authoritativeNationalProposal(row.proposal, full) || current.proposal,
+          source: full ? "agile_detail+national_arcgis" : current.source,
+        })
       }
     }
   }
@@ -164,15 +154,9 @@ async function loadCorkSource(row: PlanningRow): Promise<Source | null> {
   const sourceId = corkAgileSourceApplicationId(config, row)
   if (!sourceId) return null
   const detail = await fetchJson(`${CORK_DETAIL}/${sourceId}`, `${row.local_authority_code} ${row.reference} Agile detail`, {
-    "x-client": config.code,
-    "x-product": "CITIZENPORTAL",
-    "x-service": "PA",
+    "x-client": config.code, "x-product": "CITIZENPORTAL", "x-service": "PA",
   })
-  return {
-    proposal: authoritativeCorkProposal(row.proposal, detail.fullProposal),
-    status: null,
-    source: "cork_agile_detail",
-  }
+  return { proposal: authoritativeCorkProposal(row.proposal, detail.fullProposal), status: null, source: "cork_agile_detail" }
 }
 
 async function markChecked(supabase: ReturnType<typeof createClient>, id: string) {
@@ -180,7 +164,6 @@ async function markChecked(supabase: ReturnType<typeof createClient>, id: string
   const { error } = await supabase.from("planning_seo_notable").update({ description_checked_at: now, updated_at: now }).eq("application_id", id)
   if (error) throw error
 }
-
 async function enqueue(supabase: ReturnType<typeof createClient>, id: string) {
   const { error } = await supabase.from("planning_revalidation_queue").upsert({ application_id: id, requested_at: new Date().toISOString() }, { onConflict: "application_id" })
   if (error) throw error
@@ -193,13 +176,11 @@ async function applyRow(supabase: ReturnType<typeof createClient>, row: Planning
   let proposal: Result["proposal"] = sourceProposal ? "source-shorter-or-equal" : "unavailable"
   let status: Result["status"] = sourceStatus ? "matched" : "unavailable"
   const changes: Record<string, unknown> = { last_source_checked_at: new Date().toISOString() }
-
   if (sourceProposal && sourceProposal === currentProposal) proposal = "matched"
   else if (shouldRepairProposal(currentProposal, sourceProposal)) {
     proposal = "repaired"
     changes.proposal = sourceProposal
   }
-
   if (sourceStatus && !sameStatus(row.status, sourceStatus)) {
     if (hasExternalStatusPrecedence(row)) status = "override-preserved"
     else {
@@ -209,40 +190,24 @@ async function applyRow(supabase: ReturnType<typeof createClient>, row: Planning
       changes.status_observed_at = new Date().toISOString()
     }
   }
-
   if (apply) {
     const { error } = await supabase.from("planning_applications").update(changes).eq("id", row.id)
     if (error) throw error
     await markChecked(supabase, row.id)
     if (proposal === "repaired" || status === "repaired") await enqueue(supabase, row.id)
   }
-
   return {
-    id: row.id,
-    authority: row.local_authority_code,
-    reference: row.reference,
-    source: source.source,
-    proposal,
-    status,
-    beforeProposalLength: currentProposal.length,
-    sourceProposalLength: sourceProposal.length,
-    storedStatus: row.status,
-    sourceStatus,
+    id: row.id, authority: row.local_authority_code, reference: row.reference, source: source.source,
+    proposal, status, beforeProposalLength: currentProposal.length, sourceProposalLength: sourceProposal.length,
+    storedStatus: row.status, sourceStatus,
   }
 }
 
-export async function runNotablePlanningQualityAudit({
-  supabase,
-  apply = false,
-}: {
-  supabase: ReturnType<typeof createClient>
-  apply?: boolean
-}) {
+export async function runNotablePlanningQualityAudit({ supabase, apply = false }: { supabase: ReturnType<typeof createClient>; apply?: boolean }) {
   const rows = await loadNotableRows(supabase)
   const nationalSources = await loadNationalSources(rows)
   const results: Result[] = []
   const failures: Result[] = []
-
   for (let index = 0; index < rows.length; index += 1) {
     const row = rows[index]
     try {
@@ -252,16 +217,9 @@ export async function runNotablePlanningQualityAudit({
       results.push(await applyRow(supabase, row, source, apply))
     } catch (error) {
       const failure: Result = {
-        id: row.id,
-        authority: row.local_authority_code,
-        reference: row.reference,
-        source: "unavailable",
-        proposal: "unavailable",
-        status: "unavailable",
-        beforeProposalLength: compact(row.proposal).length,
-        sourceProposalLength: 0,
-        storedStatus: row.status,
-        sourceStatus: null,
+        id: row.id, authority: row.local_authority_code, reference: row.reference, source: "unavailable",
+        proposal: "unavailable", status: "unavailable", beforeProposalLength: compact(row.proposal).length,
+        sourceProposalLength: 0, storedStatus: row.status, sourceStatus: null,
         error: error instanceof Error ? error.message : String(error),
       }
       failures.push(failure)
@@ -270,7 +228,6 @@ export async function runNotablePlanningQualityAudit({
     if ((index + 1) % 100 === 0) console.error(`Notable Planning quality: ${index + 1}/${rows.length}`)
     if (corkAgileApplicationConfig(row)) await sleep(125)
   }
-
   const counts = {
     checked: results.length - failures.length,
     total: rows.length,
@@ -284,13 +241,8 @@ export async function runNotablePlanningQualityAudit({
     statusesUnavailable: results.filter(item => item.status === "unavailable").length,
   }
   return {
-    generatedAt: new Date().toISOString(),
-    mode: apply ? "apply" : "validate",
-    complete: failures.length === 0,
-    ...counts,
-    failures,
-    repairs: results.filter(item => item.proposal === "repaired" || item.status === "repaired"),
-    results,
+    generatedAt: new Date().toISOString(), mode: apply ? "apply" : "validate", complete: failures.length === 0,
+    ...counts, failures, repairs: results.filter(item => item.proposal === "repaired" || item.status === "repaired"), results,
   }
 }
 
