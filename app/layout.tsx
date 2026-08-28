@@ -47,7 +47,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
           <footer className="mt-16 border-t border-stone-200 bg-white">
             <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-              <div className="grid gap-10 lg:grid-cols-[1.2fr_1fr]">
+              <div className="grid gap-10 lg:grid-cols-[1.05fr_1.45fr] lg:gap-14">
                 <div>
                   <Link href="/" aria-label="OpenList homepage" className="inline-flex">
                     <Image src="/logo-v2.png" alt="OpenList" width={450} height={131} className="h-auto w-40" />
@@ -60,17 +60,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   </p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-7 text-sm text-stone-600 sm:grid-cols-3">
-                  <FooterLinkGroup title="Planning">
-                    <Link href="/planning" className="transition hover:text-stone-900">Search planning</Link>
-                    <Link href="/planning/categories" className="transition hover:text-stone-900">Development types</Link>
+                <nav aria-label="Footer" className="grid grid-cols-2 gap-x-7 gap-y-9 text-sm text-stone-600 sm:grid-cols-4">
+                  <FooterLinkGroup title="Search">
                     <Link href="/search" className="transition hover:text-stone-900">Unified search</Link>
+                    <Link href="/planning" className="transition hover:text-stone-900">Planning applications</Link>
+                    <Link href="/sold-prices/search" className="transition hover:text-stone-900">Sold prices</Link>
                   </FooterLinkGroup>
 
-                  <FooterLinkGroup title="Sold prices">
+                  <FooterLinkGroup title="Research">
+                    <Link href="/planning/categories" className="transition hover:text-stone-900">Development types</Link>
                     <Link href="/sold-prices" className="transition hover:text-stone-900">Market overview</Link>
-                    <Link href="/sold-prices/search" className="transition hover:text-stone-900">Search by area</Link>
                     <Link href="/sold-prices/counties-compared" className="transition hover:text-stone-900">Compare counties</Link>
+                  </FooterLinkGroup>
+
+                  <FooterLinkGroup title="Your tools">
                     <AccountFooterLink />
                   </FooterLinkGroup>
 
@@ -80,7 +83,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     <Link href="/privacy" className="transition hover:text-stone-900">Privacy</Link>
                     <Link href="/terms" className="transition hover:text-stone-900">Terms</Link>
                   </FooterLinkGroup>
-                </div>
+                </nav>
               </div>
 
               <div className="mt-10 border-t border-stone-200 pt-6 text-xs text-stone-400">
