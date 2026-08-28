@@ -1,7 +1,5 @@
 import { createClient } from "@supabase/supabase-js"
-import {
-  authoritativeCorkProposal,
-} from "../lib/cork-planning-source.mjs"
+import { authoritativeCorkProposal } from "../lib/cork-planning-source.mjs"
 import {
   corkAgileApplicationConfig,
   corkAgileSourceApplicationId,
@@ -28,9 +26,9 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
 const dryRun = process.argv.includes("--dry-run")
 const outputIndex = process.argv.indexOf("--output")
 const outputPath = outputIndex >= 0 ? process.argv[outputIndex + 1] : null
-const NEWS_WINDOW_DAYS = Math.min(7, Math.max(1, Number(process.env.NOTABLE_PLANNING_NEWS_DAYS || 2)))
-const MAX_STORIES = Math.min(200, Math.max(10, Number(process.env.NOTABLE_PLANNING_MAX_STORIES || 80)))
-const MAX_MATCHES = Math.min(25, Math.max(1, Number(process.env.NOTABLE_PLANNING_MAX_MATCHES || 10)))
+const NEWS_WINDOW_DAYS = Math.min(30, Math.max(1, Number(process.env.NOTABLE_PLANNING_NEWS_DAYS || 7)))
+const MAX_STORIES = Math.min(500, Math.max(20, Number(process.env.NOTABLE_PLANNING_MAX_STORIES || 200)))
+const MAX_MATCHES = Math.min(100, Math.max(1, Number(process.env.NOTABLE_PLANNING_MAX_MATCHES || 30)))
 const REQUEST_TIMEOUT_MS = Math.min(30000, Math.max(3000, Number(process.env.NOTABLE_PLANNING_REQUEST_TIMEOUT_MS || 12000)))
 
 const NEWS_QUERIES = [
@@ -38,6 +36,22 @@ const NEWS_QUERIES = [
   '"planning application" Ireland',
   '"planning appeal" Ireland',
   '"An Coimisiún Pleanála" development',
+  'planning approved Ireland development',
+  'planning refused Ireland development',
+  'planning retention Ireland business',
+  'planning permission homes Ireland',
+  'planning permission apartments Ireland',
+  'planning permission hotel Ireland',
+  'planning permission retail Ireland',
+  'planning permission restaurant Ireland',
+  'planning permission drive-thru Ireland',
+  'planning permission data centre Ireland',
+  'planning permission renewable energy Ireland',
+  'planning permission wind farm Ireland',
+  'planning permission solar farm Ireland',
+  'planning permission student accommodation Ireland',
+  'planning permission housing scheme Ireland',
+  'planning permission mixed-use Ireland',
 ]
 
 const GENERIC_ENTITY_WORDS = new Set([
@@ -53,6 +67,7 @@ const STOPWORDS = new Set([
   "application", "development", "developer", "council", "county", "city", "ireland", "irish",
   "appeal", "plans", "plan", "new", "site", "scheme", "refused", "approved", "approval",
 ])
+const ADDRESS_WORDS = /\b(?:street|road|avenue|lane|quay|square|park|estate|centre|center|village|town|building|buildings|house|hotel|mall|retail|drive[- ]?thru|industrial|business|campus|harbour|harbor)\b/i
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 const clean = (value) => String(value || "").replace(/\s+/g, " ").trim()
@@ -63,6 +78,7 @@ const decodeEntities = (value) => clean(value)
   .replaceAll("&apos;", "'")
   .replaceAll("&lt;", "<")
   .replaceAll("&gt;", ">")
+  .replace(/&#(\d+);/g, (_, value) => String.fromCharCode(Number(value)))
 
 function stripTags(value) {
   return decodeEntities(String(value || "").replace(/<[^>]+>/g, " "))
@@ -71,7 +87,10 @@ function stripTags(value) {
 async function fetchText(url, label) {
   const response = await fetch(url, {
     redirect: "follow",
-    headers: { "User-Agent": "OpenList notable Planning discovery" },
+    headers: {
+      "User-Agent": "Mozilla/5.0 (compatible; OpenList notable Planning discovery; +https://www.openlist.ie)",
+      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    },
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   })
   if (!response.ok) throw new Error(`${label}: HTTP ${response.status}`)
@@ -117,6 +136,36 @@ async function discoverStories() {
     .slice(0, MAX_STORIES)
 }
 
+function extractJsonLdArticleBodies(html) {
+  const bodies = []
+  for (const match of html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) {
+    try {
+      const parsed = JSON.parse(match[1].trim())
+      const queue = Array.isArray(parsed) ? [...parsed] : [parsed]
+      while (queue.length) {
+        const value = queue.shift()
+        if (!value || typeof value !== "object") continue
+        if (typeof value.articleBody === "string") bodies.push(value.articleBody)
+        if (Array.isArray(value["@graph"])) queue.push(...value["@graph"])
+      }
+    } catch {
+      // Ignore malformed publisher JSON-LD.
+    }
+  }
+  return bodies
+}
+
+function extractReadableArticleText(html) {
+  const jsonLd = extractJsonLdArticleBodies(html)
+  const scoped = html.match(/<article\b[^>]*>([\s\S]*?)<\/article>/i)?.[1]
+    || html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i)?.[1]
+    || ""
+  const paragraphs = [...scoped.matchAll(/<(?:p|h2|h3|li)\b[^>]*>([\s\S]*?)<\/(?:p|h2|h3|li)>/gi)]
+    .map((match) => stripTags(match[1]))
+    .filter((value) => value.length >= 20)
+  return clean([...jsonLd, ...paragraphs].join(" ")).slice(0, 30000)
+}
+
 async function enrichStoryText(story) {
   try {
     const { text, finalUrl } = await fetchText(story.link, story.title)
@@ -126,19 +175,32 @@ async function enrichStoryText(story) {
     const description = text.match(/<meta[^>]+(?:name|property)=["'](?:description|og:description)["'][^>]+content=["']([^"']+)/i)?.[1]
       || text.match(/<meta[^>]+content=["']([^"']+)["'][^>]+(?:name|property)=["'](?:description|og:description)["']/i)?.[1]
       || ""
+    const canonical = text.match(/<link[^>]+rel=["']canonical["'][^>]+href=["']([^"']+)/i)?.[1]
+      || text.match(/<meta[^>]+property=["']og:url["'][^>]+content=["']([^"']+)/i)?.[1]
+      || ""
+    const articleText = extractReadableArticleText(text)
+    const resolvedUrl = canonical || (finalUrl.includes("news.google.com") ? story.link : finalUrl)
     return {
       ...story,
-      resolvedUrl: finalUrl.includes("news.google.com") ? story.link : finalUrl,
-      text: clean([story.title, story.description, decodeEntities(title), decodeEntities(description)].join(" ")),
+      resolvedUrl,
+      articleText,
+      bodyExtracted: articleText.length >= 200,
+      text: clean([story.title, story.description, decodeEntities(title), decodeEntities(description), articleText].join(" ")).slice(0, 35000),
     }
   } catch {
-    return { ...story, resolvedUrl: story.link, text: clean(`${story.title} ${story.description}`) }
+    return {
+      ...story,
+      resolvedUrl: story.link,
+      articleText: "",
+      bodyExtracted: false,
+      text: clean(`${story.title} ${story.description}`),
+    }
   }
 }
 
 function referenceCandidates(text) {
   const values = new Set()
-  for (const match of text.matchAll(/\b(?:[A-Z]{1,4}\s*)?\d{2}[\/-][A-Z0-9/.-]{3,12}\b/gi)) {
+  for (const match of text.matchAll(/\b(?:[A-Z]{1,4}\s*)?\d{2}[\/-][A-Z0-9/.-]{3,16}\b/gi)) {
     const value = clean(match[0]).replace(/\s+/g, "")
     if (value.length >= 5) values.add(value)
   }
@@ -148,24 +210,44 @@ function referenceCandidates(text) {
 function capitalizedPhrases(text) {
   const phrases = new Set()
   const normalized = text.replace(/[|:;()]/g, " ")
-  for (const match of normalized.matchAll(/\b(?:[A-Z][A-Za-z0-9&'.-]*|[A-Z]{2,})(?:\s+(?:[A-Z][A-Za-z0-9&'.-]*|[a-z]{2,4})){0,4}\b/g)) {
+  for (const match of normalized.matchAll(/\b(?:[A-Z][A-Za-z0-9&'.-]*|[A-Z]{2,})(?:\s+(?:[A-Z][A-Za-z0-9&'.-]*|[a-z]{2,4})){0,5}\b/g)) {
     const phrase = clean(match[0])
     const words = phrase.split(" ")
-    if (phrase.length < 5 || words.length > 5) continue
+    if (phrase.length < 5 || words.length > 6) continue
     if (GENERIC_ENTITY_WORDS.has(words[0])) continue
     phrases.add(phrase)
   }
   return [...phrases]
 }
 
+function addressPhrases(text) {
+  const values = new Set()
+  const sentences = clean(text).split(/(?<=[.!?])\s+/)
+  for (const sentence of sentences) {
+    if (!ADDRESS_WORDS.test(sentence)) continue
+    const words = sentence.replace(/[^A-Za-z0-9&'./ -]/g, " ").split(/\s+/).filter(Boolean)
+    for (let size = 3; size <= 7; size += 1) {
+      for (let start = 0; start + size <= words.length; start += 1) {
+        const phrase = clean(words.slice(start, start + size).join(" "))
+        if (ADDRESS_WORDS.test(phrase) && phrase.length >= 10 && phrase.length <= 90) values.add(phrase)
+      }
+    }
+  }
+  return [...values]
+}
+
 function searchPhrases(story) {
-  const phrases = new Set([...referenceCandidates(story.text), ...capitalizedPhrases(story.text)])
-  for (const quoted of story.text.matchAll(/["“]([^"”]{5,80})["”]/g)) phrases.add(clean(quoted[1]))
+  const phrases = new Set([
+    ...referenceCandidates(story.text),
+    ...capitalizedPhrases(story.text),
+    ...addressPhrases(story.text),
+  ])
+  for (const quoted of story.text.matchAll(/["“]([^"”]{5,100})["”]/g)) phrases.add(clean(quoted[1]))
   return [...phrases]
     .map((value) => value.replace(/[,%()]/g, " ").replace(/\s+/g, " ").trim())
     .filter((value) => value.length >= 5)
     .sort((a, b) => b.length - a.length)
-    .slice(0, 12)
+    .slice(0, 24)
 }
 
 function tokens(value) {
@@ -187,47 +269,67 @@ function scoreMatch(story, row, refs) {
   const storyTokens = tokens(story.text)
   const applicant = clean(row.applicant_name)
   const applicantExact = applicant.length >= 5 && storyText.includes(applicant.toLowerCase())
+  const applicantOverlap = overlapRatio(applicant, storyTokens)
   const locationOverlap = overlapRatio(row.location, storyTokens)
   const proposalOverlap = overlapRatio(row.proposal, storyTokens)
+  const authorityMentioned = clean(row.local_authority).length >= 4 && storyText.includes(clean(row.local_authority).toLowerCase())
   const locationTokenCount = tokens(row.location).size
-  let score = locationOverlap * 0.55 + proposalOverlap * 0.25 + (applicantExact ? 0.35 : 0)
-  if (clean(row.location).length >= 8 && storyText.includes(clean(row.location).toLowerCase())) score += 0.2
-  else if (locationTokenCount >= 3 && locationOverlap >= 0.75) score += 0.2
+  let score = locationOverlap * 0.5 + proposalOverlap * 0.22 + applicantOverlap * 0.18 + (applicantExact ? 0.28 : 0)
+  if (clean(row.location).length >= 8 && storyText.includes(clean(row.location).toLowerCase())) score += 0.25
+  else if (locationTokenCount >= 3 && locationOverlap >= 0.7) score += 0.2
+  if (authorityMentioned) score += 0.06
   score = Math.min(0.99, score)
   return {
     score,
     reason: applicantExact
-      ? `applicant + text overlap (${score.toFixed(2)})`
-      : `location/proposal overlap (${score.toFixed(2)})`,
+      ? `applicant + location/text overlap (${score.toFixed(2)})`
+      : `location/proposal/applicant overlap (${score.toFixed(2)})`,
   }
 }
 
 async function candidateRowsForStory(story) {
   const refs = referenceCandidates(story.text)
   const rows = new Map()
-  for (const ref of refs.slice(0, 4)) {
-    const { data, error } = await supabase
-      .from("planning_applications")
-      .select("id,local_authority,local_authority_code,reference,proposal,location,applicant_name,source_application_id,source_url,registration_date")
-      .ilike("reference", ref)
-      .limit(10)
+  const select = "id,local_authority,local_authority_code,reference,proposal,location,applicant_name,source_application_id,source_url,registration_date"
+  for (const ref of refs.slice(0, 6)) {
+    const { data, error } = await supabase.from("planning_applications").select(select).ilike("reference", ref).limit(15)
     if (error) throw error
     for (const row of data || []) rows.set(row.id, row)
   }
 
-  const cutoff = new Date(Date.now() - 730 * 86400000).toISOString().slice(0, 10)
-  for (const phrase of searchPhrases(story).filter((value) => !refs.includes(value)).slice(0, 8)) {
+  const cutoff = new Date(Date.now() - 1095 * 86400000).toISOString().slice(0, 10)
+  const phrases = searchPhrases(story).filter((value) => !refs.includes(value))
+  for (const phrase of phrases.slice(0, 16)) {
     const term = phrase.replace(/[,%]/g, " ")
+    if (term.length < 5) continue
     const { data, error } = await supabase
       .from("planning_applications")
-      .select("id,local_authority,local_authority_code,reference,proposal,location,applicant_name,source_application_id,source_url,registration_date")
+      .select(select)
       .gte("registration_date", cutoff)
       .or(`location.ilike.%${term}%,proposal.ilike.%${term}%,applicant_name.ilike.%${term}%`)
       .order("registration_date", { ascending: false })
-      .limit(15)
+      .limit(20)
     if (error) continue
     for (const row of data || []) rows.set(row.id, row)
-    if (rows.size >= 40) break
+    if (rows.size >= 80) break
+  }
+
+  if (rows.size < 12) {
+    const distinctiveTokens = [...tokens(story.text)]
+      .filter((token) => token.length >= 6)
+      .slice(0, 8)
+    for (const token of distinctiveTokens) {
+      const { data, error } = await supabase
+        .from("planning_applications")
+        .select(select)
+        .gte("registration_date", cutoff)
+        .or(`location.ilike.%${token}%,proposal.ilike.%${token}%,applicant_name.ilike.%${token}%`)
+        .order("registration_date", { ascending: false })
+        .limit(12)
+      if (error) continue
+      for (const row of data || []) rows.set(row.id, row)
+      if (rows.size >= 80) break
+    }
   }
   return { rows: [...rows.values()], refs }
 }
@@ -244,8 +346,9 @@ function aliasesForStory(story, displayName) {
   if (displayName) aliases.add(displayName)
   const title = clean(story.title).replace(/\s+-\s+[^-]+$/, "")
   if (title.length <= 140) aliases.add(title)
-  for (const phrase of capitalizedPhrases(story.text).slice(0, 12)) aliases.add(phrase)
-  return [...aliases].filter((value) => value.length >= 3).slice(0, 20)
+  for (const phrase of capitalizedPhrases(story.text).slice(0, 16)) aliases.add(phrase)
+  for (const phrase of addressPhrases(story.text).slice(0, 8)) aliases.add(phrase)
+  return [...aliases].filter((value) => value.length >= 3).slice(0, 30)
 }
 
 async function upsertNotable(row, story, match) {
@@ -262,7 +365,7 @@ async function upsertNotable(row, story, match) {
     ...(Array.isArray(existing?.search_aliases) ? existing.search_aliases : []),
     ...aliasesForStory(story, displayName),
     clean(row.applicant_name),
-  ].filter(Boolean))].slice(0, 30)
+  ].filter(Boolean))].slice(0, 40)
   const priorStories = Array.isArray(existing?.evidence?.stories) ? existing.evidence.stories : []
   const storyEvidence = {
     publisher: story.publisher || null,
@@ -272,7 +375,7 @@ async function upsertNotable(row, story, match) {
     match_score: Number(match.score.toFixed(3)),
     matched_by: match.reason,
   }
-  const stories = [storyEvidence, ...priorStories.filter((item) => item?.url !== storyEvidence.url)].slice(0, 10)
+  const stories = [storyEvidence, ...priorStories.filter((item) => item?.url !== storyEvidence.url)].slice(0, 15)
   const payload = {
     application_id: row.id,
     source: "press",
@@ -377,7 +480,7 @@ async function auditNotableDescriptions() {
     } catch (cause) {
       incomplete.push({ authority: row.local_authority_code, reference: row.reference, error: cause instanceof Error ? cause.message : String(cause) })
     }
-    await sleep(150)
+    await sleep(100)
   }
   return { checked: records.length, repaired, incomplete }
 }
@@ -393,17 +496,30 @@ async function main() {
   const discovered = await discoverStories()
   const enriched = []
   const ambiguous = []
+  const unmatched = []
   const changedIds = []
+  const funnel = {
+    storiesDiscovered: discovered.length,
+    articleBodiesExtracted: 0,
+    storiesWithReferences: 0,
+    storiesWithCandidates: 0,
+    confidentMatches: 0,
+    ambiguousMatches: 0,
+    unmatched: 0,
+  }
 
   for (const rawStory of discovered) {
     const story = await enrichStoryText(rawStory)
+    if (story.bodyExtracted) funnel.articleBodiesExtracted += 1
     const { rows, refs } = await candidateRowsForStory(story)
+    if (refs.length) funnel.storiesWithReferences += 1
+    if (rows.length) funnel.storiesWithCandidates += 1
     const ranked = rows
       .map((row) => ({ row, ...scoreMatch(story, row, refs) }))
       .sort((a, b) => b.score - a.score)
     const best = ranked[0]
     const second = ranked[1]
-    const highConfidence = best && best.score >= 0.78 && (!second || best.score - second.score >= 0.12 || best.score === 1)
+    const highConfidence = best && best.score >= 0.76 && (!second || best.score - second.score >= 0.1 || best.score === 1)
 
     if (highConfidence && enriched.length < MAX_MATCHES) {
       const enrichment = await upsertNotable(best.row, story, best)
@@ -417,18 +533,31 @@ async function main() {
         publisher: story.publisher,
         url: story.resolvedUrl,
         existing: enrichment.wasExisting,
+        bodyExtracted: story.bodyExtracted,
       })
       changedIds.push(best.row.id)
-    } else if (best && best.score >= 0.55) {
+      funnel.confidentMatches += 1
+    } else if (best && best.score >= 0.48) {
       ambiguous.push({
         headline: story.title,
         publisher: story.publisher,
         candidate: `${best.row.local_authority_code} ${best.row.reference}`,
         score: Number(best.score.toFixed(3)),
         runnerUp: second ? Number(second.score.toFixed(3)) : null,
+        bodyExtracted: story.bodyExtracted,
       })
+      funnel.ambiguousMatches += 1
+    } else {
+      unmatched.push({
+        headline: story.title,
+        publisher: story.publisher,
+        candidateCount: rows.length,
+        bestScore: best ? Number(best.score.toFixed(3)) : null,
+        bodyExtracted: story.bodyExtracted,
+      })
+      funnel.unmatched += 1
     }
-    await sleep(100)
+    await sleep(75)
   }
 
   await enqueue(changedIds)
@@ -437,9 +566,12 @@ async function main() {
     generatedAt: new Date().toISOString(),
     dryRun,
     newsWindowDays: NEWS_WINDOW_DAYS,
+    newsQueries: NEWS_QUERIES.length,
     storiesChecked: discovered.length,
+    funnel,
     enriched,
     ambiguous,
+    unmatched: unmatched.slice(0, 40),
     descriptions,
   }
 
@@ -461,9 +593,11 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 }
 
 export {
+  addressPhrases,
   aliasesForStory,
   capitalizedPhrases,
   displayNameCandidate,
+  extractReadableArticleText,
   parseRss,
   referenceCandidates,
   scoreMatch,
