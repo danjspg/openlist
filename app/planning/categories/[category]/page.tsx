@@ -22,10 +22,10 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { category: slug } = await params
   const page = await getPlanningPublicCategory(slug)
-  if (!page || page.rows.length < 3) return { robots: { index: false, follow: true } }
+  if (!page || page.totalCount < 3) return { robots: { index: false, follow: true } }
   return {
     title: `${page.category.label} | OpenList`,
-    description: `${page.category.description} Browse ${formatPlanningCount(page.rows.length)} current or recent priority planning applications.`,
+    description: `${page.category.description} Browse ${formatPlanningCount(page.totalCount)} current or recent priority planning applications.`,
     alternates: { canonical: `/planning/categories/${page.category.slug}` },
     robots: { index: true, follow: true },
   }
@@ -34,12 +34,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function PlanningCategoryPage({ params }: Props) {
   const { category: slug } = await params
   const page = await getPlanningPublicCategory(slug)
-  if (!page || page.rows.length < 3) notFound()
+  if (!page || page.totalCount < 3) notFound()
 
   const otherCategories = (await getPlanningPublicCategorySummaries(3))
     .filter((category) => category.slug !== slug)
     .slice(0, 8)
-  const applications = page.rows.slice(0, 40).map((row) => planningResultRecord(row.application))
+  const applications = page.rows.map((row) => planningResultRecord(row.application))
 
   return (
     <main className="min-h-screen bg-stone-50">
@@ -55,7 +55,7 @@ export default async function PlanningCategoryPage({ params }: Props) {
             {page.category.description}
           </p>
           <p className="mt-3 text-sm font-medium text-stone-600">
-            {formatPlanningCount(page.rows.length)} priority applications currently identified
+            {formatPlanningCount(page.totalCount)} priority applications currently identified
           </p>
           <div className="mt-6 flex flex-wrap gap-3 text-sm font-semibold">
             <Link href="/planning" className="inline-flex min-h-10 items-center rounded-lg border border-stone-300 bg-white px-4 text-stone-800 hover:border-stone-500">
