@@ -33,6 +33,7 @@ on:
       - "scripts/reconcile-planning-notable-classification.mjs"
       - "scripts/planning-upsert.mjs"
       - "tests/planning-notable-classifier.test.mjs"
+      - "tests/planning-notable-reconciliation.test.mjs"
       - "tests/planning-seo.test.ts"
       - "tests/planning-reliability.test.ts"
       - "supabase/migrations/*planning_notable_classification*"
@@ -56,7 +57,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: node --test tests/planning-notable-classifier.test.mjs tests/notable-planning-discovery-v2.test.mjs
+      - run: node --test tests/planning-notable-classifier.test.mjs tests/planning-notable-reconciliation.test.mjs tests/notable-planning-discovery-v2.test.mjs
       - run: node --import tsx --test tests/planning-seo.test.ts tests/planning-reliability.test.ts
 
   classify:
@@ -83,9 +84,9 @@ jobs:
           mkdir -p artifacts
           if [[ "$RUN_MODE" == "validate" ]]; then
             # Validation intentionally uses the same bounded RPC pagination as reconciliation.
-            # It remains read-only because --apply is omitted. This avoids the former
+            # It remains read-only because no write flag is supplied. This avoids the former
             # whole-cohort validation query timing out in Postgres.
-            node scripts/reconcile-planning-notable-classification.mjs --full-window --batch-size=250 --max-batches=100 --output=artifacts/planning-notable-classification.json
+            node scripts/reconcile-planning-notable-classification.mjs --validate --full-window --batch-size=250 --max-batches=100 --cursor="$RESUME_CURSOR" --output=artifacts/planning-notable-classification.json
           elif [[ "$RUN_MODE" == "sweep" ]]; then
             node scripts/reconcile-planning-notable-classification.mjs --recent-changed-days=3 --batch-size=250 --max-batches=8 --apply --output=artifacts/planning-notable-classification.json
           else
@@ -105,22 +106,20 @@ jobs:
           const report = require('./artifacts/planning-notable-classification.json')
           console.log('## Planning notable reconciliation')
           console.log('')
-          console.log(`- Mode: **${report.mode}** (${report.dryRun ? 'read-only' : 'applied'})`)
-          console.log(`- Rows scanned: **${report.totalRowsScanned ?? report.activeApplicationsScanned ?? 0}**`)
-          console.log(`- Active structural notable: **${report.activeStructurallyNotable ?? 'n/a'}**`)
-          console.log(`- Recent-outcome structural notable: **${report.recentOutcomeStructurallyNotable ?? 'n/a'}**`)
-          console.log(`- Projected sitemap eligible: **${report.totalSitemapEligible ?? 'n/a'}**`)
-          console.log(`- New notable rows: **${report.newNotableRows ?? 0}**`)
-          console.log(`- Existing notable rows updated: **${report.existingNotableRowsUpdated ?? report.existingNotableRows ?? 0}**`)
+          console.log(`- Mode: **${report.mode}**`)
+          console.log(`- Execution: **${report.dryRun ? 'read-only' : 'applied'}**`)
+          console.log(`- Start cursor: \`${report.startCursor}\``)
+          console.log(`- Rows scanned this run: **${report.totalRowsScanned ?? 0}**`)
+          console.log(`- Structural notable this run: **${report.totalStructurallyNotable ?? 0}**`)
           console.log(`- Batches completed: **${report.batchesCompleted ?? 0}**`)
+          console.log(`- Complete: **${report.complete ? 'yes' : 'no'}**`)
           console.log(`- Failures: **${report.failures?.length ?? 0}**`)
-          console.log(`- Remaining work: **${report.remainingWork ?? (report.complete ? 'complete' : 'resume required')}**`)
           if (report.nextCursor) console.log(`- Resume cursor: \`${report.nextCursor}\``)
           console.log('')
-          console.log('### Category distribution')
+          console.log('### Category distribution (this run)')
           for (const [category, count] of Object.entries(report.categoryCounts || {}).sort((a, b) => b[1] - a[1])) console.log(`- ${category}: ${count}`)
           console.log('')
-          console.log('### Authority distribution')
+          console.log('### Authority distribution (this run)')
           for (const [authority, count] of Object.entries(report.authorityCounts || {}).sort((a, b) => b[1] - a[1])) console.log(`- ${authority}: ${count}`)
           NODE
       - uses: actions/upload-artifact@v4
