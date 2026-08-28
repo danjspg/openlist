@@ -18,6 +18,7 @@ import {
   PLANNING_APPLICATION_SELECT,
   type PlanningApplication,
 } from "@/lib/planning"
+import { getPlanningNotableAliasIds } from "@/lib/planning-notable"
 import type { NearbyPlanningApplication } from "@/lib/property-research"
 import { normaliseEircode } from "@/lib/eircode.mjs"
 import {
@@ -111,6 +112,9 @@ const searchPropertyIntelligenceCached = unstable_cache(
 
   const planningTerm = escapePostgrestLike(cleanedQuery)
   const shouldSearchAddresses = intent === "address"
+  const notableAliasIds = intent === "planning-reference"
+    ? []
+    : await getPlanningNotableAliasIds(cleanedQuery, 50)
 
   let addressPromise: PromiseLike<{ data: unknown[] | null }> = Promise.resolve({ data: [] })
   if (shouldSearchAddresses) {
@@ -135,16 +139,22 @@ const searchPropertyIntelligenceCached = unstable_cache(
   if (intent === "planning-reference") {
     planningQuery = planningQuery.ilike("reference", `%${planningTerm}%`)
   } else if (intent === "address") {
-    planningQuery = planningQuery.ilike("location", `%${planningTerm}%`)
+    planningQuery = notableAliasIds.length > 0
+      ? planningQuery.or(
+          `location.ilike.%${planningTerm}%,id.in.(${notableAliasIds.join(",")})`
+        )
+      : planningQuery.ilike("location", `%${planningTerm}%`)
   } else {
-    planningQuery = planningQuery.or(
-      [
-        `reference.ilike.%${planningTerm}%`,
-        `location.ilike.%${planningTerm}%`,
-        `proposal.ilike.%${planningTerm}%`,
-        `applicant_name.ilike.%${planningTerm}%`,
-      ].join(",")
-    )
+    const planningFilters = [
+      `reference.ilike.%${planningTerm}%`,
+      `location.ilike.%${planningTerm}%`,
+      `proposal.ilike.%${planningTerm}%`,
+      `applicant_name.ilike.%${planningTerm}%`,
+    ]
+    if (notableAliasIds.length > 0) {
+      planningFilters.push(`id.in.(${notableAliasIds.join(",")})`)
+    }
+    planningQuery = planningQuery.or(planningFilters.join(","))
   }
 
   const [placeCandidates, planningResult, addressResult] = await Promise.all([
@@ -199,7 +209,7 @@ const searchPropertyIntelligenceCached = unstable_cache(
     dataUnavailable: false,
   }
   },
-  ["unified-property-search", "v12-numeric-planning-references"],
+  ["unified-property-search", "v13-notable-planning-aliases"],
   {
     revalidate: 60 * 60,
     tags: [PLANNING_DATASET_CACHE_TAG, PPR_DATASET_CACHE_TAG],

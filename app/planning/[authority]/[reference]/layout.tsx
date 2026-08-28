@@ -1,12 +1,35 @@
 import type { ReactNode } from "react"
+import { getPlanningApplication } from "@/lib/planning"
+import { getPlanningAuthorityBySlug } from "@/lib/planning-authorities"
+import { getPlanningNotableEnrichment } from "@/lib/planning-notable"
 
-export default function PlanningApplicationLayout({
-  children,
-}: {
+type Props = {
   children: ReactNode
-}) {
+  params: Promise<{ authority: string; reference: string }>
+}
+
+export default async function PlanningApplicationLayout({ children, params }: Props) {
+  const resolved = await params
+  const authority = getPlanningAuthorityBySlug(resolved.authority)
+  const application = authority
+    ? await getPlanningApplication(authority, resolved.reference)
+    : null
+  const notable = application
+    ? await getPlanningNotableEnrichment(application.id)
+    : null
+
   return (
     <div className="planning-application-layout">
+      {notable?.displayName ? (
+        <aside className="border-b border-amber-200 bg-amber-50" aria-label="Application context">
+          <div className="mx-auto max-w-6xl px-4 py-3 sm:px-6">
+            <p className="text-sm leading-6 text-amber-950">
+              <span className="font-semibold">Known as {notable.displayName}.</span>{" "}
+              OpenList adds this contextual name from published reporting so the official planning record is easier to find. Council-supplied fields remain unchanged.
+            </p>
+          </div>
+        </aside>
+      ) : null}
       {children}
       <style>{`
         @media (min-width: 1024px) {
