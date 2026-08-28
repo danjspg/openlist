@@ -64,6 +64,13 @@ export async function PlanningApplicationsView({
   )
 
   const dashboard = await getPlanningDashboard(filters, authority ?? null)
+  const completedMonthStats = getCompletedPlanningMonthStats(dashboard.monthStats)
+  const latestCompletedMonth = completedMonthStats.at(-1)
+  const previousCompletedMonth = completedMonthStats.at(-2)
+  const completedMonthChange =
+    latestCompletedMonth && previousCompletedMonth
+      ? latestCompletedMonth.count - previousCompletedMonth.count
+      : null
   const resultRows = hasActiveSearch
     ? dashboard.searchResults
     : dashboard.recentApplications
@@ -83,6 +90,9 @@ export async function PlanningApplicationsView({
   const latestMonthLabel = dashboard.latestRegistrationMonth
     ? formatPlanningMonth(dashboard.latestRegistrationMonth)
     : "latest month"
+  const latestCompletedMonthLabel = latestCompletedMonth
+    ? formatPlanningMonth(latestCompletedMonth.label)
+    : "latest completed month"
   const usesNationalComparisonWindow = !authority && !hasActiveSearch
   const councilComparisonLabel =
     dashboard.councilActivityPeriodStart && dashboard.councilActivityPeriodEnd
@@ -121,8 +131,8 @@ export async function PlanningApplicationsView({
     ? dashboard.councilActivityStats.slice(0, 5)
     : []
   const statsWindowLabel = usesNationalComparisonWindow
-    ? `Applications, status mix and application types use available recorded history. Council comparisons use the ${councilComparisonLabel.charAt(0).toLowerCase()}${councilComparisonLabel.slice(1)} Monthly trends use the latest 12 completed registration months; latest-month measures use the latest registration month.`
-    : "Applications, area totals, status mix and application types use available recorded history. Monthly trends use the latest 12 completed registration months; latest-month measures use the latest registration month."
+    ? `Applications, status mix and application types use available recorded history. Council comparisons use the ${councilComparisonLabel.charAt(0).toLowerCase()}${councilComparisonLabel.slice(1)} Monthly trends and month-change measures use the latest 12 completed registration months; latest-month area, status and type breakdowns use the latest registration month.`
+    : "Applications, area totals, status mix and application types use available recorded history. Monthly trends and month-change measures use the latest 12 completed registration months; latest-month area, status and type breakdowns use the latest registration month."
   const datasetNote = authority
     ? `This view uses public ${authority.name} planning application information available in OpenList. Linked application documents are not included.`
     : "This view uses public planning application information available in OpenList from Irish local-authority sources. Linked application documents are not included."
@@ -297,7 +307,7 @@ export async function PlanningApplicationsView({
             <BarList
               title="Monthly registrations"
               subtitle="Latest 12 completed registration months."
-              stats={dashboard.monthStats.map((stat) => ({
+              stats={completedMonthStats.map((stat) => ({
                 ...stat,
                 label: formatPlanningMonth(stat.label),
               }))}
@@ -407,19 +417,19 @@ export async function PlanningApplicationsView({
               detail="Available recorded history."
             />
             <Metric
-              label="Latest month apps"
-              value={dashboard.latestMonthCount}
-              detail="Latest registration month."
+              label="Latest complete month"
+              value={latestCompletedMonth?.count ?? "Not available"}
+              detail={latestCompletedMonthLabel}
             />
             <Metric
               label="Month change"
-              value={formatSignedNumber(dashboard.latestMonthChange)}
-              detail="Against the previous registration month."
+              value={formatSignedNumber(completedMonthChange)}
+              detail="Against the previous completed registration month."
             />
           </div>
 
           <div className="mt-6 grid gap-4 lg:grid-cols-2">
-            <TrendPanel stats={dashboard.monthStats} />
+            <TrendPanel stats={completedMonthStats} />
             <TreemapPanel
               title={isCouncilScoped ? "Area overview" : "Council overview"}
               stats={dashboard.areaStats}
@@ -858,6 +868,12 @@ function formatShortPlanningMonth(value: string | undefined) {
     month: "short",
     year: "2-digit",
   }).format(date)
+}
+
+function getCompletedPlanningMonthStats(stats: PlanningCountStat[]) {
+  const currentMonth = currentPlanningMonthKey()
+
+  return stats.filter((stat) => stat.label < currentMonth).slice(-12)
 }
 
 function currentPlanningMonthKey() {
