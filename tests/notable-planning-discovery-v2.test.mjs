@@ -11,6 +11,7 @@ const {
   referenceCandidates,
   scoreMatch,
   storyKey,
+  autoMatch,
 } = await import("../scripts/discover-notable-planning-v2.mjs")
 
 test("parses direct publisher RSS links", () => {
@@ -57,6 +58,13 @@ test("exact planning references remain decisive", () => {
     proposal: "Coffee shop and signage",
   }, referenceCandidates(story.text))
   assert.equal(match.score, 1)
+})
+
+test("recall-oriented policy auto-matches moderate clear winners", () => {
+  assert.equal(autoMatch({ score: 0.51 }, { score: 0.47 }), true)
+  assert.equal(autoMatch({ score: 0.62 }, { score: 0.61 }), true)
+  assert.equal(autoMatch({ score: 0.49 }, { score: 0.2 }), false)
+  assert.equal(autoMatch({ score: 0.53 }, { score: 0.52 }), false)
 })
 
 test("story memory key is stable", () => {
