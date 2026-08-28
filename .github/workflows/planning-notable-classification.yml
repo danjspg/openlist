@@ -6,12 +6,16 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "Read-only cohort validation or bounded active/recent reconciliation"
+        description: "Validation, bounded reconciliation, or guarded full apply"
         type: choice
-        options: [validate, reconcile]
+        options: [validate, reconcile, apply-full]
         default: validate
       apply:
-        description: "Persist a bounded reconciliation batch (leave false before migration/code is merged)"
+        description: "Persist normal bounded reconcile mode (ignored by apply-full)"
+        type: boolean
+        default: false
+      confirm_apply_full:
+        description: "Required confirmation for apply-full production writes"
         type: boolean
         default: false
       cursor:
@@ -64,7 +68,7 @@ jobs:
     if: ${{ github.event_name != 'pull_request' }}
     needs: test
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -78,6 +82,7 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           RUN_MODE: ${{ github.event_name == 'schedule' && 'sweep' || inputs.mode }}
           APPLY_RECONCILIATION: ${{ github.event_name == 'workflow_dispatch' && inputs.apply && 'true' || 'false' }}
+          CONFIRM_APPLY_FULL: ${{ github.event_name == 'workflow_dispatch' && inputs.confirm_apply_full && 'true' || 'false' }}
           RESUME_CURSOR: ${{ inputs.cursor || '' }}
           MAX_BATCHES: ${{ inputs.max_batches || '10' }}
         run: |
@@ -87,6 +92,12 @@ jobs:
             # It remains read-only because no write flag is supplied. This avoids the former
             # whole-cohort validation query timing out in Postgres.
             node scripts/reconcile-planning-notable-classification.mjs --validate --full-window --batch-size=250 --max-batches=100 --cursor="$RESUME_CURSOR" --output=artifacts/planning-notable-classification.json
+          elif [[ "$RUN_MODE" == "apply-full" ]]; then
+            if [[ "$CONFIRM_APPLY_FULL" != "true" ]]; then
+              echo "apply-full requires confirm_apply_full=true" >&2
+              exit 1
+            fi
+            node scripts/reconcile-planning-notable-classification.mjs --apply-full --confirm-apply-full --apply --full-window --batch-size=250 --max-batches=20 --max-chunks=20 --cursor="$RESUME_CURSOR" --output=artifacts/planning-notable-classification.json
           elif [[ "$RUN_MODE" == "sweep" ]]; then
             node scripts/reconcile-planning-notable-classification.mjs --recent-changed-days=3 --batch-size=250 --max-batches=8 --apply --output=artifacts/planning-notable-classification.json
           else
@@ -109,8 +120,12 @@ jobs:
           console.log(`- Mode: **${report.mode}**`)
           console.log(`- Execution: **${report.dryRun ? 'read-only' : 'applied'}**`)
           console.log(`- Start cursor: \`${report.startCursor}\``)
+          console.log(`- Final cursor: \`${report.finalCursor}\``)
           console.log(`- Rows scanned this run: **${report.totalRowsScanned ?? 0}**`)
           console.log(`- Structural notable this run: **${report.totalStructurallyNotable ?? 0}**`)
+          console.log(`- New rows created: **${report.newNotableRows ?? 0}**`)
+          console.log(`- Existing rows updated: **${report.existingNotableRowsUpdated ?? 0}**`)
+          console.log(`- Materially changed rows: **${report.materiallyChangedRows ?? 0}**`)
           console.log(`- Batches completed: **${report.batchesCompleted ?? 0}**`)
           console.log(`- Complete: **${report.complete ? 'yes' : 'no'}**`)
           console.log(`- Failures: **${report.failures?.length ?? 0}**`)
