@@ -1,10 +1,10 @@
 import { createClient } from "@supabase/supabase-js"
 
-const LIMIT_BYTES = 8 * 1024 * 1024 * 1024
+const LIMIT_BYTES = 8_000_000_000
 
-const formatGiB = (bytes: number) => `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GiB`
-const formatMiB = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(0)} MiB`
-const formatSignedMiB = (bytes: number) => `${bytes >= 0 ? "+" : ""}${(bytes / 1024 / 1024).toFixed(0)} MiB`
+const formatGB = (bytes: number) => `${(bytes / 1_000_000_000).toFixed(2)} GB`
+const formatMB = (bytes: number) => `${(bytes / 1_000_000).toFixed(0)} MB`
+const formatSignedMB = (bytes: number) => `${bytes >= 0 ? "+" : ""}${(bytes / 1_000_000).toFixed(0)} MB`
 
 async function main() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -31,17 +31,17 @@ async function main() {
   console.log("")
   console.log("| Metric | Current |")
   console.log("| --- | ---: |")
-  console.log(`| Database size | **${formatGiB(databaseBytes)}** |`)
-  console.log(`| 8 GiB tier used | **${usedPct.toFixed(1)}%** |`)
-  console.log(`| Remaining headroom | **${formatGiB(remainingBytes)}** |`)
-  console.log(`| Change vs prior Sunday | ${previousBytes == null ? "Baseline snapshot" : formatSignedMiB(databaseBytes - previousBytes)} |`)
+  console.log(`| Database size | **${formatGB(databaseBytes)}** |`)
+  console.log(`| 8 GB tier used | **${usedPct.toFixed(1)}%** |`)
+  console.log(`| Remaining headroom | **${formatGB(remainingBytes)}** |`)
+  console.log(`| Change vs prior Sunday | ${previousBytes == null ? "Baseline snapshot" : formatSignedMB(databaseBytes - previousBytes)} |`)
   console.log("")
   console.log("Largest tables:")
   console.log("")
   console.log("| Table | Size |")
   console.log("| --- | ---: |")
   for (const table of data.table_sizes ?? []) {
-    console.log(`| \`${table.table_name}\` | ${formatMiB(Number(table.bytes))} |`)
+    console.log(`| \`${table.table_name}\` | ${formatMB(Number(table.bytes))} |`)
   }
 }
 
