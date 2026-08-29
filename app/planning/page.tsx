@@ -14,21 +14,26 @@ function localityLabel(path: string) {
 }
 
 export default async function PlanningPage() {
-  const localities = (await getLocalitySitemap("planning")).slice(0, 12)
+  const localities = (await getLocalitySitemap("planning")).slice(0, 10)
 
   return <>
     {localities.length ? (
-      <nav className="mx-auto max-w-6xl px-4 pt-6 text-sm text-stone-600 sm:px-6" aria-label="Featured planning localities">
-        <span className="mr-3 font-medium text-stone-800">Explore planning by area:</span>
-        {localities.map((row) => (
-          <Link
-            key={row.canonical_path}
-            className="mr-3 inline-block capitalize hover:text-stone-950 hover:underline"
-            href={row.canonical_path}
-          >
-            {localityLabel(row.canonical_path)}
+      <nav className="mx-auto max-w-6xl px-4 pt-6 text-sm text-stone-600 sm:px-6" aria-label="Popular planning areas">
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-2">
+          <span className="font-medium text-stone-800">Popular planning areas:</span>
+          {localities.map((row) => (
+            <Link
+              key={row.canonical_path}
+              className="inline-block hover:text-stone-950 hover:underline"
+              href={row.canonical_path}
+            >
+              {localityLabel(row.canonical_path)}
+            </Link>
+          ))}
+          <Link className="font-semibold text-emerald-800 hover:text-emerald-950 hover:underline" href="/planning/areas">
+            Browse all areas →
           </Link>
-        ))}
+        </div>
       </nav>
     ) : null}
     <PlanningApplicationsView showCategoryLinks />
