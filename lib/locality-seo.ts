@@ -24,6 +24,27 @@ export async function getLocalitySitemap(surface: "sold_prices" | "planning") {
   return (data || []) as LocalitySitemapRow[]
 }
 
+export async function getPlanningLocalityDirectory() {
+  const sitemap = await getLocalitySitemap("planning")
+  const paths = sitemap.map((row) => row.canonical_path)
+  if (!paths.length) return [] as LocalityMembership[]
+
+  const { data, error } = await getServerSupabase()
+    .from("locality_seo_memberships")
+    .select("canonical_path,county,authority_code,locality_label,locality_slug,evidence")
+    .eq("surface", "planning")
+    .is("left_at", null)
+    .in("canonical_path", paths)
+
+  if (error) {
+    console.warn("Planning locality directory lookup failed.", error.message)
+    return [] as LocalityMembership[]
+  }
+
+  const byPath = new Map((data || []).map((row) => [row.canonical_path, row as LocalityMembership]))
+  return paths.map((path) => byPath.get(path)).filter((row): row is LocalityMembership => Boolean(row))
+}
+
 export async function getPlanningLocalityMembership(authorityCode: string, slug: string) {
   const { data, error } = await getServerSupabase()
     .from("locality_seo_memberships")
