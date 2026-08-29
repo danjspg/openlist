@@ -8,7 +8,7 @@ export const revalidate = 21600
 
 export const metadata: Metadata = {
   title: "Browse Planning Areas Ireland | OpenList",
-  description: "Browse OpenList planning area pages across Ireland, with the busiest areas surfaced first and every featured area available by county.",
+  description: "Browse OpenList planning area pages across Ireland, with areas offering the broadest planning coverage surfaced first and every featured area available by county.",
   alternates: { canonical: "/planning/areas" },
   robots: { index: true, follow: true },
 }
@@ -95,7 +95,7 @@ export default async function PlanningAreasPage() {
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">Planning in Ireland</p>
           <h1 className="mt-3 text-4xl font-semibold tracking-tight text-stone-950 sm:text-5xl">Browse planning by area</h1>
           <p className="mt-4 text-base leading-7 text-stone-600 sm:text-lg">
-            Start with the areas seeing the most planning activity, or browse every featured area by county.
+            Start with areas that have the broadest planning coverage, or browse every featured area by county.
           </p>
           <p className="mt-3 text-sm text-stone-500">
             {nf.format(entries.length)} area pages with recent planning activity, decisions and notable local developments.
@@ -103,12 +103,12 @@ export default async function PlanningAreasPage() {
         </header>
 
         {featured.length ? (
-          <section className="mt-9 rounded-3xl border border-emerald-100 bg-emerald-50/40 p-5 sm:p-6" aria-labelledby="most-active-areas">
+          <section className="mt-9 rounded-3xl border border-emerald-100 bg-emerald-50/40 p-5 sm:p-6" aria-labelledby="featured-areas">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-800">Most active now</p>
-                <h2 id="most-active-areas" className="mt-1 text-2xl font-semibold tracking-tight text-stone-950">Busy planning areas</h2>
-                <p className="mt-1 text-sm text-stone-600">Ranked by current planning activity in the featured area cohort.</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-800">Popular starting points</p>
+                <h2 id="featured-areas" className="mt-1 text-2xl font-semibold tracking-tight text-stone-950">Planning areas with broad coverage</h2>
+                <p className="mt-1 text-sm text-stone-600">Ranked by the total planning records represented in each area page. These are not live application counts.</p>
               </div>
               <a className="text-sm font-semibold text-emerald-900 hover:underline" href="#all-areas">Browse all areas ↓</a>
             </div>
@@ -122,7 +122,7 @@ export default async function PlanningAreasPage() {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <span className="text-xs font-semibold text-stone-400">#{index + 1}</span>
-                    <span className="text-xs font-medium text-emerald-800">{area.applicationCount ? `${nf.format(area.applicationCount)} active` : "Active area"}</span>
+                    <span className="text-xs font-medium text-emerald-800">{area.applicationCount ? `${nf.format(area.applicationCount)} records` : "Area page"}</span>
                   </div>
                   <h3 className="mt-3 text-lg font-semibold tracking-tight text-stone-950 group-hover:text-emerald-800">{area.label}</h3>
                   <p className="mt-1 text-sm text-stone-500">{area.county}</p>
@@ -139,7 +139,7 @@ export default async function PlanningAreasPage() {
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">Complete directory</p>
                 <h2 id="all-areas-heading" className="mt-1 text-2xl font-semibold tracking-tight text-stone-950">Browse all areas by county</h2>
-                <p className="mt-1 text-sm text-stone-600">Counties are ordered by activity. Every featured area remains available below.</p>
+                <p className="mt-1 text-sm text-stone-600">Counties are ordered by planning record volume. Every featured area remains available below.</p>
               </div>
             </div>
 
@@ -173,7 +173,7 @@ export default async function PlanningAreasPage() {
                           <h3 className="text-lg font-semibold tracking-tight text-stone-950">{group.county}</h3>
                           <span className="text-xs font-medium text-stone-400">{group.areas.length} {group.areas.length === 1 ? "area" : "areas"}</span>
                         </div>
-                        {group.activity ? <p className="mt-1 text-xs text-stone-500">{nf.format(group.activity)} active applications across featured areas</p> : null}
+                        {group.activity ? <p className="mt-1 text-xs text-stone-500">{nf.format(group.activity)} planning records across featured areas</p> : null}
                       </div>
                       <span className="shrink-0 text-sm font-medium text-stone-500">Browse ↓</span>
                     </summary>
@@ -188,7 +188,7 @@ export default async function PlanningAreasPage() {
                                 {hasMultipleAuthorities ? <span className="mt-0.5 block text-xs text-stone-400">{area.authority}</span> : null}
                               </span>
                               <span className="flex shrink-0 items-center gap-3">
-                                {area.applicationCount ? <span className="text-xs text-stone-400">{nf.format(area.applicationCount)} active</span> : null}
+                                {area.applicationCount ? <span className="text-xs text-stone-400">{nf.format(area.applicationCount)} records</span> : null}
                                 <span className="text-stone-400 group-hover:text-stone-700" aria-hidden="true">→</span>
                               </span>
                             </Link>
