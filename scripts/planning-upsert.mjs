@@ -12,6 +12,10 @@ function isRetryablePlanningUpsertError(error) {
   )
 }
 
+function retryDelayMs(attempt) {
+  return Math.min(15000, attempt * attempt * 1500)
+}
+
 async function enqueuePlanningRevalidation(supabase, rows, label, attempt = 1) {
   if (rows.length === 0) return []
 
@@ -32,10 +36,10 @@ async function enqueuePlanningRevalidation(supabase, rows, label, attempt = 1) {
     }))
   }
 
-  if (isRetryablePlanningUpsertError(error) && attempt < 4) {
-    const delayMs = attempt * 1000
+  if (isRetryablePlanningUpsertError(error) && attempt < 5) {
+    const delayMs = retryDelayMs(attempt)
     console.warn(
-      `${label}: transient Planning revalidation enqueue failure; retrying ${rows.length} rows in ${delayMs}ms (attempt ${attempt}/3).`
+      `${label}: transient Planning revalidation enqueue failure; retrying ${rows.length} rows in ${delayMs}ms (attempt ${attempt}/4).`
     )
     await sleep(delayMs)
     return enqueuePlanningRevalidation(supabase, rows, label, attempt + 1)
@@ -76,7 +80,11 @@ export async function upsertPlanningBatch(
     return enqueuePlanningRevalidation(supabase, data || [], label)
   }
 
-  if (error.code === "57014" && batch.length > 10) {
+  // Statement timeouts are often caused by a temporarily busy table or an
+  // expensive row-level trigger/index update. Split all the way down to single
+  // rows so one slow record cannot discard the rest of a successfully fetched
+  // authority batch. The upsert is idempotent on authority/reference.
+  if (error.code === "57014" && batch.length > 1) {
     const middle = Math.ceil(batch.length / 2)
     console.warn(
       `${label}: ${batch.length}-row upsert reached the statement timeout; retrying as ${middle} and ${batch.length - middle} rows.`
@@ -86,10 +94,12 @@ export async function upsertPlanningBatch(
     return [...first, ...second]
   }
 
-  if (isRetryablePlanningUpsertError(error) && attempt < 4) {
-    const delayMs = attempt * 1500
+  // A single row cannot be split further, so give transient pressure more time
+  // to clear before failing the workflow. This also covers connection errors.
+  if (isRetryablePlanningUpsertError(error) && attempt < 5) {
+    const delayMs = retryDelayMs(attempt)
     console.warn(
-      `${label}: transient upsert failure; retrying ${batch.length} rows in ${delayMs}ms (attempt ${attempt}/3).`
+      `${label}: transient upsert failure; retrying ${batch.length} rows in ${delayMs}ms (attempt ${attempt}/4).`
     )
     await sleep(delayMs)
     return upsertPlanningBatch(supabase, batch, label, attempt + 1)
