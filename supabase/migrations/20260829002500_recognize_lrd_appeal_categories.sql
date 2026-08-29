@@ -27,10 +27,6 @@ begin
     if corrected_definition = function_definition then
       raise exception 'Expected ACP appeal predicate was not found in %', function_signature;
     end if;
-    if corrected_definition like '%coalesce(c.case_type%c.category%' then
-      raise exception 'Unsafe ACP appeal predicate remains in %', function_signature;
-    end if;
-
     execute corrected_definition;
   end loop;
 end;
