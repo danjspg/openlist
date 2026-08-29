@@ -43,6 +43,15 @@ export async function generateMetadata({
   }
 }
 
+function localityLabel(path: string) {
+  const slug = path.split("/").at(-1) || ""
+  return slug
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ")
+}
+
 export default async function PlanningAuthorityPage({
   params,
 }: PlanningAuthorityPageProps) {
@@ -56,10 +65,11 @@ export default async function PlanningAuthorityPage({
   const localities = (await getLocalitySitemap("planning"))
     .filter((row) => row.canonical_path.startsWith(`/planning/${authority.slug}/areas/`))
     .slice(0, 6)
+
   return <>
     {localities.length ? <nav className="mx-auto max-w-6xl px-4 pt-6 text-sm text-stone-600 sm:px-6" aria-label="Featured planning localities">
-      <span className="mr-3 font-medium text-stone-800">Popular localities:</span>
-      {localities.map((row) => <Link key={row.canonical_path} className="mr-3 hover:text-stone-950 hover:underline" href={row.canonical_path}>{row.canonical_path.split("/").at(-1)?.replaceAll("-", " ")}</Link>)}
+      <span className="mr-3 font-medium text-stone-800">Explore planning by area:</span>
+      {localities.map((row) => <Link key={row.canonical_path} className="mr-3 inline-block hover:text-stone-950 hover:underline" href={row.canonical_path}>{localityLabel(row.canonical_path)}</Link>)}
     </nav> : null}
     <PlanningApplicationsView authority={authority} />
   </>

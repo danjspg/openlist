@@ -1,5 +1,6 @@
 import { unstable_cache } from "next/cache"
 import { PLANNING_DATASET_CACHE_TAG } from "@/lib/dataset-cache"
+import { ACTIVE_PLANNING_STATUSES } from "@/lib/planning-status"
 import { getServerSupabase } from "@/lib/supabase"
 
 export type HomepagePlanningSummary = {
@@ -75,7 +76,7 @@ const getHomepageCountyPlanningStatsCached = unstable_cache(
           .from("planning_applications")
           .select("id", { count: "exact", head: true })
           .in("local_authority_code", authorityCodes)
-          .is("decision_date", null)
+          .in("normalized_status", [...ACTIVE_PLANNING_STATUSES])
 
         if (error) {
           throw new Error(`Homepage ${slug} planning count failed: ${error.message}`)
@@ -85,7 +86,7 @@ const getHomepageCountyPlanningStatsCached = unstable_cache(
       })
     )
   },
-  ["homepage-county-planning-stats", "v1"],
+  ["homepage-county-planning-stats", "v2-active-statuses"],
   { revalidate: 60 * 60 * 6, tags: [PLANNING_DATASET_CACHE_TAG] }
 )
 
@@ -145,3 +146,4 @@ export async function getHomepageCountyPlanningStats() {
 export async function getHomepageNotablePlanning() {
   return getHomepageNotablePlanningCached()
 }
+
