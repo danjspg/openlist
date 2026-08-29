@@ -12,7 +12,18 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
 
 const BATCH_SIZE = Math.max(1, Math.min(Number(process.env.ACP_PROCESS_BATCH_SIZE || 100), 500))
 const MAX_BATCHES = Math.max(1, Math.min(Number(process.env.ACP_PROCESS_MAX_BATCHES || 400), 1000))
+const RETRY_LIMIT = Math.max(1, Math.min(Number(process.env.ACP_UNLINKED_RETRY_LIMIT || 500), 2000))
 const SOURCE_KEY = "acp_cases_2016_onwards"
+
+async function requeueMatchableUnlinkedCases() {
+  const { data, error } = await supabase.rpc("openlist_requeue_matchable_unlinked_acp_cases", {
+    p_limit: RETRY_LIMIT,
+  })
+  if (error) throw new Error(`ACP unlinked-case retry failed: ${error.message}`)
+  const requeued = Number(data || 0)
+  console.log(JSON.stringify({ requeuedMatchableUnlinkedCases: requeued }))
+  return requeued
+}
 
 async function processBatch() {
   const { data, error } = await supabase.rpc("openlist_process_acp_appeal_batch", {
@@ -45,6 +56,7 @@ async function updateSourceState(processing) {
 }
 
 async function main() {
+  const requeuedMatchableUnlinkedCases = await requeueMatchableUnlinkedCases()
   let totalProcessed = 0
   let totalFailed = 0
   let remaining = null
@@ -63,7 +75,7 @@ async function main() {
     if (remaining === 0) break
   }
 
-  const summary = { batches, totalProcessed, totalFailed, remaining }
+  const summary = { batches, totalProcessed, totalFailed, remaining, requeuedMatchableUnlinkedCases }
   await updateSourceState(summary)
   console.log(JSON.stringify(summary, null, 2))
 
