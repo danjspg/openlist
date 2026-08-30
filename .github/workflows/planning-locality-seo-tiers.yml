@@ -1,0 +1,37 @@
+name: Planning locality SEO tiers
+
+on:
+  schedule:
+    - cron: "10 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: planning-locality-seo-tiers
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Refresh locality SEO priority tiers
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          PLANNING_LOCALITY_PRIORITY_TARGET: "500"
+        run: |
+          node scripts/refresh-planning-locality-seo-tiers.mjs | tee locality-seo-tiers.json
+          {
+            echo "## Planning locality SEO tiers"
+            echo
+            cat locality-seo-tiers.json
+          } >> "$GITHUB_STEP_SUMMARY"
