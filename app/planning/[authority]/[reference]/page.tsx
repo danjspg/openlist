@@ -13,6 +13,7 @@ import { isTerminalPlanningStatus, planningStatusLabel } from "@/lib/planning-st
 import { PlanningTimeline } from "@/components/PlanningTimeline"
 import { DecisionDueRelativeText } from "@/components/DecisionDueRelativeText"
 import { PlanningAlertActions } from "@/components/PlanningAlertActions"
+import { constructionStatusLabel } from "@/lib/building-control"
 
 export const revalidate = false
 export const dynamicParams = true
@@ -68,10 +69,11 @@ export default async function PlanningApplicationPage({ params }: Props) {
           <nav className="flex flex-wrap items-center gap-2 text-sm text-stone-500" aria-label="Breadcrumb"><Link href="/planning" className="transition hover:text-stone-900">Planning</Link><span aria-hidden="true">/</span><Link href={`/planning/${authority.slug}`} className="transition hover:text-stone-900">{authority.shortName}</Link><span aria-hidden="true">/</span><span className="font-medium text-stone-800">{application.reference}</span></nav>
           <div data-planning-detail-header className="mt-8 grid gap-7 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
             <div><p className="font-mono text-sm font-semibold uppercase tracking-[0.16em] text-emerald-800">Planning application {application.reference}</p><h1 className="mt-4 max-w-4xl text-3xl font-semibold leading-tight tracking-tight text-stone-950 sm:text-4xl">{proposalTitle}</h1><p className="mt-5 max-w-3xl text-lg leading-8 text-stone-600">{application.location || "The source record does not include a location."}</p></div>
-            {state || decisionDue || application.source_url ? (
+            {state || decisionDue || application.source_url || application.construction_status ? (
               <div data-planning-lifecycle-card className={`rounded-2xl border p-5 ${planningStatePanelClasses(lifecycleTone)}`}>
                 {state ? <div data-planning-lifecycle-status><p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">{state.heading}</p><p className={`mt-3 font-semibold tracking-tight ${terminalNegativeStatus ? "text-lg" : "text-2xl"} ${planningStateTextClasses(state.tone)}`}>{state.label}</p>{councilStatus ? <p className="mt-2 text-xs leading-5 text-stone-500">Council status: {councilStatus}</p> : null}</div> : null}
                 {decisionDue ? <div data-planning-lifecycle-decision className={`${state ? "mt-5 border-t border-stone-200 pt-5" : ""}`}><p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">Decision due</p><time dateTime={decisionDue.date} className="mt-2 block text-lg font-semibold tracking-tight text-stone-950">{decisionDue.formattedDate}</time><DecisionDueRelativeText date={decisionDue.date} /><p className="mt-2 text-xs leading-5 text-stone-500">Council record currently gives this as the decision due date.</p></div> : null}
+                {application.construction_status ? <div data-construction-status className="mt-5 border-t border-stone-200 pt-5"><p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">Construction status</p><p className="mt-2 inline-flex rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sm font-semibold text-sky-900">{constructionStatusLabel(application.construction_status)}</p>{application.construction_evidence_date ? <p className="mt-2 text-xs leading-5 text-stone-600">Official building-control evidence dated {formatPlanningDate(application.construction_evidence_date)}.</p> : null}{application.construction_evidence_detail ? <p className="mt-1 text-xs leading-5 text-stone-500">{application.construction_evidence_detail}</p> : null}{application.construction_evidence_source ? <p className="mt-1 text-xs leading-5 text-stone-500">Source: {application.construction_evidence_source}</p> : null}</div> : null}
                 <PlanningAlertActions applicationId={application.id} returnPath={canonicalPath} councilUrl={application.source_url} allowNewAlerts={allowNewAlerts} />
               </div>
             ) : null}

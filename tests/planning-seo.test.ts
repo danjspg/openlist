@@ -175,7 +175,7 @@ test("robots and cached routes expose the bounded priority-eligible notable site
 
 test("classification migration preserves press enrichment and separates priority eligibility", async () => {
   const migration = await source(
-    "supabase/migrations/20260828105549_add_planning_notable_classification_metadata.sql"
+    "supabase/migrations/20260828115522_add_planning_notable_classification_metadata.sql"
   )
   assert.match(migration, /notable_categories text\[\]/)
   assert.match(migration, /classification_reasons jsonb/)

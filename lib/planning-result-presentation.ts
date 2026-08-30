@@ -31,6 +31,7 @@ export function planningResultRecord(application: PlanningApplication): Planning
     latestEvent: latestPlanningLifecycleEvent(application, councilDecision, appealDecision),
     detailHref: authority ? planningApplicationPath(authority, application.reference) : null,
     coordinates: planningGridToWgs84(application),
+    constructionStatus: application.construction_status ?? null,
   }
 }
 

@@ -13,7 +13,8 @@ export type PlanningPublicCategory = {
 
 export const PLANNING_PUBLIC_CATEGORIES: PlanningPublicCategory[] = [
   { slug: "padel", label: "Padel planning applications", shortLabel: "Padel", description: "Padel clubs, courts and related leisure developments in Irish planning applications." },
-  { slug: "large-residential", label: "Large residential developments", shortLabel: "Large residential", description: "Significant housing, apartment and residential schemes identified from Irish planning applications." },
+  { slug: "residential-development", label: "Residential development", shortLabel: "Residential development", description: "Housing, apartment and residential schemes of 10 to 49 homes identified from Irish planning applications." },
+  { slug: "large-residential", label: "Large residential development", shortLabel: "Large residential development", description: "Housing, apartment and residential schemes of 50 or more homes identified from Irish planning applications." },
   { slug: "wind-farms", label: "Wind farm planning applications", shortLabel: "Wind farms", description: "Wind farms, turbines and related wind-energy planning applications across Ireland." },
   { slug: "solar-energy", label: "Solar energy planning applications", shortLabel: "Solar energy", description: "Solar farms, photovoltaic arrays and related solar-energy planning applications." },
   { slug: "battery-storage", label: "Battery storage planning applications", shortLabel: "Battery storage", description: "Battery energy storage systems and grid-scale battery developments." },
@@ -61,6 +62,7 @@ function keywordFlags(proposal: string | null) {
 function matchesCategory(slug: string, row: PlanningPublicCategoryIndexRow) {
   const categories = new Set(row.categories)
   if (slug === "padel") return Boolean(row.keywordFlags & KEYWORD_PADEL)
+  if (slug === "residential-development") return categories.has("residential")
   if (slug === "large-residential") return categories.has("residential-large")
   if (slug === "student-accommodation") return categories.has("student-accommodation")
   if (slug === "wind-farms") return categories.has("energy") && Boolean(row.keywordFlags & KEYWORD_WIND)
@@ -77,49 +79,73 @@ function matchesCategory(slug: string, row: PlanningPublicCategoryIndexRow) {
   return false
 }
 
-const loadPriorityNotableIndex = unstable_cache(async (): Promise<PlanningPublicCategoryIndexRow[]> => {
+const loadNotableIndex = unstable_cache(async (includeOlder = false): Promise<PlanningPublicCategoryIndexRow[]> => {
   const supabase = getServerSupabase()
-  const notableRows: Array<{ application_id: string; display_name: string | null; notable_categories: string[] | null }> = []
-  for (let offset = 0; offset < 5000; offset += 1000) {
-    const { data, error } = await supabase
-      .from("planning_seo_notable")
-      .select("application_id,display_name,notable_categories")
-      .eq("active", true)
-      .eq("priority_eligible", true)
-      .range(offset, offset + 999)
-    if (error) throw new Error(`Planning public categories metadata lookup failed: ${error.message}`)
-    const rows = (data ?? []) as typeof notableRows
-    notableRows.push(...rows)
-    if (rows.length < 1000) break
+  const { data, error } = await supabase.rpc("openlist_planning_public_category_index", {
+    p_include_older: includeOlder,
+    p_limit: 50000,
+  })
+  if (error) {
+    if (error.code === "PGRST202" || error.message.includes("Could not find the function")) {
+      return loadLegacyNotableIndex(includeOlder)
+    }
+    throw new Error(`Planning public categories index lookup failed: ${error.message}`)
   }
-  if (!notableRows.length) return []
+  const rows = (data ?? []) as Array<{
+    application_id: string
+    proposal: string | null
+    local_authority_code: string
+    registration_date: string | null
+    display_name: string | null
+    notable_categories: string[] | null
+  }>
 
-  const notableById = new Map(notableRows.map((row) => [row.application_id, row]))
-  const ids = [...notableById.keys()]
-  const applications: Array<{ id: string; proposal: string | null; local_authority_code: string; registration_date: string | null }> = []
-  for (let offset = 0; offset < ids.length; offset += 200) {
-    const { data, error } = await supabase
-      .from("planning_applications")
-      .select("id,proposal,local_authority_code,registration_date")
-      .in("id", ids.slice(offset, offset + 200))
-    if (error) throw new Error(`Planning public categories index lookup failed: ${error.message}`)
-    applications.push(...((data ?? []) as typeof applications))
-  }
-
-  return applications
-    .map((application) => {
-      const notable = notableById.get(application.id)!
+  return rows
+    .map((row) => {
       return {
-        applicationId: application.id,
-        localAuthorityCode: application.local_authority_code,
-        registrationDate: application.registration_date,
-        displayName: notable.display_name,
-        categories: Array.isArray(notable.notable_categories) ? notable.notable_categories.map(String) : [],
-        keywordFlags: keywordFlags(application.proposal),
+        applicationId: row.application_id,
+        localAuthorityCode: row.local_authority_code,
+        registrationDate: row.registration_date,
+        displayName: row.display_name,
+        categories: Array.isArray(row.notable_categories) ? row.notable_categories.map(String) : [],
+        keywordFlags: keywordFlags(row.proposal),
       }
     })
     .sort((a, b) => String(b.registrationDate || "").localeCompare(String(a.registrationDate || "")))
-}, ["planning-public-categories", "v3"], { revalidate: 60 * 60 * 6, tags: [PLANNING_DATASET_CACHE_TAG] })
+}, ["planning-public-categories", "v4-history"], { revalidate: 60 * 60 * 6, tags: [PLANNING_DATASET_CACHE_TAG] })
+
+async function loadLegacyNotableIndex(includeOlder: boolean): Promise<PlanningPublicCategoryIndexRow[]> {
+  const supabase = getServerSupabase()
+  let notableQuery = supabase
+    .from("planning_seo_notable")
+    .select("application_id,display_name,notable_categories")
+    .eq("active", true)
+    .limit(5000)
+  if (!includeOlder) notableQuery = notableQuery.eq("priority_eligible", true)
+  const { data: notableRows, error: notableError } = await notableQuery
+  if (notableError) throw new Error(`Planning public categories compatibility lookup failed: ${notableError.message}`)
+
+  const metadata = (notableRows ?? []) as Array<{ application_id: string; display_name: string | null; notable_categories: string[] | null }>
+  const notableById = new Map(metadata.map((row) => [row.application_id, row]))
+  const applications: Array<{ id: string; proposal: string | null; local_authority_code: string; registration_date: string | null }> = []
+  const ids = [...notableById.keys()]
+  for (let offset = 0; offset < ids.length; offset += 200) {
+    const { data, error } = await supabase.from("planning_applications").select("id,proposal,local_authority_code,registration_date").in("id", ids.slice(offset, offset + 200))
+    if (error) throw new Error(`Planning public categories compatibility hydration failed: ${error.message}`)
+    applications.push(...((data ?? []) as typeof applications))
+  }
+  return applications.map((application) => {
+    const notable = notableById.get(application.id)!
+    return {
+      applicationId: application.id,
+      localAuthorityCode: application.local_authority_code,
+      registrationDate: application.registration_date,
+      displayName: notable.display_name,
+      categories: Array.isArray(notable.notable_categories) ? notable.notable_categories.map(String) : [],
+      keywordFlags: keywordFlags(application.proposal),
+    }
+  }).sort((a, b) => String(b.registrationDate || "").localeCompare(String(a.registrationDate || "")))
+}
 
 async function loadApplications(ids: string[]) {
   if (!ids.length) return new Map<string, PlanningApplication>()
@@ -139,17 +165,17 @@ async function loadApplications(ids: string[]) {
 export async function getPlanningPublicCategorySummary(slug: string) {
   const category = PLANNING_PUBLIC_CATEGORIES.find((item) => item.slug === slug)
   if (!category) return null
-  const rows = await loadPriorityNotableIndex()
+  const rows = await loadNotableIndex(false)
   return {
     category,
     totalCount: rows.filter((row) => matchesCategory(slug, row)).length,
   }
 }
 
-export async function getPlanningPublicCategory(slug: string) {
+export async function getPlanningPublicCategory(slug: string, includeOlder = false) {
   const category = PLANNING_PUBLIC_CATEGORIES.find((item) => item.slug === slug)
   if (!category) return null
-  const rows = (await loadPriorityNotableIndex()).filter((row) => matchesCategory(slug, row))
+  const rows = (await loadNotableIndex(includeOlder)).filter((row) => matchesCategory(slug, row))
   const authorityCounts = new Map<string, number>()
   for (const row of rows) authorityCounts.set(row.localAuthorityCode, (authorityCounts.get(row.localAuthorityCode) || 0) + 1)
   const authorities = [...authorityCounts.entries()]
@@ -163,11 +189,11 @@ export async function getPlanningPublicCategory(slug: string) {
     const application = applications.get(row.applicationId)
     return application ? [{ application, displayName: row.displayName, categories: row.categories }] : []
   })
-  return { category, rows: hydratedRows, totalCount: rows.length, authorities }
+  return { category, rows: hydratedRows, totalCount: rows.length, authorities, includeOlder }
 }
 
 export async function getPlanningPublicCategorySummaries(minimumCount = 3) {
-  const rows = await loadPriorityNotableIndex()
+  const rows = await loadNotableIndex(false)
   return PLANNING_PUBLIC_CATEGORIES.map((category) => ({
     ...category,
     count: rows.filter((row) => matchesCategory(category.slug, row)).length,

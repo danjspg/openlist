@@ -3,6 +3,7 @@ import assert from "node:assert/strict"
 import {
   classifyPlanningNotability,
   DEFAULT_PLANNING_NOTABLE_THRESHOLDS,
+  extractPlanningScaleSignals,
 } from "../lib/planning-notable-classifier.mjs"
 import {
   evaluatePlanningNotableEligibility,
@@ -79,13 +80,51 @@ test("strong major-project signals override incidental exclusion wording", () =>
 })
 
 test("residential thresholds are configurable and centralised", () => {
-  assert.equal(DEFAULT_PLANNING_NOTABLE_THRESHOLDS.residentialUnits, 20)
+  assert.equal(DEFAULT_PLANNING_NOTABLE_THRESHOLDS.residentialUnits, 10)
+  assert.equal(DEFAULT_PLANNING_NOTABLE_THRESHOLDS.largeResidentialUnits, 50)
   assert.equal(DEFAULT_PLANNING_NOTABLE_THRESHOLDS.studentAccommodationUnits, 50)
-  assert.equal(classifyPlanningNotability(application("Development of 19 dwellings")).notable, false)
-  assert.equal(classifyPlanningNotability(application("Development of 19 dwellings"), {
-    thresholds: { residentialUnits: 15 },
+  assert.equal(classifyPlanningNotability(application("Development of 9 dwellings")).notable, false)
+  assert.equal(classifyPlanningNotability(application("Development of 9 dwellings"), {
+    thresholds: { residentialUnits: 9 },
   }).notable, true)
 })
+
+test("explicit residential totals win over component counts", () => {
+  for (const proposal of [
+    "Construction of 41 units comprising of: 23no. 3-Bed Terrace House Units and 18no. apartment units",
+    "Development of 41 no. units comprising 23 houses and 18 apartments",
+    "Development of 41 residential units comprising: 23 houses; 18 apartments",
+  ]) {
+    const signals = extractPlanningScaleSignals(proposal)
+    assert.equal(signals.residentialUnits, 41, proposal)
+    assert.equal(signals.explicitResidentialUnits, 41, proposal)
+  }
+})
+
+test("a validated scheme total is not overridden by a larger referenced component", () => {
+  const signals = extractPlanningScaleSignals(
+    "Development of 41 residential units comprising 23 houses and 18 apartments, beside 60 apartments previously approved on adjoining lands"
+  )
+  assert.equal(signals.explicitResidentialUnits, 41)
+  assert.equal(signals.componentResidentialUnits, 60)
+  assert.equal(signals.residentialUnits, 41)
+})
+
+test("historical amendment counts are not treated as resulting scheme totals", () => {
+  const signals = extractPlanningScaleSignals(
+    "Amendments to previously approved development of 120 units comprising the omission of 8 apartments and reconfiguration of parking"
+  )
+  assert.equal(signals.explicitResidentialUnits, 0)
+  assert.equal(signals.residentialUnits, 8)
+})
+
+for (const [units, expectedCategory] of [[9, null], [10, "residential"], [49, "residential"], [50, "residential-large"], [99, "residential-large"], [100, "residential-large"]]) {
+  test(`${units} residential units use the expected public category`, () => {
+    const result = classifyPlanningNotability(application(`Development of ${units} dwellings`))
+    assert.equal(result.categories.find((category) => category.startsWith("residential")) || null, expectedCategory)
+    assert.equal(result.signals.residentialUnits, units)
+  })
+}
 
 test("classifier output is deterministic and idempotent", () => {
   const row = application("A 120-home development with a new railway station")
@@ -138,6 +177,43 @@ test("retention uses the latest meaningful outcome and a configurable month cuto
     appeal_decision_date: "2026-01-01",
   }, null, { structurallyNotable: true, asOf: eligibilityAsOf })
   assert.equal(eligibility.latestOutcomeDate, "2026-01-01")
+  assert.equal(eligibility.priorityEligible, true)
+})
+
+for (const [units, decisionDate, expected, months] of [
+  [10, "2025-08-28", true, 12],
+  [10, "2025-08-27", false, 12],
+  [50, "2024-08-28", true, 24],
+  [50, "2024-08-27", false, 24],
+  [100, "2021-08-28", true, 60],
+  [100, "2021-08-27", false, 60],
+]) {
+  test(`${units}-unit retention boundary is ${months} months`, () => {
+    const eligibility = evaluatePlanningNotableEligibility({
+      normalized_status: "final_grant",
+      decision_date: decisionDate,
+    }, null, { structurallyNotable: true, residentialUnits: units, asOf: eligibilityAsOf })
+    assert.equal(eligibility.priorityEligible, expected)
+    assert.equal(eligibility.retentionMonths, months)
+  })
+}
+
+test("active residential applications override an expired scale window", () => {
+  const eligibility = evaluatePlanningNotableEligibility({
+    normalized_status: "under_assessment",
+    decision_date: "2018-01-01",
+  }, null, { structurallyNotable: true, residentialUnits: 10, asOf: eligibilityAsOf })
+  assert.equal(eligibility.priorityEligible, true)
+  assert.equal(eligibility.reason, "active-structural")
+})
+
+test("latest meaningful lifecycle event extends retention", () => {
+  const eligibility = evaluatePlanningNotableEligibility({
+    normalized_status: "final_grant",
+    decision_date: "2020-01-01",
+    latest_lifecycle_event_date: "2026-01-15",
+  }, null, { structurallyNotable: true, residentialUnits: 10, asOf: eligibilityAsOf })
+  assert.equal(eligibility.latestOutcomeDate, "2026-01-15")
   assert.equal(eligibility.priorityEligible, true)
 })
 

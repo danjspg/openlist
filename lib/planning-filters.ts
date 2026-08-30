@@ -1,6 +1,6 @@
 import type { PlanningSearchParams } from "@/lib/planning"
 
-export type PlanningFilterKey = "area" | "council" | "status" | "type"
+export type PlanningFilterKey = "area" | "council" | "status" | "type" | "construction"
 
 export function buildPlanningFilterFields(
   filters: Required<PlanningSearchParams>,
@@ -9,7 +9,7 @@ export function buildPlanningFilterFields(
 ) {
   const fields: Partial<Record<keyof PlanningSearchParams, string>> = {}
 
-  for (const filterKey of ["q", "area", "council", "status", "type", "sort"] as const) {
+  for (const filterKey of ["q", "area", "council", "status", "type", "construction", "sort"] as const) {
     const nextValue = filterKey === key ? value : filters[filterKey]
     if (nextValue) fields[filterKey] = nextValue
   }

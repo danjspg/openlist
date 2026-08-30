@@ -47,7 +47,7 @@ export async function PlanningApplicationsView({
   const rawSearchParams = await (searchParams || Promise.resolve({}))
   const filters = normalisePlanningSearchParams(rawSearchParams)
   const hasActiveSearch = Boolean(
-    filters.q || filters.area || filters.council || filters.status || filters.type || filters.sort === "oldest"
+    filters.q || filters.area || filters.council || filters.status || filters.type || filters.construction || filters.sort === "oldest"
   )
   const dashboard = await getPlanningDashboard(filters, authority ?? null)
   const completedMonthStats = getCompletedPlanningMonthStats(dashboard.monthStats)
@@ -130,7 +130,7 @@ export async function PlanningApplicationsView({
               </button>
             </div>
 
-            <details className="mt-3 rounded-xl border border-stone-200 bg-white px-4 py-3" open={Boolean(filters.type || filters.sort === "oldest")}>
+            <details className="mt-3 rounded-xl border border-stone-200 bg-white px-4 py-3" open={Boolean(filters.type || filters.construction || filters.sort === "oldest")}>
               <summary className="cursor-pointer text-sm font-semibold text-stone-700">More filters</summary>
               <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:max-w-2xl">
                 <SelectFilter label="Type" name="type" value={filters.type} options={dashboard.typeOptions} />
@@ -143,6 +143,16 @@ export async function PlanningApplicationsView({
                     { value: "oldest", label: "Oldest applications" },
                   ]}
                 />
+                <label className="flex min-h-14 items-center gap-3 rounded-lg border border-stone-300 bg-white px-4 text-sm font-semibold text-stone-800 sm:col-span-2 lg:col-span-1">
+                  <input
+                    type="checkbox"
+                    name="construction"
+                    value="commenced"
+                    defaultChecked={filters.construction === "commenced"}
+                    className="h-5 w-5 rounded border-stone-300 accent-emerald-800"
+                  />
+                  Construction commenced
+                </label>
               </div>
             </details>
 

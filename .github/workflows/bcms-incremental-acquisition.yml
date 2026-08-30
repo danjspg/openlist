@@ -1,0 +1,36 @@
+name: Acquire incremental BCMS records
+
+on:
+  schedule:
+    - cron: "7 7 * * *"
+    - cron: "37 7 * * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        type: choice
+        options: [append, audit]
+        default: append
+
+permissions:
+  contents: read
+concurrency:
+  group: bcms-incremental-acquisition
+  cancel-in-progress: false
+
+jobs:
+  acquire:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: Persist one bounded raw source page
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          MODE="${{ inputs.mode }}"
+          if [[ "${{ github.event_name }}" == "schedule" && "${{ github.event.schedule }}" == "37 7 * * *" ]]; then MODE=audit; fi
+          if [[ "$MODE" == "audit" ]]; then npm run bcms:acquire -- --audit --limit=1000 --pages=10; else npm run bcms:acquire -- --limit=1000 --pages=5; fi

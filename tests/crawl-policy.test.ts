@@ -42,6 +42,16 @@ test("planning filter and unified-search query states are noindex with base cano
     }
   )
   assert.deepEqual(
+    getUtilityCrawlPolicy(
+      "/planning/louth",
+      new URLSearchParams("construction=commenced")
+    ),
+    {
+      canonicalPath: "/planning/louth",
+      robots: "noindex, follow",
+    }
+  )
+  assert.deepEqual(
     getUtilityCrawlPolicy("/search", new URLSearchParams("q=Carrigaline")),
     { canonicalPath: "/search", robots: "noindex, follow" }
   )
@@ -56,6 +66,7 @@ test("planning filter forms preserve human filter state without constructing hre
         council: "",
         status: "Granted",
         type: "",
+        construction: "commenced",
         sort: "oldest",
       },
       "type",
@@ -66,6 +77,7 @@ test("planning filter forms preserve human filter state without constructing hre
       area: "Carrigaline",
       status: "Granted",
       type: "Permission",
+      construction: "commenced",
       sort: "oldest",
     }
   )

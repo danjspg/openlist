@@ -53,6 +53,10 @@ export type PlanningApplication = {
   grid_northing: number | string | null
   source_url: string | null
   updated_at: string | null
+  construction_status?: "commenced" | "completed" | null
+  construction_evidence_date?: string | null
+  construction_evidence_source?: string | null
+  construction_evidence_detail?: string | null
 }
 
 export type PlanningCountStat = {
@@ -124,6 +128,7 @@ export type PlanningSearchParams = {
   council?: string
   status?: string
   type?: string
+  construction?: string
   sort?: string
 }
 
@@ -131,7 +136,7 @@ const PLANNING_CACHE_REVALIDATE_SECONDS = 60 * 60 * 6
 const PLANNING_DETAIL_CACHE_REVALIDATE = false
 const PLANNING_AGGREGATE_CACHE_VERSION = "v11-dataset-publication"
 export const PLANNING_APPLICATION_SELECT =
-  "id,local_authority,local_authority_code,reference,web_reference,application_type,proposal,location,eircode,applicant_name,agent_name,status,normalized_status,decision_text,registration_date,valid_date,decision_date,decision_due_date,final_grant_date,expiry_date,further_information_requested_date,further_information_received_date,withdrawal_date,appeal_lodged_date,appeal_decision_date,appeal_decision_text,appeal_lodged_source,appeal_decision_source,dispatch_date,appeal_notify_date,ward,grid_reference,grid_easting,grid_northing,source_url,updated_at"
+  "id,local_authority,local_authority_code,reference,web_reference,application_type,proposal,location,eircode,applicant_name,agent_name,status,normalized_status,decision_text,registration_date,valid_date,decision_date,decision_due_date,final_grant_date,expiry_date,further_information_requested_date,further_information_received_date,withdrawal_date,appeal_lodged_date,appeal_decision_date,appeal_decision_text,appeal_lodged_source,appeal_decision_source,dispatch_date,appeal_notify_date,ward,grid_reference,grid_easting,grid_northing,source_url,updated_at,construction_status,construction_evidence_date,construction_evidence_source,construction_evidence_detail"
 
 export function formatPlanningDate(value: string | null | undefined) {
   if (!value) return "Not recorded"
@@ -164,6 +169,7 @@ export function normalisePlanningSearchParams(
     council: cleanParam(params.council),
     status: cleanParam(params.status),
     type: cleanParam(params.type),
+    construction: params.construction === "commenced" ? "commenced" : "",
     sort: normalisePlanningSort(params.sort),
   }
 }
@@ -180,12 +186,12 @@ export async function getPlanningDashboard(
     : getAuthorityCodeByOptionLabel(filters.council)
   const aggregateAuthorityCode = authorityCode ?? selectedCouncilCode
   const hasResultFilters = Boolean(
-    filters.q || filters.area || filters.council || filters.status || filters.type
+    filters.q || filters.area || filters.council || filters.status || filters.type || filters.construction
   )
-  const hasFacetFilters = Boolean(filters.q || filters.area || filters.status || filters.type)
+  const hasFacetFilters = Boolean(filters.q || filters.area || filters.status || filters.type || filters.construction)
   const hasApplicationFilters = hasResultFilters || filters.sort === "oldest"
   const shouldLoadFilteredOverview =
-    hasFacetFilters && !filters.q && !filters.status && !filters.type
+    hasFacetFilters && !filters.q && !filters.status && !filters.type && !filters.construction
   const needsNationalCouncilActivity =
     !authority && !selectedCouncilCode && !hasApplicationFilters
 
@@ -238,8 +244,8 @@ export async function getPlanningDashboard(
 
   return {
     authority,
-    aggregateAvailable: overviewResult !== null && !filters.status && !filters.type,
-    totalCount: filters.status || filters.type
+    aggregateAvailable: overviewResult !== null && !filters.status && !filters.type && !filters.construction,
+    totalCount: filters.status || filters.type || filters.construction
       ? searchResult.count
       : hasApplicationFilters
         ? filteredSummary.totalCount
@@ -646,6 +652,10 @@ async function getPlanningSearchResults(
     } else if (applicationTypes.length > 1) {
       query = query.in("application_type", applicationTypes)
     }
+  }
+
+  if (filters.construction === "commenced") {
+    query = query.eq("construction_status", "commenced")
   }
 
   const ascending = filters.sort === "oldest"

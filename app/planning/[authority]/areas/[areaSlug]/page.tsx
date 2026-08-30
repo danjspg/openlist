@@ -28,7 +28,7 @@ export function generateStaticParams() {
   return []
 }
 
-type Props = { params: Promise<{ authority: string; areaSlug: string }> }
+type Props = { params: Promise<{ authority: string; areaSlug: string }>; searchParams: Promise<{ includeOlder?: string; construction?: string }> }
 
 const resolveLocalityPage = cache(async (authoritySlug: string, slug: string) => {
   const authority = getPlanningAuthorityBySlug(authoritySlug)
@@ -58,13 +58,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-export default async function PlanningLocalityPage({ params }: Props) {
+export default async function PlanningLocalityPage({ params, searchParams }: Props) {
   const page = await resolve(params)
   if (!page) notFound()
 
   const { authority, locality, dashboard, recentDecisions, county } = page
-  const notableGroups = await getPlanningLocalityNotableGroups(authority.code, locality)
+  const resolvedSearchParams = await searchParams
+  const includeOlder = resolvedSearchParams.includeOlder === "1"
+  const notableGroups = await getPlanningLocalityNotableGroups(authority.code, locality, includeOlder)
   const searchHref = localitySearchHref(authority.slug, locality)
+  const constructionSearchHref = localitySearchHref(authority.slug, locality, undefined, "commenced")
   const decisionsHref = localitySearchHref(authority.slug, locality, "decision_made")
   const statusStats = localityStatusStats(dashboard.statusStats)
   const typeStats = dashboard.typeStats.slice(0, 6)
@@ -90,6 +93,9 @@ export default async function PlanningLocalityPage({ params }: Props) {
           <nav className="mt-5 flex flex-wrap gap-x-5 gap-y-3 text-sm font-semibold text-stone-700" aria-label={`${locality} planning links`}>
             <Link className="inline-flex min-h-10 items-center hover:text-stone-950 hover:underline" href={searchHref}>
               Search {locality} planning <span aria-hidden="true" className="ml-1">→</span>
+            </Link>
+            <Link className="inline-flex min-h-10 items-center hover:text-stone-950 hover:underline" href={constructionSearchHref}>
+              Construction commenced in {locality} <span aria-hidden="true" className="ml-1">→</span>
             </Link>
             <Link className="inline-flex min-h-10 items-center hover:text-stone-950 hover:underline" href={`/planning/${authority.slug}`}>
               {authority.shortName} planning
@@ -120,6 +126,15 @@ export default async function PlanningLocalityPage({ params }: Props) {
                 Search all {locality} planning <span aria-hidden="true" className="ml-1">→</span>
               </Link>
             </div>
+            <Link
+              href={includeOlder ? `/planning/${authority.slug}/areas/${page.slug}` : `/planning/${authority.slug}/areas/${page.slug}?includeOlder=1`}
+              role="switch"
+              aria-checked={includeOlder}
+              className="mt-4 inline-flex min-h-10 items-center gap-3 rounded-full border border-emerald-200 bg-white px-4 text-sm font-semibold text-stone-800"
+            >
+              <span aria-hidden="true" className={`h-5 w-9 rounded-full p-0.5 ${includeOlder ? "bg-emerald-700" : "bg-stone-300"}`}><span className={`block h-4 w-4 rounded-full bg-white transition ${includeOlder ? "translate-x-4" : ""}`} /></span>
+              Include older applications
+            </Link>
 
             <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {notableGroups.map((group) => (
@@ -233,9 +248,10 @@ export default async function PlanningLocalityPage({ params }: Props) {
   )
 }
 
-function localitySearchHref(authority: string, locality: string, status?: string) {
+function localitySearchHref(authority: string, locality: string, status?: string, construction?: string) {
   const params = new URLSearchParams({ area: locality })
   if (status) params.set("status", status)
+  if (construction) params.set("construction", construction)
   return `/planning/${authority}?${params}`
 }
 

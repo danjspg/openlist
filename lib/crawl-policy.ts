@@ -4,6 +4,7 @@ export const PLANNING_UTILITY_QUERY_KEYS = [
   "council",
   "status",
   "type",
+  "construction",
   "sort",
 ] as const
 

@@ -3,7 +3,7 @@ import test from "node:test"
 import React from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { PlanningTimeline } from "../components/PlanningTimeline"
-import { completionCertificateLabel } from "../lib/building-control"
+import { completionCertificateLabel, deriveConstructionStatus, resolveExactBcmsMatch } from "../lib/building-control"
 import { buildReconstructedPlanningEvents } from "../lib/planning-events"
 
 test("partial completion wording never claims a whole development completed", () => {
@@ -34,4 +34,20 @@ test("timeline explains construction when the planning outcome is missing", () =
   })
   const completeHtml = renderToStaticMarkup(React.createElement(PlanningTimeline, { events: [...completePlanning, ...construction] }))
   assert.doesNotMatch(completeHtml, /Planning outcome not available in OpenList/)
+})
+
+test("exact matching refuses ambiguity and treats unmatched as safe", () => {
+  assert.deepEqual(resolveExactBcmsMatch([], false), { outcome: "unmatched", applicationId: null })
+  assert.deepEqual(resolveExactBcmsMatch(["one", "two"], false), { outcome: "ambiguous", applicationId: null })
+  assert.deepEqual(resolveExactBcmsMatch(["one"], true), { outcome: "ambiguous", applicationId: null })
+  assert.deepEqual(resolveExactBcmsMatch(["one"], false), { outcome: "linked", applicationId: "one" })
+})
+
+test("phased evidence never marks the whole scheme completed", () => {
+  assert.equal(deriveConstructionStatus([{ commencementDate: "2025-01-01", totalPhases: 3, completionCertificateCount: 1, completionUnits: 20 }], 20), "commenced")
+  assert.equal(deriveConstructionStatus([
+    { commencementDate: "2025-01-01", completionCertificateCount: 1, completionUnits: 20 },
+    { commencementDate: "2025-02-01", completionCertificateCount: 1, completionUnits: 20 },
+  ], 40), "commenced")
+  assert.equal(deriveConstructionStatus([{ commencementDate: "2025-01-01", totalPhases: 1, completionCertificateCount: 1, completionUnits: 40 }], 40), "completed")
 })

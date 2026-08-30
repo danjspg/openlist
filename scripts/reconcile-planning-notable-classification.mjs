@@ -44,6 +44,8 @@ export async function runPlanningNotableReconciliation({
   const effectiveFullWindow = Boolean(fullWindow || validate)
   const aggregate = { scanned: 0, notable: 0, changed: 0, created: 0, updated: 0 }
   const categoryCounts = {}
+  const residentialScaleBands = {}
+  const residentialTransitions = {}
   const authorityCounts = {}
   const failures = []
 
@@ -87,6 +89,16 @@ export async function runPlanningNotableReconciliation({
         for (const category of result.classification.categories || []) {
           increment(categoryCounts, category)
         }
+        const units = Number(result.classification?.signals?.residentialUnits) || 0
+        if (units >= 10) {
+          const band = units >= 100 ? "100+" : units >= 50 ? "50-99" : units >= 20 ? "20-49" : "10-19"
+          increment(residentialScaleBands, band)
+          const before = Array.isArray(result.existing?.notable_categories)
+            ? result.existing.notable_categories.filter((category) => category === "residential" || category === "residential-large").sort().join("+") || "none"
+            : "none"
+          const after = result.classification.categories.filter((category) => category === "residential" || category === "residential-large").sort().join("+") || "none"
+          increment(residentialTransitions, `${before}->${after}`)
+        }
       }
     } catch (error) {
       failed = true
@@ -124,6 +136,8 @@ export async function runPlanningNotableReconciliation({
     existingNotableRowsUpdated: aggregate.updated,
     materiallyChangedRows: aggregate.changed,
     categoryCounts,
+    residentialScaleBands,
+    residentialTransitions,
     authorityCounts,
     failures,
     batchesCompleted,
@@ -165,6 +179,8 @@ export async function runPlanningNotableApplyFull({
   }
   const categoryCounts = {}
   const authorityCounts = {}
+  const residentialScaleBands = {}
+  const residentialTransitions = {}
   const failures = []
 
   while (!complete && chunksCompleted < maxChunks) {
@@ -188,6 +204,8 @@ export async function runPlanningNotableApplyFull({
     aggregate.changed += chunk.materiallyChangedRows
     mergeCounts(categoryCounts, chunk.categoryCounts)
     mergeCounts(authorityCounts, chunk.authorityCounts)
+    mergeCounts(residentialScaleBands, chunk.residentialScaleBands)
+    mergeCounts(residentialTransitions, chunk.residentialTransitions)
     failures.push(...chunk.failures.map((failure) => ({
       chunk: chunksCompleted + 1,
       ...failure,
@@ -229,6 +247,8 @@ export async function runPlanningNotableApplyFull({
     materiallyChangedRows: aggregate.changed,
     categoryCounts,
     authorityCounts,
+    residentialScaleBands,
+    residentialTransitions,
     failures,
     complete,
     remainingWork: complete ? "complete" : "resume required",
