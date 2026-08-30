@@ -66,22 +66,39 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${baseUrl}/planning/${authority.slug}/areas` },
   ])
 
-  const aggregatePlanningPlaceRoutes = (await getAggregatePlanningCanonicalPlaces()).map((place) => ({
-    url: `${baseUrl}/planning/areas/${place.slug}`,
-    ...(place.updated_at ? { lastModified: new Date(place.updated_at) } : {}),
-  }))
+  const [aggregatePlacesResult, categoriesResult, applicationsResult] = await Promise.allSettled([
+    getAggregatePlanningCanonicalPlaces(),
+    getPlanningPublicCategorySummaries(3),
+    getPlanningSitemapApplications(RECENT_PLANNING_SITEMAP_LIMIT),
+  ])
 
-  const planningCategoryRoutes = (await getPlanningPublicCategorySummaries(3)).map(
-    (category) => ({ url: `${baseUrl}/planning/categories/${category.slug}` })
-  )
+  if (aggregatePlacesResult.status === "rejected") {
+    console.warn("Aggregate planning place sitemap section unavailable.", aggregatePlacesResult.reason)
+  }
+  if (categoriesResult.status === "rejected") {
+    console.warn("Planning category sitemap section unavailable.", categoriesResult.reason)
+  }
+  if (applicationsResult.status === "rejected") {
+    console.warn("Recent planning application sitemap section unavailable.", applicationsResult.reason)
+  }
 
-  const planningApplications = await getPlanningSitemapApplications(
-    RECENT_PLANNING_SITEMAP_LIMIT
-  )
-  const planningApplicationRoutes = buildPlanningSitemapEntries(
-    planningApplications,
-    baseUrl
-  ).map(({ url, lastModified }) => ({ url, ...(lastModified ? { lastModified } : {}) }))
+  const aggregatePlanningPlaceRoutes = aggregatePlacesResult.status === "fulfilled"
+    ? aggregatePlacesResult.value.map((place) => ({
+        url: `${baseUrl}/planning/areas/${place.slug}`,
+        ...(place.updated_at ? { lastModified: new Date(place.updated_at) } : {}),
+      }))
+    : []
+
+  const planningCategoryRoutes = categoriesResult.status === "fulfilled"
+    ? categoriesResult.value.map((category) => ({ url: `${baseUrl}/planning/categories/${category.slug}` }))
+    : []
+
+  const planningApplicationRoutes = applicationsResult.status === "fulfilled"
+    ? buildPlanningSitemapEntries(applicationsResult.value, baseUrl).map(({ url, lastModified }) => ({
+        url,
+        ...(lastModified ? { lastModified } : {}),
+      }))
+    : []
 
   return [
     ...staticRoutes,
