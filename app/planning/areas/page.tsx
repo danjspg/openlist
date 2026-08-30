@@ -8,7 +8,7 @@ export const revalidate = 21600
 
 export const metadata: Metadata = {
   title: "Browse Planning Areas Ireland | OpenList",
-  description: "Browse OpenList planning area pages across Ireland, with the busiest currently active areas surfaced first and every featured area available by county.",
+  description: "Browse planning areas across Ireland by local authority, with the busiest localities surfaced first and full council-level area directories available.",
   alternates: { canonical: "/planning/areas" },
   robots: { index: true, follow: true },
 }
@@ -17,11 +17,14 @@ type AreaEntry = {
   path: string
   label: string
   county: string
-  authority: string
+  authorityName: string
+  authoritySlug: string
   activeCount: number
 }
 
-type CountyGroup = {
+type AuthorityGroup = {
+  authorityName: string
+  authoritySlug: string
   county: string
   areas: AreaEntry[]
   activity: number
@@ -31,49 +34,36 @@ export default async function PlanningAreasPage() {
   const memberships = await getPlanningLocalityDirectory()
   const nf = new Intl.NumberFormat("en-IE")
 
-  const entries: AreaEntry[] = memberships.map((membership) => {
+  const entries: AreaEntry[] = memberships.flatMap((membership) => {
     const authority = membership.authority_code ? getPlanningAuthorityByCode(membership.authority_code) : null
-    const county = membership.county || (authority ? countyForPlanningAuthority(authority.code) : null) || authority?.shortName || "Other"
-
-    return {
+    if (!authority) return []
+    return [{
       path: membership.canonical_path,
       label: membership.locality_label,
-      county,
-      authority: authority?.shortName || "Planning authority",
+      county: membership.county || countyForPlanningAuthority(authority.code) || authority.shortName,
+      authorityName: authority.shortName,
+      authoritySlug: authority.slug,
       activeCount: membership.activeCount,
-    }
+    }]
   })
 
-  const rankedAreas = [...entries].sort((left, right) =>
-    right.activeCount - left.activeCount ||
-    left.label.localeCompare(right.label, "en-IE", { sensitivity: "base" })
-  )
+  const rankedAreas = [...entries].sort((a, b) => b.activeCount - a.activeCount || a.label.localeCompare(b.label, "en-IE", { sensitivity: "base" }))
   const featured = rankedAreas.slice(0, 8)
 
-  const groupedMap = entries.reduce((map, entry) => {
-    const list = map.get(entry.county) ?? []
+  const grouped = new Map<string, AreaEntry[]>()
+  for (const entry of entries) {
+    const list = grouped.get(entry.authoritySlug) || []
     list.push(entry)
-    map.set(entry.county, list)
-    return map
-  }, new Map<string, AreaEntry[]>())
+    grouped.set(entry.authoritySlug, list)
+  }
 
-  const groups: CountyGroup[] = [...groupedMap.entries()]
-    .map(([county, areas]) => ({
-      county,
-      areas: [...areas].sort((left, right) =>
-        right.activeCount - left.activeCount ||
-        left.label.localeCompare(right.label, "en-IE", { sensitivity: "base" })
-      ),
-      activity: areas.reduce((sum, area) => sum + area.activeCount, 0),
-    }))
-    .sort((left, right) =>
-      right.activity - left.activity ||
-      left.county.localeCompare(right.county, "en-IE", { sensitivity: "base" })
-    )
-
-  const alphabeticalGroups = [...groups].sort((left, right) =>
-    left.county.localeCompare(right.county, "en-IE", { sensitivity: "base" })
-  )
+  const groups: AuthorityGroup[] = [...grouped.values()].map((areas) => ({
+    authorityName: areas[0].authorityName,
+    authoritySlug: areas[0].authoritySlug,
+    county: areas[0].county,
+    areas: [...areas].sort((a, b) => b.activeCount - a.activeCount || a.label.localeCompare(b.label, "en-IE", { sensitivity: "base" })),
+    activity: areas.reduce((sum, area) => sum + area.activeCount, 0),
+  })).sort((a, b) => b.activity - a.activity || a.authorityName.localeCompare(b.authorityName, "en-IE", { sensitivity: "base" }))
 
   return (
     <main className="min-h-screen bg-stone-50 text-stone-900">
@@ -87,118 +77,58 @@ export default async function PlanningAreasPage() {
         <header className="mt-6 max-w-3xl">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">Planning in Ireland</p>
           <h1 className="mt-3 text-4xl font-semibold tracking-tight text-stone-950 sm:text-5xl">Browse planning by area</h1>
-          <p className="mt-4 text-base leading-7 text-stone-600 sm:text-lg">
-            Start with the areas seeing the most active planning applications now, or browse every featured area by county.
-          </p>
-          <p className="mt-3 text-sm text-stone-500">
-            {nf.format(entries.length)} area pages with recent planning activity, decisions and notable local developments.
-          </p>
+          <p className="mt-4 text-base leading-7 text-stone-600 sm:text-lg">Start with busy areas, then choose a planning authority to browse its complete locality directory.</p>
+          <p className="mt-3 text-sm text-stone-500">{nf.format(entries.length)} area pages with recent planning activity, decisions and notable local developments.</p>
         </header>
 
         {featured.length ? (
           <section className="mt-9 rounded-3xl border border-emerald-100 bg-emerald-50/40 p-5 sm:p-6" aria-labelledby="most-active-areas">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-800">Most active now</p>
-                <h2 id="most-active-areas" className="mt-1 text-2xl font-semibold tracking-tight text-stone-950">Busy planning areas</h2>
-                <p className="mt-1 text-sm text-stone-600">Ranked by applications currently in OpenList&apos;s canonical active planning states.</p>
-              </div>
-              <a className="text-sm font-semibold text-emerald-900 hover:underline" href="#all-areas">Browse all areas ↓</a>
-            </div>
-
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-800">Most active now</p>
+            <h2 id="most-active-areas" className="mt-1 text-2xl font-semibold tracking-tight text-stone-950">Busy planning areas</h2>
             <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {featured.map((area, index) => (
-                <Link
-                  key={area.path}
-                  href={area.path}
-                  className="group rounded-2xl border border-stone-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md"
-                >
+                <Link key={area.path} href={area.path} className="group rounded-2xl border border-stone-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md">
                   <div className="flex items-start justify-between gap-3">
                     <span className="text-xs font-semibold text-stone-400">#{index + 1}</span>
                     <span className="text-xs font-medium text-emerald-800">{nf.format(area.activeCount)} active</span>
                   </div>
                   <h3 className="mt-3 text-lg font-semibold tracking-tight text-stone-950 group-hover:text-emerald-800">{area.label}</h3>
-                  <p className="mt-1 text-sm text-stone-500">{area.county}</p>
-                  <p className="mt-4 text-sm font-medium text-stone-700">View area →</p>
+                  <p className="mt-1 text-sm text-stone-500">{area.authorityName}</p>
                 </Link>
               ))}
             </div>
           </section>
         ) : null}
 
-        {groups.length ? (
-          <section id="all-areas" className="mt-10 scroll-mt-6" aria-labelledby="all-areas-heading">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">Complete directory</p>
-                <h2 id="all-areas-heading" className="mt-1 text-2xl font-semibold tracking-tight text-stone-950">Browse all areas by county</h2>
-                <p className="mt-1 text-sm text-stone-600">Counties are ordered by current active planning activity. Every featured area remains available below.</p>
-              </div>
-            </div>
+        <section className="mt-10" aria-labelledby="browse-by-authority">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">Complete directory</p>
+          <h2 id="browse-by-authority" className="mt-1 text-2xl font-semibold tracking-tight text-stone-950">Browse by planning authority</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-stone-600">Each authority page contains its full area list. The hub shows only the busiest localities so the directory stays useful and crawlable as coverage grows.</p>
 
-            <nav className="mt-5 flex gap-2 overflow-x-auto pb-2 text-sm" aria-label="Jump to county">
-              {alphabeticalGroups.map((group) => (
-                <a
-                  key={group.county}
-                  href={`#county-${group.county.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
-                  className="whitespace-nowrap rounded-full border border-stone-200 bg-white px-3 py-1.5 font-medium text-stone-600 hover:border-stone-300 hover:text-stone-950"
-                >
-                  {group.county}
-                </a>
-              ))}
-            </nav>
-
-            <div className="mt-4 space-y-3">
-              {groups.map((group, groupIndex) => {
-                const hasMultipleAuthorities = new Set(group.areas.map((area) => area.authority)).size > 1
-                const countyId = `county-${group.county.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`
-
-                return (
-                  <details
-                    key={group.county}
-                    id={countyId}
-                    open={groupIndex < 5}
-                    className="scroll-mt-6 rounded-2xl border border-stone-200 bg-white shadow-sm open:border-stone-300"
-                  >
-                    <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 marker:content-none">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                          <h3 className="text-lg font-semibold tracking-tight text-stone-950">{group.county}</h3>
-                          <span className="text-xs font-medium text-stone-400">{group.areas.length} {group.areas.length === 1 ? "area" : "areas"}</span>
-                        </div>
-                        <p className="mt-1 text-xs text-stone-500">{nf.format(group.activity)} active applications across featured areas</p>
-                      </div>
-                      <span className="shrink-0 text-sm font-medium text-stone-500">Browse ↓</span>
-                    </summary>
-
-                    <div className="border-t border-stone-100 px-5 pb-2">
-                      <ul className="divide-y divide-stone-100">
-                        {group.areas.map((area) => (
-                          <li key={area.path}>
-                            <Link className="group flex min-h-14 items-center justify-between gap-4 py-3" href={area.path}>
-                              <span className="min-w-0">
-                                <span className="block font-medium text-stone-800 group-hover:text-emerald-800 group-hover:underline">{area.label}</span>
-                                {hasMultipleAuthorities ? <span className="mt-0.5 block text-xs text-stone-400">{area.authority}</span> : null}
-                              </span>
-                              <span className="flex shrink-0 items-center gap-3">
-                                <span className="text-xs text-stone-400">{nf.format(area.activeCount)} active</span>
-                                <span className="text-stone-400 group-hover:text-stone-700" aria-hidden="true">→</span>
-                              </span>
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </details>
-                )
-              })}
-            </div>
-          </section>
-        ) : (
-          <div className="mt-10 rounded-2xl border border-stone-200 bg-white p-6 text-stone-600">
-            Planning area navigation is temporarily unavailable. You can still search all planning applications from the main Planning page.
+          <div className="mt-6 grid gap-4 lg:grid-cols-2">
+            {groups.map((group) => (
+              <article key={group.authoritySlug} className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h3 className="text-lg font-semibold tracking-tight text-stone-950">{group.authorityName}</h3>
+                    <p className="mt-1 text-xs text-stone-500">{group.county} · {nf.format(group.areas.length)} areas</p>
+                  </div>
+                  <Link className="shrink-0 text-sm font-semibold text-emerald-800 hover:underline" href={`/planning/${group.authoritySlug}/areas`}>All areas →</Link>
+                </div>
+                <ul className="mt-4 grid gap-x-5 gap-y-2 sm:grid-cols-2">
+                  {group.areas.slice(0, 8).map((area) => (
+                    <li key={area.path}>
+                      <Link className="flex items-center justify-between gap-3 py-1.5 text-sm font-medium text-stone-700 hover:text-emerald-800 hover:underline" href={area.path}>
+                        <span>{area.label}</span>
+                        <span className="shrink-0 text-xs font-normal text-stone-400">{nf.format(area.activeCount)}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </article>
+            ))}
           </div>
-        )}
+        </section>
       </section>
     </main>
   )
