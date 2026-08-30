@@ -11,6 +11,7 @@ import { getHomepageCountyPlanningStats, getHomepageNotablePlanning, getHomepage
 import { planningApplicationPath } from "@/lib/property-intelligence"
 
 export const metadata: Metadata = { title: "Property Research Ireland: Planning & Sold Prices | OpenList", description: "Research any property or area in Ireland. See recorded sale prices, significant planning activity, recent decisions and how an area is changing.", alternates: { canonical: "/" } }
+export const dynamic = "force-dynamic"
 export const revalidate = 21600
 
 const places = [["dublin","Co. Dublin"],["cork","Co. Cork"],["galway","Co. Galway"],["limerick","Co. Limerick"],["waterford","Co. Waterford"],["kildare","Co. Kildare"],["wicklow","Co. Wicklow"],["meath","Co. Meath"]] as const
