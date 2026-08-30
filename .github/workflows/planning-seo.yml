@@ -105,6 +105,9 @@ jobs:
           node --import tsx scripts/report-planning-seo.mts "${qa_args[@]}" | tee -a planning-seo-report.txt || \
             echo "Planning/Search Console dashboard section unavailable because reporting failed." | tee -a planning-seo-report.txt
           echo >> planning-seo-report.txt
+          node scripts/report-locality-seo-tiers.mjs | tee -a planning-seo-report.txt || \
+            echo "Planning locality tier performance unavailable because reporting failed." | tee -a planning-seo-report.txt
+          echo >> planning-seo-report.txt
           node --import tsx scripts/report-vercel-analytics.mts | tee -a planning-seo-report.txt
           node --import tsx scripts/report-openlist-dashboard.mts --report planning-seo-report.txt > openlist-dashboard.md
           cat openlist-dashboard.md >> "$GITHUB_STEP_SUMMARY"
