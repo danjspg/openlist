@@ -18,10 +18,10 @@ export async function PlanningCategoryLinks({ embedded = false }: { embedded?: b
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-800">
-              Browse by development type
+              Explore planning
             </p>
             <p className="mt-1 text-sm text-stone-600">
-              Follow notable applications by topic, not just by council or area.
+              Browse notable applications by development type, or jump straight to schemes where construction has commenced.
             </p>
           </div>
           <Link href="/planning/categories" className="text-sm font-semibold text-emerald-900 hover:underline">
@@ -29,6 +29,12 @@ export async function PlanningCategoryLinks({ embedded = false }: { embedded?: b
           </Link>
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
+          <Link
+            href="/planning?construction=commenced"
+            className="inline-flex min-h-10 items-center rounded-lg border border-emerald-500 bg-emerald-800 px-3 text-sm font-semibold text-white transition hover:bg-emerald-900"
+          >
+            Construction commenced
+          </Link>
           {categories.map((category) => (
             <Link
               key={category.slug}
