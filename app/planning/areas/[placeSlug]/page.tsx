@@ -6,6 +6,7 @@ import {
   formatPlanningDate,
   getPlanningLocalityDashboard,
   type PlanningApplication,
+  type PlanningDashboard,
 } from "@/lib/planning"
 import { getPlanningAuthorityByCode } from "@/lib/planning-authorities"
 import { getPlanningCanonicalPlace } from "@/lib/planning-canonical-place"
@@ -24,11 +25,7 @@ type MemberDashboard = {
   authority: NonNullable<ReturnType<typeof getPlanningAuthorityByCode>>
   locality: string
   localitySlug: string
-  dashboard: Awaited<ReturnType<typeof getPlanningLocalityDashboard>> extends infer T
-    ? T extends { dashboard: infer D }
-      ? D
-      : never
-    : never
+  dashboard: PlanningDashboard
 }
 
 async function resolvePlace(placeSlug: string) {
