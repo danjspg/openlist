@@ -1,7 +1,8 @@
 "use client"
 
 import "leaflet/dist/leaflet.css"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { usePathname, useSearchParams } from "next/navigation"
 import type { Map as LeafletMap } from "leaflet"
 import {
   PlanningApplicationList,
@@ -15,12 +16,96 @@ export default function PlanningResultsView({
 }: {
   applications: PlanningResultRecord[]
 }) {
-  const mappableApplications = applications.filter((application) => application.coordinates)
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const [items, setItems] = useState(applications)
   const [view, setView] = useState<"list" | "map">("list")
-  const resultCount = applications.length
+  const [loading, setLoading] = useState(false)
+  const [searchError, setSearchError] = useState<string | null>(null)
+  const [hasMore, setHasMore] = useState(applications.length >= 25)
+  const [confirmedEmpty, setConfirmedEmpty] = useState(applications.length > 0)
+
+  useEffect(() => {
+    setItems(applications)
+    setHasMore(applications.length >= 25)
+    setSearchError(null)
+    setConfirmedEmpty(applications.length > 0)
+  }, [applications])
+
+  const authority = useMemo(() => {
+    const segments = pathname.split("/").filter(Boolean)
+    if (segments[0] !== "planning" || !segments[1] || segments[1] === "applications") return ""
+    return segments[1]
+  }, [pathname])
+
+  const apiParams = useMemo(() => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.delete("_authority")
+    params.delete("_vercel_share")
+    if (authority) params.set("authority", authority)
+    params.set("limit", "25")
+    return params
+  }, [searchParams, authority])
+
+  useEffect(() => {
+    if (applications.length > 0 || searchParams.size === 0) return
+    let cancelled = false
+    const params = new URLSearchParams(apiParams)
+    params.set("offset", "0")
+
+    void fetch(`/api/planning/search?${params.toString()}`, { cache: "no-store" })
+      .then(async (response) => {
+        const payload = await response.json()
+        if (!response.ok) throw new Error(payload.error || "Planning search is temporarily unavailable.")
+        if (cancelled) return
+        const rows = (payload.results ?? []) as PlanningResultRecord[]
+        setItems(rows)
+        setHasMore(Boolean(payload.hasMore))
+        setConfirmedEmpty(rows.length === 0)
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return
+        setSearchError(error instanceof Error ? error.message : "Planning search is temporarily unavailable. Please try again.")
+      })
+
+    return () => { cancelled = true }
+  }, [applications.length, apiParams, searchParams.size])
+
+  const mappableApplications = items.filter((application) => application.coordinates)
+  const resultCount = items.length
   const mappedCount = mappableApplications.length
 
-  if (applications.length === 0) {
+  async function loadMore() {
+    if (loading || !hasMore) return
+    setLoading(true)
+    setSearchError(null)
+    try {
+      const params = new URLSearchParams(apiParams)
+      params.set("offset", String(items.length))
+      const response = await fetch(`/api/planning/search?${params.toString()}`, { cache: "no-store" })
+      const payload = await response.json()
+      if (!response.ok) throw new Error(payload.error || "Planning search is temporarily unavailable.")
+      const rows = (payload.results ?? []) as PlanningResultRecord[]
+      setItems((current) => [...current, ...rows])
+      setHasMore(Boolean(payload.hasMore))
+      setConfirmedEmpty(true)
+    } catch (error) {
+      setSearchError(error instanceof Error ? error.message : "Planning search is temporarily unavailable. Please try again.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (searchError && items.length === 0) {
+    return (
+      <div className="my-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm leading-6 text-amber-950" role="status">
+        <p className="font-semibold">Planning search is temporarily unavailable.</p>
+        <p className="mt-1">Your filters are still selected. Please try the search again in a moment.</p>
+      </div>
+    )
+  }
+
+  if (items.length === 0 && confirmedEmpty) {
     return (
       <div className="py-12 text-center text-sm text-stone-500">
         No planning applications matched those filters.
@@ -28,11 +113,15 @@ export default function PlanningResultsView({
     )
   }
 
+  if (items.length === 0) {
+    return <div className="py-12 text-center text-sm text-stone-500">Checking planning results…</div>
+  }
+
   return (
     <div>
       <div className="flex flex-col gap-3 border-b border-stone-200 py-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm font-medium text-stone-500">
-          {resultCount.toLocaleString("en-IE")} {resultCount === 1 ? "result" : "results"}
+          {resultCount.toLocaleString("en-IE")} {resultCount === 1 ? "result loaded" : "results loaded"}
           {mappedCount > 0 ? (
             <>
               <span aria-hidden="true" className="mx-1.5 text-stone-300">·</span>
@@ -63,8 +152,27 @@ export default function PlanningResultsView({
       {view === "map" && mappedCount > 0 ? (
         <PlanningMap applications={mappableApplications} />
       ) : (
-        <PlanningApplicationList applications={applications} />
+        <PlanningApplicationList applications={items} />
       )}
+
+      {searchError && items.length > 0 ? (
+        <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950" role="status">
+          Could not load more applications just now. Please try again.
+        </p>
+      ) : null}
+
+      {hasMore && view === "list" ? (
+        <div className="border-t border-stone-200 py-5 text-center">
+          <button
+            type="button"
+            onClick={loadMore}
+            disabled={loading}
+            className="min-h-11 rounded-full border border-stone-300 bg-white px-5 text-sm font-semibold text-stone-800 transition hover:border-stone-500 disabled:cursor-wait disabled:opacity-60"
+          >
+            {loading ? "Loading…" : "Load 25 more applications"}
+          </button>
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -147,7 +255,7 @@ function PlanningMap({ applications }: { applications: PlanningResultRecord[] })
         aria-label="Map of planning application results"
       />
       <p className="mt-3 text-xs leading-5 text-stone-500">
-        The map shows the result set above. Applications without reliable coordinates remain in the list.
+        The map shows the results loaded above. Applications without reliable coordinates remain in the list.
       </p>
     </div>
   )
