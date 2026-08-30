@@ -82,7 +82,7 @@ const getPlanningLocalityDirectoryCached = unstable_cache(async () => {
     evidence: row.evidence,
     activeCount: Number(row.active_count || 0),
   }))
-}, ["planning-locality-directory", "v4-snapshot-counts"], { revalidate: 60 * 60 * 6 })
+}, ["planning-locality-directory", "v5-paged-snapshot-counts"], { revalidate: 60 * 60 * 6 })
 
 export async function getPlanningLocalityDirectory() {
   return getPlanningLocalityDirectoryCached()
