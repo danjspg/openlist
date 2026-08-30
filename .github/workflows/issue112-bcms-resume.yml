@@ -34,6 +34,8 @@ jobs:
           import { createClient } from '@supabase/supabase-js'
           const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {auth:{persistSession:false,autoRefreshToken:false}})
 
+          // Construction refresh now skips rows whose derived state is unchanged,
+          // avoiding expensive no-op Planning updates during this historical drain.
           const retryableCodes = new Set(['57014','40P01','55P03'])
           async function rpcWithRetry(name, args, attempts = 5) {
             let current = {...args}
