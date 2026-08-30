@@ -9,6 +9,7 @@ import {
 } from "@/app/planning/applications/PlanningApplicationsPage"
 import { getLocalitySitemap } from "@/lib/locality-seo"
 
+export const dynamic = "force-dynamic"
 export const revalidate = 21600
 export const dynamicParams = true
 
