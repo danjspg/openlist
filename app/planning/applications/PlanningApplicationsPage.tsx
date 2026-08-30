@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { PlanningCategoryLinks } from "@/components/planning/PlanningCategoryLinks"
+import { PlanningLandingExplore } from "@/components/planning/PlanningLandingExplore"
 import PlanningResultsView, {
   type PlanningResultRecord,
 } from "@/components/planning/PlanningResultsView"
@@ -38,11 +38,11 @@ export default function PlanningPage() {
 export async function PlanningApplicationsView({
   searchParams,
   authority,
-  showCategoryLinks = false,
+  showNationalLanding = false,
 }: {
   searchParams?: Promise<PlanningSearchParams>
   authority?: PlanningAuthority
-  showCategoryLinks?: boolean
+  showNationalLanding?: boolean
 }) {
   const rawSearchParams = await (searchParams || Promise.resolve({}))
   const filters = normalisePlanningSearchParams(rawSearchParams)
@@ -105,8 +105,6 @@ export async function PlanningApplicationsView({
               </>
             ) : null}
           </div>
-
-          {showCategoryLinks && !authority && !hasActiveSearch ? <PlanningCategoryLinks embedded /> : null}
 
           <form action={planningPath} className="mt-8 rounded-2xl border border-stone-300 bg-stone-50 p-4 shadow-sm sm:p-5">
             <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(170px,0.28fr)_minmax(170px,0.28fr)_auto]">
@@ -187,6 +185,8 @@ export async function PlanningApplicationsView({
           ) : null}
         </div>
       </section>
+
+      {showNationalLanding && !authority && !hasActiveSearch ? <PlanningLandingExplore /> : null}
 
       <section className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:py-10">
         <section className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm sm:p-6">
