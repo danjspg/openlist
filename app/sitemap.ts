@@ -25,6 +25,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     "",
     "/about",
     "/planning",
+    "/planning/areas",
     "/planning/categories",
     "/search",
     "/terms",
@@ -59,9 +60,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     url: `${baseUrl}/sold-prices/${market.slug}`,
   }))
 
-  const planningAuthorityRoutes = PLANNING_AUTHORITIES.map((authority) => ({
-    url: `${baseUrl}/planning/${authority.slug}`,
-  }))
+  const planningAuthorityRoutes = PLANNING_AUTHORITIES.flatMap((authority) => [
+    { url: `${baseUrl}/planning/${authority.slug}` },
+    { url: `${baseUrl}/planning/${authority.slug}/areas` },
+  ])
 
   const planningCategoryRoutes = (await getPlanningPublicCategorySummaries(3)).map(
     (category) => ({ url: `${baseUrl}/planning/categories/${category.slug}` })
