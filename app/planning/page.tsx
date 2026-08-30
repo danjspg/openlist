@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { PlanningApplicationsView, metadata, revalidate } from "@/app/planning/applications/PlanningApplicationsPage"
 import { getLocalitySitemap } from "@/lib/locality-seo"
+import type { PlanningSearchParams } from "@/lib/planning"
 
 export { metadata, revalidate }
 
@@ -13,7 +14,9 @@ function localityLabel(path: string) {
     .join(" ")
 }
 
-export default async function PlanningPage() {
+type Props = { searchParams: Promise<PlanningSearchParams> }
+
+export default async function PlanningPage({ searchParams }: Props) {
   const localities = (await getLocalitySitemap("planning")).slice(0, 10)
 
   return <>
@@ -36,6 +39,6 @@ export default async function PlanningPage() {
         </div>
       </nav>
     ) : null}
-    <PlanningApplicationsView showCategoryLinks />
+    <PlanningApplicationsView searchParams={searchParams} showCategoryLinks />
   </>
 }
