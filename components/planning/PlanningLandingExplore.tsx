@@ -44,7 +44,7 @@ function shortText(value: string | null, max: number) {
 
 function isDecision(item: HomepageNotablePlanningItem) {
   const text = `${item.status ?? ""} ${item.decisionText ?? ""}`.toLowerCase()
-  return Boolean(item.decisionDate) || /grant|permission|refus|withdraw|invalid|appeal|conditional/.test(text)
+  return Boolean(item.decisionDate) || /grant|permission|refus|withdraw|invalid|incomplete|finalis|appeal|conditional/.test(text)
 }
 
 function diverseNotables(items: HomepageNotablePlanningItem[], limit: number) {
@@ -96,7 +96,9 @@ export async function PlanningLandingExplore() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:py-10">
-      <section aria-labelledby="notable-planning-heading">
+      <PlanningCategoryLinks embedded />
+
+      <section className="mt-12" aria-labelledby="notable-planning-heading">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Notable planning</p>
@@ -159,7 +161,7 @@ export async function PlanningLandingExplore() {
                 return (
                   <Link key={area.canonical_path} href={area.canonical_path} className="group flex items-center justify-between gap-3 rounded-xl border border-stone-200 bg-stone-50 px-3.5 py-3 transition hover:border-emerald-200 hover:bg-emerald-50/50">
                     <span className="min-w-0">
-                      <span className="block truncate text-sm font-semibold text-stone-850 group-hover:text-emerald-900">{area.locality_label}</span>
+                      <span className="block truncate text-sm font-semibold text-stone-800 group-hover:text-emerald-900">{area.locality_label}</span>
                       <span className="mt-0.5 block truncate text-xs text-stone-500">{authority?.shortName ?? area.county ?? "Planning area"}</span>
                     </span>
                     <span className="shrink-0 text-xs font-semibold text-emerald-800">{nf.format(area.activeCount)}</span>
@@ -182,8 +184,6 @@ export async function PlanningLandingExplore() {
           </div>
         </details>
       </section>
-
-      <PlanningCategoryLinks embedded />
     </div>
   )
 }
