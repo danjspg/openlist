@@ -24,12 +24,26 @@ type PlanningLocalityDirectoryRow = LocalityMembership & {
 }
 
 export async function getLocalitySitemap(surface: "sold_prices" | "planning") {
+  if (surface === "planning") return getPlanningLocalitySitemap("priority")
+
   const { data, error } = await getServerSupabase().rpc("openlist_locality_seo_sitemap", {
     p_surface: surface,
-    p_limit: surface === "planning" ? PLANNING_LOCALITY_LIMIT : LOCALITY_COHORT_SIZE,
+    p_limit: LOCALITY_COHORT_SIZE,
   })
   if (error) {
     console.warn(`Locality sitemap selection failed for ${surface}.`, error.message)
+    return [] as LocalitySitemapRow[]
+  }
+  return (data || []) as LocalitySitemapRow[]
+}
+
+export async function getPlanningLocalitySitemap(tier: "priority" | "expanded") {
+  const { data, error } = await getServerSupabase().rpc("openlist_planning_locality_sitemap", {
+    p_tier: tier,
+    p_limit: PLANNING_LOCALITY_LIMIT,
+  })
+  if (error) {
+    console.warn(`Planning locality ${tier} sitemap selection failed.`, error.message)
     return [] as LocalitySitemapRow[]
   }
   return (data || []) as LocalitySitemapRow[]
