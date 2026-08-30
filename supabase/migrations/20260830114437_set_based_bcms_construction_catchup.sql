@@ -1,0 +1,7 @@
+-- Production migration 20260830114437 introduced the first set-based
+-- openlist_bcms_refresh_construction_batch implementation.
+--
+-- That implementation contained a runtime UUID max() error and was immediately
+-- superseded by 20260830114505_fix_set_based_bcms_construction_cursor.sql.
+-- The production migration version is retained here to keep repository history
+-- aligned with Supabase; the following migration contains the canonical function.
