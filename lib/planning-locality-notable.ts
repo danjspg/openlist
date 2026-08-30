@@ -15,18 +15,22 @@ export type PlanningLocalityNotableGroup = {
   applications: PlanningLocalityNotableApplication[]
 }
 
+// Locality cards are a browse surface, not a faceted search result. An
+// application can keep multiple backend categories, but it should appear in
+// only one visual group here. Prefer the most specific user-facing category
+// over generic cross-cutting categories such as infrastructure.
 const CATEGORY_ORDER = [
-  "residential",
   "residential-large",
+  "residential",
   "student-accommodation",
-  "energy",
-  "retail",
   "hospitality",
-  "infrastructure",
-  "transport",
+  "retail",
+  "energy",
   "data-centre",
   "industrial",
   "commercial",
+  "transport",
+  "infrastructure",
   "waste",
   "quarry",
 ]
@@ -54,6 +58,13 @@ export function publicNotableCategoryLabel(category: string, proposal = "") {
   return category.replaceAll("-", " ").replace(/^./, (letter) => letter.toUpperCase())
 }
 
+function primaryLocalityCategory(categories: string[]) {
+  for (const category of CATEGORY_ORDER) {
+    if (categories.includes(category)) return category
+  }
+  return categories[0] ?? null
+}
+
 export function groupPlanningLocalityNotables(
   rows: PlanningLocalityNotableApplication[],
   maxGroups = 6,
@@ -62,15 +73,13 @@ export function groupPlanningLocalityNotables(
   const groups = new Map<string, PlanningLocalityNotableGroup>()
 
   for (const row of rows) {
-    for (const category of row.categories) {
-      const label = publicNotableCategoryLabel(category, row.application.proposal ?? "")
-      const key = `${category}:${label}`
-      const group = groups.get(key) ?? { key, label, applications: [] }
-      if (!group.applications.some((item) => item.application.id === row.application.id)) {
-        group.applications.push(row)
-      }
-      groups.set(key, group)
-    }
+    const category = primaryLocalityCategory(row.categories)
+    if (!category) continue
+    const label = publicNotableCategoryLabel(category, row.application.proposal ?? "")
+    const key = `${category}:${label}`
+    const group = groups.get(key) ?? { key, label, applications: [] }
+    group.applications.push(row)
+    groups.set(key, group)
   }
 
   const categoryRank = (key: string) => {
@@ -141,7 +150,7 @@ const getPlanningLocalityNotablesCached = unstable_cache(
         right.application.reference.localeCompare(left.application.reference)
       )
   },
-  ["planning-locality-notables", "v3-history-toggle"],
+  ["planning-locality-notables", "v4-single-group"],
   { revalidate: 60 * 60 * 6, tags: [PLANNING_DATASET_CACHE_TAG] }
 )
 
