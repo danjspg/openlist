@@ -129,18 +129,23 @@ const getPlanningLocalityNotablesCached = unstable_cache(
       ])
     )
 
-    return applicationRows.flatMap((application) => {
-      const notable = notableByApplicationId.get(application.id)
-      return notable && notable.categories.length
-        ? [{ application, displayName: notable.displayName, categories: notable.categories }]
-        : []
-    })
+    return applicationRows
+      .flatMap((application) => {
+        const notable = notableByApplicationId.get(application.id)
+        return notable && notable.categories.length
+          ? [{ application, displayName: notable.displayName, categories: notable.categories }]
+          : []
+      })
+      .sort((left, right) =>
+        (right.application.registration_date ?? "").localeCompare(left.application.registration_date ?? "") ||
+        right.application.reference.localeCompare(left.application.reference)
+      )
   },
-  ["planning-locality-notables", "v2-history"],
+  ["planning-locality-notables", "v3-history-toggle"],
   { revalidate: 60 * 60 * 6, tags: [PLANNING_DATASET_CACHE_TAG] }
 )
 
 export async function getPlanningLocalityNotableGroups(authorityCode: string, locality: string, includeOlder = false) {
   const rows = await getPlanningLocalityNotablesCached(authorityCode, locality, includeOlder)
-  return groupPlanningLocalityNotables(rows)
+  return groupPlanningLocalityNotables(rows, includeOlder ? 8 : 6, includeOlder ? 6 : 3)
 }
