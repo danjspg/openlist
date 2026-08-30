@@ -14,7 +14,7 @@ import {
 export const revalidate = 21600
 export const dynamicParams = true
 
-type Props = { params: Promise<{ category: string }> }
+type Props = { params: Promise<{ category: string }>; searchParams: Promise<{ includeOlder?: string }> }
 
 export function generateStaticParams() {
   return PLANNING_PUBLIC_CATEGORIES.map((category) => ({ category: category.slug }))
@@ -32,9 +32,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-export default async function PlanningCategoryPage({ params }: Props) {
+export default async function PlanningCategoryPage({ params, searchParams }: Props) {
   const { category: slug } = await params
-  const page = await getPlanningPublicCategory(slug)
+  const includeOlder = (await searchParams).includeOlder === "1"
+  const page = await getPlanningPublicCategory(slug, includeOlder)
   if (!page || page.totalCount < 3) notFound()
 
   const otherCategories = (await getPlanningPublicCategorySummaries(3))
@@ -56,7 +57,7 @@ export default async function PlanningCategoryPage({ params }: Props) {
             {page.category.description}
           </p>
           <p className="mt-3 text-sm font-medium text-stone-600">
-            {formatPlanningCount(page.totalCount)} priority applications currently identified
+            {formatPlanningCount(page.totalCount)} {includeOlder ? "current and older notable" : "priority"} applications identified
           </p>
           <div className="mt-6 flex flex-wrap gap-3 text-sm font-semibold">
             <Link href="/planning" className="inline-flex min-h-10 items-center rounded-lg border border-stone-300 bg-white px-4 text-stone-800 hover:border-stone-500">
@@ -66,6 +67,15 @@ export default async function PlanningCategoryPage({ params }: Props) {
               Browse all development types
             </Link>
           </div>
+          <Link
+            href={includeOlder ? `/planning/categories/${slug}` : `/planning/categories/${slug}?includeOlder=1`}
+            role="switch"
+            aria-checked={includeOlder}
+            className="mt-5 inline-flex min-h-11 items-center gap-3 rounded-full border border-stone-300 bg-white px-4 text-sm font-semibold text-stone-800 hover:border-stone-500"
+          >
+            <span aria-hidden="true" className={`h-5 w-9 rounded-full p-0.5 ${includeOlder ? "bg-emerald-700" : "bg-stone-300"}`}><span className={`block h-4 w-4 rounded-full bg-white transition ${includeOlder ? "translate-x-4" : ""}`} /></span>
+            Include older applications
+          </Link>
         </div>
       </section>
 

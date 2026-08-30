@@ -16,6 +16,7 @@ export type PlanningLocalityNotableGroup = {
 }
 
 const CATEGORY_ORDER = [
+  "residential",
   "residential-large",
   "student-accommodation",
   "energy",
@@ -30,13 +31,10 @@ const CATEGORY_ORDER = [
   "quarry",
 ]
 
-function escapePostgrestLike(value: string) {
-  return value.replace(/[\\%_]/g, (character) => `\\${character}`)
-}
-
 export function publicNotableCategoryLabel(category: string, proposal = "") {
   const text = proposal.toLowerCase()
   if (category === "residential-large") return "Large residential"
+  if (category === "residential") return "Residential development"
   if (category === "student-accommodation") return "Student accommodation"
   if (category === "energy") {
     if (/\bwind farm\b|\bwind turbine/.test(text)) return "Wind farms"
@@ -96,49 +94,31 @@ export function groupPlanningLocalityNotables(
 }
 
 const getPlanningLocalityNotablesCached = unstable_cache(
-  async (authorityCode: string, locality: string): Promise<PlanningLocalityNotableApplication[]> => {
+  async (authorityCode: string, locality: string, includeOlder = false): Promise<PlanningLocalityNotableApplication[]> => {
     const supabase = getServerSupabase()
-    const { data: applications, error: applicationsError } = await supabase
-      .from("planning_applications")
-      .select(PLANNING_APPLICATION_SELECT)
-      .eq("local_authority_code", authorityCode)
-      .ilike("location", `%${escapePostgrestLike(locality)}%`)
-      .order("registration_date", { ascending: false, nullsFirst: false })
-      .order("reference", { ascending: false })
-      .limit(1000)
-
-    if (applicationsError) {
-      console.warn("Planning locality notable application lookup failed.", applicationsError.message)
+    const { data: notableRows, error: notableError } = await supabase.rpc(
+      "openlist_planning_locality_notables",
+      { p_authority_code: authorityCode, p_locality: locality, p_include_older: includeOlder, p_limit: 100 }
+    )
+    if (notableError) {
+      console.warn("Planning locality notable metadata lookup failed.", notableError.message)
       return []
     }
-
-    const applicationRows = (applications ?? []) as PlanningApplication[]
-    if (!applicationRows.length) return []
-
-    const applicationIds = applicationRows.map((application) => application.id)
-    const notableRows: Array<{
+    const metadata = (notableRows ?? []) as Array<{
       application_id: string
       display_name: string | null
       notable_categories: string[] | null
-    }> = []
-
-    for (let offset = 0; offset < applicationIds.length; offset += 200) {
-      const { data, error } = await supabase
-        .from("planning_seo_notable")
-        .select("application_id,display_name,notable_categories")
-        .eq("active", true)
-        .eq("priority_eligible", true)
-        .in("application_id", applicationIds.slice(offset, offset + 200))
-
-      if (error) {
-        console.warn("Planning locality notable metadata lookup failed.", error.message)
-        return []
-      }
-      notableRows.push(...((data ?? []) as typeof notableRows))
-    }
+    }>
+    if (!metadata.length) return []
+    const { data: applications, error: applicationsError } = await supabase
+      .from("planning_applications")
+      .select(PLANNING_APPLICATION_SELECT)
+      .in("id", metadata.map((row) => row.application_id))
+    if (applicationsError) return []
+    const applicationRows = (applications ?? []) as PlanningApplication[]
 
     const notableByApplicationId = new Map(
-      notableRows.map((row) => [
+      metadata.map((row) => [
         row.application_id,
         {
           displayName: row.display_name,
@@ -156,11 +136,11 @@ const getPlanningLocalityNotablesCached = unstable_cache(
         : []
     })
   },
-  ["planning-locality-notables", "v1"],
+  ["planning-locality-notables", "v2-history"],
   { revalidate: 60 * 60 * 6, tags: [PLANNING_DATASET_CACHE_TAG] }
 )
 
-export async function getPlanningLocalityNotableGroups(authorityCode: string, locality: string) {
-  const rows = await getPlanningLocalityNotablesCached(authorityCode, locality)
+export async function getPlanningLocalityNotableGroups(authorityCode: string, locality: string, includeOlder = false) {
+  const rows = await getPlanningLocalityNotablesCached(authorityCode, locality, includeOlder)
   return groupPlanningLocalityNotables(rows)
 }

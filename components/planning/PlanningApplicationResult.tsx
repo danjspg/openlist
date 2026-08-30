@@ -3,6 +3,7 @@ import {
   planningSemanticState,
   planningStateBadgeClasses,
 } from "@/lib/planning-state-presentation"
+import { constructionStatusLabel } from "@/lib/building-control"
 
 export type PlanningResultLifecycleEvent = {
   label: string
@@ -26,6 +27,7 @@ export type PlanningResultRecord = {
   latestEvent: PlanningResultLifecycleEvent | null
   detailHref: string | null
   coordinates: { lat: number; lng: number } | null
+  constructionStatus?: "commenced" | "completed" | null
 }
 
 export function PlanningApplicationList({
@@ -64,11 +66,18 @@ export function PlanningApplicationList({
                   {dateLabel} {formatDate(displayDate)}
                 </p>
               </div>
-              {state ? (
-                <div className="shrink-0">
+              {state || application.constructionStatus ? (
+                <div className="flex shrink-0 flex-wrap gap-2 sm:max-w-56 sm:justify-end">
+                  {state ? (
                   <p className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${planningStateBadgeClasses(state.tone)}`}>
                     {state.label}
                   </p>
+                  ) : null}
+                  {application.constructionStatus ? (
+                    <p className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-900">
+                      {constructionStatusLabel(application.constructionStatus)}
+                    </p>
+                  ) : null}
                 </div>
               ) : null}
             </div>

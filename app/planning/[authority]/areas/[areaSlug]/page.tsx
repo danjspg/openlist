@@ -28,7 +28,7 @@ export function generateStaticParams() {
   return []
 }
 
-type Props = { params: Promise<{ authority: string; areaSlug: string }> }
+type Props = { params: Promise<{ authority: string; areaSlug: string }>; searchParams: Promise<{ includeOlder?: string }> }
 
 const resolveLocalityPage = cache(async (authoritySlug: string, slug: string) => {
   const authority = getPlanningAuthorityBySlug(authoritySlug)
@@ -58,12 +58,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-export default async function PlanningLocalityPage({ params }: Props) {
+export default async function PlanningLocalityPage({ params, searchParams }: Props) {
   const page = await resolve(params)
   if (!page) notFound()
 
   const { authority, locality, dashboard, recentDecisions, county } = page
-  const notableGroups = await getPlanningLocalityNotableGroups(authority.code, locality)
+  const includeOlder = (await searchParams).includeOlder === "1"
+  const notableGroups = await getPlanningLocalityNotableGroups(authority.code, locality, includeOlder)
   const searchHref = localitySearchHref(authority.slug, locality)
   const decisionsHref = localitySearchHref(authority.slug, locality, "decision_made")
   const statusStats = localityStatusStats(dashboard.statusStats)
@@ -120,6 +121,15 @@ export default async function PlanningLocalityPage({ params }: Props) {
                 Search all {locality} planning <span aria-hidden="true" className="ml-1">→</span>
               </Link>
             </div>
+            <Link
+              href={includeOlder ? `/planning/${authority.slug}/areas/${page.slug}` : `/planning/${authority.slug}/areas/${page.slug}?includeOlder=1`}
+              role="switch"
+              aria-checked={includeOlder}
+              className="mt-4 inline-flex min-h-10 items-center gap-3 rounded-full border border-emerald-200 bg-white px-4 text-sm font-semibold text-stone-800"
+            >
+              <span aria-hidden="true" className={`h-5 w-9 rounded-full p-0.5 ${includeOlder ? "bg-emerald-700" : "bg-stone-300"}`}><span className={`block h-4 w-4 rounded-full bg-white transition ${includeOlder ? "translate-x-4" : ""}`} /></span>
+              Include older applications
+            </Link>
 
             <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {notableGroups.map((group) => (

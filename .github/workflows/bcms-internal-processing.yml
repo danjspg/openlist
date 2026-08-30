@@ -1,0 +1,37 @@
+name: Process persisted BCMS records
+
+on:
+  schedule:
+    - cron: "27 7 * * *"
+  workflow_dispatch:
+    inputs:
+      notable_catchup:
+        type: boolean
+        default: false
+      cursor:
+        type: string
+        required: false
+
+permissions:
+  contents: read
+concurrency:
+  group: bcms-internal-processing
+  cancel-in-progress: false
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: Replay bounded internal stages without external requests
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          EXTRA=""
+          if [[ "${{ inputs.notable_catchup }}" == "true" ]]; then EXTRA="--notable-catchup --cursor=${{ inputs.cursor }}"; fi
+          npm run bcms:process -- --normalise-batches=5 --match-batches=5 --batch-size=200 $EXTRA
