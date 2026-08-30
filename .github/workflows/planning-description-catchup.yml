@@ -8,12 +8,13 @@ on:
       limit:
         description: "Truncated descriptions to inspect this run"
         required: false
-        default: "1500"
+        default: "2000"
   push:
     branches: [main]
     paths:
       - "scripts/repair-truncated-planning-descriptions.mjs"
       - "supabase/migrations/20260830151709_add_truncated_planning_description_catchup_batch.sql"
+      - "supabase/migrations/20260830152311_optimize_truncated_description_catchup_selection.sql"
       - ".github/workflows/planning-description-catchup.yml"
 
 permissions:
@@ -43,33 +44,22 @@ jobs:
       - name: Repair truncated official descriptions
         run: |
           mkdir -p artifacts
-          limit="${{ github.event_name == 'workflow_dispatch' && inputs.limit || '1500' }}"
+          limit="${{ github.event_name == 'workflow_dispatch' && inputs.limit || '2000' }}"
           node scripts/repair-truncated-planning-descriptions.mjs --limit="$limit" | tee artifacts/planning-description-catchup.log
 
-      - name: Reclassify recently repaired applications
-        run: |
-          node scripts/reconcile-planning-notable-classification.mjs \
-            --apply \
-            --batch-size=500 \
-            --max-batches=10 \
-            --recent-changed-days=3 \
-            --output=artifacts/planning-description-reclassification.json
-
-      - name: Report remaining truncation backlog
+      - name: Report catch-up progress
         if: always()
         run: |
           node - <<'NODE' >> "$GITHUB_STEP_SUMMARY"
           const { createClient } = require('@supabase/supabase-js')
           const s = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } })
           ;(async () => {
-            const { count: total } = await s.from('planning_applications').select('id', { count: 'exact', head: true }).not('proposal', 'is', null)
             const { data, error } = await s.rpc('openlist_truncated_description_batch', { p_limit: 5000 })
             if (error) throw error
-            const sample = data || []
             console.log('## Planning description catch-up')
             console.log('')
-            console.log(`- Next priority batch available: **${sample.length}**`)
-            console.log(`- Planning rows: **${total ?? '?'}**`)
+            console.log(`- Next priority batch available: **${(data || []).length}**`)
+            console.log('- Repaired rows are queued for notable-planning revalidation.')
             console.log('- Catch-up prioritises 2024+ truncated descriptions before older records.')
           })().catch((error) => { console.error(error); process.exitCode = 1 })
           NODE
