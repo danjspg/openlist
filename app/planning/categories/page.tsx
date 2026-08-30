@@ -3,6 +3,7 @@ import Link from "next/link"
 import { formatPlanningCount } from "@/lib/planning-locality-presentation"
 import { getPlanningPublicCategorySummaries } from "@/lib/planning-public-categories"
 
+export const dynamic = "force-dynamic"
 export const revalidate = 21600
 
 export const metadata: Metadata = {
