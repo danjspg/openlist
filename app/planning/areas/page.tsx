@@ -4,6 +4,7 @@ import { getPlanningLocalityDirectory } from "@/lib/locality-seo"
 import { getPlanningAuthorityByCode } from "@/lib/planning-authorities"
 import { countyForPlanningAuthority } from "@/lib/property-intelligence"
 
+export const dynamic = "force-dynamic"
 export const revalidate = 21600
 
 export const metadata: Metadata = {
