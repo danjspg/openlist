@@ -1,3 +1,5 @@
--- Historical production migration retained for migration-history parity.
--- This migration was applied directly to production before the repository archive was reconciled.
--- Its final effects are superseded by later canonical migrations in this repository, so this archival entry is intentionally a no-op.
+create index if not exists planning_applications_authority_normalized_reference_idx
+on public.planning_applications (
+  local_authority_code,
+  upper(regexp_replace(coalesce(reference,''),'[^A-Za-z0-9]','','g'))
+);
