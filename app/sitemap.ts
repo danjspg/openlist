@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next"
 import { getPlanningSitemapApplications } from "@/lib/planning"
 import { PLANNING_AUTHORITIES } from "@/lib/planning-authorities"
+import { getAggregatePlanningCanonicalPlaces } from "@/lib/planning-canonical-place"
 import { getPlanningPublicCategorySummaries } from "@/lib/planning-public-categories"
 import {
   buildPlanningSitemapEntries,
@@ -65,6 +66,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${baseUrl}/planning/${authority.slug}/areas` },
   ])
 
+  const aggregatePlanningPlaceRoutes = (await getAggregatePlanningCanonicalPlaces()).map((place) => ({
+    url: `${baseUrl}/planning/areas/${place.slug}`,
+    ...(place.updated_at ? { lastModified: new Date(place.updated_at) } : {}),
+  }))
+
   const planningCategoryRoutes = (await getPlanningPublicCategorySummaries(3)).map(
     (category) => ({ url: `${baseUrl}/planning/categories/${category.slug}` })
   )
@@ -80,6 +86,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   return [
     ...staticRoutes,
     ...planningAuthorityRoutes,
+    ...aggregatePlanningPlaceRoutes,
     ...planningCategoryRoutes,
     ...planningApplicationRoutes,
     ...marketRoutes,
