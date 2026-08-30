@@ -31,9 +31,10 @@ const resilientServerFetch: typeof fetch = async (input, init) => {
   const retryableMethod = method === "GET" || method === "HEAD"
   let response = await fetch(input, init)
 
-  for (let attempt = 1; retryableMethod && attempt < 3; attempt += 1) {
-    if (!(await isRetryableSupabaseReadResponse(response))) break
-    await new Promise((resolve) => setTimeout(resolve, attempt * 150))
+  // A single delayed retry is enough to smooth short-lived gateway/database
+  // blips without multiplying traffic during a wider PostgREST outage.
+  if (retryableMethod && (await isRetryableSupabaseReadResponse(response))) {
+    await new Promise((resolve) => setTimeout(resolve, 750 + Math.floor(Math.random() * 250)))
     response = await fetch(input, init)
   }
 
