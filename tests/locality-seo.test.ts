@@ -17,7 +17,7 @@ test("locality canonical paths are authority scoped and stable", () => {
 test("locality routes, sitemaps, robots and migration preserve permanent pages", async () => {
   const read = (path: string) => readFile(new URL(`../${path}`, import.meta.url), "utf8")
   const [migration, robots, soldSitemap, planningSitemap, page, root] = await Promise.all([
-    read("supabase/migrations/20260822110000_add_locality_seo_cohorts.sql"), read("app/robots.ts"), read("app/sitemaps/sold-prices-localities.xml/route.ts"), read("app/sitemaps/planning-localities.xml/route.ts"), read("app/planning/[authority]/areas/[areaSlug]/page.tsx"), read("app/sitemap.ts"),
+    read("supabase/migrations/20260821233030_add_locality_seo_cohorts.sql"), read("app/robots.ts"), read("app/sitemaps/sold-prices-localities.xml/route.ts"), read("app/sitemaps/planning-localities.xml/route.ts"), read("app/planning/[authority]/areas/[areaSlug]/page.tsx"), read("app/sitemap.ts"),
   ])
   assert.match(migration, /locality_seo_memberships/)
   assert.match(migration, /p_min_residence_days integer default 42/)

@@ -10,6 +10,7 @@ import {
 import { PPR_MARKETS } from "@/lib/ppr-markets"
 
 export const revalidate = 86400
+export const dynamic = "force-dynamic"
 
 const POSITIONING_REFRESH_DATE = new Date("2026-08-23T00:00:00Z")
 const POSITIONING_REFRESH_ROUTES = new Set([

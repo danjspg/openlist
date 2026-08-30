@@ -6,41 +6,6 @@ const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-const RETRYABLE_READ_STATUSES = new Set([429, 500, 502, 503, 504])
-
-async function isRetryableSupabaseReadResponse(response: Response) {
-  if (!RETRYABLE_READ_STATUSES.has(response.status)) return false
-  if (response.status !== 500) return true
-
-  try {
-    const body = (await response.clone().text()).toLowerCase()
-    return (
-      body.includes("schema cache") ||
-      body.includes("connection pool") ||
-      body.includes("statement timeout") ||
-      body.includes("timed out") ||
-      body.includes("temporarily unavailable")
-    )
-  } catch {
-    return false
-  }
-}
-
-const resilientServerFetch: typeof fetch = async (input, init) => {
-  const method = String(init?.method ?? "GET").toUpperCase()
-  const retryableMethod = method === "GET" || method === "HEAD"
-  let response = await fetch(input, init)
-
-  // A single delayed retry is enough to smooth short-lived gateway/database
-  // blips without multiplying traffic during a wider PostgREST outage.
-  if (retryableMethod && (await isRetryableSupabaseReadResponse(response))) {
-    await new Promise((resolve) => setTimeout(resolve, 750 + Math.floor(Math.random() * 250)))
-    response = await fetch(input, init)
-  }
-
-  return response
-}
-
 export function getServerSupabase() {
   const serverKey = isConfiguredSupabaseKey(supabaseServiceRoleKey)
     ? supabaseServiceRoleKey
@@ -53,9 +18,6 @@ export function getServerSupabase() {
       auth: {
         persistSession: false,
         autoRefreshToken: false,
-      },
-      global: {
-        fetch: resilientServerFetch,
       },
     }
   )
@@ -70,9 +32,6 @@ export function getServiceRoleSupabase() {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
-    },
-    global: {
-      fetch: resilientServerFetch,
     },
   })
 }

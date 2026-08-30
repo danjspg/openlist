@@ -124,7 +124,7 @@ test("historical result sorting remains database-side and bounded", async () => 
   assert.match(planning, /filters\.sort === "oldest"/)
   assert.match(planning, /\.order\("registration_date", \{ ascending, nullsFirst: false \}\)/)
   assert.match(planning, /\.limit\(25\)/)
-  assert.match(planning, /shouldLoadFilteredOverview = hasFacetFilters && !filters\.q/)
+  assert.match(planning, /shouldLoadFilteredOverview =\s*hasFacetFilters && !filters\.q/)
   assert.match(planning, /Planning filtered aggregation failed; using scoped overview/)
   assert.match(ppr, /sort === "price-high"/)
   assert.match(ppr, /sort === "price-low"/)

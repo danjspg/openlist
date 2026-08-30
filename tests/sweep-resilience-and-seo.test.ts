@@ -6,14 +6,32 @@ async function source(path: string) {
   return readFile(new URL(`../${path}`, import.meta.url), "utf8")
 }
 
-test("server-side Supabase reads retry only safe transient read failures", async () => {
+test("server-side Supabase reads fail fast during database outages", async () => {
   const supabase = await source("lib/supabase.ts")
 
-  assert.match(supabase, /method === "GET" \|\| method === "HEAD"/)
-  assert.match(supabase, /body\.includes\("schema cache"\)/)
-  assert.match(supabase, /body\.includes\("connection pool"\)/)
-  assert.match(supabase, /attempt < 3/)
-  assert.match(supabase, /fetch: resilientServerFetch/)
+  assert.doesNotMatch(supabase, /resilientServerFetch/)
+  assert.doesNotMatch(supabase, /RETRYABLE_READ_STATUSES/)
+  assert.doesNotMatch(supabase, /setTimeout/)
+})
+
+test("the root sitemap does not query Supabase during production builds", async () => {
+  const sitemap = await source("app/sitemap.ts")
+
+  assert.match(sitemap, /export const dynamic = "force-dynamic"/)
+})
+
+test("Planning locality web reads use snapshots instead of scanning applications", async () => {
+  const migration = await source(
+    "supabase/migrations/20260830231451_snapshot_planning_locality_activity.sql"
+  )
+
+  assert.match(migration, /openlist_refresh_planning_locality_activity_counts/)
+  assert.match(migration, /openlist_planning_locality_directory[\s\S]*?m\.active_count/)
+  assert.match(migration, /openlist_planning_locality_sitemap[\s\S]*?m\.evidence->>'latestRegistrationDate'/)
+  assert.doesNotMatch(
+    migration.match(/create or replace function public\.openlist_planning_locality_sitemap[\s\S]*?\$\$;/)?.[0] || "",
+    /from public\.planning_applications/
+  )
 })
 
 test("Planning detail supporting context fails soft", async () => {
@@ -59,8 +77,8 @@ test("exact Planning revalidation retries transient acknowledgement failures", a
 
 test("database migrations preserve deterministic repairs", async () => {
   const [dublin, appeals] = await Promise.all([
-    source("supabase/migrations/20260828213000_optimize_ppr_dublin_district_refresh.sql"),
-    source("supabase/migrations/20260828213500_sanitize_impossible_planning_appeal_dates.sql"),
+    source("supabase/migrations/20260828203057_optimize_ppr_dublin_district_refresh.sql"),
+    source("supabase/migrations/20260828203123_sanitize_impossible_planning_appeal_dates.sql"),
   ])
 
   assert.match(dublin, /upper\(eircode_prefix\), date_of_sale desc/)

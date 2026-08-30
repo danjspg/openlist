@@ -2,13 +2,15 @@ name: Planning description catch-up
 
 on:
   schedule:
-    - cron: "12 * * * *"
+    # Keep this write-heavy backfill away from the daily 05:00-08:00 refresh
+    # window and leave the database idle between bounded batches.
+    - cron: "12 1,13,19 * * *"
   workflow_dispatch:
     inputs:
       limit:
         description: "Truncated descriptions to inspect this run"
         required: false
-        default: "2000"
+        default: "400"
   push:
     branches: [main]
     paths:
@@ -45,7 +47,7 @@ jobs:
       - name: Repair truncated official descriptions
         run: |
           mkdir -p artifacts
-          limit="${{ github.event_name == 'workflow_dispatch' && inputs.limit || '2000' }}"
+          limit="${{ github.event_name == 'workflow_dispatch' && inputs.limit || '400' }}"
           node scripts/repair-truncated-planning-descriptions.mjs --limit="$limit" | tee artifacts/planning-description-catchup.log
 
       - name: Reclassify newly repaired descriptions
