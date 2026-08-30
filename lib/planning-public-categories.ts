@@ -101,16 +101,14 @@ const loadNotableIndex = unstable_cache(async (includeOlder = false): Promise<Pl
   }>
 
   return rows
-    .map((row) => {
-      return {
-        applicationId: row.application_id,
-        localAuthorityCode: row.local_authority_code,
-        registrationDate: row.registration_date,
-        displayName: row.display_name,
-        categories: Array.isArray(row.notable_categories) ? row.notable_categories.map(String) : [],
-        keywordFlags: keywordFlags(row.proposal),
-      }
-    })
+    .map((row) => ({
+      applicationId: row.application_id,
+      localAuthorityCode: row.local_authority_code,
+      registrationDate: row.registration_date,
+      displayName: row.display_name,
+      categories: Array.isArray(row.notable_categories) ? row.notable_categories.map(String) : [],
+      keywordFlags: keywordFlags(row.proposal),
+    }))
     .sort((a, b) => String(b.registrationDate || "").localeCompare(String(a.registrationDate || "")))
 }, ["planning-public-categories", "v4-history"], { revalidate: 60 * 60 * 6, tags: [PLANNING_DATASET_CACHE_TAG] })
 
@@ -172,24 +170,36 @@ export async function getPlanningPublicCategorySummary(slug: string) {
   }
 }
 
-export async function getPlanningPublicCategory(slug: string, includeOlder = false) {
+export async function getPlanningPublicCategory(slug: string, includeOlder = false, authorityCode?: string | null) {
   const category = PLANNING_PUBLIC_CATEGORIES.find((item) => item.slug === slug)
   if (!category) return null
-  const rows = (await loadNotableIndex(includeOlder)).filter((row) => matchesCategory(slug, row))
+  const categoryRows = (await loadNotableIndex(includeOlder)).filter((row) => matchesCategory(slug, row))
   const authorityCounts = new Map<string, number>()
-  for (const row of rows) authorityCounts.set(row.localAuthorityCode, (authorityCounts.get(row.localAuthorityCode) || 0) + 1)
+  for (const row of categoryRows) authorityCounts.set(row.localAuthorityCode, (authorityCounts.get(row.localAuthorityCode) || 0) + 1)
   const authorities = [...authorityCounts.entries()]
     .map(([code, count]) => ({ authority: getPlanningAuthorityByCode(code), count }))
     .filter((item) => item.authority)
-    .sort((a, b) => b.count - a.count)
+    .sort((a, b) => b.count - a.count || String(a.authority?.shortName || "").localeCompare(String(b.authority?.shortName || "")))
 
+  const selectedAuthority = authorityCode ? getPlanningAuthorityByCode(authorityCode) : null
+  const rows = selectedAuthority
+    ? categoryRows.filter((row) => row.localAuthorityCode === selectedAuthority.code)
+    : categoryRows
   const visibleRows = rows.slice(0, 40)
   const applications = await loadApplications(visibleRows.map((row) => row.applicationId))
   const hydratedRows: PlanningPublicCategoryApplication[] = visibleRows.flatMap((row) => {
     const application = applications.get(row.applicationId)
     return application ? [{ application, displayName: row.displayName, categories: row.categories }] : []
   })
-  return { category, rows: hydratedRows, totalCount: rows.length, authorities, includeOlder }
+  return {
+    category,
+    rows: hydratedRows,
+    totalCount: rows.length,
+    overallTotalCount: categoryRows.length,
+    authorities,
+    includeOlder,
+    selectedAuthority,
+  }
 }
 
 export async function getPlanningPublicCategorySummaries(minimumCount = 3) {
