@@ -128,6 +128,7 @@ export type PlanningSearchParams = {
   council?: string
   status?: string
   type?: string
+  construction?: string
   sort?: string
 }
 
@@ -168,6 +169,7 @@ export function normalisePlanningSearchParams(
     council: cleanParam(params.council),
     status: cleanParam(params.status),
     type: cleanParam(params.type),
+    construction: params.construction === "commenced" ? "commenced" : "",
     sort: normalisePlanningSort(params.sort),
   }
 }
@@ -184,12 +186,12 @@ export async function getPlanningDashboard(
     : getAuthorityCodeByOptionLabel(filters.council)
   const aggregateAuthorityCode = authorityCode ?? selectedCouncilCode
   const hasResultFilters = Boolean(
-    filters.q || filters.area || filters.council || filters.status || filters.type
+    filters.q || filters.area || filters.council || filters.status || filters.type || filters.construction
   )
-  const hasFacetFilters = Boolean(filters.q || filters.area || filters.status || filters.type)
+  const hasFacetFilters = Boolean(filters.q || filters.area || filters.status || filters.type || filters.construction)
   const hasApplicationFilters = hasResultFilters || filters.sort === "oldest"
   const shouldLoadFilteredOverview =
-    hasFacetFilters && !filters.q && !filters.status && !filters.type
+    hasFacetFilters && !filters.q && !filters.status && !filters.type && !filters.construction
   const needsNationalCouncilActivity =
     !authority && !selectedCouncilCode && !hasApplicationFilters
 
@@ -242,8 +244,8 @@ export async function getPlanningDashboard(
 
   return {
     authority,
-    aggregateAvailable: overviewResult !== null && !filters.status && !filters.type,
-    totalCount: filters.status || filters.type
+    aggregateAvailable: overviewResult !== null && !filters.status && !filters.type && !filters.construction,
+    totalCount: filters.status || filters.type || filters.construction
       ? searchResult.count
       : hasApplicationFilters
         ? filteredSummary.totalCount
@@ -650,6 +652,10 @@ async function getPlanningSearchResults(
     } else if (applicationTypes.length > 1) {
       query = query.in("application_type", applicationTypes)
     }
+  }
+
+  if (filters.construction === "commenced") {
+    query = query.eq("construction_status", "commenced")
   }
 
   const ascending = filters.sort === "oldest"

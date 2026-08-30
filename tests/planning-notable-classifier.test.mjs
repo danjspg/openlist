@@ -101,11 +101,21 @@ test("explicit residential totals win over component counts", () => {
   }
 })
 
+test("a validated scheme total is not overridden by a larger referenced component", () => {
+  const signals = extractPlanningScaleSignals(
+    "Development of 41 residential units comprising 23 houses and 18 apartments, beside 60 apartments previously approved on adjoining lands"
+  )
+  assert.equal(signals.explicitResidentialUnits, 41)
+  assert.equal(signals.componentResidentialUnits, 60)
+  assert.equal(signals.residentialUnits, 41)
+})
+
 test("historical amendment counts are not treated as resulting scheme totals", () => {
   const signals = extractPlanningScaleSignals(
     "Amendments to previously approved development of 120 units comprising the omission of 8 apartments and reconfiguration of parking"
   )
   assert.equal(signals.explicitResidentialUnits, 0)
+  assert.equal(signals.residentialUnits, 8)
 })
 
 for (const [units, expectedCategory] of [[9, null], [10, "residential"], [49, "residential"], [50, "residential-large"], [99, "residential-large"], [100, "residential-large"]]) {

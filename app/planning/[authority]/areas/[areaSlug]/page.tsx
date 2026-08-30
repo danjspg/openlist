@@ -28,7 +28,7 @@ export function generateStaticParams() {
   return []
 }
 
-type Props = { params: Promise<{ authority: string; areaSlug: string }>; searchParams: Promise<{ includeOlder?: string }> }
+type Props = { params: Promise<{ authority: string; areaSlug: string }>; searchParams: Promise<{ includeOlder?: string; construction?: string }> }
 
 const resolveLocalityPage = cache(async (authoritySlug: string, slug: string) => {
   const authority = getPlanningAuthorityBySlug(authoritySlug)
@@ -63,9 +63,11 @@ export default async function PlanningLocalityPage({ params, searchParams }: Pro
   if (!page) notFound()
 
   const { authority, locality, dashboard, recentDecisions, county } = page
-  const includeOlder = (await searchParams).includeOlder === "1"
+  const resolvedSearchParams = await searchParams
+  const includeOlder = resolvedSearchParams.includeOlder === "1"
   const notableGroups = await getPlanningLocalityNotableGroups(authority.code, locality, includeOlder)
   const searchHref = localitySearchHref(authority.slug, locality)
+  const constructionSearchHref = localitySearchHref(authority.slug, locality, undefined, "commenced")
   const decisionsHref = localitySearchHref(authority.slug, locality, "decision_made")
   const statusStats = localityStatusStats(dashboard.statusStats)
   const typeStats = dashboard.typeStats.slice(0, 6)
@@ -91,6 +93,9 @@ export default async function PlanningLocalityPage({ params, searchParams }: Pro
           <nav className="mt-5 flex flex-wrap gap-x-5 gap-y-3 text-sm font-semibold text-stone-700" aria-label={`${locality} planning links`}>
             <Link className="inline-flex min-h-10 items-center hover:text-stone-950 hover:underline" href={searchHref}>
               Search {locality} planning <span aria-hidden="true" className="ml-1">→</span>
+            </Link>
+            <Link className="inline-flex min-h-10 items-center hover:text-stone-950 hover:underline" href={constructionSearchHref}>
+              Construction commenced in {locality} <span aria-hidden="true" className="ml-1">→</span>
             </Link>
             <Link className="inline-flex min-h-10 items-center hover:text-stone-950 hover:underline" href={`/planning/${authority.slug}`}>
               {authority.shortName} planning
@@ -243,9 +248,10 @@ export default async function PlanningLocalityPage({ params, searchParams }: Pro
   )
 }
 
-function localitySearchHref(authority: string, locality: string, status?: string) {
+function localitySearchHref(authority: string, locality: string, status?: string, construction?: string) {
   const params = new URLSearchParams({ area: locality })
   if (status) params.set("status", status)
+  if (construction) params.set("construction", construction)
   return `/planning/${authority}?${params}`
 }
 

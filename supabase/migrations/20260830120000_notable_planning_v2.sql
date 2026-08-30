@@ -14,7 +14,7 @@ create index if not exists planning_seo_notable_structural_scale_idx
 create index if not exists planning_events_meaningful_lifecycle_idx
   on public.planning_application_events (application_id, event_date desc)
   where event_type in (
-    'application_received','application_validated','decision_due_changed',
+    'application_received','application_validated',
     'further_information_requested','further_information_received',
     'decision_made','final_grant','withdrawn',
     'appeal_lodged','appeal_decided','decision_changed'
@@ -83,7 +83,7 @@ as $$
     from public.planning_application_events e
     where e.application_id = p.id
       and e.event_type in (
-        'application_received','application_validated','decision_due_changed',
+        'application_received','application_validated',
         'further_information_requested','further_information_received',
         'decision_made','final_grant','withdrawn',
         'appeal_lodged','appeal_decided','decision_changed'
@@ -191,3 +191,20 @@ $$;
 
 revoke all on function public.openlist_planning_locality_notables(text,text,boolean,int) from public;
 grant execute on function public.openlist_planning_locality_notables(text,text,boolean,int) to anon,authenticated,service_role;
+
+create or replace function public.openlist_planning_public_category_index(
+  p_include_older boolean default false,
+  p_limit int default 50000
+)
+returns table(application_id uuid, local_authority_code text, registration_date date, display_name text, notable_categories text[], proposal text)
+language sql stable security definer set search_path=public,pg_catalog set statement_timeout='15s' as $$
+  select n.application_id,p.local_authority_code,p.registration_date,n.display_name,n.notable_categories,p.proposal
+  from public.planning_seo_notable n
+  join public.planning_applications p on p.id=n.application_id
+  where n.active and (p_include_older or n.priority_eligible)
+  order by p.registration_date desc nulls last,p.reference desc,p.id
+  limit greatest(1,least(coalesce(p_limit,50000),50000));
+$$;
+
+revoke all on function public.openlist_planning_public_category_index(boolean,int) from public;
+grant execute on function public.openlist_planning_public_category_index(boolean,int) to anon,authenticated,service_role;

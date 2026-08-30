@@ -34,4 +34,4 @@ jobs:
         run: |
           EXTRA=""
           if [[ "${{ inputs.notable_catchup }}" == "true" ]]; then EXTRA="--notable-catchup --cursor=${{ inputs.cursor }}"; fi
-          npm run bcms:process -- --normalise-batches=5 --match-batches=5 --batch-size=200 $EXTRA
+          npm run bcms:process -- --normalise-batches=5 --match-batches=5 --construction-batches=5 --batch-size=200 $EXTRA

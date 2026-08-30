@@ -81,47 +81,71 @@ function matchesCategory(slug: string, row: PlanningPublicCategoryIndexRow) {
 
 const loadNotableIndex = unstable_cache(async (includeOlder = false): Promise<PlanningPublicCategoryIndexRow[]> => {
   const supabase = getServerSupabase()
-  const notableRows: Array<{ application_id: string; display_name: string | null; notable_categories: string[] | null }> = []
-  for (let offset = 0; offset < 5000; offset += 1000) {
-    let query = supabase
-      .from("planning_seo_notable")
-      .select("application_id,display_name,notable_categories")
-      .eq("active", true)
-    if (!includeOlder) query = query.eq("priority_eligible", true)
-    const { data, error } = await query.range(offset, offset + 999)
-    if (error) throw new Error(`Planning public categories metadata lookup failed: ${error.message}`)
-    const rows = (data ?? []) as typeof notableRows
-    notableRows.push(...rows)
-    if (rows.length < 1000) break
+  const { data, error } = await supabase.rpc("openlist_planning_public_category_index", {
+    p_include_older: includeOlder,
+    p_limit: 50000,
+  })
+  if (error) {
+    if (error.code === "PGRST202" || error.message.includes("Could not find the function")) {
+      return loadLegacyNotableIndex(includeOlder)
+    }
+    throw new Error(`Planning public categories index lookup failed: ${error.message}`)
   }
-  if (!notableRows.length) return []
+  const rows = (data ?? []) as Array<{
+    application_id: string
+    proposal: string | null
+    local_authority_code: string
+    registration_date: string | null
+    display_name: string | null
+    notable_categories: string[] | null
+  }>
 
-  const notableById = new Map(notableRows.map((row) => [row.application_id, row]))
-  const ids = [...notableById.keys()]
-  const applications: Array<{ id: string; proposal: string | null; local_authority_code: string; registration_date: string | null }> = []
-  for (let offset = 0; offset < ids.length; offset += 200) {
-    const { data, error } = await supabase
-      .from("planning_applications")
-      .select("id,proposal,local_authority_code,registration_date")
-      .in("id", ids.slice(offset, offset + 200))
-    if (error) throw new Error(`Planning public categories index lookup failed: ${error.message}`)
-    applications.push(...((data ?? []) as typeof applications))
-  }
-
-  return applications
-    .map((application) => {
-      const notable = notableById.get(application.id)!
+  return rows
+    .map((row) => {
       return {
-        applicationId: application.id,
-        localAuthorityCode: application.local_authority_code,
-        registrationDate: application.registration_date,
-        displayName: notable.display_name,
-        categories: Array.isArray(notable.notable_categories) ? notable.notable_categories.map(String) : [],
-        keywordFlags: keywordFlags(application.proposal),
+        applicationId: row.application_id,
+        localAuthorityCode: row.local_authority_code,
+        registrationDate: row.registration_date,
+        displayName: row.display_name,
+        categories: Array.isArray(row.notable_categories) ? row.notable_categories.map(String) : [],
+        keywordFlags: keywordFlags(row.proposal),
       }
     })
     .sort((a, b) => String(b.registrationDate || "").localeCompare(String(a.registrationDate || "")))
 }, ["planning-public-categories", "v4-history"], { revalidate: 60 * 60 * 6, tags: [PLANNING_DATASET_CACHE_TAG] })
+
+async function loadLegacyNotableIndex(includeOlder: boolean): Promise<PlanningPublicCategoryIndexRow[]> {
+  const supabase = getServerSupabase()
+  let notableQuery = supabase
+    .from("planning_seo_notable")
+    .select("application_id,display_name,notable_categories")
+    .eq("active", true)
+    .limit(5000)
+  if (!includeOlder) notableQuery = notableQuery.eq("priority_eligible", true)
+  const { data: notableRows, error: notableError } = await notableQuery
+  if (notableError) throw new Error(`Planning public categories compatibility lookup failed: ${notableError.message}`)
+
+  const metadata = (notableRows ?? []) as Array<{ application_id: string; display_name: string | null; notable_categories: string[] | null }>
+  const notableById = new Map(metadata.map((row) => [row.application_id, row]))
+  const applications: Array<{ id: string; proposal: string | null; local_authority_code: string; registration_date: string | null }> = []
+  const ids = [...notableById.keys()]
+  for (let offset = 0; offset < ids.length; offset += 200) {
+    const { data, error } = await supabase.from("planning_applications").select("id,proposal,local_authority_code,registration_date").in("id", ids.slice(offset, offset + 200))
+    if (error) throw new Error(`Planning public categories compatibility hydration failed: ${error.message}`)
+    applications.push(...((data ?? []) as typeof applications))
+  }
+  return applications.map((application) => {
+    const notable = notableById.get(application.id)!
+    return {
+      applicationId: application.id,
+      localAuthorityCode: application.local_authority_code,
+      registrationDate: application.registration_date,
+      displayName: notable.display_name,
+      categories: Array.isArray(notable.notable_categories) ? notable.notable_categories.map(String) : [],
+      keywordFlags: keywordFlags(application.proposal),
+    }
+  }).sort((a, b) => String(b.registrationDate || "").localeCompare(String(a.registrationDate || "")))
+}
 
 async function loadApplications(ids: string[]) {
   if (!ids.length) return new Map<string, PlanningApplication>()
