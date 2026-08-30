@@ -1,6 +1,7 @@
 name: Issue 112 BCMS resume
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
@@ -33,38 +34,66 @@ jobs:
           import { createClient } from '@supabase/supabase-js'
           const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {auth:{persistSession:false,autoRefreshToken:false}})
 
-          async function rpcWithTimeoutRetry(name, args, attempts = 4) {
+          const retryableCodes = new Set(['57014','40P01','55P03'])
+          async function rpcWithRetry(name, args, attempts = 5) {
             let current = {...args}
             for (let attempt = 1; attempt <= attempts; attempt++) {
               const {data,error} = await supabase.rpc(name,current)
               if (!error) return data
-              if (error.code !== '57014' || attempt === attempts) throw error
-              if (typeof current.p_limit === 'number' && current.p_limit > 25) current.p_limit = Math.max(25, Math.floor(current.p_limit / 2))
-              console.log(`${name} timed out; retry ${attempt + 1}/${attempts} with p_limit=${current.p_limit ?? 'n/a'}`)
+              if (!retryableCodes.has(error.code) || attempt === attempts) throw error
+              if (error.code === '57014' && typeof current.p_limit === 'number' && current.p_limit > 25) {
+                current.p_limit = Math.max(25, Math.floor(current.p_limit / 2))
+              }
+              console.log(`${name} ${error.code}; retry ${attempt + 1}/${attempts} with p_limit=${current.p_limit ?? 'n/a'}`)
               await new Promise(resolve => setTimeout(resolve, 1500 * attempt))
             }
           }
 
+          async function resetTransientMatchFailures() {
+            const {error} = await supabase
+              .from('bcms_match_queue')
+              .update({state:'pending', available_at:new Date().toISOString(), updated_at:new Date().toISOString()})
+              .eq('state','failed')
+              .in('last_error',['deadlock detected','canceling statement due to lock timeout'])
+            if (error) throw error
+          }
+
           const matches=[]
-          for (let i=0; i<160; i++) {
-            const data = await rpcWithTimeoutRetry('openlist_bcms_match_batch',{p_limit:100})
-            matches.push(data)
-            const worked = ['notableCandidatesChecked','newlyLinked','alreadyLinkedNoop','ambiguous','unmatched','failures'].reduce((n,k)=>n+Number(data?.[k]||0),0)
-            if ((i + 1) % 10 === 0 || worked === 0) console.log(`match batch ${i + 1}: worked=${worked}`)
-            if (worked === 0) break
+          for (let pass=1; pass<=2; pass++) {
+            await resetTransientMatchFailures()
+            for (let i=0; i<200; i++) {
+              const data = await rpcWithRetry('openlist_bcms_match_batch',{p_limit:100})
+              matches.push(data)
+              const worked = ['notableCandidatesChecked','newlyLinked','alreadyLinkedNoop','ambiguous','unmatched','failures'].reduce((n,k)=>n+Number(data?.[k]||0),0)
+              if ((i + 1) % 10 === 0 || worked === 0) console.log(`match pass ${pass} batch ${i + 1}: worked=${worked}`)
+              if (worked === 0) break
+            }
           }
 
           const construction=[]
-          for (let i=0; i<1000; i++) {
-            const data = await rpcWithTimeoutRetry('openlist_bcms_refresh_construction_batch',{p_limit:100})
+          let constructionComplete=false
+          for (let i=0; i<250; i++) {
+            const data = await rpcWithRetry('openlist_bcms_refresh_construction_batch',{p_limit:500})
             construction.push(data)
-            if ((i + 1) % 25 === 0 || data?.complete) console.log(`construction batch ${i + 1}: refreshed=${data?.refreshedApplications ?? 0}, complete=${Boolean(data?.complete)}`)
-            if (data?.complete || Number(data?.refreshedApplications||0) === 0) break
+            constructionComplete=Boolean(data?.complete)
+            if ((i + 1) % 10 === 0 || constructionComplete) {
+              console.log(`construction batch ${i + 1}: refreshed=${data?.refreshedApplications ?? 0}, complete=${constructionComplete}`)
+            }
+            if (constructionComplete || Number(data?.refreshedApplications||0) === 0) break
           }
+          if (!constructionComplete) throw new Error('BCMS construction catch-up did not reach complete=true within bounded run')
 
           const {data:notable,error:notableError}=await supabase.rpc('openlist_notable_v2_rollout_report')
           if(notableError) throw notableError
           const {data:bcms,error:bcmsError}=await supabase.rpc('openlist_bcms_integrity_report')
           if(bcmsError) throw bcmsError
-          console.log(JSON.stringify({matches:{batches:matches.length,last:matches.at(-1)},construction:{batches:construction.length,last:construction.at(-1)},notable,bcms},null,2))
+
+          const {count:failedCount,error:failedError}=await supabase
+            .from('bcms_match_queue')
+            .select('id',{count:'exact',head:true})
+            .eq('state','failed')
+          if(failedError) throw failedError
+          if (Number(failedCount||0) > 0) throw new Error(`BCMS matching queue still has ${failedCount} failed rows`)
+
+          console.log(JSON.stringify({matches:{batches:matches.length,last:matches.at(-1)},construction:{batches:construction.length,last:construction.at(-1)},notable,bcms,failedCount},null,2))
           NODE
