@@ -83,9 +83,9 @@ export default async function PlanningCategoryPage({ params, searchParams }: Pro
         {page.authorities.length > 0 ? (
           <section className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-5 sm:p-6">
             <h2 className="text-xl font-semibold tracking-tight text-stone-950">Where these applications are</h2>
-            <p className="mt-1 text-sm text-stone-600">Explore the councils with the most matching development activity.</p>
+            <p className="mt-1 text-sm text-stone-600">Explore every council with matching development activity.</p>
             <div className="mt-4 flex flex-wrap gap-2">
-              {page.authorities.slice(0, 12).map(({ authority, count }) => authority ? (
+              {page.authorities.map(({ authority, count }) => authority ? (
                 <Link key={authority.code} href={`/planning/${authority.slug}`} className="inline-flex min-h-10 items-center rounded-lg border border-emerald-200 bg-white px-3 text-sm font-semibold text-stone-800 hover:border-emerald-400 hover:text-emerald-900">
                   {authority.shortName}<span className="ml-2 text-stone-500">{formatPlanningCount(count)}</span>
                 </Link>
