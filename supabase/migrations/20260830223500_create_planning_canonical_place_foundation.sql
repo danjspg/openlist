@@ -60,7 +60,6 @@ on conflict (slug) do update
 set display_name = excluded.display_name,
     place_type = excluded.place_type,
     county = excluded.county,
-    source = excluded.source,
     confidence = greatest(public.planning_canonical_places.confidence, excluded.confidence),
     updated_at = now();
 
@@ -84,12 +83,24 @@ from public.planning_canonical_places p
 where p.place_type = 'postal_district'
 on conflict do nothing;
 
-update public.planning_canonical_places p
-set aggregate_enabled = x.authority_count > 1,
+-- Multiple source memberships are evidence for review, not sufficient proof that a
+-- real-world place crosses authority boundaries. Aggregate pages require explicit
+-- curated approval. Dublin 16 is the first validated pilot.
+update public.planning_canonical_places
+set aggregate_enabled = false
+where place_type = 'postal_district';
+
+update public.planning_canonical_places
+set aggregate_enabled = true,
+    source = 'curated_cross_authority_pilot',
+    confidence = 100,
     updated_at = now()
-from (
-  select place_slug, count(distinct authority_code) as authority_count
-  from public.planning_canonical_place_memberships
-  group by place_slug
-) x
-where p.slug = x.place_slug;
+where slug = 'dublin-16'
+  and exists (
+    select 1 from public.planning_canonical_place_memberships m
+    where m.place_slug = 'dublin-16' and m.authority_code = 'DLR'
+  )
+  and exists (
+    select 1 from public.planning_canonical_place_memberships m
+    where m.place_slug = 'dublin-16' and m.authority_code = 'SOUTHDUBLIN'
+  );
