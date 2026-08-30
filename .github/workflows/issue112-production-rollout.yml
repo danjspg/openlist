@@ -16,7 +16,7 @@ concurrency:
 jobs:
   rollout:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -25,18 +25,7 @@ jobs:
           cache: npm
       - run: npm ci
 
-      - name: Apply full bounded notable reconciliation
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: |
-          mkdir -p artifacts
-          node scripts/reconcile-planning-notable-classification.mjs \
-            --apply-full --confirm-apply-full --apply --full-window \
-            --batch-size=250 --max-batches=20 --max-chunks=20 \
-            --output=artifacts/planning-notable-classification.json
-
-      - name: Run bounded notable BCMS matching and construction catch-up
+      - name: Resume bounded BCMS matching and construction catch-up
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -44,49 +33,41 @@ jobs:
           node --input-type=module <<'NODE'
           import { createClient } from '@supabase/supabase-js'
           const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {auth:{persistSession:false,autoRefreshToken:false}})
-          const zero = '00000000-0000-0000-0000-000000000000'
-          let cursor = zero
-          const catchups = []
-          for (let i=0; i<20; i++) {
-            const {data,error} = await supabase.rpc('openlist_bcms_enqueue_notable_catchup',{p_after:cursor,p_limit:500})
-            if (error) throw error
-            catchups.push(data)
-            if (data?.cursor) cursor = data.cursor
-            if (data?.complete) break
+
+          async function rpcWithTimeoutRetry(name, args, attempts = 4) {
+            let current = {...args}
+            for (let attempt = 1; attempt <= attempts; attempt++) {
+              const {data,error} = await supabase.rpc(name,current)
+              if (!error) return data
+              if (error.code !== '57014' || attempt === attempts) throw error
+              if (typeof current.p_limit === 'number' && current.p_limit > 25) {
+                current.p_limit = Math.max(25, Math.floor(current.p_limit / 2))
+              }
+              console.log(`${name} timed out; retry ${attempt + 1}/${attempts} with p_limit=${current.p_limit ?? 'n/a'}`)
+              await new Promise(resolve => setTimeout(resolve, 1500 * attempt))
+            }
           }
+
           const matches=[]
-          for (let i=0; i<30; i++) {
-            const {data,error}=await supabase.rpc('openlist_bcms_match_batch',{p_limit:500})
-            if(error) throw error
+          for (let i=0; i<160; i++) {
+            const data = await rpcWithTimeoutRetry('openlist_bcms_match_batch',{p_limit:100})
             matches.push(data)
             const worked = ['notableCandidatesChecked','newlyLinked','alreadyLinkedNoop','ambiguous','unmatched','failures'].reduce((n,k)=>n+Number(data?.[k]||0),0)
+            if ((i + 1) % 10 === 0 || worked === 0) console.log(`match batch ${i + 1}: worked=${worked}`)
             if (worked===0) break
           }
+
           const construction=[]
-          for (let i=0; i<200; i++) {
-            const {data,error}=await supabase.rpc('openlist_bcms_refresh_construction_batch',{p_limit:500})
-            if(error) throw error
+          for (let i=0; i<1000; i++) {
+            const data = await rpcWithTimeoutRetry('openlist_bcms_refresh_construction_batch',{p_limit:100})
             construction.push(data)
+            if ((i + 1) % 25 === 0 || data?.complete) console.log(`construction batch ${i + 1}: refreshed=${data?.refreshedApplications ?? 0}, complete=${Boolean(data?.complete)}`)
             if(data?.complete || Number(data?.refreshedApplications||0)===0) break
           }
+
           const {data:notable,error:notableError}=await supabase.rpc('openlist_notable_v2_rollout_report')
           if(notableError) throw notableError
           const {data:bcms,error:bcmsError}=await supabase.rpc('openlist_bcms_integrity_report')
           if(bcmsError) throw bcmsError
-          console.log(JSON.stringify({catchups,matches,construction:{batches:construction.length,last:construction.at(-1)},notable,bcms},null,2))
+          console.log(JSON.stringify({matches:{batches:matches.length,last:matches.at(-1)},construction:{batches:construction.length,last:construction.at(-1)},notable,bcms},null,2))
           NODE
-
-      - name: Summarise notable reconciliation
-        if: always()
-        run: |
-          if [[ -f artifacts/planning-notable-classification.json ]]; then
-            cat artifacts/planning-notable-classification.json
-          fi
-
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: issue112-production-rollout-${{ github.run_id }}
-          path: artifacts/planning-notable-classification.json
-          retention-days: 30
-          if-no-files-found: warn
