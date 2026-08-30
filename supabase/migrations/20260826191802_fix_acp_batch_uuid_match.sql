@@ -1,0 +1,3 @@
+-- Historical production migration retained for migration-history parity.
+-- This migration was applied directly to production before the repository archive was reconciled.
+-- Its final effects are superseded by later canonical migrations in this repository, so this archival entry is intentionally a no-op.
