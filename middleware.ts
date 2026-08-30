@@ -23,6 +23,12 @@ const PUBLIC_SOLD_PRICE_SINGLE_SEGMENT_ROUTES = new Set([
   "search",
 ])
 
+const PUBLIC_PLANNING_SINGLE_SEGMENT_ROUTES = new Set([
+  "applications",
+  "areas",
+  "categories",
+])
+
 function soldPricesNotFoundResponse() {
   return new NextResponse(
     `<!doctype html>
@@ -87,14 +93,15 @@ export function middleware(request: NextRequest) {
   if (crawlPolicy) {
     const rewriteUrl = request.nextUrl.clone()
     const authorityMatch = request.nextUrl.pathname.match(/^\/planning\/([^/]+)$/)
+    const planningSegment = authorityMatch?.[1]
     const shouldRewritePlanningFilters =
       request.nextUrl.pathname === "/planning" ||
-      (authorityMatch && authorityMatch[1] !== "applications")
+      Boolean(authorityMatch && planningSegment && !PUBLIC_PLANNING_SINGLE_SEGMENT_ROUTES.has(planningSegment))
 
     if (shouldRewritePlanningFilters) {
       rewriteUrl.pathname = "/planning/applications"
-      if (authorityMatch) {
-        rewriteUrl.searchParams.set("_authority", authorityMatch[1])
+      if (authorityMatch && planningSegment) {
+        rewriteUrl.searchParams.set("_authority", planningSegment)
       }
     }
 
