@@ -49,6 +49,7 @@ export async function PlanningApplicationsView({
   const hasActiveSearch = Boolean(
     filters.q || filters.area || filters.council || filters.status || filters.type || filters.construction || filters.sort === "oldest"
   )
+  const aggregateIntentionallySuppressed = Boolean(filters.status || filters.type || filters.construction)
   const dashboard = await getPlanningDashboard(filters, authority ?? null)
   const completedMonthStats = getCompletedPlanningMonthStats(dashboard.monthStats)
   const latestCompletedMonth = completedMonthStats.at(-1)
@@ -163,7 +164,7 @@ export async function PlanningApplicationsView({
             ) : null}
           </form>
 
-          {!dashboard.aggregateAvailable ? (
+          {!dashboard.aggregateAvailable && !aggregateIntentionallySuppressed ? (
             <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">
               Planning statistics are temporarily unavailable. Recent applications and search remain available.
             </p>
