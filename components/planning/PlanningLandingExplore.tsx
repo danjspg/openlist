@@ -98,6 +98,53 @@ export async function PlanningLandingExplore() {
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:py-10">
       <PlanningCategoryLinks embedded />
 
+      <section className="mt-12 rounded-[28px] border border-stone-200 bg-white p-5 shadow-sm sm:p-7" aria-labelledby="planning-by-area">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">Browse by place</p>
+            <h2 id="planning-by-area" className="mt-2 text-3xl font-semibold tracking-tight text-stone-950">Planning by area</h2>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600 sm:text-base">Browse towns, suburbs, postal districts and local areas, with the planning authority shown where place names could be ambiguous.</p>
+          </div>
+          <Link href="/planning/areas" className="shrink-0 text-sm font-semibold text-emerald-800 hover:text-emerald-950 hover:underline">Browse all areas →</Link>
+        </div>
+
+        <div className="mt-6">
+          <div className="flex items-baseline justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">Most active now</p>
+              <h3 className="mt-1 text-xl font-semibold tracking-tight text-stone-950">Busy planning areas</h3>
+            </div>
+            <Link href="/planning?construction=commenced" className="text-xs font-semibold text-stone-500 hover:text-stone-900">Construction commenced →</Link>
+          </div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {rankedAreas.map((area) => {
+              const authority = area.authority_code ? getPlanningAuthorityByCode(area.authority_code) : null
+              return (
+                <Link key={area.canonical_path} href={area.canonical_path} className="group flex items-center justify-between gap-3 rounded-xl border border-stone-200 bg-stone-50 px-3.5 py-3 transition hover:border-emerald-200 hover:bg-emerald-50/50">
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-semibold text-stone-800 group-hover:text-emerald-900">{area.locality_label}</span>
+                    <span className="mt-0.5 block truncate text-xs text-stone-500">{authority?.shortName ?? area.county ?? "Planning area"}</span>
+                  </span>
+                  <span className="shrink-0 text-xs font-semibold text-emerald-800">{nf.format(area.activeCount)}</span>
+                </Link>
+              )
+            })}
+          </div>
+        </div>
+
+        <details className="mt-7 border-t border-stone-200 pt-5">
+          <summary className="cursor-pointer text-sm font-semibold text-stone-800">Browse by planning authority</summary>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            {PLANNING_AUTHORITIES.map((authority) => (
+              <Link key={authority.code} href={`/planning/${authority.slug}/areas`} className="flex items-center justify-between gap-3 rounded-xl border border-stone-200 px-3.5 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:text-stone-950">
+                <span>{authority.shortName}</span>
+                <span className="shrink-0 text-xs text-stone-400">{nf.format(authorityAreaCounts.get(authority.code) ?? 0)} areas</span>
+              </Link>
+            ))}
+          </div>
+        </details>
+      </section>
+
       <section className="mt-12" aria-labelledby="notable-planning-heading">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -128,61 +175,6 @@ export async function PlanningLandingExplore() {
             })}
           </div>
         ) : null}
-      </section>
-
-      <section className="mt-12 rounded-[28px] border border-stone-200 bg-white p-5 shadow-sm sm:p-7" aria-labelledby="planning-where-you-live">
-        <div className="grid gap-7 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:items-start">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">Explore by place</p>
-            <h2 id="planning-where-you-live" className="mt-2 text-3xl font-semibold tracking-tight text-stone-950">Planning where you live</h2>
-            <p className="mt-3 max-w-xl text-sm leading-6 text-stone-600 sm:text-base">Find a town, suburb, postal district or local area. Where a place name exists in more than one council, OpenList shows the authority so you can choose the right one.</p>
-
-            <form action="/planning/areas" method="get" className="mt-5 flex gap-2 rounded-2xl border border-stone-300 bg-stone-50 p-2">
-              <input name="q" type="search" aria-label="Find a planning area" placeholder="Town, suburb, postal district or locality" className="min-h-12 min-w-0 flex-1 rounded-xl bg-white px-3 text-sm outline-none ring-1 ring-stone-200 placeholder:text-stone-400 focus:ring-stone-400 sm:text-base" />
-              <button className="min-h-12 rounded-xl bg-stone-950 px-5 text-sm font-semibold text-white transition hover:bg-stone-700">Find area</button>
-            </form>
-            <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold">
-              <Link href="/planning/areas" className="text-emerald-800 hover:underline">Browse all areas →</Link>
-              <Link href="/planning?construction=commenced" className="text-stone-700 hover:text-stone-950 hover:underline">Construction commenced →</Link>
-            </div>
-          </div>
-
-          <div>
-            <div className="flex items-baseline justify-between gap-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">Most active now</p>
-                <h3 className="mt-1 text-xl font-semibold tracking-tight text-stone-950">Busy planning areas</h3>
-              </div>
-              <Link href="/planning/areas" className="text-xs font-semibold text-stone-500 hover:text-stone-900">All areas →</Link>
-            </div>
-            <div className="mt-4 grid gap-2 sm:grid-cols-2">
-              {rankedAreas.map((area) => {
-                const authority = area.authority_code ? getPlanningAuthorityByCode(area.authority_code) : null
-                return (
-                  <Link key={area.canonical_path} href={area.canonical_path} className="group flex items-center justify-between gap-3 rounded-xl border border-stone-200 bg-stone-50 px-3.5 py-3 transition hover:border-emerald-200 hover:bg-emerald-50/50">
-                    <span className="min-w-0">
-                      <span className="block truncate text-sm font-semibold text-stone-800 group-hover:text-emerald-900">{area.locality_label}</span>
-                      <span className="mt-0.5 block truncate text-xs text-stone-500">{authority?.shortName ?? area.county ?? "Planning area"}</span>
-                    </span>
-                    <span className="shrink-0 text-xs font-semibold text-emerald-800">{nf.format(area.activeCount)}</span>
-                  </Link>
-                )
-              })}
-            </div>
-          </div>
-        </div>
-
-        <details className="mt-7 border-t border-stone-200 pt-5">
-          <summary className="cursor-pointer text-sm font-semibold text-stone-800">Browse by planning authority</summary>
-          <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            {PLANNING_AUTHORITIES.map((authority) => (
-              <Link key={authority.code} href={`/planning/${authority.slug}/areas`} className="flex items-center justify-between gap-3 rounded-xl border border-stone-200 px-3.5 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:text-stone-950">
-                <span>{authority.shortName}</span>
-                <span className="shrink-0 text-xs text-stone-400">{nf.format(authorityAreaCounts.get(authority.code) ?? 0)} areas</span>
-              </Link>
-            ))}
-          </div>
-        </details>
       </section>
     </div>
   )
