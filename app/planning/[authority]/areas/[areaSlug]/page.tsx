@@ -51,7 +51,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!page) return {}
 
   return {
-    title: `${page.locality} Planning Applications | Recent Activity & Decisions`,
+    title: `${page.locality} Planning Applications | ${page.authority.shortName}`,
     description: `${formatPlanningCount(page.dashboard.totalCount)} recorded ${page.locality} planning applications from ${page.authority.name}, with recent registrations, decisions and status information.`,
     alternates: { canonical: `/planning/${page.authority.slug}/areas/${page.slug}` },
     robots: { index: true, follow: true },
@@ -99,6 +99,9 @@ export default async function PlanningLocalityPage({ params, searchParams }: Pro
             </Link>
             <Link className="inline-flex min-h-10 items-center hover:text-stone-950 hover:underline" href={`/planning/${authority.slug}`}>
               {authority.shortName} planning
+            </Link>
+            <Link className="inline-flex min-h-10 items-center hover:text-stone-950 hover:underline" href={`/planning/${authority.slug}/areas`}>
+              More {authority.shortName} areas
             </Link>
             {county ? (
               <Link className="inline-flex min-h-10 items-center hover:text-stone-950 hover:underline" href={`/sold-prices/${areaSlug(county)}/${areaSlug(locality)}`}>
@@ -228,6 +231,9 @@ export default async function PlanningLocalityPage({ params, searchParams }: Pro
             </Link>
             <Link className="inline-flex min-h-10 items-center text-stone-700 hover:text-stone-950 hover:underline" href={`/planning/${authority.slug}`}>
               {authority.name} planning <span aria-hidden="true" className="ml-1">→</span>
+            </Link>
+            <Link className="inline-flex min-h-10 items-center text-stone-700 hover:text-stone-950 hover:underline" href={`/planning/${authority.slug}/areas`}>
+              Browse other {authority.shortName} areas <span aria-hidden="true" className="ml-1">→</span>
             </Link>
             {county ? (
               <Link className="inline-flex min-h-10 items-center text-stone-700 hover:text-stone-950 hover:underline" href={`/sold-prices/${areaSlug(county)}/${areaSlug(locality)}`}>
