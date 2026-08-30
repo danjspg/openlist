@@ -71,6 +71,7 @@ export default async function PlanningAuthorityPage({
     {localities.length ? <nav className="mx-auto max-w-6xl px-4 pt-6 text-sm text-stone-600 sm:px-6" aria-label="Featured planning localities">
       <span className="mr-3 font-medium text-stone-800">Explore planning by area:</span>
       {localities.map((row) => <Link key={row.canonical_path} className="mr-3 inline-block hover:text-stone-950 hover:underline" href={row.canonical_path}>{localityLabel(row.canonical_path)}</Link>)}
+      <Link className="inline-block font-semibold text-emerald-800 hover:underline" href={`/planning/${authority.slug}/areas`}>Browse all areas →</Link>
     </nav> : null}
     <PlanningApplicationsView authority={authority} />
   </>
