@@ -4,6 +4,7 @@ export { LOCALITY_COHORT_SIZE, LOCALITY_MIN_RESIDENCE_DAYS, LOCALITY_MAX_ROTATIO
 import { LOCALITY_COHORT_SIZE } from "@/lib/locality-seo-core"
 
 const PLANNING_LOCALITY_LIMIT = 3000
+const POSTGREST_PAGE_SIZE = 1000
 
 export type LocalitySitemapRow = { canonical_path: string; last_modified: string | null }
 export type LocalityMembership = {
@@ -38,28 +39,41 @@ export async function getLocalitySitemap(surface: "sold_prices" | "planning") {
 }
 
 export async function getPlanningLocalitySitemap(tier: "priority" | "expanded") {
-  const { data, error } = await getServerSupabase().rpc("openlist_planning_locality_sitemap", {
-    p_tier: tier,
-    p_limit: PLANNING_LOCALITY_LIMIT,
-  })
-  if (error) {
-    console.warn(`Planning locality ${tier} sitemap selection failed.`, error.message)
-    return [] as LocalitySitemapRow[]
+  const rows: LocalitySitemapRow[] = []
+  for (let from = 0; from < PLANNING_LOCALITY_LIMIT; from += POSTGREST_PAGE_SIZE) {
+    const { data, error } = await getServerSupabase()
+      .rpc("openlist_planning_locality_sitemap", {
+        p_tier: tier,
+        p_limit: PLANNING_LOCALITY_LIMIT,
+      })
+      .range(from, Math.min(from + POSTGREST_PAGE_SIZE - 1, PLANNING_LOCALITY_LIMIT - 1))
+    if (error) {
+      console.warn(`Planning locality ${tier} sitemap selection failed.`, error.message)
+      return [] as LocalitySitemapRow[]
+    }
+    const page = (data || []) as LocalitySitemapRow[]
+    rows.push(...page)
+    if (page.length < POSTGREST_PAGE_SIZE) break
   }
-  return (data || []) as LocalitySitemapRow[]
+  return rows
 }
 
 const getPlanningLocalityDirectoryCached = unstable_cache(async () => {
-  const { data, error } = await getServerSupabase().rpc("openlist_planning_locality_directory", {
-    p_limit: PLANNING_LOCALITY_LIMIT,
-  })
-
-  if (error) {
-    console.warn("Planning locality directory lookup failed.", error.message)
-    return [] as PlanningLocalityDirectoryEntry[]
+  const rows: PlanningLocalityDirectoryRow[] = []
+  for (let from = 0; from < PLANNING_LOCALITY_LIMIT; from += POSTGREST_PAGE_SIZE) {
+    const { data, error } = await getServerSupabase()
+      .rpc("openlist_planning_locality_directory", { p_limit: PLANNING_LOCALITY_LIMIT })
+      .range(from, Math.min(from + POSTGREST_PAGE_SIZE - 1, PLANNING_LOCALITY_LIMIT - 1))
+    if (error) {
+      console.warn("Planning locality directory lookup failed.", error.message)
+      return [] as PlanningLocalityDirectoryEntry[]
+    }
+    const page = (data || []) as PlanningLocalityDirectoryRow[]
+    rows.push(...page)
+    if (page.length < POSTGREST_PAGE_SIZE) break
   }
 
-  return ((data || []) as PlanningLocalityDirectoryRow[]).map((row) => ({
+  return rows.map((row) => ({
     canonical_path: row.canonical_path,
     county: row.county,
     authority_code: row.authority_code,

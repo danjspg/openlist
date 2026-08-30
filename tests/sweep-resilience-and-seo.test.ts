@@ -21,9 +21,10 @@ test("the root sitemap does not query Supabase during production builds", async 
 })
 
 test("Planning locality web reads use snapshots instead of scanning applications", async () => {
-  const migration = await source(
-    "supabase/migrations/20260830231451_snapshot_planning_locality_activity.sql"
-  )
+  const [migration, localitySeo] = await Promise.all([
+    source("supabase/migrations/20260830231451_snapshot_planning_locality_activity.sql"),
+    source("lib/locality-seo.ts"),
+  ])
 
   assert.match(migration, /openlist_refresh_planning_locality_activity_counts/)
   assert.match(migration, /openlist_planning_locality_directory[\s\S]*?m\.active_count/)
@@ -32,6 +33,9 @@ test("Planning locality web reads use snapshots instead of scanning applications
     migration.match(/create or replace function public\.openlist_planning_locality_sitemap[\s\S]*?\$\$;/)?.[0] || "",
     /from public\.planning_applications/
   )
+  assert.match(localitySeo, /const POSTGREST_PAGE_SIZE = 1000/)
+  assert.match(localitySeo, /openlist_planning_locality_directory[\s\S]*?\.range\(from,/)
+  assert.match(localitySeo, /openlist_planning_locality_sitemap[\s\S]*?\.range\(from,/)
 })
 
 test("Planning detail supporting context fails soft", async () => {
