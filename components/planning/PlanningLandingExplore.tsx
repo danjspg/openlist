@@ -1,0 +1,189 @@
+import Link from "next/link"
+import { PlanningCategoryLinks } from "@/components/planning/PlanningCategoryLinks"
+import { getHomepageNotablePlanning, type HomepageNotablePlanningItem } from "@/lib/homepage-data"
+import { getPlanningLocalityDirectory } from "@/lib/locality-seo"
+import { formatPlanningDate } from "@/lib/planning"
+import { getPlanningAuthorityByCode, PLANNING_AUTHORITIES } from "@/lib/planning-authorities"
+import { planningDecisionTone, planningStateBadgeClasses } from "@/lib/planning-state-presentation"
+import { planningApplicationPath } from "@/lib/property-intelligence"
+
+const categoryLabels: Record<string, string> = {
+  residential: "Residential development",
+  "residential-large": "Large residential development",
+  energy: "Energy & renewables",
+  infrastructure: "Infrastructure",
+  "data-centre": "Data centres",
+  transport: "Transport",
+  retail: "Retail",
+  hospitality: "Hotels & restaurants",
+  industrial: "Industrial & logistics",
+  waste: "Waste & recycling",
+  quarry: "Quarrying",
+  "student-accommodation": "Student accommodation",
+  commercial: "Commercial",
+}
+
+function categoryLabel(item: HomepageNotablePlanningItem) {
+  return item.categories.map((category) => categoryLabels[category]).find(Boolean) ?? "Significant development"
+}
+
+function itemTitle(item: HomepageNotablePlanningItem) {
+  return item.displayName || item.location || item.proposal || `Planning ${item.reference}`
+}
+
+function applicationHref(item: HomepageNotablePlanningItem) {
+  const authority = item.authorityCode ? getPlanningAuthorityByCode(item.authorityCode) : null
+  return authority ? planningApplicationPath(authority, item.reference) : `/search?q=${encodeURIComponent(item.reference)}`
+}
+
+function shortText(value: string | null, max: number) {
+  if (!value) return null
+  const text = value.replace(/\s+/g, " ").trim()
+  return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text
+}
+
+function isDecision(item: HomepageNotablePlanningItem) {
+  const text = `${item.status ?? ""} ${item.decisionText ?? ""}`.toLowerCase()
+  return Boolean(item.decisionDate) || /grant|permission|refus|withdraw|invalid|appeal|conditional/.test(text)
+}
+
+function diverseNotables(items: HomepageNotablePlanningItem[], limit: number) {
+  const selected: HomepageNotablePlanningItem[] = []
+  const seenCategories = new Set<string>()
+
+  for (const item of items) {
+    const category = categoryLabel(item)
+    if (!seenCategories.has(category)) {
+      selected.push(item)
+      seenCategories.add(category)
+    }
+    if (selected.length === limit) return selected
+  }
+
+  for (const item of items) {
+    if (!selected.some((selectedItem) => selectedItem.applicationId === item.applicationId)) selected.push(item)
+    if (selected.length === limit) break
+  }
+
+  return selected
+}
+
+function NotableStatusBadge({ item }: { item: HomepageNotablePlanningItem }) {
+  const label = item.status?.trim() || item.decisionText?.trim()
+  if (!label) return null
+  return <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold ${planningStateBadgeClasses(planningDecisionTone(label))}`}>{label}</span>
+}
+
+export async function PlanningLandingExplore() {
+  const [notableItems, localities] = await Promise.all([
+    getHomepageNotablePlanning().catch(() => []),
+    getPlanningLocalityDirectory().catch(() => []),
+  ])
+
+  const liveNotables = diverseNotables(notableItems.filter((item) => !isDecision(item)), 6)
+  const rankedAreas = [...localities]
+    .filter((area) => area.authority_code && area.activeCount > 0)
+    .sort((left, right) => right.activeCount - left.activeCount || left.locality_label.localeCompare(right.locality_label, "en-IE", { sensitivity: "base" }))
+    .slice(0, 12)
+
+  const authorityAreaCounts = new Map<string, number>()
+  for (const locality of localities) {
+    if (!locality.authority_code) continue
+    authorityAreaCounts.set(locality.authority_code, (authorityAreaCounts.get(locality.authority_code) ?? 0) + 1)
+  }
+
+  const nf = new Intl.NumberFormat("en-IE")
+
+  return (
+    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:py-10">
+      <section aria-labelledby="notable-planning-heading">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Notable planning</p>
+            <h2 id="notable-planning-heading" className="mt-2 text-3xl font-semibold tracking-tight text-stone-950 sm:text-4xl">Significant developments to watch</h2>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600 sm:text-base">Major applications still moving through the planning process, selected across development types and locations rather than routine household applications.</p>
+          </div>
+          <Link href="/planning/categories" className="shrink-0 text-sm font-semibold text-emerald-800 hover:text-emerald-950 hover:underline">Explore notable planning →</Link>
+        </div>
+
+        {liveNotables.length ? (
+          <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {liveNotables.map((item) => {
+              const authority = item.authorityCode ? getPlanningAuthorityByCode(item.authorityCode) : null
+              return (
+                <Link key={item.applicationId} href={applicationHref(item)} className="group flex min-h-52 flex-col rounded-3xl border border-stone-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <span className="rounded-full bg-stone-100 px-2.5 py-1 text-xs font-semibold text-stone-700">{categoryLabel(item)}</span>
+                    <NotableStatusBadge item={item} />
+                  </div>
+                  <h3 className="mt-4 text-lg font-semibold tracking-tight text-stone-950 group-hover:text-emerald-800">{shortText(itemTitle(item), 92)}</h3>
+                  {item.location ? <p className="mt-2 line-clamp-2 text-sm leading-6 text-stone-500">{shortText(item.location, 115)}</p> : null}
+                  <p className="mt-auto pt-4 text-xs font-medium text-stone-500">
+                    {authority?.shortName ?? "Planning"}{item.registrationDate ? ` · Registered ${formatPlanningDate(item.registrationDate)}` : ` · ${item.reference}`}
+                  </p>
+                </Link>
+              )
+            })}
+          </div>
+        ) : null}
+      </section>
+
+      <section className="mt-12 rounded-[28px] border border-stone-200 bg-white p-5 shadow-sm sm:p-7" aria-labelledby="planning-where-you-live">
+        <div className="grid gap-7 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:items-start">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">Explore by place</p>
+            <h2 id="planning-where-you-live" className="mt-2 text-3xl font-semibold tracking-tight text-stone-950">Planning where you live</h2>
+            <p className="mt-3 max-w-xl text-sm leading-6 text-stone-600 sm:text-base">Find a town, suburb, postal district or local area. Where a place name exists in more than one council, OpenList shows the authority so you can choose the right one.</p>
+
+            <form action="/planning/areas" method="get" className="mt-5 flex gap-2 rounded-2xl border border-stone-300 bg-stone-50 p-2">
+              <input name="q" type="search" aria-label="Find a planning area" placeholder="Town, suburb, postal district or locality" className="min-h-12 min-w-0 flex-1 rounded-xl bg-white px-3 text-sm outline-none ring-1 ring-stone-200 placeholder:text-stone-400 focus:ring-stone-400 sm:text-base" />
+              <button className="min-h-12 rounded-xl bg-stone-950 px-5 text-sm font-semibold text-white transition hover:bg-stone-700">Find area</button>
+            </form>
+            <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold">
+              <Link href="/planning/areas" className="text-emerald-800 hover:underline">Browse all areas →</Link>
+              <Link href="/planning?construction=commenced" className="text-stone-700 hover:text-stone-950 hover:underline">Construction commenced →</Link>
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-baseline justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">Most active now</p>
+                <h3 className="mt-1 text-xl font-semibold tracking-tight text-stone-950">Busy planning areas</h3>
+              </div>
+              <Link href="/planning/areas" className="text-xs font-semibold text-stone-500 hover:text-stone-900">All areas →</Link>
+            </div>
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              {rankedAreas.map((area) => {
+                const authority = area.authority_code ? getPlanningAuthorityByCode(area.authority_code) : null
+                return (
+                  <Link key={area.canonical_path} href={area.canonical_path} className="group flex items-center justify-between gap-3 rounded-xl border border-stone-200 bg-stone-50 px-3.5 py-3 transition hover:border-emerald-200 hover:bg-emerald-50/50">
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-semibold text-stone-850 group-hover:text-emerald-900">{area.locality_label}</span>
+                      <span className="mt-0.5 block truncate text-xs text-stone-500">{authority?.shortName ?? area.county ?? "Planning area"}</span>
+                    </span>
+                    <span className="shrink-0 text-xs font-semibold text-emerald-800">{nf.format(area.activeCount)}</span>
+                  </Link>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+
+        <details className="mt-7 border-t border-stone-200 pt-5">
+          <summary className="cursor-pointer text-sm font-semibold text-stone-800">Browse by planning authority</summary>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            {PLANNING_AUTHORITIES.map((authority) => (
+              <Link key={authority.code} href={`/planning/${authority.slug}/areas`} className="flex items-center justify-between gap-3 rounded-xl border border-stone-200 px-3.5 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:text-stone-950">
+                <span>{authority.shortName}</span>
+                <span className="shrink-0 text-xs text-stone-400">{nf.format(authorityAreaCounts.get(authority.code) ?? 0)} areas</span>
+              </Link>
+            ))}
+          </div>
+        </details>
+      </section>
+
+      <PlanningCategoryLinks embedded />
+    </div>
+  )
+}
