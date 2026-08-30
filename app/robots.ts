@@ -23,6 +23,7 @@ export default function robots(): MetadataRoute.Robots {
       `${baseUrl}/sitemaps/planning-notable.xml`,
       `${baseUrl}/sitemaps/sold-prices-localities.xml`,
       `${baseUrl}/sitemaps/planning-localities.xml`,
+      `${baseUrl}/sitemaps/planning-localities-expanded.xml`,
     ],
     host: baseUrl,
   }
