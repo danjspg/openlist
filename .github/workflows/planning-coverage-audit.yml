@@ -9,8 +9,10 @@ permissions:
   contents: read
   issues: write
 
+# Share one DB-maintenance lane with the daily integrity sweep so the weekly
+# coverage RPC cannot compete with another full verification/repair workload.
 concurrency:
-  group: planning-coverage-audit
+  group: openlist-db-maintenance
   cancel-in-progress: false
 
 jobs:
