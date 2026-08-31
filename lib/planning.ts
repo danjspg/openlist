@@ -191,7 +191,12 @@ export async function getPlanningDashboard(
   const hasFacetFilters = Boolean(filters.q || filters.area || filters.status || filters.type || filters.construction)
   const hasApplicationFilters = hasResultFilters || filters.sort === "oldest"
   const shouldLoadFilteredOverview =
-    hasFacetFilters && !filters.q && !filters.status && !filters.type && !filters.construction
+    Boolean(authorityCode || selectedCouncilCode) &&
+    hasFacetFilters &&
+    !filters.q &&
+    !filters.status &&
+    !filters.type &&
+    !filters.construction
   const needsNationalCouncilActivity =
     !authority && !selectedCouncilCode && !hasApplicationFilters
 
@@ -241,18 +246,21 @@ export async function getPlanningDashboard(
   const areaStats = needsNationalCouncilActivity
     ? councilActivity?.stats ?? []
     : filteredSummary.areaStats
+  const filteredAggregateAvailable = !hasFacetFilters || filteredOverview !== null
 
   return {
     authority,
-    aggregateAvailable: overviewResult !== null && !filters.status && !filters.type && !filters.construction,
-    totalCount: filters.status || filters.type || filters.construction
-      ? searchResult.count
-      : hasApplicationFilters
-        ? filteredSummary.totalCount
-        : overview.totalCount,
-    latestRegistrationDate: hasApplicationFilters
-      ? filteredSummary.latestRegistrationDate
-      : overview.latestRegistrationDate,
+    aggregateAvailable:
+      overviewResult !== null &&
+      filteredAggregateAvailable &&
+      !filters.status &&
+      !filters.type &&
+      !filters.construction,
+    totalCount: hasApplicationFilters ? searchResult.count : overview.totalCount,
+    latestRegistrationDate:
+      hasApplicationFilters && filters.sort !== "oldest"
+        ? searchResult.results[0]?.registration_date ?? overview.latestRegistrationDate
+        : overview.latestRegistrationDate,
     latestRegistrationMonth: filteredSummary.latestRegistrationMonth,
     latestMonthCount: filteredSummary.latestMonthCount,
     previousMonthCount: filteredSummary.previousMonthCount,
@@ -416,8 +424,6 @@ export const getPlanningApplicationEvents = cache(
     try {
       return await getPlanningApplicationEventsCached(applicationId)
     } catch (error) {
-      // Timeline history is supporting context. The current canonical application
-      // must remain readable if event-history storage has a transient problem.
       console.warn(
         `Planning timeline unavailable for ${applicationId}; rendering core application.`,
         error
@@ -510,8 +516,6 @@ async function getFilteredPlanningAggregateSummary(
   )
 }
 
-// Postgres filters and aggregates the matching rows. Only the compact JSON summary
-// crosses the network; no planning dataset is downloaded into the Vercel function.
 const getPlanningAggregateSummaryCached = unstable_cache(
   async (
     authorityCode: string,

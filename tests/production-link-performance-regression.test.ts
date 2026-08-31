@@ -31,3 +31,24 @@ test("planning category index is bounded well below the former 50000-row request
   assert.match(categories, /p_limit: PUBLIC_CATEGORY_INDEX_LIMIT/)
   assert.doesNotMatch(categories, /p_limit: 50000/)
 })
+
+test("homepage and category directory do not load the category index on cold render", async () => {
+  const homepage = await source("app/page.tsx")
+  const directory = await source("app/planning/categories/page.tsx")
+  const categories = await source("lib/planning-public-categories.ts")
+
+  assert.doesNotMatch(directory, /getPlanningPublicCategorySummaries/)
+  assert.match(directory, /PLANNING_PUBLIC_CATEGORIES\.map/)
+  assert.match(categories, /getPlanningPublicCategorySummaries[\s\S]*?return \[\]/)
+  assert.match(homepage, /getPlanningPublicCategorySummaries\(\)\.catch\(\(\)=>\[\]\)/)
+})
+
+test("national area searches do not request a filtered planning aggregate", async () => {
+  const planning = await source("lib/planning.ts")
+
+  assert.match(
+    planning,
+    /const shouldLoadFilteredOverview =\s*Boolean\(authorityCode \|\| selectedCouncilCode\)[\s\S]*?hasFacetFilters/
+  )
+  assert.match(planning, /totalCount: hasApplicationFilters \? searchResult\.count : overview\.totalCount/)
+})

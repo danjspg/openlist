@@ -1,7 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { formatPlanningCount } from "@/lib/planning-locality-presentation"
-import { getPlanningPublicCategorySummaries } from "@/lib/planning-public-categories"
+import { PLANNING_PUBLIC_CATEGORIES } from "@/lib/planning-public-categories"
 
 export const dynamic = "force-dynamic"
 export const revalidate = 21600
@@ -13,8 +12,7 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 }
 
-export default async function PlanningCategoriesPage() {
-  const categories = await getPlanningPublicCategorySummaries(3)
+export default function PlanningCategoriesPage() {
   return (
     <main className="min-h-screen bg-stone-50">
       <section className="border-b border-stone-200 bg-white">
@@ -27,12 +25,9 @@ export default async function PlanningCategoriesPage() {
       </section>
       <section className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:py-10">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {categories.map((category) => (
+          {PLANNING_PUBLIC_CATEGORIES.map((category) => (
             <Link key={category.slug} href={`/planning/categories/${category.slug}`} className="group rounded-2xl border border-stone-200 bg-white p-5 shadow-sm transition hover:border-emerald-300 hover:shadow-md">
-              <div className="flex items-start justify-between gap-4">
-                <h2 className="text-xl font-semibold tracking-tight text-stone-950 group-hover:text-emerald-900">{category.shortLabel}</h2>
-                <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-900">{formatPlanningCount(category.count)}</span>
-              </div>
+              <h2 className="text-xl font-semibold tracking-tight text-stone-950 group-hover:text-emerald-900">{category.shortLabel}</h2>
               <p className="mt-3 text-sm leading-6 text-stone-600">{category.description}</p>
               <p className="mt-4 text-sm font-semibold text-emerald-800">View applications <span aria-hidden="true">→</span></p>
             </Link>
