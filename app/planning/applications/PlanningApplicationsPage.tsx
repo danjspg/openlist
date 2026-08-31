@@ -49,7 +49,12 @@ export async function PlanningApplicationsView({
   const hasActiveSearch = Boolean(
     filters.q || filters.area || filters.council || filters.status || filters.type || filters.construction || filters.sort === "oldest"
   )
-  const aggregateIntentionallySuppressed = Boolean(filters.status || filters.type || filters.construction)
+  const aggregateIntentionallySuppressed = Boolean(
+    filters.status ||
+      filters.type ||
+      filters.construction ||
+      (filters.area && !authority && !filters.council)
+  )
   const dashboard = await getPlanningDashboard(filters, authority ?? null)
   const completedMonthStats = getCompletedPlanningMonthStats(dashboard.monthStats)
   const latestCompletedMonth = completedMonthStats.at(-1)
