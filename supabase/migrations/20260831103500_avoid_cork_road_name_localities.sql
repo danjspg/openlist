@@ -122,6 +122,7 @@ begin
     ) with ordinality as parts(part, position)
     where trim(part) <> ''
       and trim(part) !~ '^\d+$'
+      and trim(part) !~* '\m(Road|Rd\.?|Street|St\.?|Lane|Ln\.?|Avenue|Ave\.?|Drive|Dr\.?|Way|Quay|Terrace|Crescent|Close|Place|Square)\M([[:space:]]+and)?$'
     order by position desc
     limit 1;
 
