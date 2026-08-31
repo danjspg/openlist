@@ -38,14 +38,20 @@ export async function GET(request: Request) {
   const queryKey = normalise(query)
   const suggestions: Suggestion[] = []
 
-  const localityMatches = localities
+  const matchedLocalities = localities.filter((entry) => {
+    const labelKey = normalise(entry.locality_label)
+    const slugKey = normalise(entry.locality_slug)
+    return labelKey === queryKey || slugKey === queryKey || labelKey.startsWith(queryKey) || labelKey.includes(queryKey)
+  })
+  const suppressedLocalityPaths = dominatedDuplicateLocalityPaths(matchedLocalities)
+
+  const localityMatches = matchedLocalities
+    .filter((entry) => !suppressedLocalityPaths.has(entry.canonical_path))
     .map((entry) => {
       const labelKey = normalise(entry.locality_label)
       const slugKey = normalise(entry.locality_slug)
       const exact = labelKey === queryKey || slugKey === queryKey
       const prefix = labelKey.startsWith(queryKey)
-      const contains = labelKey.includes(queryKey)
-      if (!exact && !prefix && !contains) return null
       const authority = entry.authority_code ? getPlanningAuthorityByCode(entry.authority_code) : null
       const score = (exact ? 5000 : prefix ? 3000 : 1200) + Math.log10(entry.activeCount + 1) * 80
       return {
@@ -58,7 +64,6 @@ export async function GET(request: Request) {
         score,
       }
     })
-    .filter((item): item is NonNullable<typeof item> => item !== null)
     .sort((a, b) => b.score - a.score)
     .slice(0, scope === "planning" ? 6 : 4)
 
@@ -110,6 +115,28 @@ export async function GET(request: Request) {
   }))
 
   return NextResponse.json({ suggestions: deduped }, { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=3600" } })
+}
+
+function dominatedDuplicateLocalityPaths(entries: Awaited<ReturnType<typeof getPlanningLocalityDirectory>>) {
+  const groups = new Map<string, typeof entries>()
+  for (const entry of entries) {
+    const key = normalise(entry.locality_label)
+    groups.set(key, [...(groups.get(key) ?? []), entry])
+  }
+
+  const suppressed = new Set<string>()
+  for (const group of groups.values()) {
+    if (group.length < 2) continue
+    const ranked = [...group].sort((a, b) => {
+      const appDifference = Number(b.evidence.applicationCount ?? 0) - Number(a.evidence.applicationCount ?? 0)
+      return appDifference || b.activeCount - a.activeCount
+    })
+    const firstCount = Number(ranked[0].evidence.applicationCount ?? 0)
+    const secondCount = Number(ranked[1].evidence.applicationCount ?? 0)
+    if (firstCount < Math.max(25, secondCount * 3)) continue
+    for (const weaker of ranked.slice(1)) suppressed.add(weaker.canonical_path)
+  }
+  return suppressed
 }
 
 function clean(value: string) { return value.replace(/\s+/g, " ").trim().slice(0, 80) }
