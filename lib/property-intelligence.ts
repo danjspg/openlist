@@ -111,6 +111,7 @@ export function matchPlanningLocation(
       (area) =>
         county &&
         normaliseSlug(area.county) === normaliseSlug(county) &&
+        normaliseSlug(area.areaLabel) !== normaliseSlug(county) &&
         locationText.includes(normalisedSearchText(area.areaLabel))
     )
     .sort((a, b) => b.areaLabel.length - a.areaLabel.length)
