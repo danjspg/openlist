@@ -20,6 +20,7 @@ export type PlanningLocalityNotableGroup = {
 // only one visual group here. Prefer the most specific user-facing category
 // over generic cross-cutting categories such as infrastructure.
 const CATEGORY_ORDER = [
+  "padel",
   "residential-large",
   "residential",
   "student-accommodation",
@@ -37,6 +38,7 @@ const CATEGORY_ORDER = [
 
 export function publicNotableCategoryLabel(category: string, proposal = "") {
   const text = proposal.toLowerCase()
+  if (category === "padel") return "Padel"
   if (category === "residential-large") return "Large residential"
   if (category === "residential") return "Residential development"
   if (category === "student-accommodation") return "Student accommodation"

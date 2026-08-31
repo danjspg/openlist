@@ -1,0 +1,178 @@
+name: Planning public category reconciliation
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "One bounded tranche or serial audit/apply driver"
+        type: choice
+        options: [audit, apply, serial-audit, serial-apply]
+        default: audit
+      confirm_apply:
+        description: "Required confirmation for production writes"
+        type: boolean
+        default: false
+      cursor:
+        description: "Exclusive UUID cursor; use the prior run's exact nextCursor"
+        required: true
+        default: "00000000-0000-0000-0000-000000000000"
+      max_batches:
+        description: "Maximum 250-row batches (integer 1-10)"
+        required: true
+        default: "10"
+      max_runs:
+        description: "Serial-driver tranche limit (1-1000; use 3 for canary)"
+        required: true
+        default: "3"
+      pause_seconds:
+        description: "Pause between successful serial tranches (default 20s)"
+        required: true
+        default: "20"
+      resume_run_id:
+        description: "Prior serial run ID whose state artifact should be resumed"
+        required: false
+        default: ""
+  pull_request:
+    paths:
+      - ".github/workflows/planning-public-category-reconciliation.yml"
+      - "lib/planning-notable-classifier.mjs"
+      - "lib/planning-notable-eligibility.mjs"
+      - "lib/planning-notable-persistence.mjs"
+      - "scripts/reconcile-planning-public-categories.mjs"
+      - "scripts/run-planning-public-category-reconciliation.mjs"
+      - "tests/planning-notable-classifier.test.mjs"
+      - "tests/planning-public-category-reconciliation.test.mjs"
+      - "tests/planning-public-category-serial-driver.test.mjs"
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node --test tests/planning-notable-classifier.test.mjs tests/planning-public-category-reconciliation.test.mjs tests/planning-public-category-serial-driver.test.mjs
+
+  reconcile:
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    concurrency:
+      group: openlist-db-maintenance
+      cancel-in-progress: false
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      RUN_MODE: ${{ inputs.mode }}
+      CONFIRM_APPLY: ${{ inputs.confirm_apply && 'true' || 'false' }}
+      RESUME_CURSOR: ${{ inputs.cursor }}
+      MAX_BATCHES: ${{ inputs.max_batches }}
+      MAX_RUNS: ${{ inputs.max_runs }}
+      PAUSE_SECONDS: ${{ inputs.pause_seconds }}
+      RESUME_RUN_ID: ${{ inputs.resume_run_id }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Restore prior serial progress
+        if: ${{ inputs.resume_run_id != '' }}
+        run: |
+          gh run download "$RESUME_RUN_ID" \
+            --name "planning-public-category-reconciliation-$RESUME_RUN_ID" \
+            --dir artifacts
+      - name: Run one bounded tranche
+        run: |
+          mkdir -p artifacts
+          apply_flag=""
+          if [[ "$RUN_MODE" == "apply" || "$RUN_MODE" == "serial-apply" ]]; then
+            if [[ "$CONFIRM_APPLY" != "true" ]]; then
+              echo "apply mode requires confirm_apply=true" >&2
+              exit 1
+            fi
+            apply_flag="--apply"
+          fi
+          if [[ "$RUN_MODE" == "serial-audit" || "$RUN_MODE" == "serial-apply" ]]; then
+            if [[ ! "$PAUSE_SECONDS" =~ ^[0-9]+$ ]]; then
+              echo "pause_seconds must be a non-negative integer" >&2
+              exit 1
+            fi
+            confirm_flag=""
+            cursor_flag="--cursor=$RESUME_CURSOR"
+            if [[ -n "$RESUME_RUN_ID" ]]; then cursor_flag=""; fi
+            if [[ "$CONFIRM_APPLY" == "true" ]]; then confirm_flag="--confirm-apply"; fi
+            node scripts/run-planning-public-category-reconciliation.mjs $apply_flag $confirm_flag $cursor_flag \
+              --max-runs="$MAX_RUNS" \
+              --pause-ms="$((PAUSE_SECONDS * 1000))" \
+              --state="artifacts/planning-public-category-serial-${RUN_MODE#serial-}-state.json"
+          else
+            node scripts/reconcile-planning-public-categories.mjs $apply_flag \
+              --batch-size=250 \
+              --max-batches="$MAX_BATCHES" \
+              --cursor="$RESUME_CURSOR" \
+              --output=artifacts/planning-public-category-reconciliation.json
+          fi
+      - name: Summarise tranche and resume cursor
+        if: ${{ always() }}
+        run: |
+          report_path="artifacts/planning-public-category-reconciliation.json"
+          if [[ "$RUN_MODE" == serial-* ]]; then
+            report_path="artifacts/planning-public-category-serial-${RUN_MODE#serial-}-state.json"
+          fi
+          if [[ ! -f "$report_path" ]]; then
+            echo "## Planning public category reconciliation" >> "$GITHUB_STEP_SUMMARY"
+            echo "No report was produced; do not advance the cursor." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          REPORT_PATH="$report_path" node - <<'NODE' >> "$GITHUB_STEP_SUMMARY"
+          const report = require(`./${process.env.REPORT_PATH}`)
+          if (report.version === 1) {
+            console.log('## Planning public category serial reconciliation')
+            console.log('')
+            console.log(`- Mode: **${report.mode}**`)
+            console.log(`- Completed tranches: **${report.completedTranches}**`)
+            console.log(`- Last successful cursor: \`${report.lastSuccessfulCursor}\``)
+            console.log(`- Scanned: **${report.totalScanned}**`)
+            console.log(`- Inserted: **${report.totalInserted}**`)
+            console.log(`- Updated: **${report.totalUpdated}**`)
+            console.log(`- Unchanged: **${report.totalUnchanged}**`)
+            console.log(`- Complete: **${report.complete ? 'yes' : 'no'}**`)
+            process.exit(0)
+          }
+          const counts = report.counts || {}
+          console.log('## Planning public category reconciliation')
+          console.log('')
+          console.log(`- Mode: **${report.mode}**`)
+          console.log(`- Start cursor: \`${report.startCursor}\``)
+          console.log(`- Final safe cursor: \`${report.finalCursor}\``)
+          console.log(`- Exact next cursor: **${report.nextCursor ? `\`${report.nextCursor}\`` : 'complete — none'}**`)
+          console.log(`- Ceiling: **${report.maximumScannedRows ?? 0} rows**`)
+          console.log(`- Scanned: **${counts.scanned ?? 0}**`)
+          console.log(`- Matched: **${counts.matched ?? 0}**`)
+          console.log(`- Inserted: **${counts.inserted ?? 0}**`)
+          console.log(`- Updated: **${counts.updated ?? 0}**`)
+          console.log(`- Unchanged: **${counts.unchanged ?? 0}**`)
+          console.log(`- Failed: **${counts.failed ?? 0}**`)
+          console.log(`- Elapsed: **${report.elapsedMs ?? 0} ms**`)
+          console.log(`- Complete: **${report.complete ? 'yes' : 'no'}**`)
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: planning-public-category-reconciliation-${{ github.run_id }}
+          path: artifacts/*.json
+          retention-days: 90
+          if-no-files-found: warn

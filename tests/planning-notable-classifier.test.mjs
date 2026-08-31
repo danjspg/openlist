@@ -4,6 +4,7 @@ import {
   classifyPlanningNotability,
   DEFAULT_PLANNING_NOTABLE_THRESHOLDS,
   extractPlanningScaleSignals,
+  PUBLIC_PLANNING_CATEGORY_SLUGS,
 } from "../lib/planning-notable-classifier.mjs"
 import {
   evaluatePlanningNotableEligibility,
@@ -131,6 +132,42 @@ test("classifier output is deterministic and idempotent", () => {
   assert.deepEqual(classifyPlanningNotability(row), classifyPlanningNotability({ ...row }))
 })
 
+const publicCategoryCases = [
+  ["padel", "Construction of four covered padel courts and a padel clubhouse"],
+  ["residential-development", "Development of 24 dwellings"],
+  ["large-residential", "Development of 120 homes"],
+  ["wind-farms", "Development of a six-wind-turbine wind farm"],
+  ["solar-energy", "Development of a 45 hectare solar farm"],
+  ["battery-storage", "A 100MW battery energy storage system facility"],
+  ["retail", "Construction of a new supermarket"],
+  ["hotels-restaurants", "Construction of a new 145-bedroom hotel"],
+  ["student-accommodation", "Construction of 300 student accommodation bedspaces"],
+  ["data-centres", "Construction of a three-building data centre campus"],
+  ["infrastructure", "Construction of a 110kV electricity substation"],
+  ["transport", "Construction of a new railway station"],
+  ["industrial-logistics", "Construction of a major logistics distribution centre"],
+  ["waste-recycling", "Development of a materials recovery facility"],
+  ["quarrying", "Extension of an existing quarry for rock extraction"],
+]
+
+test("one canonical classifier owns every public category", () => {
+  assert.deepEqual(publicCategoryCases.map(([slug]) => slug), PUBLIC_PLANNING_CATEGORY_SLUGS)
+  for (const [slug, proposal] of publicCategoryCases) {
+    const result = classifyPlanningNotability(application(proposal))
+    assert.ok(result.publicCategories.includes(slug), `${slug} missing from ${JSON.stringify(result)}`)
+  }
+})
+
+test("public category rules reject incidental Padel, road and substation references", () => {
+  for (const proposal of [
+    "Construction of one dwelling at Padel Road",
+    "Construction of one dwelling and a new entrance from the regional road",
+    "A restaurant extension including relocation of the existing electricity substation kiosk",
+  ]) {
+    assert.deepEqual(classifyPlanningNotability(application(proposal)).publicCategories, [], proposal)
+  }
+})
+
 const eligibilityAsOf = "2026-08-28"
 
 for (const [name, proposal] of [
@@ -250,6 +287,7 @@ test("deterministic and press metadata coexist without losing enrichment", () =>
   })
   assert.deepEqual(withPress.classification_sources, ["deterministic", "press"])
   assert.ok(withPress.notable_categories.includes("residential-large"))
+  assert.ok(withPress.notable_categories.includes("large-residential"))
   assert.ok(withPress.notable_categories.includes("press"))
   assert.ok(withPress.classification_reasons.deterministic)
   assert.ok(withPress.classification_reasons.press)
@@ -261,6 +299,27 @@ test("deterministic and press metadata coexist without losing enrichment", () =>
   assert.equal(rerun.row.display_name, "Riverbank Quarter")
   assert.deepEqual(rerun.row.evidence, withPress.evidence)
   assert.deepEqual(rerun.row.classification_sources, ["deterministic", "press"])
+})
+
+test("reconciliation preserves unrelated manual categories and is idempotent", () => {
+  const row = application("Construction of four padel courts and an associated clubhouse")
+  const existing = {
+    ...buildDeterministicNotableMutation(row, null).row,
+    notable_categories: ["manual-feature", "press"],
+    classification_sources: ["manual", "press"],
+    classification_reasons: { manual: { note: "Editorially reviewed" } },
+    display_name: "Community Padel Club",
+  }
+  const first = buildDeterministicNotableMutation(row, existing)
+  assert.ok(first.row.notable_categories.includes("padel"))
+  assert.ok(first.row.notable_categories.includes("manual-feature"))
+  assert.ok(first.row.notable_categories.includes("press"))
+  assert.equal(first.row.display_name, "Community Padel Club")
+  assert.deepEqual(first.row.classification_reasons.manual, { note: "Editorially reviewed" })
+
+  const second = buildDeterministicNotableMutation(row, first.row)
+  assert.equal(second.changed, false)
+  assert.deepEqual(second.row, first.row)
 })
 
 test("Cork City 26/44496 Boxd press and authoritative enrichment remain intact", () => {
@@ -328,6 +387,20 @@ test("persistence enqueues only material notable-state changes", async () => {
     application_id: row.id,
     requested_at: "2026-08-28T10:00:00.000Z",
   }])
+})
+
+test("dry-run classification performs no database writes or queue fan-out", async () => {
+  const row = application("Construction of four padel courts")
+  const database = mockSupabase([])
+  const result = await classifyAndPersistPlanningApplications(database, [row], {
+    dryRun: true,
+    enqueue: false,
+  })
+  assert.equal(result.scanned, 1)
+  assert.equal(result.created, 1)
+  assert.equal(result.changed, 1)
+  assert.deepEqual(database.writes.notable, [])
+  assert.deepEqual(database.writes.queue, [])
 })
 
 test("structural expiry is idempotent and queues only the material priority change", async () => {

@@ -262,13 +262,30 @@ test("workflow validate branch forwards the cursor and cannot enable apply", asy
   assert.doesNotMatch(validateBranch, /APPLY_RECONCILIATION/)
 })
 
-test("workflow apply-full branch is explicitly confirmed and scheduled sweep is unchanged", async () => {
+test("workflow category repair is explicit, serialized and scheduled sweep remains bounded", async () => {
   const workflow = await readFile(
     new URL("../.github/workflows/planning-notable-classification.yml", import.meta.url),
     "utf8"
   )
+  const categoryWorkflow = await readFile(
+    new URL("../.github/workflows/planning-public-category-reconciliation.yml", import.meta.url),
+    "utf8"
+  )
   const applyFullBranch = workflow.match(/elif \[\[ "\$RUN_MODE" == "apply-full" \]\]; then([\s\S]*?)elif/)?.[1] || ""
   assert.match(workflow, /options: \[validate, reconcile, apply-full\]/)
+  assert.match(workflow, /group: openlist-db-maintenance/)
+  assert.match(categoryWorkflow, /options: \[audit, apply, serial-audit, serial-apply\]/)
+  assert.match(categoryWorkflow, /group: openlist-db-maintenance/)
+  assert.match(categoryWorkflow, /apply mode requires confirm_apply=true/)
+  assert.match(categoryWorkflow, /apply_flag="--apply"/)
+  assert.match(categoryWorkflow, /--batch-size=250/)
+  assert.match(categoryWorkflow, /--max-batches="\$MAX_BATCHES"/)
+  assert.match(categoryWorkflow, /run-planning-public-category-reconciliation\.mjs/)
+  assert.match(categoryWorkflow, /--max-runs="\$MAX_RUNS"/)
+  assert.match(categoryWorkflow, /--pause-ms="\$\(\(PAUSE_SECONDS \* 1000\)\)"/)
+  assert.match(categoryWorkflow, /pause_seconds must be a non-negative integer/)
+  assert.match(categoryWorkflow, /resume_run_id/)
+  assert.doesNotMatch(categoryWorkflow, /schedule:/)
   assert.match(workflow, /confirm_apply_full:/)
   assert.match(applyFullBranch, /CONFIRM_APPLY_FULL/)
   assert.match(applyFullBranch, /exit 1/)
