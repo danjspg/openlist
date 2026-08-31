@@ -82,11 +82,12 @@ backlog. Persistence preserves press/manual sources, display names, evidence,
 aliases and non-deterministic categories. Repeating an applied batch is
 idempotent.
 
-The dedicated manual-only GitHub workflow defaults to read-only `audit` mode.
-Its `apply` mode additionally requires `confirm_apply=true`, and its only write
-command passes the explicit `--apply` flag to the strictly bounded script. The
-write job shares the `openlist-db-maintenance` concurrency lane with other heavy
-audits. It has no schedule and cannot start the historical backlog automatically.
+The dedicated manually dispatched GitHub workflow defaults to read-only `audit`
+mode. Its one-tranche and serial apply modes additionally require
+`confirm_apply=true`, and every write command passes the explicit `--apply` flag
+to the strictly bounded script. The write job shares the
+`openlist-db-maintenance` concurrency lane with other heavy audits. It has no
+schedule and cannot start the historical backlog without an operator dispatch.
 The separate daily classifier remains limited to recently changed rows (eight
 batches of 250); it maintains newly ingested/edited records but never starts the
 historical repair backlog.
@@ -106,50 +107,72 @@ category-specific scans would multiply reads, cursor state and operational risk
 without improving correctness.
 
 The current 391,563-row corpus requires `ceil(391563 / 2500) = 157` apply runs:
-156 full 2,500-row runs and one final run of about 1,563 rows. The operator must
-start every run explicitly. Do not script a loop over workflow dispatches.
+156 full 2,500-row tranches and one final tranche of about 1,563 rows. The serial
+driver calls the existing bounded implementation once per tranche; it does not
+change its 250 x 10 limits.
 
 Before the first run, confirm PR #140 is deployed on `main`, no other database
-maintenance workflow is running, and the baseline health checks below pass. Use
-the GitHub workflow rather than invoking Node directly so the work enters the
-shared `openlist-db-maintenance` concurrency lane.
+maintenance workflow is running, and baseline health is normal. The GitHub job
+enters the shared `openlist-db-maintenance` concurrency lane and never overlaps
+serial tranches.
 
-First production apply run:
+### Phase A: three-tranche canary
+
+Merge and deploy #140, then start exactly three bounded production tranches:
 
 ```sh
 gh workflow run planning-public-category-reconciliation.yml --ref main \
-  -f mode=apply \
+  -f mode=serial-apply \
   -f confirm_apply=true \
   -f cursor=00000000-0000-0000-0000-000000000000 \
-  -f max_batches=10
+  -f max_batches=10 \
+  -f max_runs=3 \
+  -f pause_seconds=20
 ```
 
-Record the workflow run ID, download its artifact, and copy `nextCursor` exactly.
-For run 2 and every subsequent run:
+Record its run ID and inspect application/Data API health. To run another
+three-tranche canary from the saved cursor:
 
 ```sh
 gh workflow run planning-public-category-reconciliation.yml --ref main \
-  -f mode=apply \
+  -f mode=serial-apply \
   -f confirm_apply=true \
-  -f cursor=<PREVIOUS_NEXT_CURSOR> \
-  -f max_batches=10
+  -f max_batches=10 \
+  -f max_runs=3 \
+  -f pause_seconds=20 \
+  -f resume_run_id=<CANARY_RUN_ID>
 ```
 
-After each apply and its health checks, rerun the same tranche in read-only mode
-using that tranche's **start** cursor:
+The workflow downloads the prior run's state artifact. It refuses a corrupt,
+missing, wrong-mode or inconsistent state rather than restarting from zero.
+
+### Phase B: serial completion
+
+After the canary is healthy, continue from the most recent successful serial run.
+`max_runs=200` is only an execution ceiling; the driver stops as soon as the
+corpus reports complete:
 
 ```sh
 gh workflow run planning-public-category-reconciliation.yml --ref main \
-  -f mode=audit \
-  -f confirm_apply=false \
-  -f cursor=<TRANCHE_START_CURSOR> \
-  -f max_batches=10
+  -f mode=serial-apply \
+  -f confirm_apply=true \
+  -f max_batches=10 \
+  -f max_runs=200 \
+  -f pause_seconds=20 \
+  -f resume_run_id=<LATEST_SUCCESSFUL_SERIAL_RUN_ID>
 ```
 
-The audit's final cursor must equal the apply run's final cursor, failures must be
-zero, and inserted/updated must both be zero. Because audit mode passes
-`dryRun: true`, it only reads `planning_applications` and existing
-`planning_seo_notable` rows; it never calls an upsert or the revalidation queue.
+After each successful tranche the driver atomically replaces its JSON state file,
+prints one concise summary, runs one Data API probe, optionally runs one cheap
+database health query, and pauses for 20 seconds before continuing. The state
+contains the last successful cursor, completed tranches, scanned/inserted/updated/
+unchanged totals and timestamp. A failed health probe stops the job after the
+successful cursor has been saved, so resumption does not repeat earlier ranges.
+
+With 156 inter-tranche pauses, the default pause contributes about 52 minutes.
+Allowing roughly 10–25 minutes for the sequential reads/upserts and health probes,
+the expected end-to-end duration is approximately 60–80 minutes. The workflow
+timeout is 120 minutes.
 
 Cursor predicates are exclusive (`id > cursor`). `nextCursor` is the final row of
 the last successfully persisted batch. A successful range can be skipped on the
@@ -162,47 +185,35 @@ batch's last row.
 Newly ingested rows are classified by the same canonical writer after #140 is
 deployed. A record changed after its range was scanned is handled by the existing
 bounded recent-change classifier. The final full audit remains mandatory because
-UUID ordering is not a time ordering and provides no snapshot across 157 manual
-runs.
+UUID ordering is not a time ordering and provides no snapshot across the serial
+run.
 
-### Safety gate after every apply tranche
+### Automatic stop conditions
 
-Do not dispatch the next apply until all checks pass:
+The driver stops without starting another tranche when:
 
-1. The reconciliation artifact reports at most 2,500 scanned rows, zero failures,
-   and an exact `nextCursor` (or `complete: true` on the last run).
-2. The read-only replay reports zero would-insert and zero would-update rows.
-3. PostgreSQL has no query active for more than 10 seconds, idle transaction, or
-   lock waiter:
+- a tranche throws or reports a failure;
+- the cursor is absent, malformed, inconsistent or does not advance;
+- bounds or scanned counts differ from 250 x 10 / 2,500;
+- the Data API probe times out after eight seconds or returns non-2xx;
+- the optional direct DB probe sees a lock waiter, idle transaction or another
+  query active for more than 30 seconds;
+- state cannot be atomically persisted.
 
-   ```sql
-   select
-     count(*) filter (where state = 'active' and now() - query_start > interval '10 seconds') as long_active,
-     count(*) filter (where state = 'idle in transaction') as idle_in_transaction,
-     count(*) filter (where wait_event_type = 'Lock') as lock_waiters
-   from pg_stat_activity
-   where datname = current_database();
-   ```
+There are no automatic retries. Resume explicitly using the stopped workflow's
+artifact only after the underlying condition is understood.
 
-4. Three uncached/simple Data API reads and representative Planning requests have
-   no material latency increase, 5xx burst or `PGRST002` response compared with
-   the pre-run baseline.
-5. GitHub Actions shows no overlapping ingestion, description catch-up, locality
-   refresh, PPR repair, notable quality or integrity job. The shared concurrency
-   group serializes workflows that use it, but the operator must also inspect
-   independently grouped ingestion workflows.
-6. The run ID, start cursor, final/next cursor, elapsed time and all counters are
-   recorded in the incident/rollout log.
+### Phase C: one final full audit
 
-Stop immediately on any statement timeout, Data API 5xx/PGRST002, lock waiter,
-idle transaction, unexplained failure, missing cursor artifact, sustained
-Planning latency regression, or unexpected concurrent maintenance. Do not retry
-the failed run in a loop. Allow the database to return to its normal baseline,
-investigate, and then explicitly replay from the last safe cursor.
+Run the complete read-only count audit once after serial completion:
+
+```sh
+node scripts/audit-planning-public-category-corpus.mjs \
+  --output=artifacts/planning-public-category-final-audit.json
+```
 
 ### Final gate for PR #141
 
-After `complete: true`, run the full direct, read-only audit command shown above.
 For every category require:
 
 - `exactMembership == qualifying`;
@@ -233,11 +244,10 @@ three-card-per-category summary limit.
 
 Rollout order:
 
-1. Deploy the classifier/reconciliation PR.
-2. Run read-only category audits and then bounded apply runs, resuming from the
-   reported cursor. Stop if normal database latency or session pressure rises.
-3. Re-run the full read-only count audit. Require no missing exact membership.
-4. Deploy the stacked pagination/RPC PR.
+1. Deploy the classifier/reconciliation PR and run the three-tranche canary.
+2. If health remains normal, resume serial completion from the saved artifact.
+3. Re-run the full read-only count audit and require every final gate above.
+4. Only then deploy the stacked pagination/RPC PR.
 5. Verify page 1/page 2, authority filtering and locality summaries in production.
 
 The failure mode during steps 1–3 is the existing incomplete category UI, not a
