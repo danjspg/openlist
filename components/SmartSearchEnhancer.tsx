@@ -69,7 +69,7 @@ export default function SmartSearchEnhancer() {
     function onFocus(event: FocusEvent) {
       const resolved = resolveInput(event.target)
       if (!resolved) return
-      setAnchor(resolved)
+      setAnchor((current) => current?.input === resolved.input && current.scope === resolved.scope ? current : resolved)
       updatePosition(resolved.input)
       void load(resolved)
     }
@@ -77,7 +77,7 @@ export default function SmartSearchEnhancer() {
     function onInput(event: Event) {
       const resolved = resolveInput(event.target)
       if (!resolved) return
-      setAnchor(resolved)
+      setAnchor((current) => current?.input === resolved.input && current.scope === resolved.scope ? current : resolved)
       if (timerRef.current) window.clearTimeout(timerRef.current)
       timerRef.current = window.setTimeout(() => void load(resolved), 140)
     }
