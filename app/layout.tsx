@@ -6,6 +6,7 @@ import Link from "next/link"
 import AccountFooterLink from "@/components/AccountFooterLink"
 import AuthStateProvider from "@/components/AuthStateProvider"
 import Nav from "@/components/Nav"
+import SmartSearchEnhancer from "@/components/SmartSearchEnhancer"
 import "./globals.css"
 
 export const metadata: Metadata = { title: "OpenList | Property Intelligence for Ireland", description: "Search Irish sold prices and planning applications. Research properties, neighbourhoods and development activity in one place.", metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://www.openlist.ie"), icons: { icon: [{ url: "/favicon-v2.ico?v=2", sizes: "16x16 32x32", type: "image/x-icon" }], shortcut: "/favicon-v2.ico?v=2", apple: [{ url: "/apple-icon-v2.png?v=2", sizes: "180x180", type: "image/png" }] } }
@@ -14,6 +15,7 @@ export const viewport: Viewport = { width: "device-width", initialScale: 1, view
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return <html lang="en" className="overflow-x-hidden"><body className="overflow-x-hidden bg-stone-50 text-stone-900"><AuthStateProvider>
     <header className="sticky top-0 z-50 border-b border-stone-200/80 bg-white/90 backdrop-blur-md"><div className="mx-auto max-w-6xl px-4 sm:px-6"><div className="flex flex-wrap items-center justify-between gap-x-4 py-3 sm:py-4 md:flex-nowrap md:py-4"><Link href="/" className="flex shrink-0 items-center"><Image src="/logo-small.png" alt="OpenList" width={180} height={180} className="h-[45px] w-[45px] sm:hidden" priority /><Image src="/logo-v2.png" alt="OpenList" width={450} height={131} className="hidden h-auto w-56 sm:block md:w-60 lg:w-64" priority /></Link><Nav /></div></div></header>
+    <SmartSearchEnhancer />
     {children}
     <footer className="mt-16 border-t border-stone-200 bg-white"><div className="mx-auto max-w-6xl px-4 py-10 sm:px-6"><div className="grid gap-10 lg:grid-cols-[1.05fr_1.65fr] lg:gap-14"><div><Link href="/" aria-label="OpenList homepage" className="inline-flex"><Image src="/logo-v2.png" alt="OpenList" width={450} height={131} className="h-auto w-40" /></Link><p className="mt-4 max-w-md text-sm leading-6 text-stone-600">Irish planning applications and sold-price data, organised to make local research faster and easier to understand.</p><p className="mt-4 max-w-md text-xs leading-5 text-stone-400">Public-data research only. Always check the relevant official source before relying on a record.</p></div>
       <nav aria-label="Footer" className="grid grid-cols-2 gap-x-7 gap-y-9 text-sm text-stone-600 sm:grid-cols-4">
