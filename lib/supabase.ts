@@ -3,6 +3,7 @@ import {
   type SupabaseClient,
   type SupabaseClientOptions,
 } from "@supabase/supabase-js"
+import { fetchWithSupabaseBudget } from "@/lib/supabase-resilience"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -51,13 +52,18 @@ function createOpenListClient(
 
   const client = createClient(url, key, {
     ...options,
-    ...(denyBuildRead ? {
-      global: {
-        fetch: async (input: RequestInfo | URL) => {
+    global: {
+      ...options.global,
+      fetch: denyBuildRead
+        ? async (input: RequestInfo | URL) => {
           throw new Error(`${SUPABASE_BUILD_READ_MARKER}: ${String(input)}`)
-        },
-      },
-    } : {}),
+        }
+        : (input, init) => fetchWithSupabaseBudget(
+            options.global?.fetch ?? globalThis.fetch,
+            input,
+            init
+          ),
+    },
   })
 
   // supabase-js 2.103 enables PostgREST retries in postgrest-js but does not yet

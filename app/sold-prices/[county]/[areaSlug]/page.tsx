@@ -91,23 +91,10 @@ export default async function PprAreaPage({ params }: Props) {
   const summaryMedian = snapshotMedian ?? recentSalesMedian
   const summaryMedianUsesRecentFallback = snapshotMedian === undefined && recentSalesMedian !== undefined
   const summaryLastSaleDate = insights.lastSaleDate ?? recentSales[0]?.date_of_sale ?? null
-  const nearbyAreas = await Promise.all(
-    nearbyAreaCandidates.map(async (area) => {
-      const nearbySlug = area.area_slug
-      if (!nearbySlug) return area
-
-      const nearbyCounty = String(area.county || decodedCounty)
-      const nearbyData = await getAreaInsights(nearbyCounty, nearbySlug, selectedRange)
-
-      return {
-        ...area,
-        median_price_eur:
-          nearbyData.insights.momentum?.currentMedian ??
-          nearbyData.insights.medianAllTime ??
-          area.median_price_eur,
-      }
-    })
-  )
+  // Nearby candidates already come from the maintained ppr_area_stats snapshot.
+  // Re-querying full insights for every card turned one locality view into N
+  // additional reads and was a major multiplier during the saturation incident.
+  const nearbyAreas = nearbyAreaCandidates
 
   return (
     <main className="min-h-screen bg-stone-50">
