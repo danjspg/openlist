@@ -34,6 +34,9 @@ on:
       - "lib/planning-seo.ts"
       - "lib/planning.ts"
       - "app/sitemaps/planning-notable.xml/route.ts"
+      - "app/planning/categories/[category]/page.tsx"
+      - "lib/planning-public-categories.ts"
+      - "lib/planning-public-category-pagination.ts"
       - "scripts/reconcile-planning-notable-classification.mjs"
       - "scripts/reconcile-planning-public-categories.mjs"
       - "scripts/planning-upsert.mjs"
@@ -42,7 +45,10 @@ on:
       - "tests/planning-public-category-reconciliation.test.mjs"
       - "tests/planning-seo.test.ts"
       - "tests/planning-reliability.test.ts"
+      - "tests/planning-public-categories.test.ts"
+      - "tests/sweep-resilience-and-seo.test.ts"
       - "supabase/migrations/*planning_notable_classification*"
+      - "supabase/migrations/*planning_public_category_corpus*"
       - ".github/workflows/planning-notable-classification.yml"
 
 permissions:
@@ -66,7 +72,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node --test tests/planning-notable-classifier.test.mjs tests/planning-notable-reconciliation.test.mjs tests/planning-public-category-reconciliation.test.mjs tests/notable-planning-discovery-v2.test.mjs
-      - run: node --import tsx --test tests/planning-seo.test.ts tests/planning-reliability.test.ts
+      - run: node --import tsx --test tests/planning-seo.test.ts tests/planning-reliability.test.ts tests/planning-public-categories.test.ts tests/sweep-resilience-and-seo.test.ts
 
   classify:
     if: ${{ github.event_name != 'pull_request' }}

@@ -6,39 +6,40 @@ import { formatPlanningCount } from "@/lib/planning-locality-presentation"
 import { planningResultRecord } from "@/lib/planning-result-presentation"
 import {
   getPlanningPublicCategory,
-  getPlanningPublicCategorySummary,
   getPlanningPublicCategorySummaries,
   PLANNING_PUBLIC_CATEGORIES,
 } from "@/lib/planning-public-categories"
 
-export const revalidate = 21600
+export const dynamic = "force-dynamic"
 export const dynamicParams = true
 
 type Props = {
   params: Promise<{ category: string }>
-  searchParams: Promise<{ includeOlder?: string; authority?: string }>
-}
-
-export function generateStaticParams() {
-  return PLANNING_PUBLIC_CATEGORIES.map((category) => ({ category: category.slug }))
+  searchParams: Promise<{ includeOlder?: string; authority?: string; page?: string }>
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { category: slug } = await params
-  const summary = await getPlanningPublicCategorySummary(slug)
-  if (!summary || summary.totalCount < 3) return { robots: { index: false, follow: true } }
+  const category = PLANNING_PUBLIC_CATEGORIES.find((item) => item.slug === slug)
+  if (!category) return { robots: { index: false, follow: true } }
   return {
-    title: `${summary.category.label} | OpenList`,
-    description: `${summary.category.description} Browse ${formatPlanningCount(summary.totalCount)} current or recent priority planning applications.`,
-    alternates: { canonical: `/planning/categories/${summary.category.slug}` },
+    title: `${category.label} | OpenList`,
+    description: category.description,
+    alternates: { canonical: `/planning/categories/${category.slug}` },
     robots: { index: true, follow: true },
   }
 }
 
-function categoryHref(slug: string, includeOlder: boolean, authorityCode?: string | null) {
+function categoryHref(
+  slug: string,
+  includeOlder: boolean,
+  authorityCode?: string | null,
+  pageNumber = 1
+) {
   const query = new URLSearchParams()
   if (includeOlder) query.set("includeOlder", "1")
   if (authorityCode) query.set("authority", authorityCode)
+  if (pageNumber > 1) query.set("page", String(pageNumber))
   const suffix = query.toString()
   return `/planning/categories/${slug}${suffix ? `?${suffix}` : ""}`
 }
@@ -48,8 +49,10 @@ export default async function PlanningCategoryPage({ params, searchParams }: Pro
   const query = await searchParams
   const includeOlder = query.includeOlder === "1"
   const authorityCode = query.authority || null
-  const page = await getPlanningPublicCategory(slug, includeOlder, authorityCode)
+  const requestedPage = Math.max(1, Number.parseInt(query.page || "1", 10) || 1)
+  const page = await getPlanningPublicCategory(slug, includeOlder, authorityCode, requestedPage)
   if (!page || page.overallTotalCount < 3) notFound()
+  if (page.totalCount > 0 && page.pageNumber > page.totalPages) notFound()
 
   const otherCategories = (await getPlanningPublicCategorySummaries(3))
     .filter((category) => category.slug !== slug)
@@ -138,11 +141,33 @@ export default async function PlanningCategoryPage({ params, searchParams }: Pro
                 {selectedAuthorityName ? `${selectedAuthorityName} ${page.category.shortLabel.toLowerCase()} applications` : `Recent ${page.category.shortLabel.toLowerCase()} applications`}
               </h2>
             </div>
-            <span className="text-sm text-stone-500">Showing {formatPlanningCount(applications.length)} of {formatPlanningCount(page.totalCount)}</span>
+            <span className="text-sm text-stone-500">Page {formatPlanningCount(page.pageNumber)} of {formatPlanningCount(page.totalPages)} · showing {formatPlanningCount(applications.length)} of {formatPlanningCount(page.totalCount)}</span>
           </div>
           <div className="mt-4 border-y border-stone-200 bg-white">
             <PlanningApplicationList applications={applications} />
           </div>
+          {page.totalPages > 1 ? (
+            <nav className="mt-6 flex items-center justify-between gap-4" aria-label="Category result pages">
+              {page.pageNumber > 1 ? (
+                <Link
+                  rel="prev"
+                  href={categoryHref(slug, includeOlder, page.selectedAuthority?.code, page.pageNumber - 1)}
+                  className="inline-flex min-h-11 items-center rounded-lg border border-stone-300 bg-white px-4 text-sm font-semibold text-stone-800 hover:border-stone-500"
+                >
+                  ← Previous
+                </Link>
+              ) : <span />}
+              {page.pageNumber < page.totalPages ? (
+                <Link
+                  rel="next"
+                  href={categoryHref(slug, includeOlder, page.selectedAuthority?.code, page.pageNumber + 1)}
+                  className="inline-flex min-h-11 items-center rounded-lg border border-stone-300 bg-white px-4 text-sm font-semibold text-stone-800 hover:border-stone-500"
+                >
+                  Next →
+                </Link>
+              ) : null}
+            </nav>
+          ) : null}
         </section>
 
         {otherCategories.length > 0 ? (

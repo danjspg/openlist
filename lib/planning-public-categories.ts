@@ -1,8 +1,19 @@
 import { unstable_cache } from "next/cache"
 import { PLANNING_DATASET_CACHE_TAG } from "@/lib/dataset-cache"
-import { PLANNING_APPLICATION_SELECT, type PlanningApplication } from "@/lib/planning"
+import type { PlanningApplication } from "@/lib/planning"
 import { getPlanningAuthorityByCode } from "@/lib/planning-authorities"
 import { getServerSupabase } from "@/lib/supabase"
+import {
+  PLANNING_PUBLIC_CATEGORY_PAGE_SIZE,
+  planningPublicCategoryPageRequest,
+} from "@/lib/planning-public-category-pagination"
+
+export {
+  PLANNING_PUBLIC_CATEGORY_MAX_PAGE,
+  PLANNING_PUBLIC_CATEGORY_PAGE_SIZE,
+  planningPublicCategoryPageNumber,
+  planningPublicCategoryPageRequest,
+} from "@/lib/planning-public-category-pagination"
 
 export type PlanningPublicCategory = {
   slug: string
@@ -29,15 +40,6 @@ export const PLANNING_PUBLIC_CATEGORIES: PlanningPublicCategory[] = [
   { slug: "quarrying", label: "Quarrying and extraction planning", shortLabel: "Quarrying", description: "Quarry, mining and mineral-extraction planning applications." },
 ]
 
-type PlanningPublicCategoryIndexRow = {
-  applicationId: string
-  localAuthorityCode: string
-  registrationDate: string | null
-  displayName: string | null
-  categories: string[]
-  keywordFlags: number
-}
-
 export type PlanningPublicCategorySourceRow = {
   application_id: string
   proposal: string | null
@@ -53,177 +55,83 @@ export type PlanningPublicCategoryApplication = {
   categories: string[]
 }
 
-const KEYWORD_PADEL = 1 << 0
-const KEYWORD_WIND = 1 << 1
-const KEYWORD_SOLAR = 1 << 2
-const KEYWORD_BATTERY = 1 << 3
-const PUBLIC_CATEGORY_INDEX_LIMIT = 5_000
-
-function keywordFlags(proposal: string | null) {
-  const text = (proposal || "").toLowerCase()
-  let flags = 0
-  if (/\bpadel\b/.test(text)) flags |= KEYWORD_PADEL
-  if (/\bwind farm\b|\bwind turbine/.test(text)) flags |= KEYWORD_WIND
-  if (/\bsolar farm\b|\bsolar energy\b|\bphotovoltaic\b/.test(text)) flags |= KEYWORD_SOLAR
-  if (/\bbattery energy storage\b|\bbess\b|\bgrid[- ]scale battery\b/.test(text)) flags |= KEYWORD_BATTERY
-  return flags
+type PlanningPublicCategoryPagePayload = {
+  rows?: PlanningPublicCategoryApplication[]
+  totalCount?: number
+  overallTotalCount?: number
+  authorityCounts?: Array<{ code: string; count: number }>
 }
 
-function matchesCategory(slug: string, row: PlanningPublicCategoryIndexRow) {
-  const categories = new Set(row.categories)
-  if (slug === "padel") return Boolean(row.keywordFlags & KEYWORD_PADEL)
-  if (slug === "residential-development") return categories.has("residential")
-  if (slug === "large-residential") return categories.has("residential-large")
-  if (slug === "student-accommodation") return categories.has("student-accommodation")
-  if (slug === "wind-farms") return categories.has("energy") && Boolean(row.keywordFlags & KEYWORD_WIND)
-  if (slug === "solar-energy") return categories.has("energy") && Boolean(row.keywordFlags & KEYWORD_SOLAR)
-  if (slug === "battery-storage") return categories.has("energy") && Boolean(row.keywordFlags & KEYWORD_BATTERY)
-  if (slug === "retail") return categories.has("retail")
-  if (slug === "hotels-restaurants") return categories.has("hospitality")
-  if (slug === "data-centres") return categories.has("data-centre")
-  if (slug === "infrastructure") return categories.has("infrastructure")
-  if (slug === "transport") return categories.has("transport")
-  if (slug === "industrial-logistics") return categories.has("industrial")
-  if (slug === "waste-recycling") return categories.has("waste")
-  if (slug === "quarrying") return categories.has("quarry")
-  return false
-}
-
-const loadNotableIndex = unstable_cache(async (includeOlder = false): Promise<PlanningPublicCategoryIndexRow[]> => {
-  const supabase = getServerSupabase()
-  const { data, error } = await supabase.rpc("openlist_planning_public_category_index", {
+const loadCategoryPage = unstable_cache(async (
+  slug: string,
+  includeOlder: boolean,
+  authorityCode: string | null,
+  pageNumber: number,
+  pageSize: number
+) => {
+  const { data, error } = await getServerSupabase().rpc("openlist_planning_public_category_page", {
+    p_category: slug,
     p_include_older: includeOlder,
-    p_limit: PUBLIC_CATEGORY_INDEX_LIMIT,
+    p_authority_code: authorityCode,
+    p_limit: pageSize,
+    p_offset: (pageNumber - 1) * pageSize,
   })
-  if (error) {
-    if (error.code === "PGRST202" || error.message.includes("Could not find the function")) {
-      return loadLegacyNotableIndex(includeOlder)
-    }
-    throw new Error(`Planning public categories index lookup failed: ${error.message}`)
-  }
+  if (error) throw new Error(`Planning public category page lookup failed: ${error.message}`)
+  return (data ?? {}) as PlanningPublicCategoryPagePayload
+}, ["planning-public-category-page", "v1-classified-pagination"], {
+  revalidate: 60 * 60 * 6,
+  tags: [PLANNING_DATASET_CACHE_TAG],
+})
 
-  const rows = (data ?? []) as Array<{
-    application_id: string
-    proposal: string | null
-    local_authority_code: string
-    registration_date: string | null
-    display_name: string | null
-    notable_categories: string[] | null
-  }>
-
-  return rows
-    .map((row) => ({
-      applicationId: row.application_id,
-      localAuthorityCode: row.local_authority_code,
-      registrationDate: row.registration_date,
-      displayName: row.display_name,
-      categories: Array.isArray(row.notable_categories) ? row.notable_categories.map(String) : [],
-      keywordFlags: keywordFlags(row.proposal),
-    }))
-    .sort((a, b) => String(b.registrationDate || "").localeCompare(String(a.registrationDate || "")))
-}, ["planning-public-categories", "v5-bounded-index"], { revalidate: 60 * 60 * 6, tags: [PLANNING_DATASET_CACHE_TAG] })
-
-async function loadLegacyNotableIndex(includeOlder: boolean): Promise<PlanningPublicCategoryIndexRow[]> {
-  const supabase = getServerSupabase()
-  let notableQuery = supabase
-    .from("planning_seo_notable")
-    .select("application_id,display_name,notable_categories")
-    .eq("active", true)
-    .limit(PUBLIC_CATEGORY_INDEX_LIMIT)
-  if (!includeOlder) notableQuery = notableQuery.eq("priority_eligible", true)
-  const { data: notableRows, error: notableError } = await notableQuery
-  if (notableError) throw new Error(`Planning public categories compatibility lookup failed: ${notableError.message}`)
-
-  const metadata = (notableRows ?? []) as Array<{ application_id: string; display_name: string | null; notable_categories: string[] | null }>
-  const notableById = new Map(metadata.map((row) => [row.application_id, row]))
-  const applications: Array<{ id: string; proposal: string | null; local_authority_code: string; registration_date: string | null }> = []
-  const ids = [...notableById.keys()]
-  for (let offset = 0; offset < ids.length; offset += 200) {
-    const { data, error } = await supabase
-      .from("planning_applications")
-      .select("id,proposal,local_authority_code,registration_date")
-      .in("id", ids.slice(offset, offset + 200))
-    if (error) throw new Error(`Planning public categories compatibility hydration failed: ${error.message}`)
-    applications.push(...((data ?? []) as typeof applications))
-  }
-
-  return applications.map((application) => {
-    const notable = notableById.get(application.id)!
-    return {
-      applicationId: application.id,
-      localAuthorityCode: application.local_authority_code,
-      registrationDate: application.registration_date,
-      displayName: notable.display_name,
-      categories: Array.isArray(notable.notable_categories) ? notable.notable_categories.map(String) : [],
-      keywordFlags: keywordFlags(application.proposal),
-    }
-  }).sort((a, b) => String(b.registrationDate || "").localeCompare(String(a.registrationDate || "")))
-}
-
-async function loadApplications(ids: string[]) {
-  if (!ids.length) return new Map<string, PlanningApplication>()
-  const supabase = getServerSupabase()
-  const applications: PlanningApplication[] = []
-  for (let offset = 0; offset < ids.length; offset += 200) {
-    const { data, error } = await supabase
-      .from("planning_applications")
-      .select(PLANNING_APPLICATION_SELECT)
-      .in("id", ids.slice(offset, offset + 200))
-    if (error) throw new Error(`Planning public categories application lookup failed: ${error.message}`)
-    applications.push(...((data ?? []) as PlanningApplication[]))
-  }
-  return new Map(applications.map((application) => [application.id, application]))
-}
-
-export async function getPlanningPublicCategorySummary(slug: string) {
+export async function getPlanningPublicCategory(
+  slug: string,
+  includeOlder = false,
+  authorityCode?: string | null,
+  requestedPage = 1
+) {
   const category = PLANNING_PUBLIC_CATEGORIES.find((item) => item.slug === slug)
   if (!category) return null
-  const rows = await loadNotableIndex(false)
-  return {
-    category,
-    totalCount: rows.filter((row) => matchesCategory(slug, row)).length,
-  }
-}
-
-export async function getPlanningPublicCategory(slug: string, includeOlder = false, authorityCode?: string | null) {
-  const category = PLANNING_PUBLIC_CATEGORIES.find((item) => item.slug === slug)
-  if (!category) return null
-  const categoryRows = (await loadNotableIndex(includeOlder)).filter((row) => matchesCategory(slug, row))
-  const authorityCounts = new Map<string, number>()
-  for (const row of categoryRows) {
-    authorityCounts.set(row.localAuthorityCode, (authorityCounts.get(row.localAuthorityCode) || 0) + 1)
-  }
-  const authorities = [...authorityCounts.entries()]
-    .map(([code, count]) => ({ authority: getPlanningAuthorityByCode(code), count }))
+  const selectedAuthority = authorityCode ? getPlanningAuthorityByCode(authorityCode) : null
+  const { pageNumber, rpcParameters } = planningPublicCategoryPageRequest(
+    slug,
+    includeOlder,
+    selectedAuthority?.code ?? null,
+    requestedPage
+  )
+  const payload = await loadCategoryPage(
+    String(rpcParameters.p_category),
+    Boolean(rpcParameters.p_include_older),
+    rpcParameters.p_authority_code,
+    pageNumber,
+    Number(rpcParameters.p_limit)
+  )
+  const totalCount = Number(payload.totalCount) || 0
+  const overallTotalCount = Number(payload.overallTotalCount) || 0
+  const totalPages = Math.max(1, Math.ceil(totalCount / PLANNING_PUBLIC_CATEGORY_PAGE_SIZE))
+  const authorities = (Array.isArray(payload.authorityCounts) ? payload.authorityCounts : [])
+    .map(({ code, count }) => ({ authority: getPlanningAuthorityByCode(code), count: Number(count) || 0 }))
     .filter((item) => item.authority)
     .sort((a, b) => b.count - a.count || String(a.authority?.shortName || "").localeCompare(String(b.authority?.shortName || "")))
 
-  const selectedAuthority = authorityCode ? getPlanningAuthorityByCode(authorityCode) : null
-  const rows = selectedAuthority
-    ? categoryRows.filter((row) => row.localAuthorityCode === selectedAuthority.code)
-    : categoryRows
-  const visibleRows = rows.slice(0, 40)
-  const applications = await loadApplications(visibleRows.map((row) => row.applicationId))
-  const hydratedRows: PlanningPublicCategoryApplication[] = visibleRows.flatMap((row) => {
-    const application = applications.get(row.applicationId)
-    return application ? [{ application, displayName: row.displayName, categories: row.categories }] : []
-  })
-
   return {
     category,
-    rows: hydratedRows,
-    totalCount: rows.length,
-    overallTotalCount: categoryRows.length,
+    rows: Array.isArray(payload.rows) ? payload.rows : [],
+    totalCount,
+    overallTotalCount,
     authorities,
     includeOlder,
     selectedAuthority,
+    pageNumber,
+    pageSize: PLANNING_PUBLIC_CATEGORY_PAGE_SIZE,
+    totalPages,
   }
 }
 
 // The category directory and homepage are entry surfaces. They should never make
-// a cold request wait for the full notable-category corpus. Detailed category
-// pages still load the live bounded index when the user actually opens one.
+// a cold request wait for, or scan, the notable-category corpus. Their counts are
+// supplied by the precomputed sitemap snapshot rather than live fan-out here.
 export async function getPlanningPublicCategorySummaries(_minimumCount = 3) {
+  void _minimumCount
   return [] as Array<PlanningPublicCategory & { count: number }>
 }
 
@@ -231,17 +139,10 @@ export function planningPublicCategorySummariesFromSource(
   sourceRows: PlanningPublicCategorySourceRow[],
   minimumCount = 3
 ) {
-  const rows: PlanningPublicCategoryIndexRow[] = sourceRows.map((row) => ({
-    applicationId: row.application_id,
-    localAuthorityCode: row.local_authority_code,
-    registrationDate: row.registration_date,
-    displayName: row.display_name,
-    categories: Array.isArray(row.notable_categories) ? row.notable_categories.map(String) : [],
-    keywordFlags: keywordFlags(row.proposal),
-  }))
-
   return PLANNING_PUBLIC_CATEGORIES.map((category) => ({
     ...category,
-    count: rows.filter((row) => matchesCategory(category.slug, row)).length,
+    count: sourceRows.filter((row) =>
+      Array.isArray(row.notable_categories) && row.notable_categories.includes(category.slug)
+    ).length,
   })).filter((category) => category.count >= minimumCount)
 }
