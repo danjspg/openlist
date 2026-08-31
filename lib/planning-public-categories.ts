@@ -38,6 +38,15 @@ type PlanningPublicCategoryIndexRow = {
   keywordFlags: number
 }
 
+export type PlanningPublicCategorySourceRow = {
+  application_id: string
+  proposal: string | null
+  local_authority_code: string
+  registration_date: string | null
+  display_name: string | null
+  notable_categories: string[] | null
+}
+
 export type PlanningPublicCategoryApplication = {
   application: PlanningApplication
   displayName: string | null
@@ -204,6 +213,25 @@ export async function getPlanningPublicCategory(slug: string, includeOlder = fal
 
 export async function getPlanningPublicCategorySummaries(minimumCount = 3) {
   const rows = await loadNotableIndex(false)
+  return PLANNING_PUBLIC_CATEGORIES.map((category) => ({
+    ...category,
+    count: rows.filter((row) => matchesCategory(category.slug, row)).length,
+  })).filter((category) => category.count >= minimumCount)
+}
+
+export function planningPublicCategorySummariesFromSource(
+  sourceRows: PlanningPublicCategorySourceRow[],
+  minimumCount = 3
+) {
+  const rows: PlanningPublicCategoryIndexRow[] = sourceRows.map((row) => ({
+    applicationId: row.application_id,
+    localAuthorityCode: row.local_authority_code,
+    registrationDate: row.registration_date,
+    displayName: row.display_name,
+    categories: Array.isArray(row.notable_categories) ? row.notable_categories.map(String) : [],
+    keywordFlags: keywordFlags(row.proposal),
+  }))
+
   return PLANNING_PUBLIC_CATEGORIES.map((category) => ({
     ...category,
     count: rows.filter((row) => matchesCategory(category.slug, row)).length,

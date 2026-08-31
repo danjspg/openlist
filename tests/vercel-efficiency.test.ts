@@ -102,16 +102,15 @@ test("sitemap timestamps come from planning records rather than build time", asy
 })
 
 test("planning sitemap remains explicitly capped independently of database size", async () => {
-  const [sitemap, planningSeo] = await Promise.all([
+  const [sitemap, generator, planningSeo] = await Promise.all([
     source("app/sitemap.ts"),
+    source("scripts/generate-sitemap-snapshots.mts"),
     source("lib/planning-seo.ts"),
   ])
 
   assert.match(planningSeo, /RECENT_PLANNING_SITEMAP_LIMIT = 5000/)
-  assert.match(
-    sitemap,
-    /getPlanningSitemapApplications\(\s*RECENT_PLANNING_SITEMAP_LIMIT\s*\)/
-  )
+  assert.match(sitemap, /snapshots\.sitemaps\.root/)
+  assert.match(generator, /\[RECENT_PLANNING_SITEMAP_LIMIT\]/)
 })
 
 test("historical result sorting remains database-side and bounded", async () => {

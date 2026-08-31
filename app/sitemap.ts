@@ -1,16 +1,12 @@
 import type { MetadataRoute } from "next"
-import { getPlanningSitemapApplications } from "@/lib/planning"
 import { PLANNING_AUTHORITIES } from "@/lib/planning-authorities"
-import { getAggregatePlanningCanonicalPlaces } from "@/lib/planning-canonical-place"
-import { getPlanningPublicCategorySummaries } from "@/lib/planning-public-categories"
-import {
-  buildPlanningSitemapEntries,
-  RECENT_PLANNING_SITEMAP_LIMIT,
-} from "@/lib/planning-seo"
 import { PPR_MARKETS } from "@/lib/ppr-markets"
+import rawSnapshots from "@/data/sitemap-snapshots.json"
+import { parseSitemapSnapshotSet, sitemapMetadataEntries } from "@/lib/sitemap-snapshot"
 
-export const revalidate = 86400
 export const dynamic = "force-dynamic"
+
+const snapshots = parseSitemapSnapshotSet(rawSnapshots)
 
 const POSITIONING_REFRESH_DATE = new Date("2026-08-23T00:00:00Z")
 const POSITIONING_REFRESH_ROUTES = new Set([
@@ -67,46 +63,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${baseUrl}/planning/${authority.slug}/areas` },
   ])
 
-  const [aggregatePlacesResult, categoriesResult, applicationsResult] = await Promise.allSettled([
-    getAggregatePlanningCanonicalPlaces(),
-    getPlanningPublicCategorySummaries(3),
-    getPlanningSitemapApplications(RECENT_PLANNING_SITEMAP_LIMIT),
-  ])
-
-  if (aggregatePlacesResult.status === "rejected") {
-    console.warn("Aggregate planning place sitemap section unavailable.", aggregatePlacesResult.reason)
-  }
-  if (categoriesResult.status === "rejected") {
-    console.warn("Planning category sitemap section unavailable.", categoriesResult.reason)
-  }
-  if (applicationsResult.status === "rejected") {
-    console.warn("Recent planning application sitemap section unavailable.", applicationsResult.reason)
-  }
-
-  const aggregatePlanningPlaceRoutes = aggregatePlacesResult.status === "fulfilled"
-    ? aggregatePlacesResult.value.map((place) => ({
-        url: `${baseUrl}/planning/areas/${place.slug}`,
-        ...(place.updated_at ? { lastModified: new Date(place.updated_at) } : {}),
-      }))
-    : []
-
-  const planningCategoryRoutes = categoriesResult.status === "fulfilled"
-    ? categoriesResult.value.map((category) => ({ url: `${baseUrl}/planning/categories/${category.slug}` }))
-    : []
-
-  const planningApplicationRoutes = applicationsResult.status === "fulfilled"
-    ? buildPlanningSitemapEntries(applicationsResult.value, baseUrl).map(({ url, lastModified }) => ({
-        url,
-        ...(lastModified ? { lastModified } : {}),
-      }))
-    : []
-
-  return [
+  const entries = [
     ...staticRoutes,
     ...planningAuthorityRoutes,
-    ...aggregatePlanningPlaceRoutes,
-    ...planningCategoryRoutes,
-    ...planningApplicationRoutes,
+    ...sitemapMetadataEntries(snapshots.sitemaps.root, baseUrl),
     ...marketRoutes,
   ]
+  return [...new Map(entries.map((entry) => [entry.url, entry])).values()]
 }

@@ -1,0 +1,48 @@
+name: Refresh sitemap snapshots
+
+on:
+  schedule:
+    # Runs after the daily Planning/locality maintenance cluster has settled.
+    - cron: "20 9 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sitemap-snapshot-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Generate one bounded last-known-good snapshot
+        run: npm run sitemap:snapshots:generate
+      - name: Verify sitemap and build isolation
+        run: |
+          node --import tsx --test tests/sitemap-snapshots.test.ts
+          npm run test:build:no-supabase
+      - name: Publish snapshot through the normal Vercel deployment path
+        run: |
+          git add data/sitemap-snapshots.json
+          if git diff --cached --quiet; then
+            echo "Sitemap snapshot is unchanged."
+            exit 0
+          fi
+          git config user.name "openlist-sitemap-bot"
+          git config user.email "openlist-sitemap-bot@users.noreply.github.com"
+          git commit -m "Refresh sitemap snapshots"
+          git pull --rebase origin main
+          git push origin HEAD:main

@@ -63,11 +63,15 @@ test("Planning category metadata avoids full application hydration", async () =>
 })
 
 test("Planning categories are explicitly discoverable in the root sitemap", async () => {
-  const sitemap = await source("app/sitemap.ts")
+  const [sitemap, generator] = await Promise.all([
+    source("app/sitemap.ts"),
+    source("scripts/generate-sitemap-snapshots.mts"),
+  ])
 
   assert.match(sitemap, /"\/planning\/categories"/)
-  assert.match(sitemap, /getPlanningPublicCategorySummaries\(3\)/)
-  assert.match(sitemap, /planningCategoryRoutes/)
+  assert.match(sitemap, /snapshots\.sitemaps\.root/)
+  assert.match(generator, /planningPublicCategorySummariesFromSource\(categorySource, 3\)/)
+  assert.match(generator, /`\/planning\/categories\/\$\{category\.slug\}`/)
 })
 
 test("exact Planning revalidation retries transient acknowledgement failures", async () => {

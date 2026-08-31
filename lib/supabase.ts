@@ -1,17 +1,22 @@
-import { createClient } from "@supabase/supabase-js"
+import {
+  createClient,
+  type SupabaseClient,
+  type SupabaseClientOptions,
+} from "@supabase/supabase-js"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+export const SUPABASE_BUILD_READ_MARKER = "OPENLIST_SUPABASE_READ_DURING_BUILD"
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const supabase = createOpenListClient(supabaseUrl, supabaseAnonKey)
 
 export function getServerSupabase() {
   const serverKey = isConfiguredSupabaseKey(supabaseServiceRoleKey)
     ? supabaseServiceRoleKey
     : supabaseAnonKey
 
-  return createClient(
+  return createOpenListClient(
     supabaseUrl,
     serverKey,
     {
@@ -28,12 +33,38 @@ export function getServiceRoleSupabase() {
     throw new Error("SUPABASE_SERVICE_ROLE_KEY is required for this server operation")
   }
 
-  return createClient(supabaseUrl, supabaseServiceRoleKey, {
+  return createOpenListClient(supabaseUrl, supabaseServiceRoleKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
     },
   })
+}
+
+function createOpenListClient(
+  url: string,
+  key: string,
+  options: SupabaseClientOptions<"public"> = {}
+): SupabaseClient {
+  const denyBuildRead = process.env.NEXT_PHASE === "phase-production-build"
+    || process.env.OPENLIST_AUDIT_SUPABASE_BUILD_READS === "1"
+
+  const client = createClient(url, key, {
+    ...options,
+    ...(denyBuildRead ? {
+      global: {
+        fetch: async (input: RequestInfo | URL) => {
+          throw new Error(`${SUPABASE_BUILD_READ_MARKER}: ${String(input)}`)
+        },
+      },
+    } : {}),
+  })
+
+  // supabase-js 2.103 enables PostgREST retries in postgrest-js but does not yet
+  // expose the documented db.retry option through SupabaseClientOptions. Set the
+  // underlying client default once so callers cannot amplify a saturated API.
+  ;(client as unknown as { rest: { retry?: boolean } }).rest.retry = false
+  return client
 }
 
 function isConfiguredSupabaseKey(value: string | undefined): value is string {

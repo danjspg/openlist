@@ -156,18 +156,20 @@ test("migration makes notable selection explicit and measurement idempotent", as
   assert.match(migration, /order by n\.created_at, p\.local_authority_code, p\.reference, p\.id/i)
 })
 
-test("robots and cached routes expose the bounded priority-eligible notable sitemap", async () => {
-  const [robots, route, planning, rootSitemap] = await Promise.all([
+test("robots and snapshot routes expose the bounded priority-eligible notable sitemap", async () => {
+  const [robots, route, snapshotLibrary, planning, rootSitemap] = await Promise.all([
     source("app/robots.ts"),
     source("app/sitemaps/planning-notable.xml/route.ts"),
+    source("lib/sitemap-snapshot.ts"),
     source("lib/planning.ts"),
     source("app/sitemap.ts"),
   ])
   assert.match(robots, /\/sitemaps\/planning-notable\.xml/)
-  assert.match(route, /revalidate = 86400/)
-  assert.match(route, /stale-while-revalidate=604800/)
-  assert.match(route, /renderSitemapXml/)
-  assert.match(route, /NOTABLE_PLANNING_SITEMAP_LIMIT/)
+  assert.match(route, /dynamic = "force-dynamic"/)
+  assert.match(route, /planningNotable/)
+  assert.match(snapshotLibrary, /stale-while-revalidate=604800/)
+  assert.match(snapshotLibrary, /renderSitemapXml/)
+  assert.doesNotMatch(route, /getNotablePlanningSitemapApplications|@\/lib\/planning/)
   assert.match(planning, /openlist_planning_notable_sitemap/)
   assert.doesNotMatch(planning, /openlist_planning_notable_sitemap_year/)
   assert.doesNotMatch(rootSitemap, /getNotablePlanningSitemapApplications/)
