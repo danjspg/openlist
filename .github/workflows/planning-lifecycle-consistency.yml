@@ -10,7 +10,7 @@ permissions:
   issues: write
 
 concurrency:
-  group: planning-lifecycle-consistency
+  group: openlist-db-maintenance
   cancel-in-progress: false
 
 jobs:
@@ -34,27 +34,27 @@ jobs:
           echo "## Planning lifecycle consistency" >> "$GITHUB_STEP_SUMMARY"
           echo >> "$GITHUB_STEP_SUMMARY"
           if [ -f planning-lifecycle-consistency-audit.json ]; then
-            node - <<'NODE' >> "$GITHUB_STEP_SUMMARY"
-            const fs = require('fs')
-            const report = JSON.parse(fs.readFileSync('planning-lifecycle-consistency-audit.json', 'utf8'))
-            console.log(`High severity: **${report.high_count}**  `)
-            console.log(`Warnings: **${report.warning_count}**  `)
-            console.log(`Total: **${report.anomaly_count}**`)
+          node - <<'NODE' >> "$GITHUB_STEP_SUMMARY"
+          const fs = require('fs')
+          const report = JSON.parse(fs.readFileSync('planning-lifecycle-consistency-audit.json', 'utf8'))
+          console.log(`High severity: **${report.high_count}**  `)
+          console.log(`Warnings: **${report.warning_count}**  `)
+          console.log(`Total: **${report.anomaly_count}**`)
+          console.log('')
+          console.log('| Type | Count |')
+          console.log('|---|---:|')
+          for (const [type, count] of Object.entries(report.counts || {})) console.log(`| ${type} | ${count} |`)
+          if ((report.anomalies || []).length) {
             console.log('')
-            console.log('| Type | Count |')
-            console.log('|---|---:|')
-            for (const [type, count] of Object.entries(report.counts || {})) console.log(`| ${type} | ${count} |`)
-            if ((report.anomalies || []).length) {
-              console.log('')
-              console.log('### Sample anomalies')
-              console.log('| Severity | Council | Reference | Type | Detail |')
-              console.log('|---|---|---|---|---|')
-              for (const row of report.anomalies.slice(0, 25)) {
-                const detail = String(row.detail || '').replace(/\|/g, '\\|')
-                console.log(`| ${row.severity} | ${row.local_authority_code} | ${row.reference} | ${row.anomaly_type} | ${detail} |`)
-              }
+            console.log('### Sample anomalies')
+            console.log('| Severity | Council | Reference | Type | Detail |')
+            console.log('|---|---|---|---|---|')
+            for (const row of report.anomalies.slice(0, 25)) {
+              const detail = String(row.detail || '').replace(/\|/g, '\\|')
+              console.log(`| ${row.severity} | ${row.local_authority_code} | ${row.reference} | ${row.anomaly_type} | ${detail} |`)
             }
-            NODE
+          }
+          NODE
           else
             echo "Audit did not produce a report. Inspect the failed audit step." >> "$GITHUB_STEP_SUMMARY"
           fi
