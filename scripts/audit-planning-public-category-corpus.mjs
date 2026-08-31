@@ -22,6 +22,8 @@ export function emptyPublicCategoryAuditCounts() {
     represented: 0,
     exactMembership: 0,
     missing: 0,
+    exactMembershipMismatches: 0,
+    repairsRequired: 0,
     membershipRepairNeeded: 0,
   }]))
 }
@@ -39,7 +41,9 @@ export function addPublicCategoryAuditRow(counts, application, activeMembership)
 export function finalisePublicCategoryAuditCounts(counts) {
   for (const count of Object.values(counts)) {
     count.missing = count.qualifying - count.represented
-    count.membershipRepairNeeded = count.qualifying - count.exactMembership
+    count.exactMembershipMismatches = count.represented - count.exactMembership
+    count.repairsRequired = count.missing + count.exactMembershipMismatches
+    count.membershipRepairNeeded = count.repairsRequired
   }
   return counts
 }

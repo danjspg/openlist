@@ -23,7 +23,7 @@ on:
         required: false
         default: ""
       max_batches:
-        description: "Maximum 250-row batches (1-100)"
+        description: "Maximum 250-row public-category batches (1-10)"
         required: false
         default: "10"
   pull_request:
@@ -142,6 +142,7 @@ jobs:
           console.log(`- Unchanged rows: **${counts.unchanged ?? 0}**`)
           console.log(`- Materially changed rows: **${report.materiallyChangedRows ?? 0}**`)
           console.log(`- Batches completed: **${report.batchesCompleted ?? 0}**`)
+          console.log(`- Elapsed: **${report.elapsedMs ?? 0} ms**`)
           console.log(`- Complete: **${report.complete ? 'yes' : 'no'}**`)
           console.log(`- Failures: **${report.failures?.length ?? 0}**`)
           if (report.nextCursor) console.log(`- Resume cursor: \`${report.nextCursor}\``)

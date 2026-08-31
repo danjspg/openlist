@@ -1,8 +1,10 @@
 import assert from "node:assert/strict"
+import { readFile } from "node:fs/promises"
 import test from "node:test"
 import {
   PUBLIC_CATEGORY_MAX_BATCHES,
   PUBLIC_CATEGORY_MAX_BATCH_SIZE,
+  PUBLIC_CATEGORY_MAX_SCANNED_ROWS,
   PUBLIC_CATEGORY_ZERO_UUID,
   runPlanningPublicCategoryReconciliation,
 } from "../scripts/reconcile-planning-public-categories.mjs"
@@ -59,11 +61,15 @@ function harness(pages) {
 
 test("public-category audit is bounded, read-only and resumable", async () => {
   const mock = harness(Array.from({ length: 10 }, (_, index) => applicationRows(`batch-${index + 1}`, 250)))
+  const events = []
+  let clock = 1_000
   const report = await runPlanningPublicCategoryReconciliation({
     supabase: mock.supabase,
     persist: mock.persist,
-    batchSize: 999,
-    maxBatches: 99,
+    batchSize: PUBLIC_CATEGORY_MAX_BATCH_SIZE,
+    maxBatches: PUBLIC_CATEGORY_MAX_BATCHES,
+    now: () => (clock += 25),
+    log: (event) => events.push(event),
   })
   assert.equal(report.batchSize, PUBLIC_CATEGORY_MAX_BATCH_SIZE)
   assert.equal(report.maxBatches, PUBLIC_CATEGORY_MAX_BATCHES)
@@ -72,12 +78,36 @@ test("public-category audit is bounded, read-only and resumable", async () => {
   assert.ok(mock.persistCalls.every((call) => call.options.dryRun === true))
   assert.ok(mock.persistCalls.every((call) => call.options.enqueue === false))
   assert.equal(report.counts.scanned, 2_500)
+  assert.equal(report.counts.scanned, PUBLIC_CATEGORY_MAX_SCANNED_ROWS)
   assert.equal(report.counts.matched, 1_250)
   assert.equal(report.counts.inserted, 1_250)
   assert.equal(report.counts.updated, 0)
   assert.equal(report.counts.unchanged, 1_250)
   assert.equal(report.nextCursor, "batch-10-0250")
   assert.equal(report.complete, false)
+  assert.equal(report.elapsedMs, 275)
+  assert.equal(events[0].event, "start")
+  assert.equal(events[0].maximumScannedRows, 2_500)
+  assert.equal(events.at(-1).safeCursor, "batch-10-0250")
+  assert.equal(events.at(-1).counts.scanned, 2_500)
+})
+
+test("unsafe bounds and invalid cursors are refused before the first read", async () => {
+  for (const options of [
+    { batchSize: 251, maxBatches: 1 },
+    { batchSize: 0, maxBatches: 1 },
+    { batchSize: 2.5, maxBatches: 1 },
+    { batchSize: 250, maxBatches: 11 },
+    { batchSize: 250, maxBatches: Number.NaN },
+    { batchSize: 250, maxBatches: 1, startCursor: "not-a-uuid" },
+  ]) {
+    const mock = harness([])
+    await assert.rejects(
+      runPlanningPublicCategoryReconciliation({ supabase: mock.supabase, persist: mock.persist, ...options }),
+      /must be|cursor must/
+    )
+    assert.equal(mock.reads.length, 0)
+  }
 })
 
 test("explicit apply remains one bounded idempotent upsert path", async () => {
@@ -85,12 +115,12 @@ test("explicit apply remains one bounded idempotent upsert path", async () => {
   const report = await runPlanningPublicCategoryReconciliation({
     supabase: mock.supabase,
     persist: mock.persist,
-    startCursor: "safe-cursor",
+    startCursor: "11111111-1111-4111-8111-111111111111",
     batchSize: 25,
     maxBatches: 1,
     apply: true,
   })
-  assert.deepEqual(mock.reads[0].gt, ["id", "safe-cursor"])
+  assert.deepEqual(mock.reads[0].gt, ["id", "11111111-1111-4111-8111-111111111111"])
   assert.equal(mock.persistCalls[0].options.dryRun, false)
   assert.equal(report.mode, "bounded-apply")
   assert.equal(report.counts.scanned, 3)
@@ -103,19 +133,24 @@ test("explicit apply remains one bounded idempotent upsert path", async () => {
 
 test("a failed batch stops without advancing the safe cursor", async () => {
   const mock = harness([applicationRows("failed", 10), applicationRows("never", 10)])
+  const safeCursor = "22222222-2222-4222-8222-222222222222"
+  const events = []
   const report = await runPlanningPublicCategoryReconciliation({
     supabase: mock.supabase,
     persist: async () => { throw new Error("simulated failure") },
-    startCursor: "safe-cursor",
+    startCursor: safeCursor,
     batchSize: 10,
     maxBatches: 2,
     apply: true,
+    log: (event) => events.push(event),
   })
   assert.equal(mock.reads.length, 1)
   assert.equal(report.counts.scanned, 10)
   assert.equal(report.counts.failed, 10)
-  assert.equal(report.finalCursor, "safe-cursor")
-  assert.equal(report.nextCursor, "safe-cursor")
+  assert.equal(report.finalCursor, safeCursor)
+  assert.equal(report.nextCursor, safeCursor)
+  assert.equal(events.at(-1).event, "failure")
+  assert.equal(events.at(-1).safeCursor, safeCursor)
 })
 
 test("read-only corpus counts distinguish represented and exact membership", () => {
@@ -129,6 +164,23 @@ test("read-only corpus counts distinguish represented and exact membership", () 
     represented: 2,
     exactMembership: 1,
     missing: 1,
+    exactMembershipMismatches: 1,
+    repairsRequired: 2,
     membershipRepairNeeded: 2,
   })
+})
+
+test("committed rollout baseline covers every public category and balances", async () => {
+  const baseline = JSON.parse(await readFile(
+    new URL("../docs/planning-public-category-baseline-2026-08-31.json", import.meta.url),
+    "utf8"
+  ))
+  assert.equal(baseline.mode, "read-only")
+  assert.equal(baseline.scanned, 391_563)
+  assert.equal(Object.keys(baseline.categories).length, 15)
+  for (const [slug, count] of Object.entries(baseline.categories)) {
+    assert.equal(count.missing, count.qualifying - count.represented, slug)
+    assert.equal(count.exactMembershipMismatches, count.represented - count.exactMembership, slug)
+    assert.equal(count.repairsRequired, count.missing + count.exactMembershipMismatches, slug)
+  }
 })

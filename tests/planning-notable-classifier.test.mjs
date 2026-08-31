@@ -389,6 +389,20 @@ test("persistence enqueues only material notable-state changes", async () => {
   }])
 })
 
+test("dry-run classification performs no database writes or queue fan-out", async () => {
+  const row = application("Construction of four padel courts")
+  const database = mockSupabase([])
+  const result = await classifyAndPersistPlanningApplications(database, [row], {
+    dryRun: true,
+    enqueue: false,
+  })
+  assert.equal(result.scanned, 1)
+  assert.equal(result.created, 1)
+  assert.equal(result.changed, 1)
+  assert.deepEqual(database.writes.notable, [])
+  assert.deepEqual(database.writes.queue, [])
+})
+
 test("structural expiry is idempotent and queues only the material priority change", async () => {
   const active = application("Development of a 6 turbine wind farm", {
     normalized_status: "under_assessment",
