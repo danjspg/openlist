@@ -3,7 +3,15 @@
 import { useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
-import type { SmartSearchSuggestion } from "@/components/SmartSearchInput"
+
+type SmartSearchSuggestion = {
+  id: string
+  label: string
+  detail: string
+  href: string
+  kind: "place" | "authority" | "category" | "activity" | "sold-prices"
+  exact?: boolean
+}
 
 type Anchor = { input: HTMLInputElement; scope: "unified" | "planning" }
 
@@ -20,8 +28,7 @@ export default function SmartSearchEnhancer() {
     function resolveInput(target: EventTarget | null): Anchor | null {
       if (!(target instanceof HTMLInputElement)) return null
       if (target.id === "planning-search") return { input: target, scope: "planning" }
-      const form = target.form
-      const action = form?.getAttribute("action")
+      const action = target.form?.getAttribute("action")
       if (target.name === "q" && action === "/search") return { input: target, scope: "unified" }
       return null
     }
@@ -51,6 +58,13 @@ export default function SmartSearchEnhancer() {
       } catch (error) {
         if ((error as Error).name !== "AbortError") setSuggestions([])
       }
+    }
+
+    function choose(suggestion: SmartSearchSuggestion, input: HTMLInputElement) {
+      input.value = suggestion.label.replace(/ sold prices$/i, "")
+      setSuggestions([])
+      setActiveIndex(-1)
+      router.push(suggestion.href)
     }
 
     function onFocus(event: FocusEvent) {
@@ -118,8 +132,9 @@ export default function SmartSearchEnhancer() {
     }
   }, [activeIndex, anchor, router, suggestions])
 
-  function choose(suggestion: SmartSearchSuggestion, input = anchor?.input) {
-    if (input) input.value = suggestion.label.replace(/ sold prices$/i, "")
+  function choose(suggestion: SmartSearchSuggestion) {
+    if (!anchor) return
+    anchor.input.value = suggestion.label.replace(/ sold prices$/i, "")
     setSuggestions([])
     setActiveIndex(-1)
     router.push(suggestion.href)
