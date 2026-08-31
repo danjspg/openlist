@@ -57,6 +57,11 @@ const KEYWORD_PADEL = 1 << 0
 const KEYWORD_WIND = 1 << 1
 const KEYWORD_SOLAR = 1 << 2
 const KEYWORD_BATTERY = 1 << 3
+// The current notable corpus is only a few thousand rows. Asking PostgreSQL to
+// build and return up to 50,000 rows made category cache misses disproportionately
+// expensive during DB pressure. Keep a bounded safety margin without changing
+// the public category set or adding another query.
+const PUBLIC_CATEGORY_INDEX_LIMIT = 5_000
 
 function keywordFlags(proposal: string | null) {
   const text = (proposal || "").toLowerCase()
@@ -92,7 +97,7 @@ const loadNotableIndex = unstable_cache(async (includeOlder = false): Promise<Pl
   const supabase = getServerSupabase()
   const { data, error } = await supabase.rpc("openlist_planning_public_category_index", {
     p_include_older: includeOlder,
-    p_limit: 50000,
+    p_limit: PUBLIC_CATEGORY_INDEX_LIMIT,
   })
   if (error) {
     if (error.code === "PGRST202" || error.message.includes("Could not find the function")) {
@@ -100,6 +105,7 @@ const loadNotableIndex = unstable_cache(async (includeOlder = false): Promise<Pl
     }
     throw new Error(`Planning public categories index lookup failed: ${error.message}`)
   }
+
   const rows = (data ?? []) as Array<{
     application_id: string
     proposal: string | null
@@ -119,7 +125,7 @@ const loadNotableIndex = unstable_cache(async (includeOlder = false): Promise<Pl
       keywordFlags: keywordFlags(row.proposal),
     }))
     .sort((a, b) => String(b.registrationDate || "").localeCompare(String(a.registrationDate || "")))
-}, ["planning-public-categories", "v4-history"], { revalidate: 60 * 60 * 6, tags: [PLANNING_DATASET_CACHE_TAG] })
+}, ["planning-public-categories", "v5-bounded-index"], { revalidate: 60 * 60 * 6, tags: [PLANNING_DATASET_CACHE_TAG] })
 
 async function loadLegacyNotableIndex(includeOlder: boolean): Promise<PlanningPublicCategoryIndexRow[]> {
   const supabase = getServerSupabase()
@@ -127,7 +133,7 @@ async function loadLegacyNotableIndex(includeOlder: boolean): Promise<PlanningPu
     .from("planning_seo_notable")
     .select("application_id,display_name,notable_categories")
     .eq("active", true)
-    .limit(5000)
+    .limit(PUBLIC_CATEGORY_INDEX_LIMIT)
   if (!includeOlder) notableQuery = notableQuery.eq("priority_eligible", true)
   const { data: notableRows, error: notableError } = await notableQuery
   if (notableError) throw new Error(`Planning public categories compatibility lookup failed: ${notableError.message}`)
@@ -137,10 +143,14 @@ async function loadLegacyNotableIndex(includeOlder: boolean): Promise<PlanningPu
   const applications: Array<{ id: string; proposal: string | null; local_authority_code: string; registration_date: string | null }> = []
   const ids = [...notableById.keys()]
   for (let offset = 0; offset < ids.length; offset += 200) {
-    const { data, error } = await supabase.from("planning_applications").select("id,proposal,local_authority_code,registration_date").in("id", ids.slice(offset, offset + 200))
+    const { data, error } = await supabase
+      .from("planning_applications")
+      .select("id,proposal,local_authority_code,registration_date")
+      .in("id", ids.slice(offset, offset + 200))
     if (error) throw new Error(`Planning public categories compatibility hydration failed: ${error.message}`)
     applications.push(...((data ?? []) as typeof applications))
   }
+
   return applications.map((application) => {
     const notable = notableById.get(application.id)!
     return {
@@ -184,7 +194,9 @@ export async function getPlanningPublicCategory(slug: string, includeOlder = fal
   if (!category) return null
   const categoryRows = (await loadNotableIndex(includeOlder)).filter((row) => matchesCategory(slug, row))
   const authorityCounts = new Map<string, number>()
-  for (const row of categoryRows) authorityCounts.set(row.localAuthorityCode, (authorityCounts.get(row.localAuthorityCode) || 0) + 1)
+  for (const row of categoryRows) {
+    authorityCounts.set(row.localAuthorityCode, (authorityCounts.get(row.localAuthorityCode) || 0) + 1)
+  }
   const authorities = [...authorityCounts.entries()]
     .map(([code, count]) => ({ authority: getPlanningAuthorityByCode(code), count }))
     .filter((item) => item.authority)
@@ -200,6 +212,7 @@ export async function getPlanningPublicCategory(slug: string, includeOlder = fal
     const application = applications.get(row.applicationId)
     return application ? [{ application, displayName: row.displayName, categories: row.categories }] : []
   })
+
   return {
     category,
     rows: hydratedRows,
