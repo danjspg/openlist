@@ -43,6 +43,14 @@ const COUNTY_AUTHORITY_CODES: Record<string, string[]> = {
   meath: ["MEATH"],
 }
 
+const PLACEHOLDER_PLANNING_LABELS = new Set(["n/a", "na", "not available", "not recorded", "-"])
+
+function meaningfulHomepagePlanningLabel(value: string | null | undefined) {
+  const cleaned = value?.trim() || ""
+  if (!cleaned || PLACEHOLDER_PLANNING_LABELS.has(cleaned.toLowerCase())) return null
+  return cleaned
+}
+
 const getHomepagePlanningSummaryCached = unstable_cache(
   async (): Promise<HomepagePlanningSummary> => {
     const { data, error } = await getServerSupabase().rpc(
@@ -115,14 +123,16 @@ const getHomepageNotablePlanningCached = unstable_cache(async (): Promise<Homepa
   return notable.flatMap((row) => {
     const application = byId.get(row.application_id)
     if (!application) return []
+    const status = meaningfulHomepagePlanningLabel(application.status)
+    const decisionText = meaningfulHomepagePlanningLabel(application.decision_text)
     return [{
       applicationId: row.application_id,
       reference: application.reference,
       authorityCode: application.local_authority_code,
       location: application.location,
       proposal: application.proposal,
-      status: application.status,
-      decisionText: application.decision_text,
+      status,
+      decisionText: decisionText ?? (application.decision_date ? "Decision recorded" : null),
       registrationDate: application.registration_date,
       decisionDate: application.decision_date,
       displayName: row.display_name,
@@ -133,7 +143,7 @@ const getHomepageNotablePlanningCached = unstable_cache(async (): Promise<Homepa
     const rightDate = right.decisionDate || right.registrationDate || ""
     return rightDate.localeCompare(leftDate)
   })
-}, ["homepage-notable-planning", "v3-authority"], { revalidate: 60 * 60 * 6, tags: [PLANNING_DATASET_CACHE_TAG] })
+}, ["homepage-notable-planning", "v4-normalized-decision-labels"], { revalidate: 60 * 60 * 6, tags: [PLANNING_DATASET_CACHE_TAG] })
 
 export async function getHomepagePlanningSummary() {
   return getHomepagePlanningSummaryCached()
@@ -146,4 +156,3 @@ export async function getHomepageCountyPlanningStats() {
 export async function getHomepageNotablePlanning() {
   return getHomepageNotablePlanningCached()
 }
-
