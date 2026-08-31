@@ -37,6 +37,23 @@ test("location matching prefers the longest known locality and preserves Eircode
   assert.equal(match.matchKind, "eircode")
 })
 
+test("county labels are not promoted to precise planning localities", () => {
+  const match = matchPlanningLocation(
+    {
+      local_authority_code: "CORKCOCO",
+      location: "Ballybrassil, Glenmore, Cobh, Co. Cork",
+    },
+    [
+      { county: "Cork", areaSlug: "cork", areaLabel: "Cork", salesCount: 1000, lastSaleDate: null },
+    ]
+  )
+
+  assert.equal(match.county, "Cork")
+  assert.equal(match.locality, null)
+  assert.equal(match.areaSlug, null)
+  assert.equal(match.matchKind, "county")
+})
+
 test("ITM coordinates convert around their published origin and legacy grid is not guessed", () => {
   const origin = planningGridToWgs84({ grid_easting: 600_000, grid_northing: 750_000 })
   assert.ok(origin)
