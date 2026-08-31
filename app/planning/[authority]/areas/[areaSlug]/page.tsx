@@ -16,6 +16,7 @@ import {
   localityStatusStats,
 } from "@/lib/planning-locality-presentation"
 import { planningResultRecord } from "@/lib/planning-result-presentation"
+import { isActivePlanningStatus, normalisePlanningStatus } from "@/lib/planning-status"
 import { areaSlug } from "@/lib/ppr"
 import {
   countyForPlanningAuthority,
@@ -70,6 +71,10 @@ export default async function PlanningLocalityPage({ params, searchParams }: Pro
   const constructionSearchHref = localitySearchHref(authority.slug, locality, undefined, "commenced")
   const decisionsHref = localitySearchHref(authority.slug, locality, "decision_made")
   const statusStats = localityStatusStats(dashboard.statusStats)
+  const activeCount = dashboard.statusStats.reduce((total, stat) => {
+    const status = normalisePlanningStatus(stat.label)
+    return isActivePlanningStatus(status) ? total + stat.count : total
+  }, 0)
   const typeStats = dashboard.typeStats.slice(0, 6)
   const latestApplications = dashboard.searchResults.slice(0, 6).map(planningResultRecord)
   const decisionResults = recentDecisions.map(planningResultRecord)
@@ -85,7 +90,8 @@ export default async function PlanningLocalityPage({ params, searchParams }: Pro
             Planning applications in {locality}
           </h1>
           <p className="mt-3 text-base text-stone-600">
-            {formatPlanningCount(dashboard.totalCount)} recorded applications from {authority.name}
+            <span className="font-semibold text-stone-900">{formatPlanningCount(activeCount)} active applications</span>
+            {" · "}{formatPlanningCount(dashboard.totalCount)} recorded from {authority.name}
           </p>
           <p className="mt-1 text-sm text-stone-500">
             Latest registration: {formatPlanningDate(dashboard.latestRegistrationDate)}
@@ -174,7 +180,8 @@ export default async function PlanningLocalityPage({ params, searchParams }: Pro
           </section>
         ) : null}
 
-        <dl className="grid divide-y divide-stone-200 border-b border-stone-200 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+        <dl className="grid divide-y divide-stone-200 border-b border-stone-200 sm:grid-cols-4 sm:divide-x sm:divide-y-0">
+          <Metric value={formatPlanningCount(activeCount)} label="Active applications" />
           <Metric value={formatPlanningCount(dashboard.totalCount)} label="Recorded applications" />
           <Metric value={formatPlanningCount(dashboard.latestMonthCount)} label={latestRegistrationMonthLabel(dashboard.latestRegistrationMonth)} />
           <Metric value={formatPlanningDate(dashboard.latestRegistrationDate)} label="Latest registration" />
