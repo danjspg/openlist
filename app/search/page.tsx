@@ -38,11 +38,19 @@ export default async function SearchPage({
         eircode: null, locationContext: null, nearbySales: [], nearbyPlanningApplications: [],
         localMarket: null, dataUnavailable: false,
       }
-  const resultCount = results.places.length + results.addresses.length + results.planningApplications.length
+  const primaryPlace = selectPrimaryPlace(query, results)
+  const placeRefinements = primaryPlace
+    ? results.places.filter(
+        (place) =>
+          place.county !== primaryPlace.county || place.areaSlug !== primaryPlace.areaSlug
+      )
+    : results.places
+  const recordCount = results.addresses.length + results.planningApplications.length
+  const resultCount = primaryPlace ? recordCount : recordCount + results.places.length
   const hasPlaces = results.places.length > 0
   const hasAddresses = results.addresses.length > 0
   const hasPlanning = results.planningApplications.length > 0
-  const hasResults = resultCount > 0
+  const hasResults = resultCount > 0 || Boolean(primaryPlace)
   const isEircodeSearch = results.intent === "eircode"
   const isInvalidEircode = results.intent === "invalid-eircode"
   const resultLabel = results.eircode ?? query
@@ -106,26 +114,28 @@ export default async function SearchPage({
             </div>
             {hasResults ? (
               <div className="mt-6 space-y-6">
-                {hasPlaces ? (
+                {primaryPlace ? (
+                  <PrimaryPlaceContext place={primaryPlace} refinements={placeRefinements} />
+                ) : hasPlaces ? (
                   <ResultSection title="Places" empty="No matching places found.">
                     {results.places.map((place) => (
-                      <Link key={`${place.county}-${place.areaSlug}`} href={`/sold-prices/${place.county.toLowerCase()}/${place.areaSlug}`} className="block border-t border-stone-200 px-1 py-4 transition hover:bg-stone-50 sm:px-3">
+                      <Link key={`${place.county}-${place.areaSlug}`} href={`/search?q=${encodeURIComponent(place.areaLabel)}`} className="block border-t border-stone-200 px-1 py-4 transition hover:bg-stone-50 sm:px-3">
                         <p className="font-semibold text-stone-950">{place.areaLabel}, {place.county}</p>
-                        <p className="mt-1 text-sm text-stone-500">{place.salesCount.toLocaleString("en-IE")} recorded sales · Open local market</p>
+                        <p className="mt-1 text-sm text-stone-500">{place.salesCount.toLocaleString("en-IE")} recorded sales · Search this area</p>
                       </Link>
                     ))}
                   </ResultSection>
                 ) : null}
                 <div className="grid gap-6 lg:grid-cols-2">
-                  <ResultSection title="Sold prices" empty="No matching sold-price records found.">
-                    {results.addresses.map((sale) => <SaleRow key={sale.id} sale={sale} />)}
-                  </ResultSection>
                   <ResultSection title="Planning applications" empty="No matching planning applications found.">
                     {results.planningApplications.map((application) => <PlanningRow key={application.id} application={application} />)}
                   </ResultSection>
+                  <ResultSection title="Sold prices" empty="No matching sold-price records found.">
+                    {results.addresses.map((sale) => <SaleRow key={sale.id} sale={sale} />)}
+                  </ResultSection>
                 </div>
                 {!hasAddresses && !hasPlanning ? null : (
-                  <p className="text-center text-xs leading-5 text-stone-500">Sold-price and planning results are separate public records and may refer to different properties within the searched place.</p>
+                  <p className="text-center text-xs leading-5 text-stone-500">Planning and sold-price results are separate public records and may refer to different properties within the searched place.</p>
                 )}
               </div>
             ) : (
@@ -169,11 +179,11 @@ function EircodeResults({ results, label }: { results: UnifiedSearchResults; lab
             <div>
               <h3 className="text-xl font-semibold tracking-tight text-stone-950">Exact matches</h3>
               <div className="mt-4 grid gap-6 lg:grid-cols-2">
-                <ResultSection title="Sold-price records" empty="No exact sold-price record was found for this Eircode.">
-                  {results.addresses.map((sale) => <SaleRow key={sale.id} sale={sale} badge="Exact Eircode" />)}
-                </ResultSection>
                 <ResultSection title="Planning records" empty="No exact planning record was found for this Eircode.">
                   {results.planningApplications.map((application) => <PlanningRow key={application.id} application={application} badge="Exact Eircode" />)}
+                </ResultSection>
+                <ResultSection title="Sold-price records" empty="No exact sold-price record was found for this Eircode.">
+                  {results.addresses.map((sale) => <SaleRow key={sale.id} sale={sale} badge="Exact Eircode" />)}
                 </ResultSection>
               </div>
             </div>
@@ -184,11 +194,11 @@ function EircodeResults({ results, label }: { results: UnifiedSearchResults; lab
               <h3 className="text-xl font-semibold tracking-tight text-stone-950">Around this location</h3>
               <p className="mt-2 text-sm leading-6 text-stone-600">Distance-ranked records are contextual records, not exact property matches.</p>
               <div className="mt-4 grid gap-6 lg:grid-cols-2">
-                <ResultSection title="Nearby sold prices" empty="No coordinate-bearing sold-price records were available within 2 km.">
-                  {results.nearbySales.map((sale) => <SaleRow key={sale.id} sale={sale} distanceKm={sale.distanceKm} />)}
-                </ResultSection>
                 <ResultSection title="Nearby planning" empty="No planning applications with usable coordinates were found within 2 km.">
                   {results.nearbyPlanningApplications.map((application) => <PlanningRow key={application.id} application={application} distanceKm={application.distanceKm} />)}
+                </ResultSection>
+                <ResultSection title="Nearby sold prices" empty="No coordinate-bearing sold-price records were available within 2 km.">
+                  {results.nearbySales.map((sale) => <SaleRow key={sale.id} sale={sale} distanceKm={sale.distanceKm} />)}
                 </ResultSection>
               </div>
             </div>
@@ -204,8 +214,8 @@ function EircodeResults({ results, label }: { results: UnifiedSearchResults; lab
                     <p className="font-semibold text-stone-950">{routingMarket.label}</p>
                     <p className="mt-1 text-sm text-stone-500">{routingMarket.county}</p>
                     <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm font-semibold">
-                      <Link href={`/sold-prices/${routingMarket.county.toLowerCase()}/${routingMarket.areaSlug}`} className="text-emerald-800 hover:text-emerald-950">Sold prices →</Link>
                       <Link href={`/planning?area=${encodeURIComponent(routingMarket.locality)}`} className="text-emerald-800 hover:text-emerald-950">Planning →</Link>
+                      <Link href={`/sold-prices/${routingMarket.county.toLowerCase()}/${routingMarket.areaSlug}`} className="text-emerald-800 hover:text-emerald-950">Sold prices →</Link>
                     </div>
                   </div>
                 ))}
@@ -225,14 +235,14 @@ function EircodeResults({ results, label }: { results: UnifiedSearchResults; lab
               ) : null}
               {market.areaSlug && market.salesBasis === "area" ? <Link href={`/sold-prices/${market.county.toLowerCase()}/${market.areaSlug}`} className="mt-4 inline-flex text-sm font-semibold text-emerald-800 hover:text-emerald-950">View full {areaNameFromSlug(market.areaSlug)} sold-price data →</Link> : null}
               <div className="mt-5 grid gap-6 lg:grid-cols-2">
+                <ResultSection title="Recent local planning" empty="No recent planning applications were found for this area.">
+                  {market.planningApplications.map((application) => <PlanningRow key={application.id} application={application} />)}
+                </ResultSection>
                 {market.recentSales.length > 0 ? (
                   <ResultSection title="Recent local sold prices" empty="No recent area sales found.">
                     {market.recentSales.map((sale) => <SaleRow key={sale.id} sale={sale} />)}
                   </ResultSection>
                 ) : null}
-                <ResultSection title="Recent local planning" empty="No recent planning applications were found for this area.">
-                  {market.planningApplications.map((application) => <PlanningRow key={application.id} application={application} />)}
-                </ResultSection>
               </div>
             </div>
           ) : null}
@@ -249,8 +259,73 @@ function EircodeResults({ results, label }: { results: UnifiedSearchResults; lab
   )
 }
 
+type SearchPlace = UnifiedSearchResults["places"][number]
 type SearchSale = UnifiedSearchResults["addresses"][number]
 type SearchPlanningApplication = UnifiedSearchResults["planningApplications"][number]
+
+function selectPrimaryPlace(query: string, results: UnifiedSearchResults): SearchPlace | null {
+  if (results.intent !== "area" || results.places.length === 0) return null
+
+  const [first, second] = results.places
+  const queryKey = normaliseSearchLabel(query)
+  const firstLabelKey = normaliseSearchLabel(first.areaLabel)
+  const firstSlugKey = normaliseSearchLabel(first.areaSlug)
+  const exact = firstLabelKey === queryKey || firstSlugKey === queryKey
+  const dominant = !second || first.salesCount >= Math.max(25, second.salesCount * 3)
+  const closeTextMatch = firstLabelKey.startsWith(queryKey) || queryKey.startsWith(firstLabelKey)
+
+  return exact || (dominant && closeTextMatch) ? first : null
+}
+
+function normaliseSearchLabel(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ")
+}
+
+function PrimaryPlaceContext({
+  place,
+  refinements,
+}: {
+  place: SearchPlace
+  refinements: SearchPlace[]
+}) {
+  return (
+    <section className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm sm:p-6">
+      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-400">Best area match</p>
+      <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h3 className="text-2xl font-semibold tracking-tight text-stone-950">{place.areaLabel}, {place.county}</h3>
+          <p className="mt-1 text-sm text-stone-500">Showing planning and sold-price records for the strongest matching area.</p>
+        </div>
+        <div className="flex flex-wrap gap-3 text-sm font-semibold">
+          <Link href={`/planning?area=${encodeURIComponent(place.areaLabel)}`} className="text-emerald-800 hover:text-emerald-950">Open planning →</Link>
+          <Link href={`/sold-prices/${place.county.toLowerCase()}/${place.areaSlug}`} className="text-emerald-800 hover:text-emerald-950">Open sold prices →</Link>
+        </div>
+      </div>
+      {refinements.length > 0 ? (
+        <div className="mt-5 border-t border-stone-200 pt-4">
+          <p className="text-xs font-medium uppercase tracking-wide text-stone-500">Refine area</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {refinements.slice(0, 7).map((refinement) => (
+              <Link
+                key={`${refinement.county}-${refinement.areaSlug}`}
+                href={`/search?q=${encodeURIComponent(refinement.areaLabel)}`}
+                className="inline-flex min-h-9 items-center rounded-full border border-stone-200 bg-stone-50 px-3 text-sm font-semibold text-stone-700 transition hover:border-stone-400 hover:bg-white hover:text-stone-950"
+              >
+                {refinement.areaLabel}
+              </Link>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </section>
+  )
+}
 
 function SaleRow({ sale, badge, distanceKm }: { sale: SearchSale; badge?: string; distanceKm?: number }) {
   return (
