@@ -1,4 +1,4 @@
-name: Notable Planning quality repair
+name: Notable Planning quality audit
 
 on:
   schedule:
@@ -37,9 +37,11 @@ on:
 permissions:
   contents: read
 
+# Share one conservative maintenance lane with the other DB-heavy audits.
+# Queue work rather than canceling an in-flight maintenance operation.
 concurrency:
-  group: notable-planning-quality
-  cancel-in-progress: true
+  group: openlist-db-maintenance
+  cancel-in-progress: false
 
 jobs:
   test:
@@ -75,29 +77,25 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Validate configuration
+      - name: Validate repair configuration
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.apply }}
         env:
-          APPLY: ${{ github.event_name == 'schedule' || github.event_name == 'push' || inputs.apply }}
-          CONFIRM: ${{ github.event_name == 'schedule' || github.event_name == 'push' || inputs.confirm_apply }}
+          CONFIRM: ${{ inputs.confirm_apply }}
         run: |
-          if [[ "$APPLY" == "true" && "$CONFIRM" != "true" ]]; then
+          if [[ "$CONFIRM" != "true" ]]; then
             echo "Production repair requires confirm_apply=true" >&2
             exit 1
           fi
       - name: Kildare authoritative fallback
-        if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.scope == 'unchecked-only') }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.scope == 'unchecked-only' && inputs.apply && inputs.confirm_apply }}
+        run: node --import tsx scripts/repair-kildare-notable-quality.mts --apply
         env:
-          APPLY: ${{ github.event_name == 'schedule' || inputs.apply }}
-          CONFIRM_NOTABLE_QUALITY_REPAIR: ${{ github.event_name == 'schedule' && 'true' || inputs.confirm_apply && 'true' || 'false' }}
-        run: |
-          apply_flag=""
-          if [[ "$APPLY" == "true" ]]; then apply_flag="--apply"; fi
-          node --import tsx scripts/repair-kildare-notable-quality.mts $apply_flag
-      - name: Audit and repair notable Planning quality
+          CONFIRM_NOTABLE_QUALITY_REPAIR: "true"
+      - name: Audit notable Planning quality
         env:
-          APPLY: ${{ github.event_name == 'schedule' || github.event_name == 'push' || inputs.apply }}
+          APPLY: ${{ github.event_name == 'workflow_dispatch' && inputs.apply && inputs.confirm_apply }}
           SCOPE: ${{ github.event_name == 'schedule' && 'unchecked-only' || github.event_name == 'push' && 'all' || inputs.scope }}
-          CONFIRM_NOTABLE_QUALITY_REPAIR: ${{ (github.event_name == 'schedule' || github.event_name == 'push') && 'true' || inputs.confirm_apply && 'true' || 'false' }}
+          CONFIRM_NOTABLE_QUALITY_REPAIR: ${{ github.event_name == 'workflow_dispatch' && inputs.apply && inputs.confirm_apply && 'true' || 'false' }}
         run: |
           mkdir -p artifacts
           apply_flag=""
