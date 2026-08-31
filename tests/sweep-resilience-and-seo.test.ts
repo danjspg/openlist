@@ -52,14 +52,16 @@ test("Planning detail supporting context fails soft", async () => {
   assert.match(layout, /Planning notable enrichment unavailable/)
 })
 
-test("Planning category metadata avoids full application hydration", async () => {
+test("Planning category metadata and builds perform no Supabase read", async () => {
   const [categories, page] = await Promise.all([
     source("lib/planning-public-categories.ts"),
     source("app/planning/categories/[category]/page.tsx"),
   ])
 
-  assert.match(categories, /export async function getPlanningPublicCategorySummary/)
-  assert.match(page, /generateMetadata[\s\S]*?getPlanningPublicCategorySummary\(slug\)/)
+  assert.match(page, /export const dynamic = "force-dynamic"/)
+  assert.match(page, /generateMetadata[\s\S]*?PLANNING_PUBLIC_CATEGORIES\.find/)
+  assert.doesNotMatch(page.match(/generateMetadata[\s\S]*?\n\}/)?.[0] || "", /getPlanningPublicCategory|Supabase/)
+  assert.match(categories, /openlist_planning_public_category_page/)
 })
 
 test("Planning categories are explicitly discoverable in the root sitemap", async () => {
