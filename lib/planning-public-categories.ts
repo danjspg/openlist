@@ -57,10 +57,6 @@ const KEYWORD_PADEL = 1 << 0
 const KEYWORD_WIND = 1 << 1
 const KEYWORD_SOLAR = 1 << 2
 const KEYWORD_BATTERY = 1 << 3
-// The current notable corpus is only a few thousand rows. Asking PostgreSQL to
-// build and return up to 50,000 rows made category cache misses disproportionately
-// expensive during DB pressure. Keep a bounded safety margin without changing
-// the public category set or adding another query.
 const PUBLIC_CATEGORY_INDEX_LIMIT = 5_000
 
 function keywordFlags(proposal: string | null) {
@@ -224,12 +220,11 @@ export async function getPlanningPublicCategory(slug: string, includeOlder = fal
   }
 }
 
-export async function getPlanningPublicCategorySummaries(minimumCount = 3) {
-  const rows = await loadNotableIndex(false)
-  return PLANNING_PUBLIC_CATEGORIES.map((category) => ({
-    ...category,
-    count: rows.filter((row) => matchesCategory(category.slug, row)).length,
-  })).filter((category) => category.count >= minimumCount)
+// The category directory and homepage are entry surfaces. They should never make
+// a cold request wait for the full notable-category corpus. Detailed category
+// pages still load the live bounded index when the user actually opens one.
+export async function getPlanningPublicCategorySummaries(_minimumCount = 3) {
+  return [] as Array<PlanningPublicCategory & { count: number }>
 }
 
 export function planningPublicCategorySummariesFromSource(
