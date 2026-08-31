@@ -22,19 +22,21 @@ export default async function PlanningPage({ searchParams }: Props) {
 
 async function resolveDirectPlanningAreaPath(params: PlanningSearchParams) {
   const area = params.area?.trim()
-  if (!area) return null
+  const query = params.q?.trim()
+  const candidate = area || query
+  if (!candidate) return null
 
   const hasOtherFilters = Boolean(
-    params.q ||
-      params.council ||
+    params.council ||
       params.status ||
       params.type ||
       params.construction ||
-      params.sort
+      params.sort ||
+      (area && query)
   )
   if (hasOtherFilters) return null
 
-  const areaKey = normaliseAreaLabel(area)
+  const areaKey = normaliseAreaLabel(candidate)
   const exactMatches = (await getPlanningLocalityDirectory())
     .filter(
       (entry) =>
