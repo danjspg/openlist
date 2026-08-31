@@ -35,3 +35,17 @@ jobs:
             echo
             cat locality-seo-tiers.json
           } >> "$GITHUB_STEP_SUMMARY"
+      - name: Check locality universe invariants
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          PLANNING_LOCALITY_EXPECTED_MEMBERSHIPS: "2358"
+          PLANNING_LOCALITY_MAX_SNAPSHOT_AGE_HOURS: "36"
+        run: |
+          node scripts/check-planning-locality-invariants.mjs | tee locality-invariants.json
+          {
+            echo
+            echo "## Planning locality invariants"
+            echo
+            cat locality-invariants.json
+          } >> "$GITHUB_STEP_SUMMARY"
