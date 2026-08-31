@@ -99,7 +99,14 @@ export async function GET(request: Request) {
   const deduped = Array.from(new Map(suggestions.map((item) => [item.href, item])).values())
     .sort((a, b) => b.score - a.score || a.label.localeCompare(b.label, "en-IE", { sensitivity: "base" }))
     .slice(0, 7)
-    .map(({ score: _score, ...item }) => item)
+    .map((item) => ({
+      id: item.id,
+      label: item.label,
+      detail: item.detail,
+      href: item.href,
+      kind: item.kind,
+      exact: item.exact,
+    }))
 
   return NextResponse.json({ suggestions: deduped }, { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=3600" } })
 }
