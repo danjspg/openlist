@@ -1,1 +1,2 @@
-data/
+# The committed sitemap snapshot is a runtime artifact and must be bundled.
+# Large source CSVs remain excluded by .gitignore and are never committed.
