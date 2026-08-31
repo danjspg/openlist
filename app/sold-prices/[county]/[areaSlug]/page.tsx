@@ -91,9 +91,9 @@ export default async function PprAreaPage({ params }: Props) {
   const summaryMedian = snapshotMedian ?? recentSalesMedian
   const summaryMedianUsesRecentFallback = snapshotMedian === undefined && recentSalesMedian !== undefined
   const summaryLastSaleDate = insights.lastSaleDate ?? recentSales[0]?.date_of_sale ?? null
-  // Nearby candidates already come from the maintained ppr_area_stats snapshot.
-  // Re-querying full insights for every card turned one locality view into N
-  // additional reads and was a major multiplier during the saturation incident.
+  // These candidates come from the maintained same-county ppr_area_stats snapshot.
+  // They are useful alternative markets, but without coordinates they must not
+  // be presented as geographically nearby.
   const nearbyAreas = nearbyAreaCandidates
 
   return (
@@ -227,8 +227,8 @@ export default async function PprAreaPage({ params }: Props) {
                   Prices and activity in {areaName}
                 </h2>
                 <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">
-                  Use these signals to compare local property prices, price change and recent market
-                  activity in {areaName} against nearby parts of {countyLabel}.
+                  Use these signals to understand local property prices, price change and recent market
+                  activity in {areaName} before comparing with other parts of {countyLabel}.
                 </p>
               </div>
 
@@ -335,7 +335,7 @@ export default async function PprAreaPage({ params }: Props) {
                 Compare this market.
               </h2>
               <p className="mt-3 text-sm leading-6 text-stone-600">
-                See how {areaName} compares with similar nearby markets and broader tracked views.
+                See how {areaName} compares with other markets in {countyLabel} and broader tracked views.
               </p>
               <div className="mt-5 flex flex-wrap gap-3">
                 {comparisonLinks.map((link, index) => (
@@ -357,7 +357,7 @@ export default async function PprAreaPage({ params }: Props) {
             {nearbyAreas.length > 0 && (
               <div className="rounded-[28px] border border-stone-200 bg-white p-6 shadow-sm">
                 <p className="text-sm uppercase tracking-[0.18em] text-stone-500">
-                  Nearby areas
+                  Other {countyLabel} markets
                 </p>
                 <div className="mt-4 space-y-3">
                   {nearbyAreas.map((area) => (

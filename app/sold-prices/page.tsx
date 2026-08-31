@@ -41,13 +41,12 @@ export default async function SoldPricesPage({
   const resolvedSearchParams = await (searchParams || Promise.resolve({} as { dateRange?: string }))
   const selectedRange = (resolvedSearchParams.dateRange || "last-year") as PprDateRangeValue
   const analyticsRange = getAnalyticsRange(selectedRange)
-  const [datasetSummary, quickAreas, monthlyActivity, homepageStats, nationalSnapshot, allTimeSnapshot] = await Promise.all([
+  const [datasetSummary, quickAreas, monthlyActivity, homepageStats, nationalSnapshot] = await Promise.all([
     getPprDatasetSummary(),
     getPprQuickAreas(),
     getNationalActivitySnapshot(),
     getHomepageSoldPriceStats(),
     getNationalOverviewSnapshot(selectedRange),
-    getNationalOverviewSnapshot("all"),
   ])
 
   const featuredMarkets = Array.from(new Set([
@@ -109,7 +108,7 @@ export default async function SoldPricesPage({
             House prices and sold prices across Ireland
           </h1>
           <p className="mt-4 max-w-3xl text-lg leading-8 text-stone-600">
-            Search {new Intl.NumberFormat("en-IE").format(allTimeSnapshot.salesCount)} recorded property sales, then compare local markets and recent trends.
+            Search {new Intl.NumberFormat("en-IE").format(datasetSummary.salesCount)} recorded property sales, then compare local markets and recent trends.
           </p>
           <p className="mt-3 text-sm text-stone-500">
             {datasetSummary.latestSaleDate ? `Latest recorded sale: ${formatPprDate(datasetSummary.latestSaleDate)} · ` : ""}Source: Property Price Register
@@ -142,7 +141,7 @@ export default async function SoldPricesPage({
             <SnapshotCard label="Sales activity" value={monthlyActivity.yoyChangePct !== undefined ? signedPercent(monthlyActivity.yoyChangePct) : "Limited data"} detail={`${monthlyActivity.currentPeriodLabel} vs ${monthlyActivity.previousPeriodLabel}`} tone={monthlyActivity.yoyChangePct} />
             <SnapshotCard label="Fastest-rising tracked market" value={risingSpotlight?.title || "Limited data"} detail={risingSpotlight ? `${risingSpotlight.value} year on year` : "Shown when enough data is available"} href={risingSpotlight?.titleHref} />
             <SnapshotCard label="Most affordable market" value={affordableSpotlight?.title || "Limited data"} detail={affordableSpotlight?.value !== "Limited data" ? `${affordableSpotlight?.value} median price` : affordableSpotlight?.detail || "Shown when enough data is available"} href={affordableSpotlight?.titleHref} />
-            <SnapshotCard label="Recorded sales" value={new Intl.NumberFormat("en-IE").format(allTimeSnapshot.salesCount)} detail="Available Property Price Register history" />
+            <SnapshotCard label="Recorded sales" value={new Intl.NumberFormat("en-IE").format(datasetSummary.salesCount)} detail="Available Property Price Register history" />
           </div>
         </section>
 
@@ -177,7 +176,6 @@ export default async function SoldPricesPage({
               </div>
               <Link href="/sold-prices/counties-compared" className="text-sm font-semibold text-emerald-800 hover:text-emerald-950">Compare counties →</Link>
             </div>
-
             {quickAreas.length > 0 ? (
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
                 {quickAreas.map((area) => (
