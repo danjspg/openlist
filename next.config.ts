@@ -22,6 +22,23 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
+      // Legacy public URLs observed in production logs. Keep these explicit so
+      // stale bookmarks/search results land on the current canonical routes.
+      {
+        source: "/planning/categories/residential",
+        destination: "/planning/categories/residential-development",
+        permanent: true,
+      },
+      {
+        source: "/sold-prices/ballinrobe",
+        destination: "/sold-prices/mayo/ballinrobe",
+        permanent: true,
+      },
+      {
+        source: "/sold-prices/bailieborough",
+        destination: "/sold-prices/cavan/bailieborough",
+        permanent: true,
+      },
       // Dublin postal districts have first-class market pages. Do not also expose
       // locality pages such as /sold-prices/dublin/dublin-8, which only match
       // records whose locality text happens to say "Dublin 8" and therefore
