@@ -9,8 +9,10 @@ permissions:
   contents: read
   issues: write
 
+# DB-heavy maintenance workflows share this group so scheduled audits/repairs do
+# not overlap and starve interactive Supabase traffic.
 concurrency:
-  group: openlist-data-integrity
+  group: openlist-db-maintenance
   cancel-in-progress: false
 
 jobs:
@@ -110,12 +112,11 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           PLANNING_ALERT_WATCH_DELAY_MS: "250"
-          PLANNING_REVALIDATION_URL: ${{ secrets.PLANNING_REVALIDATION_URL }}
-          PLANNING_REVALIDATION_SECRET: ${{ secrets.PLANNING_REVALIDATION_SECRET }}
-          PLANNING_REVALIDATION_QUEUE: dedicated
         run: |
+          # Repair watcher state only. Do not drain the potentially large
+          # revalidation queue inside the integrity audit: that previously
+          # caused a 450-item burst immediately before the final DB checks.
           node scripts/watch-planning-alert-applications.mjs
-          node scripts/drain-planning-revalidation.mjs
 
       - name: Re-audit Planning lifecycle after safe repairs
         id: lifecycle_final
