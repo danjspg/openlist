@@ -26,18 +26,19 @@ const planningExploreGroups = [
     title: "Significant planning",
     links: [
       { href: "/planning/categories", label: "Notable developments", detail: "Major schemes by category" },
-      { href: "/planning/categories/residential", label: "Residential", detail: "Significant housing" },
-      { href: "/planning/categories/retail", label: "Retail & commercial", detail: "Shops and commercial schemes" },
-      { href: "/planning/categories/energy", label: "Energy & renewables", detail: "Energy infrastructure" },
+      { href: "/planning/categories/residential-development", label: "Residential", detail: "Significant housing" },
+      { href: "/planning/categories/retail", label: "Retail", detail: "Significant retail schemes" },
+      { href: "/planning/categories/infrastructure", label: "Infrastructure", detail: "Major infrastructure projects" },
     ],
   },
   {
     title: "Activity & decisions",
     links: [
       { href: "/planning?construction=commenced", label: "Construction started", detail: "Verified commencement records" },
+      { href: "/planning?status=appealed", label: "Under appeal", detail: "Applications with an appeal lodged" },
+      { href: "/planning?status=appeal_decided", label: "Appeal decided", detail: "Applications with a recorded appeal outcome" },
+      { href: "/planning?status=further_information_requested", label: "Further information", detail: "Applications awaiting more detail" },
       { href: "/planning?status=decision_made", label: "Recent decisions", detail: "Decision-stage applications" },
-      { href: "/planning?status=further_information", label: "Further information", detail: "Applications awaiting more detail" },
-      { href: "/planning", label: "Search all planning", detail: "Reference, address or development" },
     ],
   },
 ]
