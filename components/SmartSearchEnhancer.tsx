@@ -60,8 +60,7 @@ export default function SmartSearchEnhancer() {
       }
     }
 
-    function choose(suggestion: SmartSearchSuggestion, input: HTMLInputElement) {
-      input.value = suggestion.label.replace(/ sold prices$/i, "")
+    function choose(suggestion: SmartSearchSuggestion) {
       setSuggestions([])
       setActiveIndex(-1)
       router.push(suggestion.href)
@@ -94,7 +93,7 @@ export default function SmartSearchEnhancer() {
         setActiveIndex((current) => Math.max(current - 1, 0))
       } else if (event.key === "Enter" && activeIndex >= 0) {
         event.preventDefault()
-        choose(suggestions[activeIndex], resolved.input)
+        choose(suggestions[activeIndex])
       } else if (event.key === "Escape") {
         setSuggestions([])
       }
@@ -107,7 +106,7 @@ export default function SmartSearchEnhancer() {
       const exact = suggestions.find((item) => item.exact && normalise(item.label.replace(/ sold prices$/i, "")) === queryKey)
       if (!exact) return
       event.preventDefault()
-      choose(exact, anchor.input)
+      choose(exact)
     }
 
     function onScrollOrResize() {
@@ -133,8 +132,6 @@ export default function SmartSearchEnhancer() {
   }, [activeIndex, anchor, router, suggestions])
 
   function choose(suggestion: SmartSearchSuggestion) {
-    if (!anchor) return
-    anchor.input.value = suggestion.label.replace(/ sold prices$/i, "")
     setSuggestions([])
     setActiveIndex(-1)
     router.push(suggestion.href)
