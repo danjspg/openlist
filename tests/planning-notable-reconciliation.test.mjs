@@ -267,16 +267,20 @@ test("workflow category repair is explicit, serialized and scheduled sweep remai
     new URL("../.github/workflows/planning-notable-classification.yml", import.meta.url),
     "utf8"
   )
+  const categoryWorkflow = await readFile(
+    new URL("../.github/workflows/planning-public-category-reconciliation.yml", import.meta.url),
+    "utf8"
+  )
   const applyFullBranch = workflow.match(/elif \[\[ "\$RUN_MODE" == "apply-full" \]\]; then([\s\S]*?)elif/)?.[1] || ""
-  assert.match(workflow, /options: \[category-audit, category-reconcile, validate, reconcile, apply-full\]/)
+  assert.match(workflow, /options: \[validate, reconcile, apply-full\]/)
   assert.match(workflow, /group: openlist-db-maintenance/)
-  const categoryAuditBranch = workflow.match(/if \[\[ "\$RUN_MODE" == "category-audit" \]\]; then([\s\S]*?)elif/)?.[1] || ""
-  assert.match(categoryAuditBranch, /reconcile-planning-public-categories\.mjs/)
-  assert.doesNotMatch(categoryAuditBranch, /--apply/)
-  const categoryApplyBranch = workflow.match(/elif \[\[ "\$RUN_MODE" == "category-reconcile" \]\]; then([\s\S]*?)elif/)?.[1] || ""
-  assert.match(categoryApplyBranch, /APPLY_RECONCILIATION/)
-  assert.match(categoryApplyBranch, /exit 1/)
-  assert.match(categoryApplyBranch, /reconcile-planning-public-categories\.mjs --apply/)
+  assert.match(categoryWorkflow, /options: \[audit, apply\]/)
+  assert.match(categoryWorkflow, /group: openlist-db-maintenance/)
+  assert.match(categoryWorkflow, /apply mode requires confirm_apply=true/)
+  assert.match(categoryWorkflow, /apply_flag="--apply"/)
+  assert.match(categoryWorkflow, /--batch-size=250/)
+  assert.match(categoryWorkflow, /--max-batches="\$MAX_BATCHES"/)
+  assert.doesNotMatch(categoryWorkflow, /schedule:/)
   assert.match(workflow, /confirm_apply_full:/)
   assert.match(applyFullBranch, /CONFIRM_APPLY_FULL/)
   assert.match(applyFullBranch, /exit 1/)

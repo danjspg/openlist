@@ -82,12 +82,14 @@ backlog. Persistence preserves press/manual sources, display names, evidence,
 aliases and non-deterministic categories. Repeating an applied batch is
 idempotent.
 
-The GitHub workflow defaults manual runs to read-only `category-audit` mode.
-`category-reconcile` additionally requires the explicit `apply` input. It shares
-the `openlist-db-maintenance` concurrency lane with other heavy audits. The daily
-scheduled classifier remains limited to recently changed rows (eight batches of
-250); it maintains newly ingested/edited records but never starts the historical
-repair backlog.
+The dedicated manual-only GitHub workflow defaults to read-only `audit` mode.
+Its `apply` mode additionally requires `confirm_apply=true`, and its only write
+command passes the explicit `--apply` flag to the strictly bounded script. The
+write job shares the `openlist-db-maintenance` concurrency lane with other heavy
+audits. It has no schedule and cannot start the historical backlog automatically.
+The separate daily classifier remains limited to recently changed rows (eight
+batches of 250); it maintains newly ingested/edited records but never starts the
+historical repair backlog.
 
 The complete count audit is also read-only:
 
@@ -115,9 +117,9 @@ shared `openlist-db-maintenance` concurrency lane.
 First production apply run:
 
 ```sh
-gh workflow run planning-notable-classification.yml --ref main \
-  -f mode=category-reconcile \
-  -f apply=true \
+gh workflow run planning-public-category-reconciliation.yml --ref main \
+  -f mode=apply \
+  -f confirm_apply=true \
   -f cursor=00000000-0000-0000-0000-000000000000 \
   -f max_batches=10
 ```
@@ -126,9 +128,9 @@ Record the workflow run ID, download its artifact, and copy `nextCursor` exactly
 For run 2 and every subsequent run:
 
 ```sh
-gh workflow run planning-notable-classification.yml --ref main \
-  -f mode=category-reconcile \
-  -f apply=true \
+gh workflow run planning-public-category-reconciliation.yml --ref main \
+  -f mode=apply \
+  -f confirm_apply=true \
   -f cursor=<PREVIOUS_NEXT_CURSOR> \
   -f max_batches=10
 ```
@@ -137,9 +139,9 @@ After each apply and its health checks, rerun the same tranche in read-only mode
 using that tranche's **start** cursor:
 
 ```sh
-gh workflow run planning-notable-classification.yml --ref main \
-  -f mode=category-audit \
-  -f apply=false \
+gh workflow run planning-public-category-reconciliation.yml --ref main \
+  -f mode=audit \
+  -f confirm_apply=false \
   -f cursor=<TRANCHE_START_CURSOR> \
   -f max_batches=10
 ```

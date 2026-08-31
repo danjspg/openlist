@@ -1,0 +1,120 @@
+name: Planning public category reconciliation
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Read-only audit or bounded production apply"
+        type: choice
+        options: [audit, apply]
+        default: audit
+      confirm_apply:
+        description: "Required confirmation for production writes"
+        type: boolean
+        default: false
+      cursor:
+        description: "Exclusive UUID cursor; use the prior run's exact nextCursor"
+        required: true
+        default: "00000000-0000-0000-0000-000000000000"
+      max_batches:
+        description: "Maximum 250-row batches (integer 1-10)"
+        required: true
+        default: "10"
+  pull_request:
+    paths:
+      - ".github/workflows/planning-public-category-reconciliation.yml"
+      - "lib/planning-notable-classifier.mjs"
+      - "lib/planning-notable-eligibility.mjs"
+      - "lib/planning-notable-persistence.mjs"
+      - "scripts/reconcile-planning-public-categories.mjs"
+      - "tests/planning-notable-classifier.test.mjs"
+      - "tests/planning-public-category-reconciliation.test.mjs"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node --test tests/planning-notable-classifier.test.mjs tests/planning-public-category-reconciliation.test.mjs
+
+  reconcile:
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: openlist-db-maintenance
+      cancel-in-progress: false
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      RUN_MODE: ${{ inputs.mode }}
+      CONFIRM_APPLY: ${{ inputs.confirm_apply && 'true' || 'false' }}
+      RESUME_CURSOR: ${{ inputs.cursor }}
+      MAX_BATCHES: ${{ inputs.max_batches }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Run one bounded tranche
+        run: |
+          mkdir -p artifacts
+          apply_flag=""
+          if [[ "$RUN_MODE" == "apply" ]]; then
+            if [[ "$CONFIRM_APPLY" != "true" ]]; then
+              echo "apply mode requires confirm_apply=true" >&2
+              exit 1
+            fi
+            apply_flag="--apply"
+          fi
+          node scripts/reconcile-planning-public-categories.mjs $apply_flag \
+            --batch-size=250 \
+            --max-batches="$MAX_BATCHES" \
+            --cursor="$RESUME_CURSOR" \
+            --output=artifacts/planning-public-category-reconciliation.json
+      - name: Summarise tranche and resume cursor
+        if: ${{ always() }}
+        run: |
+          if [[ ! -f artifacts/planning-public-category-reconciliation.json ]]; then
+            echo "## Planning public category reconciliation" >> "$GITHUB_STEP_SUMMARY"
+            echo "No report was produced; do not advance the cursor." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          node - <<'NODE' >> "$GITHUB_STEP_SUMMARY"
+          const report = require('./artifacts/planning-public-category-reconciliation.json')
+          const counts = report.counts || {}
+          console.log('## Planning public category reconciliation')
+          console.log('')
+          console.log(`- Mode: **${report.mode}**`)
+          console.log(`- Start cursor: \`${report.startCursor}\``)
+          console.log(`- Final safe cursor: \`${report.finalCursor}\``)
+          console.log(`- Exact next cursor: **${report.nextCursor ? `\`${report.nextCursor}\`` : 'complete — none'}**`)
+          console.log(`- Ceiling: **${report.maximumScannedRows ?? 0} rows**`)
+          console.log(`- Scanned: **${counts.scanned ?? 0}**`)
+          console.log(`- Matched: **${counts.matched ?? 0}**`)
+          console.log(`- Inserted: **${counts.inserted ?? 0}**`)
+          console.log(`- Updated: **${counts.updated ?? 0}**`)
+          console.log(`- Unchanged: **${counts.unchanged ?? 0}**`)
+          console.log(`- Failed: **${counts.failed ?? 0}**`)
+          console.log(`- Elapsed: **${report.elapsedMs ?? 0} ms**`)
+          console.log(`- Complete: **${report.complete ? 'yes' : 'no'}**`)
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: planning-public-category-reconciliation-${{ github.run_id }}
+          path: artifacts/planning-public-category-reconciliation.json
+          retention-days: 90
+          if-no-files-found: warn

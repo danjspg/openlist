@@ -6,10 +6,10 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "Public-category audit/repair or legacy notable reconciliation"
+        description: "Validation, bounded reconciliation, or guarded full apply"
         type: choice
-        options: [category-audit, category-reconcile, validate, reconcile, apply-full]
-        default: category-audit
+        options: [validate, reconcile, apply-full]
+        default: validate
       apply:
         description: "Persist normal bounded reconcile mode (ignored by apply-full)"
         type: boolean
@@ -23,7 +23,7 @@ on:
         required: false
         default: ""
       max_batches:
-        description: "Maximum 250-row public-category batches (1-10)"
+        description: "Maximum 250-row batches (1-100)"
         required: false
         default: "10"
   pull_request:
@@ -91,15 +91,7 @@ jobs:
           MAX_BATCHES: ${{ inputs.max_batches || '10' }}
         run: |
           mkdir -p artifacts
-          if [[ "$RUN_MODE" == "category-audit" ]]; then
-            node scripts/reconcile-planning-public-categories.mjs --batch-size=250 --max-batches="$MAX_BATCHES" --cursor="$RESUME_CURSOR" --output=artifacts/planning-notable-classification.json
-          elif [[ "$RUN_MODE" == "category-reconcile" ]]; then
-            if [[ "$APPLY_RECONCILIATION" != "true" ]]; then
-              echo "category-reconcile requires apply=true" >&2
-              exit 1
-            fi
-            node scripts/reconcile-planning-public-categories.mjs --apply --batch-size=250 --max-batches="$MAX_BATCHES" --cursor="$RESUME_CURSOR" --output=artifacts/planning-notable-classification.json
-          elif [[ "$RUN_MODE" == "validate" ]]; then
+          if [[ "$RUN_MODE" == "validate" ]]; then
             # Validation intentionally uses the same bounded RPC pagination as reconciliation.
             # It remains read-only because no write flag is supplied. This avoids the former
             # whole-cohort validation query timing out in Postgres.
@@ -142,7 +134,6 @@ jobs:
           console.log(`- Unchanged rows: **${counts.unchanged ?? 0}**`)
           console.log(`- Materially changed rows: **${report.materiallyChangedRows ?? 0}**`)
           console.log(`- Batches completed: **${report.batchesCompleted ?? 0}**`)
-          console.log(`- Elapsed: **${report.elapsedMs ?? 0} ms**`)
           console.log(`- Complete: **${report.complete ? 'yes' : 'no'}**`)
           console.log(`- Failures: **${report.failures?.length ?? 0}**`)
           if (report.nextCursor) console.log(`- Resume cursor: \`${report.nextCursor}\``)
