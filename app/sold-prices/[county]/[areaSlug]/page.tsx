@@ -5,19 +5,14 @@ import PprDisclaimer from "@/components/ppr/PprDisclaimer"
 import PprLocationInsights from "@/components/ppr/PprLocationInsights"
 import PprSaleCard from "@/components/ppr/PprSaleCard"
 import { getPprMarket, getRelevantMarketComparisonLinks } from "@/lib/ppr-markets"
-import { formatPlanningDate } from "@/lib/planning"
-import { planningResultRecord } from "@/lib/planning-result-presentation"
-import { getPlanningApplicationsForSoldPriceArea } from "@/lib/property-research"
 import {
   areaNameFromSlug,
   formatPprCountyDisplayName,
-  formatPprCurrency,
   formatPprDate,
   formatPprDisplayText,
-  getNearbyAreaLinks,
   isExcludedStandaloneAreaSlug,
+  type PprDateRangeValue,
 } from "@/lib/ppr"
-import { type PprDateRangeValue } from "@/lib/ppr"
 import {
   euroDisplay,
   getAnalyticsRange,
@@ -61,6 +56,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function PprAreaPage({ params }: Props) {
   const { county, areaSlug } = await params
   if (isExcludedStandaloneAreaSlug(areaSlug)) notFound()
+
   const selectedRange: PprDateRangeValue = "last-year"
   const analyticsRange = getAnalyticsRange(selectedRange)
   const decodedCounty = decodeURIComponent(county)
@@ -75,12 +71,15 @@ export default async function PprAreaPage({ params }: Props) {
         { href: "/sold-prices/affordable-markets", label: "Affordable Markets" },
       ]
 
-  const [areaData, nearbyAreaCandidates, planningApplications] = await Promise.all([
-    getAreaInsights(decodedCounty, areaSlug, selectedRange),
-    getNearbyAreaLinks(decodedCounty, areaSlug),
-    getPlanningApplicationsForSoldPriceArea(decodedCounty, areaName),
-  ])
-  const { insights, recentSales } = areaData
+  // Keep the locality request focused on its core PPR data. Planning crossover
+  // and same-county alternatives used to add two independent DB reads to every
+  // cold render. Both journeys remain available as links without delaying this page.
+  const { insights, recentSales } = await getAreaInsights(
+    decodedCounty,
+    areaSlug,
+    selectedRange
+  )
+
   const activityPeriodCount = insights.activity?.currentPeriodCount ?? 0
   const currentSalesCount = activityPeriodCount > 0 ? activityPeriodCount : insights.totalSalesCount
   const hasActivityComparison = insights.activity?.changePct !== undefined
@@ -91,10 +90,7 @@ export default async function PprAreaPage({ params }: Props) {
   const summaryMedian = snapshotMedian ?? recentSalesMedian
   const summaryMedianUsesRecentFallback = snapshotMedian === undefined && recentSalesMedian !== undefined
   const summaryLastSaleDate = insights.lastSaleDate ?? recentSales[0]?.date_of_sale ?? null
-  // These candidates come from the maintained same-county ppr_area_stats snapshot.
-  // They are useful alternative markets, but without coordinates they must not
-  // be presented as geographically nearby.
-  const nearbyAreas = nearbyAreaCandidates
+  const planningHref = `/planning?area=${encodeURIComponent(areaName)}`
 
   return (
     <main className="min-h-screen bg-stone-50">
@@ -111,43 +107,24 @@ export default async function PprAreaPage({ params }: Props) {
               See recent sold property prices, pricing trends and sales activity for {areaName}.
             </p>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">
-              This page summarises recorded Property Price Register transactions in {areaName},
-              helping you compare recent sale prices and wider local market trends.
+              This page summarises recorded Property Price Register transactions in {areaName}, helping you compare recent sale prices and wider local market trends.
             </p>
-            <div className="mt-5 flex flex-wrap gap-3">
-              <Link
-                href={`/sold-prices/${decodedCounty.toLowerCase()}`}
-                className="inline-flex text-sm font-medium text-stone-600 transition hover:text-stone-900"
-              >
-                See {countyLabel} house prices
+            <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold">
+              <Link href={`/sold-prices/${decodedCounty.toLowerCase()}`} className="text-stone-700 transition hover:text-stone-950">
+                See {countyLabel} house prices →
               </Link>
-              <Link
-                href="/sold-prices"
-                className="inline-flex text-sm font-medium text-stone-600 transition hover:text-stone-900"
-              >
-                Back to Ireland house prices
+              <Link href={planningHref} className="text-emerald-800 transition hover:text-emerald-950">
+                Planning in {areaName} →
               </Link>
             </div>
           </div>
         </div>
 
         <div className="mt-8 grid gap-4 md:grid-cols-4">
-          <div className="rounded-[24px] border border-stone-200 bg-white p-5 shadow-sm">
-            <p className="text-sm text-stone-500">
-              {hasActivityComparison ? "Sales activity" : "Recorded sales"}
-            </p>
-            <p
-              className={`mt-2 text-3xl font-semibold ${
-                hasActivityComparison
-                  ? insights.activity!.changePct! > 0
-                    ? "text-emerald-700"
-                    : insights.activity!.changePct! < 0
-                      ? "text-rose-700"
-                      : "text-stone-900"
-                  : "text-stone-900"
-              }`}
-            >
-              {hasActivityComparison
+          <MetricCard
+            label={hasActivityComparison ? "Sales activity" : "Recorded sales"}
+            value={
+              hasActivityComparison
                 ? insights.activity!.changePct! > 0
                   ? `↑ ${signedPercent(insights.activity!.changePct)}`
                   : insights.activity!.changePct! < 0
@@ -157,102 +134,56 @@ export default async function PprAreaPage({ params }: Props) {
                   ? "Limited data"
                   : hasRecordedSales
                     ? `${numberDisplay(currentSalesCount)} ${currentSalesCount === 1 ? "sale" : "sales"}`
-                    : "No sales"}
-            </p>
-            <p className="mt-2 text-xs leading-5 text-stone-500">
-              {hasActivityComparison && insights.activity
-                ? `${insights.activity.currentPeriodLabel} vs ${insights.activity.previousPeriodLabel}`
-                : `Across ${analyticsRange.label}`}
-            </p>
-            <p className="text-xs leading-5 text-stone-500">
-              {hasActivityComparison && insights.activity
-                ? `${numberDisplay(insights.activity.currentPeriodCount)} vs ${numberDisplay(insights.activity.previousPeriodCount)} recorded sales`
+                    : "No sales"
+            }
+            detail={
+              hasActivityComparison && insights.activity
+                ? `${insights.activity.currentPeriodLabel} vs ${insights.activity.previousPeriodLabel} · ${numberDisplay(insights.activity.currentPeriodCount)} vs ${numberDisplay(insights.activity.previousPeriodCount)} recorded sales`
                 : aggregateUnavailable
                   ? "Sales are available, but the aggregate count is temporarily unavailable"
-                  : hasRecordedSales
-                    ? "Not enough sales for a reliable activity comparison"
-                    : "No recorded transactions in this period"}
-            </p>
-          </div>
-          <div className="rounded-[24px] border border-stone-200 bg-white p-5 shadow-sm">
-            <p className="text-sm text-stone-500">Median price</p>
-            <p className="mt-2 text-2xl font-semibold text-stone-900">
-              {euroDisplay(summaryMedian)}
-            </p>
-            <p className="mt-2 text-xs leading-5 text-stone-500">
-              {summaryMedianUsesRecentFallback
+                  : `Across ${analyticsRange.label}`
+            }
+            tone={hasActivityComparison ? insights.activity?.changePct : undefined}
+          />
+          <MetricCard
+            label="Median price"
+            value={euroDisplay(summaryMedian)}
+            detail={
+              summaryMedianUsesRecentFallback
                 ? `Median of ${numberDisplay(recentSales.length)} recent sales shown`
-                : analyticsRange.helperText || `Across ${analyticsRange.label}`}
-            </p>
-          </div>
-          <div className="rounded-[24px] border border-stone-200 bg-white p-5 shadow-sm">
-            <p className="text-sm text-stone-500">Price change</p>
-            <p
-              className={`mt-2 text-2xl font-semibold ${
-                insights.momentum?.yoyChangePct !== undefined
-                  ? insights.momentum.yoyChangePct > 0
-                    ? "text-emerald-700"
-                    : insights.momentum.yoyChangePct < 0
-                      ? "text-rose-700"
-                      : "text-stone-900"
-                  : "text-stone-900"
-              }`}
-            >
-              {insights.momentum?.yoyChangePct !== undefined
-                ? signedPercent(insights.momentum.yoyChangePct)
-                : "Limited data"}
-            </p>
-            <p className="mt-2 text-xs leading-5 text-stone-500">
-              {insights.momentum
-                ? "Median price vs the previous 12 months"
-                : "Not enough recent sales for a reliable price comparison"}
-            </p>
-          </div>
-          <div className="rounded-[24px] border border-stone-200 bg-white p-5 shadow-sm">
-            <p className="text-sm text-stone-500">Last sale</p>
-            <p className="mt-2 text-2xl font-semibold text-stone-900">
-              {formatPprDate(summaryLastSaleDate)}
-            </p>
-          </div>
+                : analyticsRange.helperText || `Across ${analyticsRange.label}`
+            }
+          />
+          <MetricCard
+            label="Price change"
+            value={insights.momentum?.yoyChangePct !== undefined ? signedPercent(insights.momentum.yoyChangePct) : "Limited data"}
+            detail={insights.momentum ? "Median price vs the previous 12 months" : "Not enough recent sales for a reliable price comparison"}
+            tone={insights.momentum?.yoyChangePct}
+          />
+          <MetricCard label="Last sale" value={formatPprDate(summaryLastSaleDate)} detail="Latest recorded transaction" />
         </div>
 
-        <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_340px]">
+        <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
           <section className="space-y-8">
             <div>
               <div className="mb-5">
-                <p className="text-sm uppercase tracking-[0.18em] text-stone-500">
-                  Market prices
-                </p>
-                <h2 className="mt-2 text-3xl font-semibold tracking-tight text-stone-900">
-                  Prices and activity in {areaName}
-                </h2>
+                <p className="text-sm uppercase tracking-[0.18em] text-stone-500">Market prices</p>
+                <h2 className="mt-2 text-3xl font-semibold tracking-tight text-stone-900">Prices and activity in {areaName}</h2>
                 <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">
-                  Use these signals to understand local property prices, price change and recent market
-                  activity in {areaName} before comparing with other parts of {countyLabel}.
+                  Use these signals to understand local property prices, price change and recent market activity in {areaName}.
                 </p>
               </div>
-
-              <PprLocationInsights
-                areaLabel={areaName}
-                insights={insights}
-                rangeLabel={analyticsRange.label}
-              />
+              <PprLocationInsights areaLabel={areaName} insights={insights} rangeLabel={analyticsRange.label} />
             </div>
+
             <div>
               <div className="mb-5">
-                <p className="text-sm uppercase tracking-[0.18em] text-stone-500">
-                  Recent register entries
-                </p>
-                <h2 className="mt-2 text-3xl font-semibold tracking-tight text-stone-900">
-                  Latest sales in {areaName}.
-                </h2>
+                <p className="text-sm uppercase tracking-[0.18em] text-stone-500">Recent register entries</p>
+                <h2 className="mt-2 text-3xl font-semibold tracking-tight text-stone-900">Latest sales in {areaName}</h2>
               </div>
-
               {recentSales.length > 0 ? (
                 <div className="space-y-4">
-                  {recentSales.map((sale) => (
-                    <PprSaleCard key={sale.id} sale={sale} showAreaLink={false} />
-                  ))}
+                  {recentSales.map((sale) => <PprSaleCard key={sale.id} sale={sale} showAreaLink={false} />)}
                 </div>
               ) : (
                 <div className="rounded-[28px] border border-stone-200 bg-white p-8 text-stone-600 shadow-sm">
@@ -261,126 +192,69 @@ export default async function PprAreaPage({ params }: Props) {
               )}
             </div>
 
-            <div className="rounded-[28px] border border-stone-200 bg-white p-6 shadow-sm sm:p-8">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <p className="text-sm uppercase tracking-[0.18em] text-stone-500">Development activity</p>
-                  <h2 className="mt-2 text-3xl font-semibold tracking-tight text-stone-900">Planning applications in {areaName}</h2>
-                  <p className="mt-3 max-w-2xl text-sm leading-6 text-stone-600">Recent applications matched by the area name in the published application address. This does not imply a link to any sold property shown above.</p>
-                </div>
-                <form action="/planning" method="get" className="shrink-0">
-                  <input type="hidden" name="area" value={areaName} />
-                  <button type="submit" className="text-sm font-semibold text-stone-700 transition hover:text-stone-950">
-                    Search all planning →
-                  </button>
-                </form>
-              </div>
-
-              {planningApplications.length > 0 ? (
-                <div className="mt-6 divide-y divide-stone-200 border-y border-stone-200">
-                  {planningApplications.map((application) => {
-                    const result = planningResultRecord(application)
-                    const href = result.detailHref || "/planning"
-                    const location = result.location || result.authority
-
-                    return (
-                      <article key={application.id} className="py-5 sm:px-2">
-                        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-                          <p className="font-mono text-sm font-semibold text-emerald-800">
-                            {result.reference}
-                          </p>
-                          <p className="text-xs font-medium text-stone-500">
-                            Registered {formatPlanningDate(result.registrationDate)}
-                          </p>
-                        </div>
-                        <h3 className="mt-2 text-base font-semibold leading-6 text-stone-900">
-                          <Link href={href} className="transition hover:text-emerald-800">
-                            {location}
-                          </Link>
-                        </h3>
-                        <p className="mt-1.5 line-clamp-2 text-sm leading-6 text-stone-600">
-                          {result.proposal}
-                        </p>
-                        <div className="mt-3 flex flex-wrap items-center gap-3">
-                          {result.status ? (
-                            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">
-                              {result.status}
-                            </span>
-                          ) : null}
-                          <Link
-                            href={href}
-                            className="text-sm font-semibold text-stone-700 transition hover:text-emerald-800"
-                          >
-                            View application →
-                          </Link>
-                        </div>
-                      </article>
-                    )
-                  })}
-                </div>
-              ) : (
-                <p className="mt-6 rounded-2xl bg-stone-50 p-5 text-sm leading-6 text-stone-600">No recent planning applications could be matched reliably to this locality. Try the full planning search.</p>
-              )}
+            <div className="rounded-[28px] border border-emerald-200 bg-emerald-50/70 p-6 sm:p-8">
+              <p className="text-sm uppercase tracking-[0.18em] text-emerald-800">Development activity</p>
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-950">Check planning applications in {areaName}</h2>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-stone-600">
+                Open the Planning search already filtered to this area to see current and historic applications without slowing down the sold-price page.
+              </p>
+              <Link href={planningHref} className="mt-5 inline-flex min-h-11 items-center rounded-full bg-stone-950 px-5 text-sm font-semibold text-white transition hover:bg-stone-700">
+                View Planning in {areaName} →
+              </Link>
             </div>
           </section>
 
           <aside className="space-y-5">
             <PprDisclaimer />
-
             <div className="rounded-[28px] border border-stone-200 bg-white p-6 shadow-sm">
-              <p className="text-sm uppercase tracking-[0.18em] text-stone-500">
-                Sold prices
-              </p>
-              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">
-                Compare this market.
-              </h2>
+              <p className="text-sm uppercase tracking-[0.18em] text-stone-500">Sold prices</p>
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">Compare this market</h2>
               <p className="mt-3 text-sm leading-6 text-stone-600">
-                See how {areaName} compares with other markets in {countyLabel} and broader tracked views.
+                Continue into broader tracked views or the full {countyLabel} market.
               </p>
               <div className="mt-5 flex flex-wrap gap-3">
-                {comparisonLinks.map((link, index) => (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    className={
-                      index === 0
-                        ? "inline-flex rounded-full bg-stone-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-stone-700"
-                        : "inline-flex rounded-full border border-stone-300 px-5 py-2.5 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900"
-                    }
-                  >
+                <Link href={`/sold-prices/${decodedCounty.toLowerCase()}`} className="inline-flex rounded-full bg-stone-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-stone-700">
+                  {countyLabel} prices
+                </Link>
+                {comparisonLinks.map((link) => (
+                  <Link key={link.href} href={link.href} className="inline-flex rounded-full border border-stone-300 px-5 py-2.5 text-sm font-medium text-stone-700 transition hover:border-stone-900 hover:text-stone-900">
                     {link.label}
                   </Link>
                 ))}
               </div>
             </div>
-
-            {nearbyAreas.length > 0 && (
-              <div className="rounded-[28px] border border-stone-200 bg-white p-6 shadow-sm">
-                <p className="text-sm uppercase tracking-[0.18em] text-stone-500">
-                  Other {countyLabel} markets
-                </p>
-                <div className="mt-4 space-y-3">
-                  {nearbyAreas.map((area) => (
-                    <Link
-                      key={`${area.county}-${area.area_slug}`}
-                      href={`/sold-prices/${encodeURIComponent(String(area.county || decodedCounty).toLowerCase())}/${area.area_slug}`}
-                      className="block rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 transition hover:border-stone-300 hover:bg-white"
-                    >
-                      <p className="font-medium text-stone-900">
-                        {areaNameFromSlug(area.area_slug || "")}
-                      </p>
-                      <p className="mt-1 text-sm text-stone-500">
-                        {formatPprCurrency(area.median_price_eur)} median
-                      </p>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
           </aside>
         </div>
       </section>
     </main>
+  )
+}
+
+function MetricCard({
+  label,
+  value,
+  detail,
+  tone,
+}: {
+  label: string
+  value: string
+  detail: string
+  tone?: number
+}) {
+  const valueClass = tone === undefined
+    ? "text-stone-900"
+    : tone > 0
+      ? "text-emerald-700"
+      : tone < 0
+        ? "text-rose-700"
+        : "text-stone-900"
+
+  return (
+    <div className="rounded-[24px] border border-stone-200 bg-white p-5 shadow-sm">
+      <p className="text-sm text-stone-500">{label}</p>
+      <p className={`mt-2 text-2xl font-semibold ${valueClass}`}>{value}</p>
+      <p className="mt-2 text-xs leading-5 text-stone-500">{detail}</p>
+    </div>
   )
 }
 
