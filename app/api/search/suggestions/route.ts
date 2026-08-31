@@ -56,7 +56,7 @@ export async function GET(request: Request) {
         score,
       }
     })
-    .filter((item): item is Suggestion => Boolean(item))
+    .filter((item): item is NonNullable<typeof item> => item !== null)
     .sort((a, b) => b.score - a.score)
     .slice(0, scope === "planning" ? 6 : 4)
 
@@ -67,15 +67,7 @@ export async function GET(request: Request) {
     const exact = labels.some((value) => normalise(value) === queryKey)
     const prefix = labels.some((value) => normalise(value).startsWith(queryKey))
     if (!exact && !prefix) continue
-    suggestions.push({
-      id: `authority:${authority.code}`,
-      label: authority.shortName,
-      detail: "Local authority planning overview",
-      href: `/planning/${authority.slug}`,
-      kind: "authority",
-      exact,
-      score: exact ? 4300 : 2200,
-    })
+    suggestions.push({ id: `authority:${authority.code}`, label: authority.shortName, detail: "Local authority planning overview", href: `/planning/${authority.slug}`, kind: "authority", exact, score: exact ? 4300 : 2200 })
   }
 
   for (const category of PLANNING_PUBLIC_CATEGORIES) {
@@ -84,45 +76,21 @@ export async function GET(request: Request) {
     const prefix = labels.some((value) => normalise(value).startsWith(queryKey))
     const contains = labels.some((value) => normalise(value).includes(queryKey))
     if (!exact && !prefix && !contains) continue
-    suggestions.push({
-      id: `category:${category.slug}`,
-      label: category.shortLabel,
-      detail: "Notable planning development category",
-      href: `/planning/categories/${category.slug}`,
-      kind: "category",
-      exact,
-      score: exact ? 4200 : prefix ? 2100 : 900,
-    })
+    suggestions.push({ id: `category:${category.slug}`, label: category.shortLabel, detail: "Notable planning development category", href: `/planning/categories/${category.slug}`, kind: "category", exact, score: exact ? 4200 : prefix ? 2100 : 900 })
   }
 
   for (const activity of activitySuggestions) {
     const exact = activity.terms.some((term) => normalise(term) === queryKey)
     const prefix = activity.terms.some((term) => normalise(term).startsWith(queryKey) || queryKey.startsWith(normalise(term)))
     if (!exact && !prefix) continue
-    suggestions.push({
-      id: `activity:${activity.href}`,
-      label: activity.label,
-      detail: activity.detail,
-      href: activity.href,
-      kind: "activity",
-      exact,
-      score: exact ? 4100 : 2000,
-    })
+    suggestions.push({ id: `activity:${activity.href}`, label: activity.label, detail: activity.detail, href: activity.href, kind: "activity", exact, score: exact ? 4100 : 2000 })
   }
 
   if (scope === "unified" && pprPlaces.length > 0) {
     const ranked = rankPlaceSuggestions(query, pprPlaces, 4)
     for (const place of ranked) {
       const exact = normalise(place.areaLabel) === queryKey || normalise(place.areaSlug) === queryKey
-      suggestions.push({
-        id: `sold-prices:${place.county}:${place.areaSlug}`,
-        label: `${place.areaLabel} sold prices`,
-        detail: `${place.county} · ${place.salesCount.toLocaleString("en-IE")} recorded sales`,
-        href: `/sold-prices/${place.county.toLowerCase()}/${place.areaSlug}`,
-        kind: "sold-prices",
-        exact,
-        score: exact ? 3800 : 1500 + Math.log10(place.salesCount + 1) * 50,
-      })
+      suggestions.push({ id: `sold-prices:${place.county}:${place.areaSlug}`, label: `${place.areaLabel} sold prices`, detail: `${place.county} · ${place.salesCount.toLocaleString("en-IE")} recorded sales`, href: `/sold-prices/${place.county.toLowerCase()}/${place.areaSlug}`, kind: "sold-prices", exact, score: exact ? 3800 : 1500 + Math.log10(place.salesCount + 1) * 50 })
     }
   }
 
@@ -131,22 +99,8 @@ export async function GET(request: Request) {
     .slice(0, 7)
     .map(({ score: _score, ...item }) => item)
 
-  return NextResponse.json(
-    { suggestions: deduped },
-    { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=3600" } }
-  )
+  return NextResponse.json({ suggestions: deduped }, { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=3600" } })
 }
 
-function clean(value: string) {
-  return value.replace(/\s+/g, " ").trim().slice(0, 80)
-}
-
-function normalise(value: string) {
-  return value
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim()
-    .replace(/\s+/g, " ")
-}
+function clean(value: string) { return value.replace(/\s+/g, " ").trim().slice(0, 80) }
+function normalise(value: string) { return value.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ") }
