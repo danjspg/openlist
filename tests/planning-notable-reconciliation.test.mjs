@@ -262,13 +262,21 @@ test("workflow validate branch forwards the cursor and cannot enable apply", asy
   assert.doesNotMatch(validateBranch, /APPLY_RECONCILIATION/)
 })
 
-test("workflow apply-full branch is explicitly confirmed and scheduled sweep is unchanged", async () => {
+test("workflow category repair is explicit, serialized and scheduled sweep remains bounded", async () => {
   const workflow = await readFile(
     new URL("../.github/workflows/planning-notable-classification.yml", import.meta.url),
     "utf8"
   )
   const applyFullBranch = workflow.match(/elif \[\[ "\$RUN_MODE" == "apply-full" \]\]; then([\s\S]*?)elif/)?.[1] || ""
-  assert.match(workflow, /options: \[validate, reconcile, apply-full\]/)
+  assert.match(workflow, /options: \[category-audit, category-reconcile, validate, reconcile, apply-full\]/)
+  assert.match(workflow, /group: openlist-db-maintenance/)
+  const categoryAuditBranch = workflow.match(/if \[\[ "\$RUN_MODE" == "category-audit" \]\]; then([\s\S]*?)elif/)?.[1] || ""
+  assert.match(categoryAuditBranch, /reconcile-planning-public-categories\.mjs/)
+  assert.doesNotMatch(categoryAuditBranch, /--apply/)
+  const categoryApplyBranch = workflow.match(/elif \[\[ "\$RUN_MODE" == "category-reconcile" \]\]; then([\s\S]*?)elif/)?.[1] || ""
+  assert.match(categoryApplyBranch, /APPLY_RECONCILIATION/)
+  assert.match(categoryApplyBranch, /exit 1/)
+  assert.match(categoryApplyBranch, /reconcile-planning-public-categories\.mjs --apply/)
   assert.match(workflow, /confirm_apply_full:/)
   assert.match(applyFullBranch, /CONFIRM_APPLY_FULL/)
   assert.match(applyFullBranch, /exit 1/)

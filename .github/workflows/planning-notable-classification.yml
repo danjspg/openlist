@@ -6,10 +6,10 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "Validation, bounded reconciliation, or guarded full apply"
+        description: "Public-category audit/repair or legacy notable reconciliation"
         type: choice
-        options: [validate, reconcile, apply-full]
-        default: validate
+        options: [category-audit, category-reconcile, validate, reconcile, apply-full]
+        default: category-audit
       apply:
         description: "Persist normal bounded reconcile mode (ignored by apply-full)"
         type: boolean
@@ -35,9 +35,11 @@ on:
       - "lib/planning.ts"
       - "app/sitemaps/planning-notable.xml/route.ts"
       - "scripts/reconcile-planning-notable-classification.mjs"
+      - "scripts/reconcile-planning-public-categories.mjs"
       - "scripts/planning-upsert.mjs"
       - "tests/planning-notable-classifier.test.mjs"
       - "tests/planning-notable-reconciliation.test.mjs"
+      - "tests/planning-public-category-reconciliation.test.mjs"
       - "tests/planning-seo.test.ts"
       - "tests/planning-reliability.test.ts"
       - "supabase/migrations/*planning_notable_classification*"
@@ -46,8 +48,10 @@ on:
 permissions:
   contents: read
 
+# Share the conservative maintenance lane used by the other DB-heavy audits.
+# The classifier itself also caps each public-category run at 10 x 250 rows.
 concurrency:
-  group: planning-notable-classification-${{ github.event_name }}
+  group: openlist-db-maintenance
   cancel-in-progress: false
 
 jobs:
@@ -61,7 +65,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: node --test tests/planning-notable-classifier.test.mjs tests/planning-notable-reconciliation.test.mjs tests/notable-planning-discovery-v2.test.mjs
+      - run: node --test tests/planning-notable-classifier.test.mjs tests/planning-notable-reconciliation.test.mjs tests/planning-public-category-reconciliation.test.mjs tests/notable-planning-discovery-v2.test.mjs
       - run: node --import tsx --test tests/planning-seo.test.ts tests/planning-reliability.test.ts
 
   classify:
@@ -87,7 +91,15 @@ jobs:
           MAX_BATCHES: ${{ inputs.max_batches || '10' }}
         run: |
           mkdir -p artifacts
-          if [[ "$RUN_MODE" == "validate" ]]; then
+          if [[ "$RUN_MODE" == "category-audit" ]]; then
+            node scripts/reconcile-planning-public-categories.mjs --batch-size=250 --max-batches="$MAX_BATCHES" --cursor="$RESUME_CURSOR" --output=artifacts/planning-notable-classification.json
+          elif [[ "$RUN_MODE" == "category-reconcile" ]]; then
+            if [[ "$APPLY_RECONCILIATION" != "true" ]]; then
+              echo "category-reconcile requires apply=true" >&2
+              exit 1
+            fi
+            node scripts/reconcile-planning-public-categories.mjs --apply --batch-size=250 --max-batches="$MAX_BATCHES" --cursor="$RESUME_CURSOR" --output=artifacts/planning-notable-classification.json
+          elif [[ "$RUN_MODE" == "validate" ]]; then
             # Validation intentionally uses the same bounded RPC pagination as reconciliation.
             # It remains read-only because no write flag is supplied. This avoids the former
             # whole-cohort validation query timing out in Postgres.
@@ -121,10 +133,13 @@ jobs:
           console.log(`- Execution: **${report.dryRun ? 'read-only' : 'applied'}**`)
           console.log(`- Start cursor: \`${report.startCursor}\``)
           console.log(`- Final cursor: \`${report.finalCursor}\``)
-          console.log(`- Rows scanned this run: **${report.totalRowsScanned ?? 0}**`)
+          const counts = report.counts || {}
+          console.log(`- Rows scanned this run: **${report.totalRowsScanned ?? counts.scanned ?? 0}**`)
+          console.log(`- Public-category matches: **${counts.matched ?? 0}**`)
           console.log(`- Structural notable this run: **${report.totalStructurallyNotable ?? 0}**`)
-          console.log(`- New rows created: **${report.newNotableRows ?? 0}**`)
-          console.log(`- Existing rows updated: **${report.existingNotableRowsUpdated ?? 0}**`)
+          console.log(`- New rows created: **${report.newNotableRows ?? counts.inserted ?? 0}**`)
+          console.log(`- Existing rows updated: **${report.existingNotableRowsUpdated ?? counts.updated ?? 0}**`)
+          console.log(`- Unchanged rows: **${counts.unchanged ?? 0}**`)
           console.log(`- Materially changed rows: **${report.materiallyChangedRows ?? 0}**`)
           console.log(`- Batches completed: **${report.batchesCompleted ?? 0}**`)
           console.log(`- Complete: **${report.complete ? 'yes' : 'no'}**`)
