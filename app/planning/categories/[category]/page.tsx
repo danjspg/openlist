@@ -32,12 +32,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 function categoryHref(
   slug: string,
-  includeOlder: boolean,
   authorityCode?: string | null,
   pageNumber = 1
 ) {
   const query = new URLSearchParams()
-  if (includeOlder) query.set("includeOlder", "1")
   if (authorityCode) query.set("authority", authorityCode)
   if (pageNumber > 1) query.set("page", String(pageNumber))
   const suffix = query.toString()
@@ -47,10 +45,12 @@ function categoryHref(
 export default async function PlanningCategoryPage({ params, searchParams }: Props) {
   const { category: slug } = await params
   const query = await searchParams
-  const includeOlder = query.includeOlder === "1"
   const authorityCode = query.authority || null
   const requestedPage = Math.max(1, Number.parseInt(query.page || "1", 10) || 1)
-  const page = await getPlanningPublicCategory(slug, includeOlder, authorityCode, requestedPage)
+  // Category pages deliberately use the full exact classifier-owned membership.
+  // The legacy includeOlder query parameter is accepted by the route but no longer
+  // narrows the user-facing corpus to the SEO priority subset.
+  const page = await getPlanningPublicCategory(slug, false, authorityCode, requestedPage)
   if (!page || page.overallTotalCount < 3) notFound()
   if (page.totalCount > 0 && page.pageNumber > page.totalPages) notFound()
 
@@ -59,7 +59,30 @@ export default async function PlanningCategoryPage({ params, searchParams }: Pro
     .slice(0, 8)
   const applications = page.rows.map((row) => planningResultRecord(row.application))
   const selectedAuthorityName = page.selectedAuthority?.shortName ?? null
-  const toggleHref = categoryHref(slug, !includeOlder, page.selectedAuthority?.code)
+  const topAuthorities = page.authorities.slice(0, 6)
+  const selectedAuthorityEntry = page.selectedAuthority
+    ? page.authorities.find(({ authority }) => authority?.code === page.selectedAuthority?.code)
+    : null
+  const visibleAuthorities = selectedAuthorityEntry && !topAuthorities.some(({ authority }) => authority?.code === selectedAuthorityEntry.authority?.code)
+    ? [...topAuthorities, selectedAuthorityEntry]
+    : topAuthorities
+  const visibleAuthorityCodes = new Set(visibleAuthorities.map(({ authority }) => authority?.code).filter(Boolean))
+  const remainingAuthorities = page.authorities.filter(({ authority }) => authority && !visibleAuthorityCodes.has(authority.code))
+
+  const authorityPill = ({ authority, count }: (typeof page.authorities)[number]) => authority ? (
+    <Link
+      key={authority.code}
+      href={categoryHref(slug, authority.code)}
+      aria-current={page.selectedAuthority?.code === authority.code ? "page" : undefined}
+      className={`inline-flex min-h-10 items-center rounded-lg border px-3 text-sm font-semibold ${
+        page.selectedAuthority?.code === authority.code
+          ? "border-emerald-700 bg-emerald-700 text-white"
+          : "border-emerald-200 bg-white text-stone-800 hover:border-emerald-400 hover:text-emerald-900"
+      }`}
+    >
+      {authority.shortName}<span className={`ml-2 ${page.selectedAuthority?.code === authority.code ? "text-emerald-100" : "text-stone-500"}`}>{formatPlanningCount(count)}</span>
+    </Link>
+  ) : null
 
   return (
     <main className="min-h-screen bg-stone-50">
@@ -75,7 +98,7 @@ export default async function PlanningCategoryPage({ params, searchParams }: Pro
             {page.category.description}
           </p>
           <p className="mt-3 text-sm font-medium text-stone-600">
-            {formatPlanningCount(page.totalCount)} {includeOlder ? "current and older notable" : "priority"} applications identified{selectedAuthorityName ? ` in ${selectedAuthorityName}` : ""}
+            {formatPlanningCount(page.totalCount)} applications identified{selectedAuthorityName ? ` in ${selectedAuthorityName}` : ""} · <span className="text-emerald-800">{formatPlanningCount(page.activeCount)} currently active</span>
           </p>
           <div className="mt-6 flex flex-wrap gap-3 text-sm font-semibold">
             <Link href="/planning" className="inline-flex min-h-10 items-center rounded-lg border border-stone-300 bg-white px-4 text-stone-800 hover:border-stone-500">
@@ -85,51 +108,40 @@ export default async function PlanningCategoryPage({ params, searchParams }: Pro
               Browse all development types
             </Link>
           </div>
-          <Link
-            href={toggleHref}
-            role="switch"
-            aria-checked={includeOlder}
-            className="mt-5 inline-flex min-h-11 items-center gap-3 rounded-full border border-stone-300 bg-white px-4 text-sm font-semibold text-stone-800 hover:border-stone-500"
-          >
-            <span aria-hidden="true" className={`h-5 w-9 rounded-full p-0.5 ${includeOlder ? "bg-emerald-700" : "bg-stone-300"}`}><span className={`block h-4 w-4 rounded-full bg-white transition ${includeOlder ? "translate-x-4" : ""}`} /></span>
-            Include older applications
-          </Link>
         </div>
       </section>
 
       <section className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:py-10">
         {page.authorities.length > 0 ? (
           <section className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-5 sm:p-6">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <h2 className="text-xl font-semibold tracking-tight text-stone-950">Where these applications are</h2>
-                <p className="mt-1 text-sm text-stone-600">Choose a council to filter this development type directly.</p>
-              </div>
-              {page.selectedAuthority ? (
-                <Link
-                  href={categoryHref(slug, includeOlder)}
-                  className="inline-flex min-h-10 items-center rounded-lg border border-stone-300 bg-white px-3 text-sm font-semibold text-stone-700 hover:border-stone-500"
-                >
-                  Show all councils
-                </Link>
-              ) : null}
+            <div>
+              <h2 className="text-xl font-semibold tracking-tight text-stone-950">Where these applications are</h2>
+              <p className="mt-1 text-sm text-stone-600">Filter by local authority.</p>
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
-              {page.authorities.map(({ authority, count }) => authority ? (
-                <Link
-                  key={authority.code}
-                  href={categoryHref(slug, includeOlder, authority.code)}
-                  aria-current={page.selectedAuthority?.code === authority.code ? "page" : undefined}
-                  className={`inline-flex min-h-10 items-center rounded-lg border px-3 text-sm font-semibold ${
-                    page.selectedAuthority?.code === authority.code
-                      ? "border-emerald-700 bg-emerald-700 text-white"
-                      : "border-emerald-200 bg-white text-stone-800 hover:border-emerald-400 hover:text-emerald-900"
-                  }`}
-                >
-                  {authority.shortName}<span className={`ml-2 ${page.selectedAuthority?.code === authority.code ? "text-emerald-100" : "text-stone-500"}`}>{formatPlanningCount(count)}</span>
-                </Link>
-              ) : null)}
+              <Link
+                href={categoryHref(slug)}
+                aria-current={!page.selectedAuthority ? "page" : undefined}
+                className={`inline-flex min-h-10 items-center rounded-lg border px-3 text-sm font-semibold ${
+                  !page.selectedAuthority
+                    ? "border-emerald-700 bg-emerald-700 text-white"
+                    : "border-emerald-200 bg-white text-stone-800 hover:border-emerald-400 hover:text-emerald-900"
+                }`}
+              >
+                All councils<span className={`ml-2 ${!page.selectedAuthority ? "text-emerald-100" : "text-stone-500"}`}>{formatPlanningCount(page.overallTotalCount)}</span>
+              </Link>
+              {visibleAuthorities.map(authorityPill)}
             </div>
+            {remainingAuthorities.length > 0 ? (
+              <details className="mt-3">
+                <summary className="cursor-pointer select-none text-sm font-semibold text-emerald-800 hover:text-emerald-950">
+                  Show all {formatPlanningCount(page.authorities.length)} councils
+                </summary>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {remainingAuthorities.map(authorityPill)}
+                </div>
+              </details>
+            ) : null}
           </section>
         ) : null}
 
@@ -151,7 +163,7 @@ export default async function PlanningCategoryPage({ params, searchParams }: Pro
               {page.pageNumber > 1 ? (
                 <Link
                   rel="prev"
-                  href={categoryHref(slug, includeOlder, page.selectedAuthority?.code, page.pageNumber - 1)}
+                  href={categoryHref(slug, page.selectedAuthority?.code, page.pageNumber - 1)}
                   className="inline-flex min-h-11 items-center rounded-lg border border-stone-300 bg-white px-4 text-sm font-semibold text-stone-800 hover:border-stone-500"
                 >
                   ← Previous
@@ -160,7 +172,7 @@ export default async function PlanningCategoryPage({ params, searchParams }: Pro
               {page.pageNumber < page.totalPages ? (
                 <Link
                   rel="next"
-                  href={categoryHref(slug, includeOlder, page.selectedAuthority?.code, page.pageNumber + 1)}
+                  href={categoryHref(slug, page.selectedAuthority?.code, page.pageNumber + 1)}
                   className="inline-flex min-h-11 items-center rounded-lg border border-stone-300 bg-white px-4 text-sm font-semibold text-stone-800 hover:border-stone-500"
                 >
                   Next →
