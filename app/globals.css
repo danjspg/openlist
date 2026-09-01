@@ -34,15 +34,21 @@ nav[aria-label="Most active councils"] {
   display: none;
 }
 
-/*
- * Major landing-page imagery.
- *
- * The images already live in /public and were generated for OpenList, so the
- * site keeps a consistent visual language without introducing stock imagery.
- * These selectors deliberately key off elements unique to the national hubs
- * so council, locality, search and detail pages remain information-dense.
- */
+/* Approved landing-page imagery. Keep this treatment only on the three major hubs. */
 
+/* Homepage: use the approved warmer development image without changing the proven hero geometry. */
+main.min-h-screen.bg-stone-50.text-stone-900 > section:first-child > div > div > div:last-child {
+  background-image: url("/home-hero-approved.jpg");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+main.min-h-screen.bg-stone-50.text-stone-900 > section:first-child > div > div > div:last-child > img {
+  opacity: 0;
+}
+
+/* Planning and Sold Prices hubs: visual panel on desktop, stacked image on mobile. */
 main:has(> div > section[aria-labelledby="planning-explore-heading"]) > section:first-child > div,
 main:has(> section:first-child a[href="/sold-prices/search"]) > section:first-child > div {
   display: flex;
@@ -65,7 +71,7 @@ main:has(> section:first-child a[href="/sold-prices/search"]) > section:first-ch
 }
 
 main:has(> div > section[aria-labelledby="planning-explore-heading"]) > section:first-child > div::after {
-  background-image: url("/home-planning-aerial-v2.jpg");
+  background-image: url("/planning-hero-approved.jpg");
 }
 
 main:has(> div > section[aria-labelledby="planning-explore-heading"]) > section:first-child > div form,
@@ -83,16 +89,6 @@ main:has(> section:first-child a[href="/sold-prices/search"]) > section:first-ch
 }
 
 @media (min-width: 64rem) {
-  /* The homepage already works well on mobile. Tighten only the desktop hero. */
-  main.min-h-screen.bg-stone-50.text-stone-900 > section:first-child {
-    padding-top: 4rem;
-    padding-bottom: 4rem;
-  }
-
-  main.min-h-screen.bg-stone-50.text-stone-900 > section:first-child > div > div > div:last-child {
-    height: 380px;
-  }
-
   main:has(> div > section[aria-labelledby="planning-explore-heading"]) > section:first-child > div,
   main:has(> section:first-child a[href="/sold-prices/search"]) > section:first-child > div {
     display: grid;
@@ -118,13 +114,5 @@ main:has(> section:first-child a[href="/sold-prices/search"]) > section:first-ch
     min-height: 360px;
     margin-top: 0;
     border-radius: 32px;
-  }
-
-  main:has(> div > section[aria-labelledby="planning-explore-heading"]) > section:first-child > div::after {
-    min-height: 430px;
-  }
-
-  main:has(> section:first-child a[href="/sold-prices/search"]) > section:first-child > div::after {
-    min-height: 360px;
   }
 }
