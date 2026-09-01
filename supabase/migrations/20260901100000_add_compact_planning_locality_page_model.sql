@@ -58,23 +58,60 @@ as $function$
         p.ward,
         p.local_authority_code
       ) = m.locality_label
-  ), recent_candidates as materialized (
-    -- The authority/locality expression index is ordered by registration_date
-    -- DESC (Postgres' default NULLS FIRST). Excluding undated rows lets the
-    -- database stop after a bounded cohort instead of sorting every locality
-    -- row to implement NULLS LAST. The same cohort also bounds the optional
-    -- recent-decisions section.
-    select l.*
-    from locality_applications l
-    where l.registration_date is not null
-    order by l.registration_date desc, l.reference desc, l.id
+  ), recent_candidate_ids as materialized (
+    -- Keep this first pass narrow. The authority/locality expression index is
+    -- ordered by registration_date DESC. Excluding undated rows avoids the
+    -- expensive NULLS LAST sort that otherwise scans and fetches every row in
+    -- a large locality before LIMIT can apply.
+    select p.id, p.registration_date
+    from public.planning_applications p
+    cross join membership m
+    where p.local_authority_code = p_authority_code
+      and public.openlist_planning_locality(
+        p.location,
+        p.ward,
+        p.local_authority_code
+      ) = m.locality_label
+      and p.registration_date is not null
+    order by p.registration_date desc
     limit 500
+  ), recent_candidates as materialized (
+    -- Fetch the wider public row shape only for the bounded candidate cohort.
+    select
+      p.id,
+      p.local_authority,
+      p.local_authority_code,
+      p.reference,
+      p.application_type,
+      p.proposal,
+      p.location,
+      p.applicant_name,
+      p.status,
+      p.normalized_status,
+      p.decision_text,
+      p.registration_date,
+      p.decision_date,
+      p.final_grant_date,
+      p.withdrawal_date,
+      p.appeal_lodged_date,
+      p.appeal_decision_date,
+      p.appeal_decision_text,
+      p.further_information_requested_date,
+      p.further_information_received_date,
+      p.grid_easting,
+      p.grid_northing,
+      p.construction_status
+    from recent_candidate_ids c
+    join public.planning_applications p on p.id = c.id
   ), recent as (
     select c.*
     from recent_candidates c
     order by c.registration_date desc, c.reference desc, c.id
     limit 8
   ), decisions as (
+    -- This is presentation-only supporting content, so search the latest 500
+    -- locality registrations rather than reconstructing an unbounded decision
+    -- history at request time.
     select c.*
     from recent_candidates c
     where c.decision_date is not null or c.appeal_decision_date is not null
