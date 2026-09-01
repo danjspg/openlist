@@ -90,6 +90,18 @@ test("exact Planning revalidation uses only the dedicated queue and retries tran
   assert.match(retirement, /where revalidation_pending = true/)
 })
 
+test("Planning status browse avoids exact counts and has an order-compatible index", async () => {
+  const [pagedSearch, migration] = await Promise.all([
+    source("lib/planning-search-page.ts"),
+    source("supabase/migrations/20260901074800_optimize_planning_status_browse_order.sql"),
+  ])
+
+  assert.doesNotMatch(pagedSearch, /count:\s*"exact"/)
+  assert.match(pagedSearch, /\.range\(offset, offset \+ limit\)/)
+  assert.match(migration, /normalized_status,[\s\S]*registration_date desc nulls last,[\s\S]*reference desc/)
+  assert.match(migration, /drop index if exists public\.planning_applications_normalized_status_idx/)
+})
+
 test("database migrations preserve deterministic repairs", async () => {
   const [dublin, appeals] = await Promise.all([
     source("supabase/migrations/20260828203057_optimize_ppr_dublin_district_refresh.sql"),
