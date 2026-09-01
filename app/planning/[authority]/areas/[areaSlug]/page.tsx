@@ -16,6 +16,10 @@ import {
   localityStatusStats,
 } from "@/lib/planning-locality-presentation"
 import { planningResultRecord } from "@/lib/planning-result-presentation"
+import {
+  planningSemanticState,
+  planningStateBadgeClasses,
+} from "@/lib/planning-state-presentation"
 import { isActivePlanningStatus, normalisePlanningStatus } from "@/lib/planning-status"
 import { areaSlug } from "@/lib/ppr"
 import {
@@ -29,7 +33,10 @@ export function generateStaticParams() {
   return []
 }
 
-type Props = { params: Promise<{ authority: string; areaSlug: string }>; searchParams: Promise<{ includeOlder?: string; construction?: string }> }
+type Props = {
+  params: Promise<{ authority: string; areaSlug: string }>
+  searchParams: Promise<{ includeOlder?: string; activeOnly?: string; construction?: string }>
+}
 
 const resolveLocalityPage = cache(async (authoritySlug: string, slug: string) => {
   const authority = getPlanningAuthorityBySlug(authoritySlug)
@@ -66,7 +73,8 @@ export default async function PlanningLocalityPage({ params, searchParams }: Pro
   const { authority, locality, dashboard, recentDecisions, county } = page
   const resolvedSearchParams = await searchParams
   const includeOlder = resolvedSearchParams.includeOlder === "1"
-  const notableGroups = await getPlanningLocalityNotableGroups(authority.code, locality, includeOlder)
+  const activeOnly = resolvedSearchParams.activeOnly === "1"
+  const notableGroups = await getPlanningLocalityNotableGroups(authority.code, locality, includeOlder, activeOnly)
   const searchHref = localitySearchHref(authority.slug, locality)
   const constructionSearchHref = localitySearchHref(authority.slug, locality, undefined, "commenced")
   const decisionsHref = localitySearchHref(authority.slug, locality, "decision_made")
@@ -135,15 +143,26 @@ export default async function PlanningLocalityPage({ params, searchParams }: Pro
                 Search all {locality} planning <span aria-hidden="true" className="ml-1">→</span>
               </Link>
             </div>
-            <Link
-              href={includeOlder ? `/planning/${authority.slug}/areas/${page.slug}` : `/planning/${authority.slug}/areas/${page.slug}?includeOlder=1`}
-              role="switch"
-              aria-checked={includeOlder}
-              className="mt-4 inline-flex min-h-10 items-center gap-3 rounded-full border border-emerald-200 bg-white px-4 text-sm font-semibold text-stone-800"
-            >
-              <span aria-hidden="true" className={`h-5 w-9 rounded-full p-0.5 ${includeOlder ? "bg-emerald-700" : "bg-stone-300"}`}><span className={`block h-4 w-4 rounded-full bg-white transition ${includeOlder ? "translate-x-4" : ""}`} /></span>
-              Include older applications
-            </Link>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <Link
+                href={localityNotableHref(authority.slug, page.slug, { includeOlder: !includeOlder, activeOnly })}
+                role="switch"
+                aria-checked={includeOlder}
+                className="inline-flex min-h-10 items-center gap-3 rounded-full border border-emerald-200 bg-white px-4 text-sm font-semibold text-stone-800"
+              >
+                <span aria-hidden="true" className={`h-5 w-9 rounded-full p-0.5 ${includeOlder ? "bg-emerald-700" : "bg-stone-300"}`}><span className={`block h-4 w-4 rounded-full bg-white transition ${includeOlder ? "translate-x-4" : ""}`} /></span>
+                Include older applications
+              </Link>
+              <Link
+                href={localityNotableHref(authority.slug, page.slug, { includeOlder, activeOnly: !activeOnly })}
+                role="switch"
+                aria-checked={activeOnly}
+                className="inline-flex min-h-10 items-center gap-3 rounded-full border border-emerald-200 bg-white px-4 text-sm font-semibold text-stone-800"
+              >
+                <span aria-hidden="true" className={`h-5 w-9 rounded-full p-0.5 ${activeOnly ? "bg-emerald-700" : "bg-stone-300"}`}><span className={`block h-4 w-4 rounded-full bg-white transition ${activeOnly ? "translate-x-4" : ""}`} /></span>
+                Active only
+              </Link>
+            </div>
 
             <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {notableGroups.map((group) => (
@@ -157,6 +176,12 @@ export default async function PlanningLocalityPage({ params, searchParams }: Pro
                   <ul className="mt-3 divide-y divide-stone-100">
                     {group.applications.map((item) => {
                       const application = item.application
+                      const active = isActivePlanningStatus(application.normalized_status)
+                      const state = planningSemanticState({
+                        normalizedStatus: application.normalized_status,
+                        statusLabel: application.status,
+                        decision: application.decision_text,
+                      })
                       return (
                         <li key={application.id} className="py-3 first:pt-0 last:pb-0">
                           <Link className="group block" href={planningApplicationPath(authority, application.reference)}>
@@ -166,6 +191,16 @@ export default async function PlanningLocalityPage({ params, searchParams }: Pro
                             {item.displayName && application.proposal ? (
                               <p className="mt-1 line-clamp-2 text-xs leading-5 text-stone-500">{application.proposal}</p>
                             ) : null}
+                            <div className="mt-2 flex flex-wrap gap-1.5">
+                              {active ? (
+                                <span className="inline-flex rounded-full border border-stone-300 bg-stone-100 px-2 py-0.5 text-[11px] font-semibold text-stone-700">Active</span>
+                              ) : null}
+                              {state ? (
+                                <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold ${planningStateBadgeClasses(state.tone)}`}>
+                                  {state.label}
+                                </span>
+                              ) : null}
+                            </div>
                             <p className="mt-1.5 text-xs text-stone-500">
                               {application.location || locality} · {formatPlanningDate(application.registration_date)}
                             </p>
@@ -259,6 +294,18 @@ export default async function PlanningLocalityPage({ params, searchParams }: Pro
       </section>
     </main>
   )
+}
+
+function localityNotableHref(
+  authority: string,
+  slug: string,
+  options: { includeOlder: boolean; activeOnly: boolean }
+) {
+  const params = new URLSearchParams()
+  if (options.includeOlder) params.set("includeOlder", "1")
+  if (options.activeOnly) params.set("activeOnly", "1")
+  const query = params.toString()
+  return `/planning/${authority}/areas/${slug}${query ? `?${query}` : ""}`
 }
 
 function localitySearchHref(authority: string, locality: string, status?: string, construction?: string) {
