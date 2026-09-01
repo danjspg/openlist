@@ -16,9 +16,10 @@ test("homepage count copy never presents a failed count as zero", async () => {
   assert.match(ppr, /Intl\.NumberFormat\("en-IE"\)\.format\(summary\.salesCount\)/)
 })
 
-test("homepage uses neutral viewing-organiser wording", async () => {
+test("homepage avoids purchase-pressure wording while retaining neutral research framing", async () => {
   const homepage = await source("app/page.tsx")
-  assert.match(homepage, /Viewing organiser/)
+  assert.match(homepage, /Research any property or area in Ireland/)
+  assert.match(homepage, /PROPERTY RESEARCH FOR IRELAND/)
   assert.doesNotMatch(homepage, /Planning a purchase\?/)
 })
 
@@ -28,7 +29,8 @@ test("national council ranking uses one database-side 12-month window and five i
     source("supabase/migrations/20260812203000_add_planning_council_activity_window.sql"),
   ])
 
-  assert.match(page, /councilActivityStats\.slice\(0, 5\)/)
+  assert.match(page, /dashboard\.councilActivityStats\)\.slice\(0, 5\)/)
+  assert.match(page, /Council activity in a consistent national comparison window\./)
   assert.match(migration, /max\(registration_date\) as period_end/i)
   assert.match(migration, /period_end - interval '12 months' \+ interval '1 day'/i)
   assert.match(migration, /p\.registration_date >= w\.period_start/i)
@@ -57,19 +59,14 @@ test("full-history controls and search copy use the recorded-history model", asy
   const combined = [ppr, analytics, selector, hub, search].join("\n")
 
   assert.match(ppr, /label: "All recorded history"/)
-  assert.match(combined, /Based on all recorded history available in OpenList/)
-  assert.match(
-    hub,
-    /Search recorded sales for a specific area, from recent transactions to the full available history\./
-  )
-  assert.match(
-    search,
-    /Choose an area from the suggestions above to search recorded sale prices\./
-  )
+  assert.match(selector, /Based on all recorded history available in OpenList/)
+  assert.match(hub, /Search a town, suburb or county to see recorded sales and local market context\./)
+  assert.match(search, /Choose an area from the suggestions above to search recorded sale prices\./)
+  assert.match(search, /all recorded history available in OpenList/)
   assert.doesNotMatch(combined, /All Time|Based on all available records|recent recorded sales/i)
 })
 
-test("planning copy distinguishes available history, comparison, trend and latest-month periods", async () => {
+test("planning copy distinguishes available history, comparison and completed-month periods", async () => {
   const [authorities, planning, authorityPage, detailPage] = await Promise.all([
     source("lib/planning-authorities.ts"),
     source("app/planning/applications/PlanningApplicationsPage.tsx"),
@@ -81,9 +78,9 @@ test("planning copy distinguishes available history, comparison, trend and lates
   assert.doesNotMatch(authorities, /historyLabel|isDeepCoverage/)
   assert.match(planning, /Search Irish planning applications across available official history/)
   assert.match(authorityPage, /Search available recorded history of/)
-  assert.match(planning, /Latest 12 months, using the same period nationally/)
-  assert.match(planning, /Latest 12 completed registration months/)
-  assert.match(planning, /latest-month measures use the latest registration month/)
+  assert.match(planning, /Council activity in a consistent national comparison window\./)
+  assert.match(planning, /Latest 12 completed registration months\./)
+  assert.match(planning, /Current-month area, status and type breakdowns can be partial until the month closes\./)
   assert.doesNotMatch(
     combined,
     /three years|the latest year|current Irish planning applications|in this import|imported planning|imported local authorities/i
@@ -124,21 +121,19 @@ test("planning details separate a concise heading from the full stored proposal"
   assert.doesNotMatch(detail, /<h1[^>]*>[\s\S]*?\{fullProposal\}[\s\S]*?<\/h1>/)
 })
 
-test("planning result surfaces use concise, visually clamped proposal titles", async () => {
-  const [planningResults, unifiedSearch, soldPriceArea] = await Promise.all([
-    source("components/planning/PlanningResultsView.tsx"),
+test("planning result surfaces keep concise, visually clamped titles and proposal copy", async () => {
+  const [planningResult, unifiedSearch] = await Promise.all([
+    source("components/planning/PlanningApplicationResult.tsx"),
     source("app/search/page.tsx"),
-    source("app/sold-prices/[county]/[areaSlug]/page.tsx"),
   ])
 
-  assert.match(planningResults, /className="line-clamp-3 text-lg/)
+  assert.match(planningResult, /line-clamp-2 text-xl/)
+  assert.match(planningResult, /showProposal \? <p className="mt-3 line-clamp-2 text-sm leading-6/)
   assert.match(unifiedSearch, /planningProposalTitle\(application\.proposal/)
   assert.match(unifiedSearch, /className="mt-2 line-clamp-3/)
-  assert.match(soldPriceArea, /planningResultRecord\(application\)/)
-  assert.match(soldPriceArea, /line-clamp-2 text-sm leading-6/)
 })
 
-test("sold-price locality results share the polished OpenList card language without overpowering prices", async () => {
+test("sold-price locality keeps polished sale cards and a lightweight Planning crossover", async () => {
   const [saleCard, soldPriceArea] = await Promise.all([
     source("components/ppr/PprSaleCard.tsx"),
     source("app/sold-prices/[county]/[areaSlug]/page.tsx"),
@@ -147,11 +142,10 @@ test("sold-price locality results share the polished OpenList card language with
   assert.match(saleCard, /View area prices/)
   assert.match(saleCard, /bg-emerald-700/)
   assert.match(saleCard, /min-h-10/)
-  assert.match(soldPriceArea, /const result = planningResultRecord\(application\)/)
-  assert.match(soldPriceArea, /const location = result\.location \|\| result\.authority/)
-  assert.match(soldPriceArea, /Registered \{formatPlanningDate\(result\.registrationDate\)\}/)
-  assert.match(soldPriceArea, /\{result\.status\}/)
-  assert.match(soldPriceArea, /View application →/)
+  assert.match(soldPriceArea, /<PprSaleCard key=\{sale\.id\}/)
+  assert.match(soldPriceArea, /const planningHref = `\/planning\/applications\?area=/)
+  assert.match(soldPriceArea, /View Planning in \{areaName\} →/)
+  assert.doesNotMatch(soldPriceArea, /planningResultRecord\(application\)/)
 })
 
 test("planning page remains useful when aggregate statistics time out", async () => {
@@ -160,10 +154,11 @@ test("planning page remains useful when aggregate statistics time out", async ()
     source("app/planning/applications/PlanningApplicationsPage.tsx"),
   ])
 
-  assert.match(planningData, /aggregateAvailable: overviewResult !== null/)
+  assert.match(planningData, /aggregateAvailable:[\s\S]*overviewResult !== null/)
   assert.match(planningData, /Planning dashboard snapshot unavailable; optional metrics omitted/)
   assert.match(planningPage, /Planning statistics are temporarily unavailable/)
   assert.match(planningPage, /Recent applications and search remain available/)
+  assert.match(planningData, /getRecentPlanningApplicationsCached/)
 })
 
 test("Terms page contains the supplied current service wording", async () => {
