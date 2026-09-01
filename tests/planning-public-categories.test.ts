@@ -42,6 +42,20 @@ test("the database page function uses exact membership and deterministic orderin
   assert.doesNotMatch(sql, /ilike|similar to/)
 })
 
+test("active-only category views pivot authority counts to the active corpus", async () => {
+  const sql = await readFile(
+    new URL("../supabase/migrations/20260901003200_fix_active_category_authority_counts.sql", import.meta.url),
+    "utf8"
+  )
+  const page = await readFile(new URL("../app/planning/categories/[category]/page.tsx", import.meta.url), "utf8")
+  const lib = await readFile(new URL("../lib/planning-public-categories.ts", import.meta.url), "utf8")
+  assert.match(sql, /corpus as \([\s\S]*not p_active_only or normalized_status in/)
+  assert.match(sql, /from corpus group by local_authority_code/)
+  assert.match(sql, /'overallActiveCount'/)
+  assert.match(lib, /overallActiveCount/)
+  assert.match(page, /activeOnly\?page\.overallActiveCount:page\.overallTotalCount/)
+})
+
 test("normal locality views remain capped at three cards per category", async () => {
   const source = await readFile(new URL("../lib/planning-locality-notable.ts", import.meta.url), "utf8")
   assert.match(source, /groupPlanningLocalityNotables\(rows, includeOlder \? 8 : 6, includeOlder \? 6 : 3\)/)
