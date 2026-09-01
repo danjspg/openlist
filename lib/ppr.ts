@@ -85,8 +85,9 @@ const PPR_SALE_CARD_SELECT =
 const PPR_AREA_STATS_SELECT =
   "id,geography_type,county,area_slug,eircode_prefix,period_start,period_end,sales_count,median_price_eur,avg_price_eur,min_price_eur,max_price_eur,last_sale_date"
 const PPR_CACHE_REVALIDATE_SECONDS = 60 * 60 * 6
-const PPR_DATASET_CACHE_VERSION = "v3"
+const PPR_DATASET_CACHE_VERSION = "v4"
 const PPR_SEARCH_AREAS_CACHE_VERSION = "v2"
+const PPR_QUICK_AREAS_CACHE_VERSION = "v2"
 export const PPR_DATE_RANGE_OPTIONS = [
   { value: "last-year", label: "1 Year", years: 1 },
   { value: "last-3-years", label: "3 Years", years: 3 },
@@ -500,7 +501,13 @@ async function getPprQuickAreasUncached(limit = 8) {
     .order("sales_count", { ascending: false })
     .limit(limit * 3)
 
-  if (error || !data) return []
+  // ppr_area_stats is rebuilt by replacing its contents. Treat the
+  // brief empty publication window as unavailable so unstable_cache
+  // cannot preserve an empty area list for the full cache TTL.
+  if (error || !data?.length) {
+    throw new Error("PPR quick areas unavailable")
+  }
+
   return (data as PprAreaStats[])
     .filter((area) => !isExcludedStandaloneAreaSlug(area.area_slug))
     .slice(0, limit)
@@ -508,7 +515,7 @@ async function getPprQuickAreasUncached(limit = 8) {
 
 const getPprQuickAreasCached = unstable_cache(
   async (limit = 8) => getPprQuickAreasUncached(limit),
-  ["ppr-quick-areas"],
+  ["ppr-quick-areas", PPR_DATASET_CACHE_VERSION, PPR_QUICK_AREAS_CACHE_VERSION],
   { revalidate: PPR_CACHE_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
@@ -690,12 +697,20 @@ async function getPprDatasetSummaryUncached(): Promise<PprDatasetSummary> {
     .eq("range_key", "all")
     .maybeSingle()
 
-  if (error) throw new Error("PPR dataset snapshot unavailable")
+  // A missing/empty snapshot is a publication failure, not a genuine
+  // zero-sale dataset. Throw so unstable_cache never stores zero for
+  // six hours while a refresh is between publication steps.
+  if (error || !snapshot) throw new Error("PPR dataset snapshot unavailable")
+
+  const salesCount = Number(snapshot.sales_count)
+  if (!Number.isFinite(salesCount) || salesCount <= 0) {
+    throw new Error("PPR dataset snapshot invalid")
+  }
 
   return {
-    salesCount: Number(snapshot?.sales_count ?? 0),
+    salesCount,
     earliestSaleDate: null,
-    latestSaleDate: snapshot?.latest_sale_date ?? null,
+    latestSaleDate: snapshot.latest_sale_date ?? null,
     startYear: null,
   }
 }
