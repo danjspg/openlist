@@ -34,18 +34,6 @@ nav[aria-label="Most active councils"] {
   display: none;
 }
 
-/* Homepage hero: use a full-resolution existing asset until the newly generated option is selected. */
-main.min-h-screen.bg-stone-50.text-stone-900 > section:first-child > div > div:last-child {
-  background-image: url("/home-hero-1.jpg");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: cover;
-}
-
-main.min-h-screen.bg-stone-50.text-stone-900 > section:first-child > div > div:last-child > img {
-  opacity: 0;
-}
-
 /* Planning and Sold Prices hubs: visual panel on desktop, stacked image on mobile. */
 main:has(> div > section[aria-labelledby="planning-explore-heading"]) > section:first-child > div,
 main:has(> section:first-child a[href="/sold-prices/search"]) > section:first-child > div {
@@ -69,7 +57,7 @@ main:has(> section:first-child a[href="/sold-prices/search"]) > section:first-ch
 }
 
 main:has(> div > section[aria-labelledby="planning-explore-heading"]) > section:first-child > div::after {
-  background-image: url("/home-hero-3.jpg");
+  background-image: url("/home-planning-aerial-v2.jpg");
 }
 
 main:has(> div > section[aria-labelledby="planning-explore-heading"]) > section:first-child > div form,
