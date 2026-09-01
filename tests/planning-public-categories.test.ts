@@ -58,6 +58,6 @@ test("active-only category views pivot authority counts to the active corpus", a
 
 test("normal locality views remain capped at three cards per category", async () => {
   const source = await readFile(new URL("../lib/planning-locality-notable.ts", import.meta.url), "utf8")
-  assert.match(source, /groupPlanningLocalityNotables\(rows, includeOlder \? 8 : 6, includeOlder \? 6 : 3\)/)
+  assert.match(source, /groupPlanningLocalityNotables\(rows, includeOlder \? 8 : 6, includeOlder \? 6 : 3, activeOnly\)/)
   assert.match(source, /group\.applications\.slice\(0, maxApplicationsPerGroup\)/)
 })
