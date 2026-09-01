@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { Suspense } from "react"
 import Link from "@/components/RuntimeDataLink"
 import { notFound } from "next/navigation"
 import {
@@ -73,6 +74,8 @@ export default async function PlanningAuthorityPage({
       {localities.map((row) => <Link key={row.canonical_path} className="mr-3 inline-block hover:text-stone-950 hover:underline" href={row.canonical_path}>{localityLabel(row.canonical_path)}</Link>)}
       <Link className="inline-block font-semibold text-emerald-800 hover:underline" href={`/planning/${authority.slug}/areas`}>Browse all areas →</Link>
     </nav> : null}
-    <PlanningApplicationsView authority={authority} />
+    <Suspense fallback={null}>
+      <PlanningApplicationsView authority={authority} />
+    </Suspense>
   </>
 }
