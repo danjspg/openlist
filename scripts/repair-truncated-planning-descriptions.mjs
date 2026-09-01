@@ -76,7 +76,7 @@ async function loadArcgisSources(rows) {
       for (const feature of json.features || []) {
         const attrs = feature.attributes || {}
         const objectId = Number(attrs.OBJECTID)
-        if (Number.isInteger(sourceId)) byId.set(objectId, attrs)
+        if (Number.isInteger(objectId)) byId.set(objectId, attrs)
         byRef.set(compact(attrs.ApplicationNumber), attrs)
       }
       for (const row of batch) {
