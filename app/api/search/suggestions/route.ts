@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server"
-import { getPlanningLocalityDirectory } from "@/lib/locality-seo"
+import {
+  getPlanningLocalityDirectory,
+  getPlanningRoutableLocalitySlugs,
+} from "@/lib/locality-seo"
 import { getPprAreaSuggestions } from "@/lib/ppr"
 import { PLANNING_AUTHORITIES, getPlanningAuthorityByCode } from "@/lib/planning-authorities"
 import { PLANNING_PUBLIC_CATEGORIES } from "@/lib/planning-public-categories"
@@ -38,14 +41,28 @@ export async function GET(request: Request) {
   const queryKey = normalise(query)
   const suggestions: Suggestion[] = []
 
-  const localityMatches = localities
+  const localityCandidates = localities.filter((entry) => {
+    const labelKey = normalise(entry.locality_label)
+    const slugKey = normalise(entry.locality_slug)
+    return labelKey === queryKey || slugKey === queryKey || labelKey.startsWith(queryKey) || labelKey.includes(queryKey)
+  })
+  const authorityCodes = [...new Set(localityCandidates.map((entry) => entry.authority_code).filter((code): code is string => Boolean(code)))]
+  const routableByAuthority = new Map(
+    await Promise.all(
+      authorityCodes.map(async (authorityCode) => [
+        authorityCode,
+        new Set(await getPlanningRoutableLocalitySlugs(authorityCode).catch(() => [])),
+      ] as const)
+    )
+  )
+
+  const localityMatches = localityCandidates
+    .filter((entry) => Boolean(entry.authority_code && routableByAuthority.get(entry.authority_code)?.has(entry.locality_slug)))
     .map((entry) => {
       const labelKey = normalise(entry.locality_label)
       const slugKey = normalise(entry.locality_slug)
       const exact = labelKey === queryKey || slugKey === queryKey
       const prefix = labelKey.startsWith(queryKey)
-      const contains = labelKey.includes(queryKey)
-      if (!exact && !prefix && !contains) return null
       const authority = entry.authority_code ? getPlanningAuthorityByCode(entry.authority_code) : null
       const score = (exact ? 5000 : prefix ? 3000 : 1200) + Math.log10(entry.activeCount + 1) * 80
       return {
@@ -58,7 +75,6 @@ export async function GET(request: Request) {
         score,
       }
     })
-    .filter((item): item is NonNullable<typeof item> => item !== null)
     .sort((a, b) => b.score - a.score)
     .slice(0, scope === "planning" ? 6 : 4)
 

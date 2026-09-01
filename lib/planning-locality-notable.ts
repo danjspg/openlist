@@ -1,6 +1,7 @@
 import { unstable_cache } from "next/cache"
 import { PLANNING_DATASET_CACHE_TAG } from "@/lib/dataset-cache"
 import { PLANNING_APPLICATION_SELECT, type PlanningApplication } from "@/lib/planning"
+import { isActivePlanningStatus } from "@/lib/planning-status"
 import { getServerSupabase } from "@/lib/supabase"
 
 export type PlanningLocalityNotableApplication = {
@@ -70,11 +71,15 @@ function primaryLocalityCategory(categories: string[]) {
 export function groupPlanningLocalityNotables(
   rows: PlanningLocalityNotableApplication[],
   maxGroups = 6,
-  maxApplicationsPerGroup = 3
+  maxApplicationsPerGroup = 3,
+  activeOnly = false
 ) {
   const groups = new Map<string, PlanningLocalityNotableGroup>()
+  const eligibleRows = activeOnly
+    ? rows.filter((row) => isActivePlanningStatus(row.application.normalized_status))
+    : rows
 
-  for (const row of rows) {
+  for (const row of eligibleRows) {
     const category = primaryLocalityCategory(row.categories)
     if (!category) continue
     const label = publicNotableCategoryLabel(category, row.application.proposal ?? "")
@@ -156,7 +161,12 @@ const getPlanningLocalityNotablesCached = unstable_cache(
   { revalidate: 60 * 60 * 6, tags: [PLANNING_DATASET_CACHE_TAG] }
 )
 
-export async function getPlanningLocalityNotableGroups(authorityCode: string, locality: string, includeOlder = false) {
+export async function getPlanningLocalityNotableGroups(
+  authorityCode: string,
+  locality: string,
+  includeOlder = false,
+  activeOnly = false
+) {
   const rows = await getPlanningLocalityNotablesCached(authorityCode, locality, includeOlder)
-  return groupPlanningLocalityNotables(rows, includeOlder ? 8 : 6, includeOlder ? 6 : 3)
+  return groupPlanningLocalityNotables(rows, includeOlder ? 8 : 6, includeOlder ? 6 : 3, activeOnly)
 }
