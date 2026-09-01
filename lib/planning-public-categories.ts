@@ -59,6 +59,7 @@ type PlanningPublicCategoryPagePayload = {
   rows?: PlanningPublicCategoryApplication[]
   totalCount?: number
   overallTotalCount?: number
+  activeCount?: number
   authorityCounts?: Array<{ code: string; count: number }>
 }
 
@@ -78,7 +79,7 @@ const loadCategoryPage = unstable_cache(async (
   })
   if (error) throw new Error(`Planning public category page lookup failed: ${error.message}`)
   return (data ?? {}) as PlanningPublicCategoryPagePayload
-}, ["planning-public-category-page", "v1-classified-pagination"], {
+}, ["planning-public-category-page", "v2-full-exact-membership"], {
   revalidate: 60 * 60 * 6,
   tags: [PLANNING_DATASET_CACHE_TAG],
 })
@@ -107,6 +108,7 @@ export async function getPlanningPublicCategory(
   )
   const totalCount = Number(payload.totalCount) || 0
   const overallTotalCount = Number(payload.overallTotalCount) || 0
+  const activeCount = Number(payload.activeCount) || 0
   const totalPages = Math.max(1, Math.ceil(totalCount / PLANNING_PUBLIC_CATEGORY_PAGE_SIZE))
   const authorities = (Array.isArray(payload.authorityCounts) ? payload.authorityCounts : [])
     .map(({ code, count }) => ({ authority: getPlanningAuthorityByCode(code), count: Number(count) || 0 }))
@@ -118,6 +120,7 @@ export async function getPlanningPublicCategory(
     rows: Array.isArray(payload.rows) ? payload.rows : [],
     totalCount,
     overallTotalCount,
+    activeCount,
     authorities,
     includeOlder,
     selectedAuthority,
