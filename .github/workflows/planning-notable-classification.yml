@@ -38,11 +38,9 @@ on:
       - "lib/planning-public-categories.ts"
       - "lib/planning-public-category-pagination.ts"
       - "scripts/reconcile-planning-notable-classification.mjs"
-      - "scripts/reconcile-planning-public-categories.mjs"
       - "scripts/planning-upsert.mjs"
       - "tests/planning-notable-classifier.test.mjs"
       - "tests/planning-notable-reconciliation.test.mjs"
-      - "tests/planning-public-category-reconciliation.test.mjs"
       - "tests/planning-seo.test.ts"
       - "tests/planning-reliability.test.ts"
       - "tests/planning-public-categories.test.ts"
@@ -54,8 +52,9 @@ on:
 permissions:
   contents: read
 
-# Share the conservative maintenance lane used by the other DB-heavy audits.
-# The classifier itself also caps each public-category run at 10 x 250 rows.
+# All deterministic notable maintenance is deliberately serialised here.
+# Ingestion may classify its own rows immediately, while this bounded lane repairs
+# misses and performs explicit full-window validation/reconciliation when needed.
 concurrency:
   group: openlist-db-maintenance
   cancel-in-progress: false
@@ -71,7 +70,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: node --test tests/planning-notable-classifier.test.mjs tests/planning-notable-reconciliation.test.mjs tests/planning-public-category-reconciliation.test.mjs tests/notable-planning-discovery-v2.test.mjs
+      - run: node --test tests/planning-notable-classifier.test.mjs tests/planning-notable-reconciliation.test.mjs tests/notable-planning-discovery-v2.test.mjs
       - run: node --import tsx --test tests/planning-seo.test.ts tests/planning-reliability.test.ts tests/planning-public-categories.test.ts tests/sweep-resilience-and-seo.test.ts
 
   classify:
@@ -99,8 +98,7 @@ jobs:
           mkdir -p artifacts
           if [[ "$RUN_MODE" == "validate" ]]; then
             # Validation intentionally uses the same bounded RPC pagination as reconciliation.
-            # It remains read-only because no write flag is supplied. This avoids the former
-            # whole-cohort validation query timing out in Postgres.
+            # It remains read-only because no write flag is supplied.
             node scripts/reconcile-planning-notable-classification.mjs --validate --full-window --batch-size=250 --max-batches=100 --cursor="$RESUME_CURSOR" --output=artifacts/planning-notable-classification.json
           elif [[ "$RUN_MODE" == "apply-full" ]]; then
             if [[ "$CONFIRM_APPLY_FULL" != "true" ]]; then

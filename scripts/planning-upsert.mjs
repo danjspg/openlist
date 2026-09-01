@@ -62,8 +62,8 @@ export async function upsertPlanningBatch(
   if (!error) {
     try {
       await classifyAndPersistPlanningApplications(supabase, data || [], {
-        // Every successful ingestion row is queued immediately below, so a
-        // second queue write for the deterministic state change is redundant.
+        // Every successful ingestion row is queued for exact-path cache
+        // invalidation immediately below, so classification must not enqueue it again.
         enqueue: false,
       })
     } catch (classificationError) {
@@ -74,9 +74,8 @@ export async function upsertPlanningBatch(
         classificationError
       )
     }
-    // Normal ingestion writes the durable exact-path queue directly. The
-    // legacy revalidation_pending flag remains readable for compatibility but
-    // no longer needs to be flipped on the large planning_applications table.
+    // Normal ingestion owns exact-path cache invalidation through the dedicated
+    // queue. Deterministic classification is a separate concern.
     return enqueuePlanningRevalidation(supabase, data || [], label)
   }
 

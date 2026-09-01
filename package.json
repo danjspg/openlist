@@ -41,8 +41,7 @@
     "planning:qa:high-interest": "node --env-file=.env.local --import tsx scripts/audit-high-interest-planning.mts",
     "planning:dashboard:snapshots": "node --env-file=.env.local scripts/refresh-planning-dashboard-snapshots.mjs",
     "bcms:acquire": "node --env-file-if-exists=.env.local scripts/acquire-bcms-incremental.mjs",
-    "bcms:process": "node --env-file-if-exists=.env.local scripts/process-bcms-internal.mjs",
-    "planning:notable:v2:report": "node --env-file=.env.local scripts/report-notable-v2-readonly.mjs"
+    "bcms:process": "node --env-file-if-exists=.env.local scripts/process-bcms-internal.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.103.0",

@@ -50,7 +50,7 @@ test("normal upserts use the dedicated exact-path revalidation queue", async () 
   assert.doesNotMatch(diff, /revalidation_pending/)
 })
 
-test("revalidation worker is exact-path, bounded, race-safe, and leaves failures pending", async () => {
+test("revalidation worker is exact-path, bounded, race-safe, and uses one queue", async () => {
   const [worker, route, workflow, drain] = await Promise.all([
     source("lib/planning-revalidation.ts"),
     source("app/api/internal/planning-revalidate/route.ts"),
@@ -61,8 +61,10 @@ test("revalidation worker is exact-path, bounded, race-safe, and leaves failures
   assert.match(worker, /invalidatePath\(planningApplicationPath\(authority, related\.reference\)\)/)
   assert.match(worker, /\.eq\("requested_at", item\.requested_at\)/)
   assert.match(worker, /if \(cleared\?\.length\) invalidated \+= 1/)
+  assert.doesNotMatch(worker, /revalidation_pending|dedicatedOnly|legacyLimit/)
   assert.match(route, /PLANNING_REVALIDATION_SECRET/)
   assert.match(route, /revalidatePath/)
+  assert.doesNotMatch(route, /queue=|dedicatedOnly/)
   assert.doesNotMatch(worker, /revalidatePath\("\/planning/)
   assert.match(workflow, /drain-planning-revalidation\.mjs/)
   assert.match(workflow, /name: Revalidate changed planning detail pages\s+if: \$\{\{ always\(\) \}\}/)
@@ -72,6 +74,5 @@ test("revalidation worker is exact-path, bounded, race-safe, and leaves failures
   assert.match(drain, /consecutiveFailedBatches \+= 1/)
   assert.match(drain, /consecutiveFailedBatches >= maxConsecutiveFailedBatches/)
   assert.match(drain, /consecutiveFailedBatches = 0/)
-  assert.match(route, /dedicatedOnly: request\.nextUrl\.searchParams\.get\("queue"\) === "dedicated"/)
-  assert.match(worker, /const legacyLimit = dedicatedOnly \? 0/)
+  assert.doesNotMatch(drain, /PLANNING_REVALIDATION_QUEUE|queue=/)
 })

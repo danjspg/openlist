@@ -124,13 +124,6 @@ async function markAttempted(row, proposal) {
   if (!dryRun) {
     const { error } = await supabase.from("planning_applications").update(changes).eq("id", row.id).eq("proposal", row.proposal)
     if (error) throw error
-    if (repaired) {
-      const { error: queueError } = await supabase.from("planning_revalidation_queue").upsert(
-        { application_id: row.id, requested_at: now },
-        { onConflict: "application_id" }
-      )
-      if (queueError) throw queueError
-    }
   }
   return repaired
 }
@@ -174,7 +167,6 @@ for (let index = 0; index < candidates.length; index += 1) {
   if ((index + 1) % 100 === 0) console.error(`Truncated description repair: ${index + 1}/${candidates.length}; repaired ${repaired}`)
 }
 
-const { count: remaining } = await supabase.from("planning_applications").select("id", { count: "exact", head: true }).eq("proposal", "")
 const report = {
   generatedAt: new Date().toISOString(),
   dryRun,
@@ -183,7 +175,7 @@ const report = {
   unavailable,
   failures,
   byAuthority,
-  note: "Repaired rows are queued for notable-planning revalidation; candidate selection prioritises 2024+ records and rotates attempted failures via last_source_checked_at.",
+  note: "Candidate selection prioritises 2024+ records and rotates attempted failures via last_source_checked_at. Notable classification is handled separately by the canonical bounded reconciliation workflow.",
 }
 console.log(JSON.stringify(report, null, 2))
 if (failures > Math.max(25, Math.floor(candidates.length * 0.1))) process.exitCode = 1
