@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
-import Link from "next/link"
+import StaticLink from "next/link"
+import RuntimeDataLink from "@/components/RuntimeDataLink"
 
 export const metadata: Metadata = {
   title: "About OpenList | Understand Planning in Ireland",
@@ -45,6 +46,15 @@ const stages = [
     tone: "bg-violet-50 border-violet-200",
     dot: "bg-violet-500",
   },
+  {
+    step: "05",
+    label: "Where building-control evidence is matched",
+    title: "Permission can become construction",
+    body: "Planning permission does not mean building work has begun. Where public commencement or completion records can be matched confidently to an application, OpenList adds that post-planning evidence while keeping it distinct from the planning decision. A Commencement Notice records the statutory building-control process; it is not proof that every element was physically started.",
+    source: "National Building Control Office · BCMS commencement and completion data",
+    tone: "bg-slate-100 border-slate-300",
+    dot: "bg-slate-700",
+  },
 ]
 
 export default function AboutPage() {
@@ -54,20 +64,26 @@ export default function AboutPage() {
         <div className="mx-auto max-w-6xl px-6 py-16 sm:py-24">
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-700">About OpenList</p>
           <h1 className="mt-5 max-w-4xl text-4xl font-semibold tracking-tight text-slate-950 sm:text-6xl sm:leading-[1.05]">
-            Planning tells you what may change around a property.
-            <span className="block text-slate-500">We make that story easier to follow.</span>
+            Know what’s planned near you.
+            <span className="block text-slate-500">Follow what happens next.</span>
           </h1>
           <p className="mt-7 max-w-3xl text-lg leading-8 text-slate-600 sm:text-xl sm:leading-9">
             Irish planning information is public, but understanding one application can mean jumping between council pages, unfamiliar status labels, decision records and appeals. OpenList brings those pieces together into one clearer view.
           </p>
           <div className="mt-9 flex flex-wrap gap-3">
-            <Link href="/planning" className="rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800">
+            <RuntimeDataLink href="/planning" className="rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-600 focus-visible:ring-offset-2">
               Explore planning
-            </Link>
-            <Link href="/data-sources" className="rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+            </RuntimeDataLink>
+            <StaticLink href="/data-sources" className="rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-600 focus-visible:ring-offset-2">
               See our data sources
-            </Link>
+            </StaticLink>
           </div>
+          <p className="mt-5 max-w-2xl text-sm leading-6 text-slate-500">
+            Researching a property? Planning shows what is proposed and, where building-control evidence is matched, what has started;{" "}
+            <RuntimeDataLink href="/sold-prices" className="rounded-sm font-semibold text-sky-700 hover:text-sky-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-600 focus-visible:ring-offset-2">
+              recorded sold prices add the market context →
+            </RuntimeDataLink>
+          </p>
         </div>
       </section>
 
@@ -75,11 +91,11 @@ export default function AboutPage() {
         <div className="grid gap-10 lg:grid-cols-[0.75fr_1.25fr] lg:gap-16">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Why it exists</p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">The public record is useful. The experience of reading it often isn't.</h2>
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">The public record is useful. The experience of reading it often isn’t.</h2>
           </div>
           <div className="space-y-5 text-lg leading-8 text-slate-600">
             <p>
-              If you hear that a development is planned near you, you probably do not want to learn the vocabulary and structure of Ireland's planning system first. You want to know <strong className="font-semibold text-slate-900">what is proposed, where it is, what stage it has reached and what happened next.</strong>
+              If you hear that a development is planned near you, you probably do not want to learn the vocabulary and structure of Ireland’s planning system first. You want to know <strong className="font-semibold text-slate-900">what is proposed, where it is, what stage it has reached and what happened next.</strong>
             </p>
             <p>
               OpenList is built around that question. It searches and organises public records, reconciles inconsistent status wording, connects lifecycle events and highlights significant development so the underlying planning story is easier to understand.
@@ -102,45 +118,51 @@ export default function AboutPage() {
           </div>
 
           <div className="relative mt-12">
-            <div className="absolute bottom-8 left-[19px] top-8 hidden w-px bg-slate-300 sm:block" />
-            <div className="space-y-6">
+            <div aria-hidden="true" className="absolute bottom-8 left-[19px] top-8 hidden w-px bg-slate-300 sm:block" />
+            <ol className="space-y-6" aria-label="Planning application lifecycle">
               {stages.map((stage) => (
-                <article key={stage.step} className="relative sm:pl-16">
-                  <div className={`absolute left-0 top-8 hidden h-10 w-10 items-center justify-center rounded-full ${stage.dot} text-xs font-bold text-white shadow-sm ring-8 ring-slate-50 sm:flex`}>
+                <li key={stage.step} className="relative sm:pl-16">
+                  <div aria-hidden="true" className={`absolute left-0 top-8 hidden h-10 w-10 items-center justify-center rounded-full ${stage.dot} text-xs font-bold text-white shadow-sm ring-8 ring-slate-50 sm:flex`}>
                     {stage.step}
                   </div>
-                  <div className={`rounded-[28px] border p-6 shadow-sm sm:p-8 ${stage.tone}`}>
-                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">{stage.label}</p>
-                    <h3 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">{stage.title}</h3>
+                  <article className={`rounded-[28px] border p-6 shadow-sm sm:p-8 ${stage.tone}`}>
+                    <div className="flex items-center gap-3">
+                      <span aria-hidden="true" className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${stage.dot} text-[11px] font-bold text-white shadow-sm sm:hidden`}>
+                        {stage.step}
+                      </span>
+                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">{stage.label}</p>
+                    </div>
+                    <h3 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950 sm:mt-2">{stage.title}</h3>
                     <p className="mt-4 max-w-4xl text-base leading-7 text-slate-700">{stage.body}</p>
                     <div className="mt-5 border-t border-slate-900/10 pt-4 text-sm leading-6 text-slate-500">
                       <span className="font-semibold text-slate-700">Data behind this stage:</span> {stage.source}
                     </div>
-                  </div>
-                </article>
+                  </article>
+                </li>
               ))}
-            </div>
+            </ol>
           </div>
         </div>
       </section>
 
       <section className="mx-auto max-w-6xl px-6 py-14 sm:py-20">
+        <h2 className="sr-only">What OpenList helps you do</h2>
         <div className="grid gap-6 md:grid-cols-3">
-          <div className="rounded-[28px] border border-slate-200 p-7">
+          <article className="rounded-[28px] border border-slate-200 p-7 shadow-sm">
             <p className="text-sm font-semibold text-sky-700">Find it</p>
             <h3 className="mt-2 text-xl font-semibold">Search across Ireland</h3>
             <p className="mt-3 leading-7 text-slate-600">Search by place, address or planning reference instead of starting by working out which public system holds the record.</p>
-          </div>
-          <div className="rounded-[28px] border border-slate-200 p-7">
+          </article>
+          <article className="rounded-[28px] border border-slate-200 p-7 shadow-sm">
             <p className="text-sm font-semibold text-amber-700">Understand it</p>
             <h3 className="mt-2 text-xl font-semibold">Turn records into a timeline</h3>
             <p className="mt-3 leading-7 text-slate-600">Dates, status changes, decisions and appeals make more sense when they are shown as one sequence rather than isolated fields.</p>
-          </div>
-          <div className="rounded-[28px] border border-slate-200 p-7">
+          </article>
+          <article className="rounded-[28px] border border-slate-200 p-7 shadow-sm">
             <p className="text-sm font-semibold text-emerald-700">Follow it</p>
             <h3 className="mt-2 text-xl font-semibold">Keep an eye on what matters</h3>
-            <p className="mt-3 leading-7 text-slate-600">Planning alerts help you follow an area rather than repeatedly checking for new applications and changes yourself.</p>
-          </div>
+            <p className="mt-3 leading-7 text-slate-600">Planning alerts and matched construction evidence help you follow an area without repeatedly checking for new applications and changes yourself.</p>
+          </article>
         </div>
       </section>
 
@@ -153,12 +175,12 @@ export default function AboutPage() {
             </div>
             <div className="space-y-5 text-lg leading-8 text-slate-300">
               <p>
-                Sold prices answer a different question: <strong className="font-semibold text-white">what have homes actually sold for nearby?</strong> OpenList uses Ireland's Residential Property Price Register to make those public records easier to search and compare.
+                Sold prices answer a different question: <strong className="font-semibold text-white">what have homes actually sold for nearby?</strong> OpenList uses Ireland’s Residential Property Price Register to make those public records easier to search and compare.
               </p>
               <p>
-                That matters because property research is rarely only about a sale price or only about a planning application. The useful picture is the place itself: what has sold, what is proposed nearby and how the area may be changing.
+                That matters because property research is rarely only about a sale price or only about a planning application. The useful picture is the place itself: what has sold, what is proposed nearby, where construction evidence has been recorded and how the area may be changing.
               </p>
-              <Link href="/sold-prices" className="inline-flex font-semibold text-sky-300 hover:text-sky-200">Explore sold prices →</Link>
+              <RuntimeDataLink href="/sold-prices" className="inline-flex rounded-sm font-semibold text-sky-300 hover:text-sky-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-offset-4 focus-visible:ring-offset-slate-950">Explore sold prices →</RuntimeDataLink>
             </div>
           </div>
         </div>
@@ -169,13 +191,13 @@ export default function AboutPage() {
           <div className="grid gap-8 lg:grid-cols-[0.8fr_1.2fr]">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">How OpenList handles the data</p>
-              <h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">We organise the record. We don't pretend to be the record.</h2>
+              <h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">We organise the record. We don’t pretend to be the record.</h2>
             </div>
             <div className="space-y-4 leading-7 text-slate-600">
               <p>OpenList combines public planning information from Irish planning authorities and national datasets. We clean fields, standardise inconsistent wording, connect records and derive presentation such as lifecycle states and timelines.</p>
               <p>That processing can make the information much easier to use, but public datasets can be late, incomplete or inconsistent, and OpenList can make mistakes too. For anything consequential, follow the source link and check the relevant planning authority or other official publisher.</p>
               <p>Sold-price information comes from the Residential Property Price Register maintained by the Property Services Regulatory Authority. Map data, where shown, comes from OpenStreetMap contributors.</p>
-              <Link href="/data-sources" className="inline-flex font-semibold text-sky-700 hover:text-sky-800">Data sources, licensing and limitations →</Link>
+              <StaticLink href="/data-sources" className="inline-flex rounded-sm font-semibold text-sky-700 hover:text-sky-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-600 focus-visible:ring-offset-2">Data sources, licensing and limitations →</StaticLink>
             </div>
           </div>
         </div>
@@ -189,7 +211,7 @@ export default function AboutPage() {
           <p className="mx-auto mt-5 max-w-2xl leading-7 text-slate-600">
             It is not an estate agent, auctioneer, valuer, broker, planning authority or legal adviser. Public information should be verified with the relevant official source before you rely on it.
           </p>
-          <Link href="/planning" className="mt-7 inline-flex rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white hover:bg-slate-800">Start with planning</Link>
+          <RuntimeDataLink href="/planning" className="mt-7 inline-flex rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-600 focus-visible:ring-offset-2">Start with planning</RuntimeDataLink>
         </div>
       </section>
     </main>
