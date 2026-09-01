@@ -55,7 +55,7 @@ export function PlanningApplicationList({
               <div className="min-w-0">
                 <h3 className="line-clamp-2 text-xl font-semibold leading-7 tracking-tight text-stone-950">
                   {application.detailHref ? (
-                    <Link className="transition hover:text-emerald-800" href={application.detailHref}>{primaryTitle}</Link>
+                    <Link prefetch={false} className="transition hover:text-emerald-800" href={application.detailHref}>{primaryTitle}</Link>
                   ) : primaryTitle}
                 </h3>
                 <p className="mt-1.5 text-xs leading-5 text-stone-500">
@@ -106,7 +106,7 @@ export function PlanningApplicationList({
             ) : null}
 
             {application.detailHref ? (
-              <Link href={application.detailHref} className="mt-4 inline-flex min-h-10 items-center text-sm font-semibold text-emerald-800 transition hover:text-emerald-950">
+              <Link prefetch={false} href={application.detailHref} className="mt-4 inline-flex min-h-10 items-center text-sm font-semibold text-emerald-800 transition hover:text-emerald-950">
                 View application <span aria-hidden="true" className="ml-1">→</span>
               </Link>
             ) : null}
