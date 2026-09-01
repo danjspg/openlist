@@ -1,4 +1,5 @@
 import { unstable_cache } from "next/cache"
+import { areaSlug } from "@/lib/ppr"
 import { getServerSupabase } from "@/lib/supabase"
 export { LOCALITY_COHORT_SIZE, LOCALITY_MIN_RESIDENCE_DAYS, LOCALITY_MAX_ROTATION, localityPath, selectCohort } from "@/lib/locality-seo-core"
 import { LOCALITY_COHORT_SIZE } from "@/lib/locality-seo-core"
@@ -84,8 +85,26 @@ const getPlanningLocalityDirectoryCached = unstable_cache(async () => {
   }))
 }, ["planning-locality-directory", "v5-paged-snapshot-counts"], { revalidate: 60 * 60 * 6 })
 
+const getPlanningRoutableLocalitySlugsCached = unstable_cache(async (authorityCode: string) => {
+  const { data, error } = await getServerSupabase().rpc("openlist_planning_dashboard_snapshot", {
+    p_authority_code: authorityCode,
+  })
+  if (error || !data) {
+    console.warn(`Planning routable locality lookup failed for ${authorityCode}.`, error?.message)
+    return [] as string[]
+  }
+
+  const snapshot = data as { areaOptions?: unknown }
+  if (!Array.isArray(snapshot.areaOptions)) return [] as string[]
+  return snapshot.areaOptions.map((label) => areaSlug(String(label))).filter(Boolean)
+}, ["planning-routable-locality-slugs", "v1-dashboard-snapshot"], { revalidate: 60 * 60 * 6 })
+
 export async function getPlanningLocalityDirectory() {
   return getPlanningLocalityDirectoryCached()
+}
+
+export async function getPlanningRoutableLocalitySlugs(authorityCode: string) {
+  return getPlanningRoutableLocalitySlugsCached(authorityCode)
 }
 
 export async function getPlanningLocalityMembership(authorityCode: string, slug: string) {
