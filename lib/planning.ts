@@ -669,7 +669,7 @@ async function getPlanningSearchResults(
   const supabase = getServerSupabase()
   let query = supabase
     .from("planning_applications")
-    .select(PLANNING_APPLICATION_SELECT, { count: "exact" })
+    .select(PLANNING_APPLICATION_SELECT)
 
   if (authorityCode) {
     query = query.eq("local_authority_code", authorityCode)
@@ -714,16 +714,22 @@ async function getPlanningSearchResults(
   }
 
   const ascending = filters.sort === "oldest"
-  const { data, count, error } = await query
+  const { data, error } = await query
     .order("registration_date", { ascending, nullsFirst: false })
     .order("reference", { ascending })
-    .limit(25)
+    .limit(26)
 
   if (error) throw new Error("Planning search query unavailable")
 
+  // Match the interactive API: one sentinel row gives a lower-bound result
+  // count without ever requiring COUNT(*) over a broad public search cohort.
+  const rows = (data ?? []) as PlanningApplication[]
+  const hasMore = rows.length > 25
+  const results = hasMore ? rows.slice(0, 25) : rows
+
   return {
-    results: (data ?? []) as PlanningApplication[],
-    count: count ?? data?.length ?? 0,
+    results,
+    count: results.length + (hasMore ? 1 : 0),
   }
 }
 
