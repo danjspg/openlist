@@ -34,26 +34,12 @@ nav[aria-label="Most active councils"] {
   display: none;
 }
 
-/* Homepage hero: use a full-resolution existing asset until the newly generated option is selected. */
-main.min-h-screen.bg-stone-50.text-stone-900 > section:first-child > div > div:last-child {
-  background-image: url("/home-hero-1.jpg");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: cover;
-}
-
-main.min-h-screen.bg-stone-50.text-stone-900 > section:first-child > div > div:last-child > img {
-  opacity: 0;
-}
-
-/* Planning and Sold Prices hubs: visual panel on desktop, stacked image on mobile. */
-main:has(> div > section[aria-labelledby="planning-explore-heading"]) > section:first-child > div,
+/* Sold Prices hub: visual panel on desktop, stacked image on mobile. */
 main:has(> section:first-child a[href="/sold-prices/search"]) > section:first-child > div {
   display: flex;
   flex-direction: column;
 }
 
-main:has(> div > section[aria-labelledby="planning-explore-heading"]) > section:first-child > div::after,
 main:has(> section:first-child a[href="/sold-prices/search"]) > section:first-child > div::after {
   content: "";
   order: 1;
@@ -68,15 +54,6 @@ main:has(> section:first-child a[href="/sold-prices/search"]) > section:first-ch
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
 }
 
-main:has(> div > section[aria-labelledby="planning-explore-heading"]) > section:first-child > div::after {
-  background-image: url("/home-hero-3.jpg");
-}
-
-main:has(> div > section[aria-labelledby="planning-explore-heading"]) > section:first-child > div form,
-main:has(> div > section[aria-labelledby="planning-explore-heading"]) > section:first-child > div form ~ * {
-  order: 2;
-}
-
 main:has(> section:first-child a[href="/sold-prices/search"]) > section:first-child > div::after {
   height: 230px;
   background-image: url("/home-modern-irish-street.jpg");
@@ -87,7 +64,6 @@ main:has(> section:first-child a[href="/sold-prices/search"]) > section:first-ch
 }
 
 @media (min-width: 64rem) {
-  main:has(> div > section[aria-labelledby="planning-explore-heading"]) > section:first-child > div,
   main:has(> section:first-child a[href="/sold-prices/search"]) > section:first-child > div {
     display: grid;
     grid-template-columns: minmax(0, 1.08fr) minmax(360px, 0.92fr);
@@ -95,13 +71,11 @@ main:has(> section:first-child a[href="/sold-prices/search"]) > section:first-ch
     align-items: start;
   }
 
-  main:has(> div > section[aria-labelledby="planning-explore-heading"]) > section:first-child > div > *,
   main:has(> section:first-child a[href="/sold-prices/search"]) > section:first-child > div > * {
     order: 0;
     grid-column: 1;
   }
 
-  main:has(> div > section[aria-labelledby="planning-explore-heading"]) > section:first-child > div::after,
   main:has(> section:first-child a[href="/sold-prices/search"]) > section:first-child > div::after {
     order: 0;
     grid-column: 2;

@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import Image from "next/image"
 import Link from "@/components/RuntimeDataLink"
 import { PlanningLandingExplore } from "@/components/planning/PlanningLandingExplore"
 import PlanningResultsView, {
@@ -47,6 +48,7 @@ export async function PlanningApplicationsView({
   const hasActiveSearch = Boolean(
     filters.q || filters.area || filters.council || filters.status || filters.type || filters.construction || filters.sort === "oldest"
   )
+  const showLandingHero = showNationalLanding && !authority && !hasActiveSearch
   const aggregateIntentionallySuppressed = Boolean(
     filters.status ||
       filters.type ||
@@ -89,7 +91,8 @@ export async function PlanningApplicationsView({
   return (
     <main className="bg-stone-50">
       <section className="border-b border-stone-200 bg-white">
-        <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:py-14">
+        <div className={`mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:py-14 ${showLandingHero ? "grid gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(340px,.9fr)] lg:items-center lg:gap-12" : ""}`}>
+          <div>
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-stone-500">
             Planning in Ireland
           </p>
@@ -113,7 +116,7 @@ export async function PlanningApplicationsView({
 
           <form action={searchPath} className="mt-8 rounded-2xl border border-stone-300 bg-stone-50 p-4 shadow-sm sm:p-5">
             {authority ? <input type="hidden" name="_authority" value={authority.slug} /> : null}
-            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(170px,0.28fr)_minmax(170px,0.28fr)_auto]">
+            <div className={showLandingHero ? "grid gap-3 sm:grid-cols-2" : "grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(170px,0.28fr)_minmax(170px,0.28fr)_auto]"}>
               <input
                 id="planning-search"
                 name="q"
@@ -121,7 +124,7 @@ export async function PlanningApplicationsView({
                 aria-label="Search planning applications"
                 defaultValue={filters.q}
                 placeholder="Address, area, planning reference or development"
-                className="min-h-14 rounded-lg border border-stone-300 bg-white px-4 text-base text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-stone-900 focus:ring-2 focus:ring-stone-200"
+                className={`min-h-14 rounded-lg border border-stone-300 bg-white px-4 text-base text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-stone-900 focus:ring-2 focus:ring-stone-200 ${showLandingHero ? "sm:col-span-2" : ""}`}
               />
               <SelectFilter
                 label={areaFilterLabel}
@@ -130,7 +133,7 @@ export async function PlanningApplicationsView({
                 options={[...dashboard.areaOptions].sort((left, right) => left.localeCompare(right, "en-IE", { sensitivity: "base" }))}
               />
               <SelectFilter label="Status" name="status" value={filters.status} options={dashboard.statusOptions} />
-              <button type="submit" className="min-h-14 rounded-lg bg-stone-950 px-6 text-base font-semibold text-white transition hover:bg-stone-700">
+              <button type="submit" className={`min-h-14 rounded-lg bg-stone-950 px-6 text-base font-semibold text-white transition hover:bg-stone-700 ${showLandingHero ? "sm:col-span-2" : ""}`}>
                 Search
               </button>
             </div>
@@ -188,6 +191,21 @@ export async function PlanningApplicationsView({
                 </PlanningFilterButton>
               ))}
             </nav>
+          ) : null}
+          </div>
+
+          {showLandingHero ? (
+            <div className="relative h-[250px] overflow-hidden rounded-[28px] bg-stone-100 shadow-sm sm:h-[340px] lg:h-[430px] lg:rounded-[32px]">
+              <Image
+                src="/openlist-planning-selected-final.png"
+                alt="New apartments beside an active residential construction site"
+                fill
+                priority
+                quality={90}
+                sizes="(max-width: 1023px) calc(100vw - 2rem), 42vw"
+                className="object-cover"
+              />
+            </div>
           ) : null}
         </div>
       </section>
