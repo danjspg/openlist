@@ -21,9 +21,9 @@ function notable(id: string, normalized_status: PlanningApplication["normalized_
 test("active-only notable filtering happens before the three-card cap", () => {
   const rows = [
     notable("1", "finalised"),
-    notable("2", "application_registered"),
-    notable("3", "application_registered"),
-    notable("4", "application_registered"),
+    notable("2", "registered"),
+    notable("3", "registered"),
+    notable("4", "registered"),
   ]
   const groups = groupPlanningLocalityNotables(rows, 6, 3, true)
   assert.deepEqual(groups[0]?.applications.map((row) => row.application.id), ["2", "3", "4"])
