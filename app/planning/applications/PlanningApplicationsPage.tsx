@@ -62,6 +62,7 @@ export async function PlanningApplicationsView({
     : null
   const resultRows = hasActiveSearch ? dashboard.searchResults : dashboard.recentApplications
   const planningResults: PlanningResultRecord[] = resultRows.map(planningResultRecord)
+  const searchCountIsLowerBound = hasActiveSearch && dashboard.searchCount > planningResults.length
   const isCouncilScoped = Boolean(authority || filters.council)
   const planningPath = authority ? `/planning/${authority.slug}` : "/planning"
   const searchPath = "/planning/applications"
@@ -202,7 +203,7 @@ export async function PlanningApplicationsView({
               </h2>
               <p className="mt-1 text-sm text-stone-500">
                 {hasActiveSearch
-                  ? `${formatPlanningCount(dashboard.searchCount)} ${dashboard.searchCount === 1 ? "application matches" : "applications match"} the selected filters.`
+                  ? `${searchCountIsLowerBound ? "At least " : ""}${formatPlanningCount(dashboard.searchCount)} ${dashboard.searchCount === 1 ? "application matches" : "applications match"} the selected filters.`
                   : authority
                     ? `Latest registrations from ${authority.name}.`
                     : "Latest registrations across available local authorities."}
