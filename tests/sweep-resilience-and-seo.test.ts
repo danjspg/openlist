@@ -61,7 +61,7 @@ test("Planning category metadata and builds perform no Supabase read", async () 
   assert.match(page, /export const dynamic = "force-dynamic"/)
   assert.match(page, /generateMetadata[\s\S]*?PLANNING_PUBLIC_CATEGORIES\.find/)
   assert.doesNotMatch(page.match(/generateMetadata[\s\S]*?\n\}/)?.[0] || "", /getPlanningPublicCategory|Supabase/)
-  assert.match(categories, /openlist_planning_public_category_page/)
+  assert.match(categories, /openlist_planning_public_category_page_active/)
 })
 
 test("Planning categories are explicitly discoverable in the root sitemap", async () => {
@@ -76,13 +76,18 @@ test("Planning categories are explicitly discoverable in the root sitemap", asyn
   assert.match(generator, /`\/planning\/categories\/\$\{category\.slug\}`/)
 })
 
-test("exact Planning revalidation retries transient acknowledgement failures", async () => {
-  const revalidation = await source("lib/planning-revalidation.ts")
+test("exact Planning revalidation uses only the dedicated queue and retries transient acknowledgement failures", async () => {
+  const [revalidation, retirement] = await Promise.all([
+    source("lib/planning-revalidation.ts"),
+    source("supabase/migrations/20260901082000_retire_superseded_planning_paths.sql"),
+  ])
 
   assert.match(revalidation, /error\.code === "57014"/)
   assert.match(revalidation, /retryTransientMutation/)
   assert.match(revalidation, /\.delete\(\)[\s\S]*?requested_at/)
-  assert.match(revalidation, /\.update\(\{ revalidation_pending: false \}\)[\s\S]*?updated_at/)
+  assert.doesNotMatch(revalidation, /revalidation_pending/)
+  assert.match(retirement, /drop column revalidation_pending/)
+  assert.match(retirement, /where revalidation_pending = true/)
 })
 
 test("database migrations preserve deterministic repairs", async () => {
