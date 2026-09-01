@@ -1,10 +1,13 @@
 "use client"
 
-import Link from "next/link"
+import NextLink from "next/link"
+import type { ComponentProps } from "react"
 import { usePathname } from "next/navigation"
 import SignOutButton from "@/components/SignOutButton"
 import { useAuthState } from "@/components/AuthStateProvider"
 import { shouldShowMyViewings } from "@/lib/account-navigation"
+
+const Link = (props: ComponentProps<typeof NextLink>) => <NextLink prefetch={false} {...props} />
 
 const navItems = [
   { href: "/planning", label: "Planning" },
