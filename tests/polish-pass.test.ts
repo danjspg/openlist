@@ -161,7 +161,7 @@ test("planning page remains useful when aggregate statistics time out", async ()
   ])
 
   assert.match(planningData, /aggregateAvailable: overviewResult !== null/)
-  assert.match(planningData, /Planning dashboard aggregation unavailable; showing recent applications/)
+  assert.match(planningData, /Planning dashboard snapshot unavailable; optional metrics omitted/)
   assert.match(planningPage, /Planning statistics are temporarily unavailable/)
   assert.match(planningPage, /Recent applications and search remain available/)
 })

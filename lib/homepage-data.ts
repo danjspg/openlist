@@ -1,16 +1,10 @@
 import { unstable_cache } from "next/cache"
 import { PLANNING_DATASET_CACHE_TAG } from "@/lib/dataset-cache"
-import { ACTIVE_PLANNING_STATUSES } from "@/lib/planning-status"
-import { getServerSupabase } from "@/lib/supabase"
+import { getOptionalServerSupabase } from "@/lib/supabase"
 
 export type HomepagePlanningSummary = {
   totalCount: number
   latestRegistrationDate: string | null
-}
-
-export type HomepageCountyPlanningStat = {
-  slug: string
-  openCount: number
 }
 
 export type HomepageNotablePlanningItem = {
@@ -32,17 +26,6 @@ type PlanningAggregatePayload = {
   latestRegistrationDate?: string | null
 }
 
-const COUNTY_AUTHORITY_CODES: Record<string, string[]> = {
-  dublin: ["DUBLINCITY", "FINGAL", "SOUTHDUBLIN", "DLR"],
-  cork: ["CORKCOCO", "CORKCITY"],
-  galway: ["GALWAYCOCO", "GALWAYCITY"],
-  limerick: ["LIMERICK"],
-  waterford: ["WATERFORD"],
-  kildare: ["KILDARE"],
-  wicklow: ["WICKLOW"],
-  meath: ["MEATH"],
-}
-
 const PLACEHOLDER_PLANNING_LABELS = new Set(["n/a", "na", "not available", "not recorded", "-"])
 
 function meaningfulHomepagePlanningLabel(value: string | null | undefined) {
@@ -53,7 +36,7 @@ function meaningfulHomepagePlanningLabel(value: string | null | undefined) {
 
 const getHomepagePlanningSummaryCached = unstable_cache(
   async (): Promise<HomepagePlanningSummary> => {
-    const { data, error } = await getServerSupabase().rpc(
+    const { data, error } = await getOptionalServerSupabase().rpc(
       "openlist_planning_dashboard_snapshot",
       { p_authority_code: "NATIONAL" }
     )
@@ -75,31 +58,8 @@ const getHomepagePlanningSummaryCached = unstable_cache(
   { revalidate: 60 * 60 * 6, tags: [PLANNING_DATASET_CACHE_TAG] }
 )
 
-const getHomepageCountyPlanningStatsCached = unstable_cache(
-  async (): Promise<HomepageCountyPlanningStat[]> => {
-    const supabase = getServerSupabase()
-    return Promise.all(
-      Object.entries(COUNTY_AUTHORITY_CODES).map(async ([slug, authorityCodes]) => {
-        const { count, error } = await supabase
-          .from("planning_applications")
-          .select("id", { count: "exact", head: true })
-          .in("local_authority_code", authorityCodes)
-          .in("normalized_status", [...ACTIVE_PLANNING_STATUSES])
-
-        if (error) {
-          throw new Error(`Homepage ${slug} planning count failed: ${error.message}`)
-        }
-
-        return { slug, openCount: count ?? 0 }
-      })
-    )
-  },
-  ["homepage-county-planning-stats", "v2-active-statuses"],
-  { revalidate: 60 * 60 * 6, tags: [PLANNING_DATASET_CACHE_TAG] }
-)
-
 const getHomepageNotablePlanningCached = unstable_cache(async (): Promise<HomepageNotablePlanningItem[]> => {
-  const supabase = getServerSupabase()
+  const supabase = getOptionalServerSupabase()
   const { data: notable, error: notableError } = await supabase
     .from("planning_seo_notable")
     .select("application_id,display_name,notable_categories")
@@ -147,10 +107,6 @@ const getHomepageNotablePlanningCached = unstable_cache(async (): Promise<Homepa
 
 export async function getHomepagePlanningSummary() {
   return getHomepagePlanningSummaryCached()
-}
-
-export async function getHomepageCountyPlanningStats() {
-  return getHomepageCountyPlanningStatsCached()
 }
 
 export async function getHomepageNotablePlanning() {

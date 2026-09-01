@@ -1,6 +1,6 @@
 import { unstable_cache } from "next/cache"
 import { PPR_DATASET_CACHE_TAG } from "@/lib/dataset-cache"
-import { getServerSupabase, supabase } from "@/lib/supabase"
+import { getOptionalServerSupabase, getServerSupabase, supabase } from "@/lib/supabase"
 import { IRISH_COUNTIES } from "@/lib/property"
 import { dublinDistrictPrefix, type PprMarket } from "@/lib/ppr-markets"
 
@@ -100,13 +100,6 @@ export type PprDateRangeValue =
 
 export function formatPprDateInput(date: Date) {
   return date.toISOString().slice(0, 10)
-}
-
-function yearFromDateString(value?: string | null) {
-  if (!value) return null
-  const [year] = value.split("-")
-  const parsed = Number(year)
-  return Number.isInteger(parsed) ? parsed : null
 }
 
 export function getPprDateRangePreset(range: PprDateRangeValue = "last-year") {
@@ -499,7 +492,7 @@ export async function getPprCounties() {
 }
 
 async function getPprQuickAreasUncached(limit = 8) {
-  const { data, error } = await supabase
+  const { data, error } = await getOptionalServerSupabase()
     .from("ppr_area_stats")
     .select("county,area_slug,sales_count,median_price_eur,last_sale_date")
     .not("county", "is", null)
@@ -691,48 +684,19 @@ export async function getPprSearchScope(
 }
 
 async function getPprDatasetSummaryUncached(): Promise<PprDatasetSummary> {
-  const serverSupabase = getServerSupabase()
-  const [{ data: snapshot }, { data: earliest }, { data: latest }] = await Promise.all([
-    serverSupabase
-      .from("ppr_national_snapshots")
-      .select("sales_count")
-      .eq("range_key", "all")
-      .maybeSingle(),
-    serverSupabase
-      .from("ppr_sales")
-      .select("date_of_sale")
-      .order("date_of_sale", { ascending: true })
-      .limit(1)
-      .maybeSingle(),
-    serverSupabase
-      .from("ppr_sales")
-      .select("date_of_sale,price_eur")
-      .order("date_of_sale", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-  ])
+  const { data: snapshot, error } = await getOptionalServerSupabase()
+    .from("ppr_national_snapshots")
+    .select("sales_count,latest_sale_date")
+    .eq("range_key", "all")
+    .maybeSingle()
 
-  const earliestSaleDate = earliest?.date_of_sale ?? null
-  let salesCount = Number(snapshot?.sales_count ?? 0)
-
-  // The refreshed national snapshot is the cheapest source for the homepage
-  // count. If it is unavailable, an estimated database count is a safe backup;
-  // presentation remains neutral if both sources fail.
-  if (salesCount <= 0 && latest?.date_of_sale) {
-    const { count: estimatedCount } = await serverSupabase
-      .from("ppr_sales")
-      .select("date_of_sale", { count: "estimated", head: true })
-
-    if (estimatedCount) {
-      salesCount = estimatedCount
-    }
-  }
+  if (error) throw new Error("PPR dataset snapshot unavailable")
 
   return {
-    salesCount,
-    earliestSaleDate,
-    latestSaleDate: latest?.date_of_sale ?? null,
-    startYear: yearFromDateString(earliestSaleDate),
+    salesCount: Number(snapshot?.sales_count ?? 0),
+    earliestSaleDate: null,
+    latestSaleDate: snapshot?.latest_sale_date ?? null,
+    startYear: null,
   }
 }
 
@@ -909,31 +873,6 @@ function applySearchSummaryFilters(query: any, options: {
   return query
 }
 
-async function countSearchResultsByPaging(options: {
-  scope: PprSearchAreaOption
-  resolvedFilters: ReturnType<typeof withDefaultPprSearchFilters>
-  minPrice: number | null
-  maxPrice: number | null
-}) {
-  const pageSize = 1000
-  let total = 0
-
-  for (let offset = 0; ; offset += pageSize) {
-    let query = supabase.from("ppr_sales").select("id").range(offset, offset + pageSize - 1)
-    query = applySearchSummaryFilters(query, options)
-
-    const { data, error } = await query
-    if (error) return null
-
-    const batchSize = (data ?? []).length
-    total += batchSize
-
-    if (batchSize < pageSize) break
-  }
-
-  return total
-}
-
 async function getPprSearchSummaryUncached(
   filters: PprSearchFilters
 ): Promise<PprSearchSummary> {
@@ -977,21 +916,8 @@ async function getPprSearchSummaryUncached(
     countQuery,
     latestQuery,
   ])
-  let count = countResult.count
+  const count = countResult.count
   const latest = latestResult.data
-
-  if (count === null) {
-    const fallbackCount = await countSearchResultsByPaging({
-      scope,
-      resolvedFilters,
-      minPrice,
-      maxPrice,
-    })
-
-    if (fallbackCount !== null) {
-      count = fallbackCount
-    }
-  }
 
   return {
     count: count ?? 0,
@@ -1088,7 +1014,7 @@ export async function getNearbyAreaLinks(county: string, currentSlug: string, li
 
 async function getCountyAreaLinksUncached(county: string, limit = 8) {
   const canonicalCounty = canonicalPprCountyFilter(county)
-  const { data, error } = await supabase
+  const { data, error } = await getOptionalServerSupabase()
     .from("ppr_area_stats")
     .select("county,area_slug,sales_count,median_price_eur,last_sale_date")
     .eq("county", canonicalCounty)

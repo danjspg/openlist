@@ -1,11 +1,10 @@
 import type { Metadata } from "next"
-import Link from "next/link"
+import Link from "@/components/RuntimeDataLink"
 import { getPlanningLocalityDirectory } from "@/lib/locality-seo"
 import { getPlanningAuthorityByCode } from "@/lib/planning-authorities"
 import { countyForPlanningAuthority } from "@/lib/property-intelligence"
 
 export const dynamic = "force-dynamic"
-export const revalidate = 21600
 
 export const metadata: Metadata = {
   title: "Browse Planning Areas Ireland | OpenList",
@@ -40,7 +39,7 @@ function one(value: string | string[] | undefined) {
 }
 
 export default async function PlanningAreasPage({ searchParams }: Props) {
-  const memberships = await getPlanningLocalityDirectory()
+  const memberships = await getPlanningLocalityDirectory().catch(() => [])
   const params = await searchParams
   const query = one(params.q).trim()
   const normalizedQuery = query.toLocaleLowerCase("en-IE")

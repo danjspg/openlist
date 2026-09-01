@@ -40,7 +40,12 @@ test("planning locality dashboard reuses concise result presentation and useful 
   assert.match(page, /dateLabel="Decision"/)
   assert.match(page, /View all \{formatPlanningCount\(dashboard\.totalCount\)\}/)
   assert.match(page, /Sold prices in \{locality\}/)
-  assert.match(page, /alternates: \{ canonical: `\/planning\/\$\{page\.authority\.slug\}\/areas\/\$\{page\.slug\}` \}/)
-  assert.match(result, /line-clamp-3/)
+  assert.match(page, /alternates: \{ canonical: `\/planning\/\$\{authority\.slug\}\/areas\/\$\{slug\}` \}/)
+  const metadataLoader = page.slice(
+    page.indexOf("export async function generateMetadata"),
+    page.indexOf("export default async function PlanningLocalityPage")
+  )
+  assert.doesNotMatch(metadataLoader, /getPlanningLocalityDashboard/)
+  assert.match(result, /line-clamp-2/)
   assert.match(result, /dateLabel = "Registered"/)
 })

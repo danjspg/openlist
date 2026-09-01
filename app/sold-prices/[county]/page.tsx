@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import Link from "next/link"
+import Link from "@/components/RuntimeDataLink"
 import { notFound, permanentRedirect } from "next/navigation"
 import PprLocationInsights from "@/components/ppr/PprLocationInsights"
 import PprDisclaimer from "@/components/ppr/PprDisclaimer"
@@ -15,7 +15,6 @@ import {
   getCountyAreaLinks,
   formatPprCurrency,
   formatPprDisplayText,
-  getPprDatasetSummary,
   type PprDateRangeValue,
 } from "@/lib/ppr"
 import { getShortTownRedirect } from "@/lib/ppr-sold-price-routes"
@@ -53,12 +52,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   const marketLabel = pprMarketLabel(market)
-  const summary = await getPprDatasetSummary()
-  const sinceText = summary.startYear ? ` since ${summary.startYear}` : ""
-
   return {
     title: `${marketLabel} House Prices | Sold Prices & Trends`,
-    description: `See recent house prices in ${marketLabel}. View recorded sale prices, market activity and local trends using Property Price Register data${sinceText}.`,
+    description: `See recent house prices in ${marketLabel}. View recorded sale prices, market activity and local trends using Property Price Register data.`,
     alternates: {
       canonical: `/sold-prices/${market.slug}`,
     },
@@ -83,7 +79,7 @@ export default async function PprMarketPage({ params }: Props) {
   const analyticsRange = getAnalyticsRange(selectedRange)
   const [{ insights, recentSales }, countyAreas] = await Promise.all([
     getMarketInsights(market, selectedRange),
-    getCountyAreaLinks(market.name),
+    getCountyAreaLinks(market.name).catch(() => []),
   ])
   const marketLabel = pprMarketLabel(market)
   const marketTitle = `${formatPprDisplayText(marketLabel).toUpperCase()} MARKET`

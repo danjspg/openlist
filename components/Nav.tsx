@@ -1,13 +1,13 @@
 "use client"
 
 import NextLink from "next/link"
-import type { ComponentProps } from "react"
 import { usePathname } from "next/navigation"
+import RuntimeDataLink from "@/components/RuntimeDataLink"
 import SignOutButton from "@/components/SignOutButton"
 import { useAuthState } from "@/components/AuthStateProvider"
 import { shouldShowMyViewings } from "@/lib/account-navigation"
 
-const Link = (props: ComponentProps<typeof NextLink>) => <NextLink prefetch={false} {...props} />
+const Link = RuntimeDataLink
 
 const navItems = [
   { href: "/planning", label: "Planning" },
@@ -37,11 +37,11 @@ const planningExploreGroups = [
   {
     title: "Activity & decisions",
     links: [
-      { href: "/planning?construction=commenced", label: "Construction started", detail: "Verified commencement records" },
-      { href: "/planning?status=appealed", label: "Under appeal", detail: "Applications with an appeal lodged" },
-      { href: "/planning?status=appeal_decided", label: "Appeal decided", detail: "Applications with a recorded appeal outcome" },
-      { href: "/planning?status=further_information_requested", label: "Further information", detail: "Applications awaiting more detail" },
-      { href: "/planning?status=decision_made", label: "Recent decisions", detail: "Decision-stage applications" },
+      { href: "/planning/applications?construction=commenced", label: "Construction started", detail: "Verified commencement records" },
+      { href: "/planning/applications?status=appealed", label: "Under appeal", detail: "Applications with an appeal lodged" },
+      { href: "/planning/applications?status=appeal_decided", label: "Appeal decided", detail: "Applications with a recorded appeal outcome" },
+      { href: "/planning/applications?status=further_information_requested", label: "Further information", detail: "Applications awaiting more detail" },
+      { href: "/planning/applications?status=decision_made", label: "Recent decisions", detail: "Decision-stage applications" },
     ],
   },
 ]
@@ -71,7 +71,8 @@ export default function Nav() {
           </div>
           {navItems.slice(1).map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
-            return <Link key={item.href} href={item.href} className={`group relative text-[17px] font-medium tracking-tight transition ${isActive ? "text-stone-900" : "text-stone-500 hover:text-stone-900"}`}>{item.label}<span className={`absolute left-0 top-full mt-1 h-[1.5px] w-full origin-left bg-stone-900 transition-transform duration-200 ${isActive ? "scale-x-100" : "scale-x-0 group-hover:scale-x-100"}`} /></Link>
+            const NavItemLink = item.href === "/about" ? NextLink : RuntimeDataLink
+            return <NavItemLink key={item.href} href={item.href} className={`group relative text-[17px] font-medium tracking-tight transition ${isActive ? "text-stone-900" : "text-stone-500 hover:text-stone-900"}`}>{item.label}<span className={`absolute left-0 top-full mt-1 h-[1.5px] w-full origin-left bg-stone-900 transition-transform duration-200 ${isActive ? "scale-x-100" : "scale-x-0 group-hover:scale-x-100"}`} /></NavItemLink>
           })}
         </nav>
 
@@ -83,7 +84,8 @@ export default function Nav() {
       <nav className="flex w-full basis-full items-center justify-between gap-2 overflow-x-auto border-t border-stone-200/70 py-1 text-sm md:hidden" aria-label="Primary navigation">
         {navItems.map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
-          return <Link key={item.href} href={item.href} aria-label={item.href === "/search" ? "Search" : undefined} className={`inline-flex min-h-11 shrink-0 items-center font-medium transition ${isActive ? "text-stone-900" : "text-stone-500 hover:text-stone-900"}`}>{item.href === "/search" ? <><span className="sr-only">Search</span><svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4 4" /></svg></> : item.label}</Link>
+          const NavItemLink = item.href === "/about" ? NextLink : RuntimeDataLink
+          return <NavItemLink key={item.href} href={item.href} aria-label={item.href === "/search" ? "Search" : undefined} className={`inline-flex min-h-11 shrink-0 items-center font-medium transition ${isActive ? "text-stone-900" : "text-stone-500 hover:text-stone-900"}`}>{item.href === "/search" ? <><span className="sr-only">Search</span><svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4 4" /></svg></> : item.label}</NavItemLink>
         })}
         {isAuthenticated ? <><Link href="/my-alerts" className={`inline-flex min-h-11 shrink-0 items-center font-medium transition ${pathname === "/my-alerts" ? "text-stone-900" : "text-stone-500 hover:text-stone-900"}`}>My alerts</Link>{showMyViewings ? <Link href="/my-viewings" className={`inline-flex min-h-11 shrink-0 items-center font-medium transition ${pathname === "/my-viewings" || pathname.startsWith("/my-viewings/") ? "text-stone-900" : "text-stone-500 hover:text-stone-900"}`}>My viewings</Link> : null}</> : <Link href="/sign-in?redirectTo=%2Fmy-alerts" className="inline-flex min-h-11 shrink-0 items-center font-medium text-stone-500 transition hover:text-stone-900">Sign in</Link>}
       </nav>

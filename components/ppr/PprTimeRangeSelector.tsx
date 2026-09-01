@@ -1,4 +1,4 @@
-import Link from "next/link"
+import Link from "@/components/RuntimeDataLink"
 import { PPR_DATE_RANGE_OPTIONS, type PprDateRangeValue } from "@/lib/ppr"
 
 export default function PprTimeRangeSelector({

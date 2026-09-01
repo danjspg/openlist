@@ -24,11 +24,12 @@ test("sold-price locality pages avoid optional planning and other-market DB fan-
   assert.match(page, /Planning in \{areaName\}/)
 })
 
-test("planning category index is bounded well below the former 50000-row request", async () => {
+test("planning category pages use one bounded exact-membership window", async () => {
   const categories = await source("lib/planning-public-categories.ts")
 
-  assert.match(categories, /PUBLIC_CATEGORY_INDEX_LIMIT = 5_000/)
-  assert.match(categories, /p_limit: PUBLIC_CATEGORY_INDEX_LIMIT/)
+  assert.match(categories, /PLANNING_PUBLIC_CATEGORY_PAGE_SIZE/)
+  assert.match(categories, /p_limit:pageSize/)
+  assert.match(categories, /openlist_planning_public_category_page_active/)
   assert.doesNotMatch(categories, /p_limit: 50000/)
 })
 
@@ -39,16 +40,14 @@ test("homepage and category directory do not load the category index on cold ren
 
   assert.doesNotMatch(directory, /getPlanningPublicCategorySummaries/)
   assert.match(directory, /PLANNING_PUBLIC_CATEGORIES\.map/)
-  assert.match(categories, /getPlanningPublicCategorySummaries[\s\S]*?return \[\]/)
+  assert.match(categories, /getPlanningPublicCategorySummaries[\s\S]*?return\[\]as/)
   assert.match(homepage, /getPlanningPublicCategorySummaries\(\)\.catch\(\(\)=>\[\]\)/)
 })
 
 test("national area searches do not request a filtered planning aggregate", async () => {
   const planning = await source("lib/planning.ts")
 
-  assert.match(
-    planning,
-    /const shouldLoadFilteredOverview =\s*Boolean\(authorityCode \|\| selectedCouncilCode\)[\s\S]*?hasFacetFilters/
-  )
+  assert.match(planning, /hasApplicationFilters\s*\? Promise\.resolve\(null\)\s*:\s*getPlanningAggregateSummaryCached/)
+  assert.doesNotMatch(planning, /openlist_planning_dashboard_aggregate/)
   assert.match(planning, /totalCount: hasApplicationFilters \? searchResult\.count : overview\.totalCount/)
 })

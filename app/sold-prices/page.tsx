@@ -1,9 +1,8 @@
 import type { Metadata } from "next"
-import Link from "next/link"
+import Link from "@/components/RuntimeDataLink"
 import PprDisclaimer from "@/components/ppr/PprDisclaimer"
 import {
   areaNameFromSlug,
-  buildPprDatasetDescription,
   formatPprCountyDisplayName,
   formatPprCurrency,
   formatPprDate,
@@ -16,38 +15,30 @@ import { getShortTownRedirect } from "@/lib/ppr-sold-price-routes"
 import {
   getAnalyticsRange,
   getHomepageSoldPriceStats,
-  getNationalActivitySnapshot,
-  getNationalOverviewSnapshot,
+  getNationalHomepageSnapshot,
   signedPercent,
 } from "@/lib/ppr-analytics"
 
-export const revalidate = 21600
+export const dynamic = "force-dynamic"
 
-export async function generateMetadata(): Promise<Metadata> {
-  const summary = await getPprDatasetSummary()
-  return {
-    title: "Ireland House Prices | Sold Prices & Market Trends",
-    description: `See what homes are selling for across Ireland. ${buildPprDatasetDescription(summary)} View recent sale prices, market trends and county comparisons.`,
-    alternates: { canonical: "/sold-prices" },
-    robots: { index: true, follow: true },
-  }
+export const metadata: Metadata = {
+  title: "Ireland House Prices | Sold Prices & Market Trends",
+  description: "See recorded Irish sale prices, market trends and county comparisons from the Property Price Register.",
+  alternates: { canonical: "/sold-prices" },
+  robots: { index: true, follow: true },
 }
 
-export default async function SoldPricesPage({
-  searchParams,
-}: {
-  searchParams?: Promise<{ dateRange?: string }>
-}) {
-  const resolvedSearchParams = await (searchParams || Promise.resolve({} as { dateRange?: string }))
-  const selectedRange = (resolvedSearchParams.dateRange || "last-year") as PprDateRangeValue
+export default async function SoldPricesPage() {
+  const selectedRange: PprDateRangeValue = "last-year"
   const analyticsRange = getAnalyticsRange(selectedRange)
-  const [datasetSummary, quickAreas, monthlyActivity, homepageStats, nationalSnapshot] = await Promise.all([
-    getPprDatasetSummary(),
-    getPprQuickAreas(),
-    getNationalActivitySnapshot(),
-    getHomepageSoldPriceStats(),
-    getNationalOverviewSnapshot(selectedRange),
+  const [datasetSummary, quickAreas, homepageStats, nationalPageModel] = await Promise.all([
+    getPprDatasetSummary().catch(() => ({ salesCount: 0, earliestSaleDate: null, latestSaleDate: null, startYear: null })),
+    getPprQuickAreas().catch(() => []),
+    getHomepageSoldPriceStats().catch(() => []),
+    getNationalHomepageSnapshot(),
   ])
+  const nationalSnapshot = nationalPageModel.overview
+  const monthlyActivity = nationalPageModel.activity
 
   const featuredMarkets = Array.from(new Set([
     ...FEATURED_PPR_MARKETS,

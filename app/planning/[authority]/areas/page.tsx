@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import Link from "next/link"
+import Link from "@/components/RuntimeDataLink"
 import { notFound } from "next/navigation"
 import { getPlanningLocalityDirectory } from "@/lib/locality-seo"
 import { getPlanningAuthorityBySlug } from "@/lib/planning-authorities"
@@ -31,7 +31,7 @@ export default async function PlanningAuthorityAreasPage({ params }: Props) {
   if (!authority) notFound()
 
   const nf = new Intl.NumberFormat("en-IE")
-  const areas = (await getPlanningLocalityDirectory())
+  const areas = (await getPlanningLocalityDirectory().catch(() => []))
     .filter((area) => area.authority_code === authority.code)
     .sort((a, b) => b.activeCount - a.activeCount || a.locality_label.localeCompare(b.locality_label, "en-IE", { sensitivity: "base" }))
 
