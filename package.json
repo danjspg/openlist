@@ -41,15 +41,14 @@
     "planning:qa:high-interest": "node --env-file=.env.local --import tsx scripts/audit-high-interest-planning.mts",
     "planning:dashboard:snapshots": "node --env-file=.env.local scripts/refresh-planning-dashboard-snapshots.mjs",
     "bcms:acquire": "node --env-file-if-exists=.env.local scripts/acquire-bcms-incremental.mjs",
-    "bcms:process": "node --env-file-if-exists=.env.local scripts/process-bcms-internal.mjs",
-    "planning:notable:v2:report": "node --env-file=.env.local scripts/report-notable-v2-readonly.mjs"
+    "bcms:process": "node --env-file-if-exists=.env.local scripts/process-bcms-internal.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.103.0",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
     "google-auth-library": "^10.9.1",
-    "leaflet": "^1.9.4",
+    "leaflet": "^1.9.22",
     "next": "^15.5.15",
     "openai": "^6.34.0",
     "react": "19.2.4",
