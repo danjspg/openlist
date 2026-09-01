@@ -1,4 +1,4 @@
-import Link from "next/link"
+import Link from "@/components/RuntimeDataLink"
 import type { PprHomepageStat } from "@/lib/ppr-analytics"
 
 export default function PprHomepageStatsBar({ stats }: { stats: PprHomepageStat[] }) {

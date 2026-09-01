@@ -167,6 +167,18 @@ export const config = {
       has: [{ type: "query", key: "sort" }],
     },
     {
+      source: "/planning/:path*",
+      has: [{ type: "query", key: "construction" }],
+    },
+    {
+      source: "/planning/:path*",
+      has: [{ type: "query", key: "authority" }],
+    },
+    {
+      source: "/planning/:path*",
+      has: [{ type: "query", key: "activeOnly" }],
+    },
+    {
       source: "/search",
       has: [{ type: "query", key: "q" }],
     },

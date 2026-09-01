@@ -1,4 +1,4 @@
-import Link from "next/link"
+import Link from "@/components/RuntimeDataLink"
 import { formatPlanningCount } from "@/lib/planning-locality-presentation"
 import { getPlanningPublicCategorySummaries } from "@/lib/planning-public-categories"
 
@@ -52,7 +52,7 @@ export async function PlanningCategoryLinks({ embedded = false }: { embedded?: b
             </p>
           </div>
           <Link
-            href="/planning?construction=commenced"
+            href="/planning/applications?construction=commenced"
             className="mt-3 inline-flex min-h-10 shrink-0 items-center text-sm font-semibold text-emerald-900 hover:underline sm:mt-0"
           >
             <span aria-hidden="true" className="mr-1.5">🏗</span>

@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import Link from "next/link"
+import Link from "@/components/RuntimeDataLink"
 import { connection } from "next/server"
 import { areaNameFromSlug, formatPprCurrency, formatPprDate } from "@/lib/ppr"
 import { formatPlanningDate } from "@/lib/planning"
@@ -214,7 +214,7 @@ function EircodeResults({ results, label }: { results: UnifiedSearchResults; lab
                     <p className="font-semibold text-stone-950">{routingMarket.label}</p>
                     <p className="mt-1 text-sm text-stone-500">{routingMarket.county}</p>
                     <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm font-semibold">
-                      <Link href={`/planning?area=${encodeURIComponent(routingMarket.locality)}`} className="text-emerald-800 hover:text-emerald-950">Planning →</Link>
+                      <Link href={`/planning/applications?area=${encodeURIComponent(routingMarket.locality)}`} className="text-emerald-800 hover:text-emerald-950">Planning →</Link>
                       <Link href={`/sold-prices/${routingMarket.county.toLowerCase()}/${routingMarket.areaSlug}`} className="text-emerald-800 hover:text-emerald-950">Sold prices →</Link>
                     </div>
                   </div>
@@ -303,7 +303,7 @@ function PrimaryPlaceContext({
           <p className="mt-1 text-sm text-stone-500">Showing planning and sold-price records for the strongest matching area.</p>
         </div>
         <div className="flex flex-wrap gap-3 text-sm font-semibold">
-          <Link href={`/planning?area=${encodeURIComponent(place.areaLabel)}`} className="text-emerald-800 hover:text-emerald-950">Open planning →</Link>
+          <Link href={`/planning/applications?area=${encodeURIComponent(place.areaLabel)}`} className="text-emerald-800 hover:text-emerald-950">Open planning →</Link>
           <Link href={`/sold-prices/${place.county.toLowerCase()}/${place.areaSlug}`} className="text-emerald-800 hover:text-emerald-950">Open sold prices →</Link>
         </div>
       </div>

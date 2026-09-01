@@ -29,6 +29,25 @@ export function getServerSupabase() {
   )
 }
 
+/** A public-data client for decorative sections that may be shed under pressure. */
+export function getOptionalServerSupabase() {
+  const serverKey = isConfiguredSupabaseKey(supabaseServiceRoleKey)
+    ? supabaseServiceRoleKey
+    : supabaseAnonKey
+
+  return createOpenListClient(
+    supabaseUrl,
+    serverKey,
+    {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    },
+    true
+  )
+}
+
 export function getServiceRoleSupabase() {
   if (!isConfiguredSupabaseKey(supabaseServiceRoleKey)) {
     throw new Error("SUPABASE_SERVICE_ROLE_KEY is required for this server operation")
@@ -45,7 +64,8 @@ export function getServiceRoleSupabase() {
 function createOpenListClient(
   url: string,
   key: string,
-  options: SupabaseClientOptions<"public"> = {}
+  options: SupabaseClientOptions<"public"> = {},
+  optional = false
 ): SupabaseClient {
   const denyBuildRead = process.env.NEXT_PHASE === "phase-production-build"
     || process.env.OPENLIST_AUDIT_SUPABASE_BUILD_READS === "1"
@@ -61,7 +81,9 @@ function createOpenListClient(
         : (input, init) => fetchWithSupabaseBudget(
             options.global?.fetch ?? globalThis.fetch,
             input,
-            init
+            init,
+            undefined,
+            { optional }
           ),
     },
   })

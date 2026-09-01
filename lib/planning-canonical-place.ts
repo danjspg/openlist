@@ -1,4 +1,6 @@
+import { unstable_cache } from "next/cache"
 import { cache } from "react"
+import { PLANNING_DATASET_CACHE_TAG } from "@/lib/dataset-cache"
 import { getServerSupabase } from "@/lib/supabase"
 
 export type PlanningCanonicalPlaceMembership = {
@@ -19,7 +21,7 @@ export type PlanningCanonicalPlace = {
   memberships: PlanningCanonicalPlaceMembership[]
 }
 
-export const getPlanningCanonicalPlace = cache(async (slug: string): Promise<PlanningCanonicalPlace | null> => {
+const getPlanningCanonicalPlaceCached = unstable_cache(async (slug: string): Promise<PlanningCanonicalPlace | null> => {
   const supabase = getServerSupabase()
   const { data: place, error: placeError } = await supabase
     .from("planning_canonical_places")
@@ -27,7 +29,8 @@ export const getPlanningCanonicalPlace = cache(async (slug: string): Promise<Pla
     .eq("slug", slug)
     .maybeSingle()
 
-  if (placeError || !place) return null
+  if (placeError) throw new Error("Planning canonical place unavailable")
+  if (!place) return null
 
   const { data: memberships, error: membershipError } = await supabase
     .from("planning_canonical_place_memberships")
@@ -35,7 +38,8 @@ export const getPlanningCanonicalPlace = cache(async (slug: string): Promise<Pla
     .eq("place_slug", slug)
     .order("authority_code", { ascending: true })
 
-  if (membershipError || !memberships?.length) return null
+  if (membershipError) throw new Error("Planning canonical place memberships unavailable")
+  if (!memberships?.length) return null
 
   return {
     ...place,
@@ -46,7 +50,14 @@ export const getPlanningCanonicalPlace = cache(async (slug: string): Promise<Pla
       confidence: Number(membership.confidence || 0),
     })),
   } as PlanningCanonicalPlace
+}, ["planning-canonical-place", "v1"], {
+  revalidate: 60 * 60 * 6,
+  tags: [PLANNING_DATASET_CACHE_TAG],
 })
+
+export const getPlanningCanonicalPlace = cache((slug: string) =>
+  getPlanningCanonicalPlaceCached(slug)
+)
 
 export async function getAggregatePlanningCanonicalPlaces() {
   const { data, error } = await getServerSupabase()

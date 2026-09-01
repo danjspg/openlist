@@ -21,11 +21,11 @@ type Suggestion = {
 }
 
 const activitySuggestions = [
-  { terms: ["construction", "commenced", "started", "building"], label: "Construction started", detail: "Planning applications with verified commencement records", href: "/planning?construction=commenced" },
-  { terms: ["decision", "decisions", "decided", "outcome"], label: "Recent planning decisions", detail: "Browse applications at decision stage", href: "/planning?status=decision_made" },
-  { terms: ["further information", "further info", "fi"], label: "Further information requested", detail: "Applications where more information has been requested", href: "/planning?status=further_information_requested" },
-  { terms: ["appeal", "appealed", "under appeal", "appeals"], label: "Under appeal", detail: "Applications with an appeal lodged", href: "/planning?status=appealed" },
-  { terms: ["appeal decided", "appeal decision", "appeals decided"], label: "Appeal decided", detail: "Applications with a recorded appeal outcome", href: "/planning?status=appeal_decided" },
+  { terms: ["construction", "commenced", "started", "building"], label: "Construction started", detail: "Planning applications with verified commencement records", href: "/planning/applications?construction=commenced" },
+  { terms: ["decision", "decisions", "decided", "outcome"], label: "Recent planning decisions", detail: "Browse applications at decision stage", href: "/planning/applications?status=decision_made" },
+  { terms: ["further information", "further info", "fi"], label: "Further information requested", detail: "Applications where more information has been requested", href: "/planning/applications?status=further_information_requested" },
+  { terms: ["appeal", "appealed", "under appeal", "appeals"], label: "Under appeal", detail: "Applications with an appeal lodged", href: "/planning/applications?status=appealed" },
+  { terms: ["appeal decided", "appeal decision", "appeals decided"], label: "Appeal decided", detail: "Applications with a recorded appeal outcome", href: "/planning/applications?status=appeal_decided" },
 ]
 
 export async function GET(request: Request) {

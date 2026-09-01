@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import Link from "next/link"
+import Link from "@/components/RuntimeDataLink"
 import { PlanningLandingExplore } from "@/components/planning/PlanningLandingExplore"
 import PlanningResultsView, {
   type PlanningResultRecord,
@@ -20,8 +20,6 @@ import {
   buildPlanningFilterFields,
   type PlanningFilterKey,
 } from "@/lib/planning-filters"
-
-export const revalidate = 21600
 
 export const metadata: Metadata = {
   title: "Search Planning Applications Ireland | OpenList",
@@ -64,8 +62,10 @@ export async function PlanningApplicationsView({
     : null
   const resultRows = hasActiveSearch ? dashboard.searchResults : dashboard.recentApplications
   const planningResults: PlanningResultRecord[] = resultRows.map(planningResultRecord)
+  const searchCountIsLowerBound = hasActiveSearch && dashboard.searchCount > planningResults.length
   const isCouncilScoped = Boolean(authority || filters.council)
   const planningPath = authority ? `/planning/${authority.slug}` : "/planning"
+  const searchPath = "/planning/applications"
   const pageTitle = authority ? `${authority.shortName} planning applications` : "National planning applications"
   const pageDescription = authority
     ? `Search ${authority.name} planning applications by location, reference, development, applicant or status.`
@@ -111,7 +111,8 @@ export async function PlanningApplicationsView({
             ) : null}
           </div>
 
-          <form action={planningPath} className="mt-8 rounded-2xl border border-stone-300 bg-stone-50 p-4 shadow-sm sm:p-5">
+          <form action={searchPath} className="mt-8 rounded-2xl border border-stone-300 bg-stone-50 p-4 shadow-sm sm:p-5">
+            {authority ? <input type="hidden" name="_authority" value={authority.slug} /> : null}
             <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(170px,0.28fr)_minmax(170px,0.28fr)_auto]">
               <input
                 id="planning-search"
@@ -179,8 +180,8 @@ export async function PlanningApplicationsView({
               {quickStats.map((stat) => (
                 <PlanningFilterButton
                   key={stat.label}
-                  action={planningPath}
-                  fields={buildPlanningFilterFields(filters, areaFilterKey, stat.label)}
+                  action={searchPath}
+                  fields={planningFilterFields(filters, areaFilterKey, stat.label, authority?.slug)}
                   className="inline-flex min-h-9 items-center rounded-full border border-stone-200 bg-white px-3 text-sm font-semibold text-stone-700 transition hover:border-stone-400 hover:text-stone-950"
                 >
                   {stat.label}<span className="ml-2 font-normal text-stone-400">{formatPlanningCount(stat.count)}</span>
@@ -202,7 +203,7 @@ export async function PlanningApplicationsView({
               </h2>
               <p className="mt-1 text-sm text-stone-500">
                 {hasActiveSearch
-                  ? `${formatPlanningCount(dashboard.searchCount)} ${dashboard.searchCount === 1 ? "application matches" : "applications match"} the selected filters.`
+                  ? `${searchCountIsLowerBound ? "At least " : ""}${formatPlanningCount(dashboard.searchCount)} ${dashboard.searchCount === 1 ? "application matches" : "applications match"} the selected filters.`
                   : authority
                     ? `Latest registrations from ${authority.name}.`
                     : "Latest registrations across available local authorities."}
@@ -242,7 +243,7 @@ export async function PlanningApplicationsView({
                 title={areaStatsTitle}
                 subtitle={isCouncilScoped ? "Top localities across available recorded history." : "Council activity in a consistent national comparison window."}
                 stats={dashboard.areaStats}
-                filterForStat={(stat) => planningFilterSpec(planningPath, filters, areaFilterKey, stat.label)}
+                filterForStat={(stat) => planningFilterSpec(searchPath, filters, areaFilterKey, stat.label, authority?.slug)}
               />
               <BarList
                 title="Monthly registrations"
@@ -255,14 +256,14 @@ export async function PlanningApplicationsView({
                   subtitle="Current status labels across available recorded history."
                   stats={dashboard.statusStats.slice(0, 5)}
                   compact
-                  filterForStat={(stat) => planningFilterSpec(planningPath, filters, "status", stat.label)}
+                  filterForStat={(stat) => planningFilterSpec(searchPath, filters, "status", stat.label, authority?.slug)}
                 />
                 <BarList
                   title="Application types"
                   subtitle="Most common application types across available recorded history."
                   stats={dashboard.typeStats.slice(0, 5)}
                   compact
-                  filterForStat={(stat) => planningFilterSpec(planningPath, filters, "type", stat.label)}
+                  filterForStat={(stat) => planningFilterSpec(searchPath, filters, "type", stat.label, authority?.slug)}
                 />
               </div>
             </div>
@@ -286,9 +287,22 @@ function planningFilterSpec(
   basePath: string,
   filters: Required<PlanningSearchParams>,
   key: PlanningFilterKey,
-  value: string
+  value: string,
+  authoritySlug?: string
 ) {
-  return { action: basePath, fields: buildPlanningFilterFields(filters, key, value) }
+  return { action: basePath, fields: planningFilterFields(filters, key, value, authoritySlug) }
+}
+
+function planningFilterFields(
+  filters: Required<PlanningSearchParams>,
+  key: PlanningFilterKey,
+  value: string,
+  authoritySlug?: string
+) {
+  return {
+    ...buildPlanningFilterFields(filters, key, value),
+    ...(authoritySlug ? { _authority: authoritySlug } : {}),
+  }
 }
 
 function Metric({ label, value, detail }: { label: string; value: string | number; detail: string }) {
@@ -393,7 +407,7 @@ function BarList({
 
 type PlanningFilterSpec = {
   action: string
-  fields: Partial<Record<keyof PlanningSearchParams, string>>
+  fields: Record<string, string>
 }
 
 function PlanningFilterButton({

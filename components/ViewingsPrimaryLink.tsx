@@ -1,6 +1,6 @@
 "use client"
 
-import Link from "next/link"
+import Link from "@/components/RuntimeDataLink"
 import { useAuthState } from "@/components/AuthStateProvider"
 
 export default function ViewingsPrimaryLink() {

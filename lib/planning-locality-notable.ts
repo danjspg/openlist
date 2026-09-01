@@ -2,7 +2,7 @@ import { unstable_cache } from "next/cache"
 import { PLANNING_DATASET_CACHE_TAG } from "@/lib/dataset-cache"
 import { PLANNING_APPLICATION_SELECT, type PlanningApplication } from "@/lib/planning"
 import { isActivePlanningStatus } from "@/lib/planning-status"
-import { getServerSupabase } from "@/lib/supabase"
+import { getOptionalServerSupabase } from "@/lib/supabase"
 
 export type PlanningLocalityNotableApplication = {
   application: PlanningApplication
@@ -111,7 +111,7 @@ export function groupPlanningLocalityNotables(
 
 const getPlanningLocalityNotablesCached = unstable_cache(
   async (authorityCode: string, locality: string, includeOlder = false): Promise<PlanningLocalityNotableApplication[]> => {
-    const supabase = getServerSupabase()
+    const supabase = getOptionalServerSupabase()
     const { data: notableRows, error: notableError } = await supabase.rpc(
       "openlist_planning_locality_notables",
       { p_authority_code: authorityCode, p_locality: locality, p_include_older: includeOlder, p_limit: 100 }

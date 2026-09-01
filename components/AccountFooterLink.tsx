@@ -1,6 +1,6 @@
 "use client"
 
-import Link from "next/link"
+import Link from "@/components/RuntimeDataLink"
 import { useAuthState } from "@/components/AuthStateProvider"
 import { shouldShowMyViewings } from "@/lib/account-navigation"
 
@@ -11,18 +11,18 @@ export default function AccountFooterLink() {
   return (
     <>
       {isAuthenticated ? (
-        <Link prefetch={false} href="/my-alerts" className="transition hover:text-stone-900">
+        <Link href="/my-alerts" className="transition hover:text-stone-900">
           My alerts
         </Link>
       ) : null}
       {isAuthenticated ? (
         showMyViewings ? (
-          <Link prefetch={false} href="/my-viewings" className="transition hover:text-stone-900">
+          <Link href="/my-viewings" className="transition hover:text-stone-900">
             My viewings
           </Link>
         ) : null
       ) : (
-        <Link prefetch={false} href="/viewings" className="transition hover:text-stone-900">
+        <Link href="/viewings" className="transition hover:text-stone-900">
           Viewings
         </Link>
       )}

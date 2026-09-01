@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import Link from "next/link"
+import Link from "@/components/RuntimeDataLink"
 import { notFound } from "next/navigation"
 import {
   getPlanningAuthorityBySlug,
@@ -7,9 +7,8 @@ import {
 import {
   PlanningApplicationsView,
 } from "@/app/planning/applications/PlanningApplicationsPage"
-import { getLocalitySitemap } from "@/lib/locality-seo"
+import { getPlanningLocalityDirectory } from "@/lib/locality-seo"
 
-export const dynamic = "force-dynamic"
 export const revalidate = 21600
 export const dynamicParams = true
 
@@ -63,8 +62,9 @@ export default async function PlanningAuthorityPage({
     notFound()
   }
 
-  const localities = (await getLocalitySitemap("planning"))
-    .filter((row) => row.canonical_path.startsWith(`/planning/${authority.slug}/areas/`))
+  const localities = (await getPlanningLocalityDirectory().catch(() => []))
+    .filter((row) => row.authority_code === authority.code)
+    .sort((left, right) => right.activeCount - left.activeCount)
     .slice(0, 6)
 
   return <>

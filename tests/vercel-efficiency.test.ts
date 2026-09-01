@@ -29,7 +29,7 @@ test("public root rendering does not read auth cookies", async () => {
   assert.match(footer, /shouldShowMyViewings\(isAuthenticated, hasViewings\)/)
 })
 
-test("planning aggregation stays in Postgres and returns only compact summaries", async () => {
+test("public Planning dashboards consume only maintained compact snapshots", async () => {
   const [planning, migration] = await Promise.all([
     source("lib/planning.ts"),
     source(
@@ -37,7 +37,8 @@ test("planning aggregation stays in Postgres and returns only compact summaries"
     ),
   ])
 
-  assert.match(planning, /openlist_planning_dashboard_aggregate/)
+  assert.match(planning, /openlist_planning_dashboard_snapshot/)
+  assert.doesNotMatch(planning, /openlist_planning_dashboard_aggregate/)
   assert.doesNotMatch(planning, /getPlanningAggregateRows/)
   assert.doesNotMatch(planning, /PLANNING_AGGREGATE_PAGE_SIZE/)
   assert.match(migration, /with filtered as materialized/i)
@@ -123,8 +124,8 @@ test("historical result sorting remains database-side and bounded", async () => 
   assert.match(planning, /filters\.sort === "oldest"/)
   assert.match(planning, /\.order\("registration_date", \{ ascending, nullsFirst: false \}\)/)
   assert.match(planning, /\.limit\(25\)/)
-  assert.match(planning, /shouldLoadFilteredOverview =\s*hasFacetFilters && !filters\.q/)
-  assert.match(planning, /Planning filtered aggregation failed; using scoped overview/)
+  assert.match(planning, /hasApplicationFilters\s*\? Promise\.resolve\(null\)/)
+  assert.doesNotMatch(planning, /Planning filtered aggregation/)
   assert.match(ppr, /sort === "price-high"/)
   assert.match(ppr, /sort === "price-low"/)
   assert.match(ppr, /filters\.dateRange === "all"/)

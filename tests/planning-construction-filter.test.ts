@@ -44,7 +44,7 @@ test("search and locality controls use the same shareable construction dimension
     readFile(new URL("../lib/planning.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/planning/applications/PlanningApplicationsPage.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/planning/[authority]/areas/[areaSlug]/page.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../supabase/migrations/20260830121000_add_incremental_bcms_pipeline.sql", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/20260830092123_add_incremental_bcms_pipeline.sql", import.meta.url), "utf8"),
   ])
   assert.match(planning, /query = query\.eq\("construction_status", "commenced"\)/)
   assert.match(searchPage, /name="construction"[\s\S]*value="commenced"[\s\S]*Construction commenced/)

@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import Link from "next/link"
+import Link from "@/components/RuntimeDataLink"
 import { notFound } from "next/navigation"
 import PprDisclaimer from "@/components/ppr/PprDisclaimer"
 import PprLocationInsights from "@/components/ppr/PprLocationInsights"
@@ -90,7 +90,7 @@ export default async function PprAreaPage({ params }: Props) {
   const summaryMedian = snapshotMedian ?? recentSalesMedian
   const summaryMedianUsesRecentFallback = snapshotMedian === undefined && recentSalesMedian !== undefined
   const summaryLastSaleDate = insights.lastSaleDate ?? recentSales[0]?.date_of_sale ?? null
-  const planningHref = `/planning?area=${encodeURIComponent(areaName)}`
+  const planningHref = `/planning/applications?area=${encodeURIComponent(areaName)}`
 
   return (
     <main className="min-h-screen bg-stone-50">

@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import Link from "next/link"
+import Link from "@/components/RuntimeDataLink"
 import { notFound } from "next/navigation"
 import { cache, type ReactNode } from "react"
 import { PlanningApplicationList } from "@/components/planning/PlanningApplicationResult"
@@ -9,7 +9,7 @@ import {
   type PlanningCountStat,
 } from "@/lib/planning"
 import { getPlanningAuthorityBySlug } from "@/lib/planning-authorities"
-import { getPlanningLocalityNotableGroups } from "@/lib/planning-locality-notable"
+import { groupPlanningLocalityNotables } from "@/lib/planning-locality-notable"
 import {
   formatPlanningCount,
   latestRegistrationMonthLabel,
@@ -20,7 +20,7 @@ import {
   planningSemanticState,
   planningStateBadgeClasses,
 } from "@/lib/planning-state-presentation"
-import { isActivePlanningStatus, normalisePlanningStatus } from "@/lib/planning-status"
+import { isActivePlanningStatus } from "@/lib/planning-status"
 import { areaSlug } from "@/lib/ppr"
 import {
   countyForPlanningAuthority,
@@ -38,51 +38,75 @@ type Props = {
   searchParams: Promise<{ includeOlder?: string; activeOnly?: string; construction?: string }>
 }
 
-const resolveLocalityPage = cache(async (authoritySlug: string, slug: string) => {
+const resolveLocalityPage = cache(async (
+  authoritySlug: string,
+  slug: string,
+  includeOlder = false,
+  activeOnly = false
+) => {
   const authority = getPlanningAuthorityBySlug(authoritySlug)
   if (!authority || areaSlug(slug) !== slug) return null
 
-  const localityPage = await getPlanningLocalityDashboard(authority, slug)
+  const localityPage = await getPlanningLocalityDashboard(
+    authority,
+    slug,
+    includeOlder,
+    activeOnly
+  )
   if (!localityPage) return null
 
   const county = countyForPlanningAuthority(authority.code)
   return { authority, slug, county, ...localityPage }
 })
 
-async function resolve(params: Props["params"]) {
-  const { authority: authoritySlug, areaSlug: slug } = await params
-  return resolveLocalityPage(authoritySlug, slug)
-}
-
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const page = await resolve(params)
-  if (!page) return {}
+  const { authority: authoritySlug, areaSlug: slug } = await params
+  const authority = getPlanningAuthorityBySlug(authoritySlug)
+  if (!authority || areaSlug(slug) !== slug) return {}
+  const locality = slug
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ")
 
   return {
-    title: `${page.locality} Planning Applications | ${page.authority.shortName}`,
-    description: `${formatPlanningCount(page.dashboard.totalCount)} recorded ${page.locality} planning applications from ${page.authority.name}, with recent registrations, decisions and status information.`,
-    alternates: { canonical: `/planning/${page.authority.slug}/areas/${page.slug}` },
+    title: `${locality} Planning Applications | ${authority.shortName}`,
+    description: `Planning applications in ${locality} from ${authority.name}, with recent registrations, decisions and status information.`,
+    alternates: { canonical: `/planning/${authority.slug}/areas/${slug}` },
     robots: { index: true, follow: true },
   }
 }
 
 export default async function PlanningLocalityPage({ params, searchParams }: Props) {
-  const page = await resolve(params)
-  if (!page) notFound()
-
-  const { authority, locality, dashboard, recentDecisions, county } = page
-  const resolvedSearchParams = await searchParams
+  const [{ authority: authoritySlug, areaSlug: slug }, resolvedSearchParams] = await Promise.all([
+    params,
+    searchParams,
+  ])
   const includeOlder = resolvedSearchParams.includeOlder === "1"
   const activeOnly = resolvedSearchParams.activeOnly === "1"
-  const notableGroups = await getPlanningLocalityNotableGroups(authority.code, locality, includeOlder, activeOnly)
+  const page = await resolveLocalityPage(authoritySlug, slug, includeOlder, activeOnly)
+  if (!page) notFound()
+
+  const {
+    authority,
+    locality,
+    dashboard,
+    activeCount,
+    recentDecisions,
+    notableRows,
+    degraded,
+    county,
+  } = page
+  const notableGroups = groupPlanningLocalityNotables(
+    notableRows,
+    includeOlder ? 8 : 6,
+    includeOlder ? 6 : 3,
+    activeOnly
+  )
   const searchHref = localitySearchHref(authority.slug, locality)
   const constructionSearchHref = localitySearchHref(authority.slug, locality, undefined, "commenced")
   const decisionsHref = localitySearchHref(authority.slug, locality, "decision_made")
   const statusStats = localityStatusStats(dashboard.statusStats)
-  const activeCount = dashboard.statusStats.reduce((total, stat) => {
-    const status = normalisePlanningStatus(stat.label)
-    return isActivePlanningStatus(status) ? total + stat.count : total
-  }, 0)
   const typeStats = dashboard.typeStats.slice(0, 6)
   const latestApplications = dashboard.searchResults.slice(0, 6).map(planningResultRecord)
   const decisionResults = recentDecisions.map(planningResultRecord)
@@ -123,6 +147,11 @@ export default async function PlanningLocalityPage({ params, searchParams }: Pro
               </Link>
             ) : null}
           </nav>
+          {degraded ? (
+            <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">
+              Some live Planning details are temporarily unavailable. Core navigation remains available and optional sections have been omitted.
+            </p>
+          ) : null}
         </header>
 
         {notableGroups.length > 0 ? (
@@ -309,10 +338,10 @@ function localityNotableHref(
 }
 
 function localitySearchHref(authority: string, locality: string, status?: string, construction?: string) {
-  const params = new URLSearchParams({ area: locality })
+  const params = new URLSearchParams({ _authority: authority, area: locality })
   if (status) params.set("status", status)
   if (construction) params.set("construction", construction)
-  return `/planning/${authority}?${params}`
+  return `/planning/applications?${params}`
 }
 
 function Metric({ value, label }: { value: string; label: string }) {

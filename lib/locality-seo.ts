@@ -1,6 +1,6 @@
 import { unstable_cache } from "next/cache"
 import { areaSlug } from "@/lib/ppr"
-import { getServerSupabase } from "@/lib/supabase"
+import { getOptionalServerSupabase, getServerSupabase } from "@/lib/supabase"
 export { LOCALITY_COHORT_SIZE, LOCALITY_MIN_RESIDENCE_DAYS, LOCALITY_MAX_ROTATION, localityPath, selectCohort } from "@/lib/locality-seo-core"
 import { LOCALITY_COHORT_SIZE } from "@/lib/locality-seo-core"
 
@@ -62,12 +62,11 @@ export async function getPlanningLocalitySitemap(tier: "priority" | "expanded") 
 const getPlanningLocalityDirectoryCached = unstable_cache(async () => {
   const rows: PlanningLocalityDirectoryRow[] = []
   for (let from = 0; from < PLANNING_LOCALITY_LIMIT; from += POSTGREST_PAGE_SIZE) {
-    const { data, error } = await getServerSupabase()
+    const { data, error } = await getOptionalServerSupabase()
       .rpc("openlist_planning_locality_directory", { p_limit: PLANNING_LOCALITY_LIMIT })
       .range(from, Math.min(from + POSTGREST_PAGE_SIZE - 1, PLANNING_LOCALITY_LIMIT - 1))
     if (error) {
-      console.warn("Planning locality directory lookup failed.", error.message)
-      return [] as PlanningLocalityDirectoryEntry[]
+      throw new Error("Planning locality directory snapshot unavailable")
     }
     const page = (data || []) as PlanningLocalityDirectoryRow[]
     rows.push(...page)
@@ -86,12 +85,11 @@ const getPlanningLocalityDirectoryCached = unstable_cache(async () => {
 }, ["planning-locality-directory", "v5-paged-snapshot-counts"], { revalidate: 60 * 60 * 6 })
 
 const getPlanningRoutableLocalitySlugsCached = unstable_cache(async (authorityCode: string) => {
-  const { data, error } = await getServerSupabase().rpc("openlist_planning_dashboard_snapshot", {
+  const { data, error } = await getOptionalServerSupabase().rpc("openlist_planning_dashboard_snapshot", {
     p_authority_code: authorityCode,
   })
   if (error || !data) {
-    console.warn(`Planning routable locality lookup failed for ${authorityCode}.`, error?.message)
-    return [] as string[]
+    throw new Error("Planning routable locality snapshot unavailable")
   }
 
   const snapshot = data as { areaOptions?: unknown }

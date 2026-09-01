@@ -18,6 +18,13 @@ export function getUtilityCrawlPolicy(
   searchParams: Pick<URLSearchParams, "has">
 ): UtilityCrawlPolicy | null {
   if (
+    pathname.startsWith("/planning/categories/") &&
+    (searchParams.has("authority") || searchParams.has("activeOnly"))
+  ) {
+    return { canonicalPath: pathname, robots: "noindex, follow" }
+  }
+
+  if (
     (pathname === "/planning" || pathname.startsWith("/planning/")) &&
     PLANNING_UTILITY_QUERY_KEYS.some((key) => searchParams.has(key))
   ) {

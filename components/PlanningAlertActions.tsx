@@ -1,6 +1,6 @@
 "use client"
 
-import Link from "next/link"
+import Link from "@/components/RuntimeDataLink"
 import { useCallback, useEffect, useState, useSyncExternalStore, useTransition } from "react"
 import { useAuthState } from "@/components/AuthStateProvider"
 import type { PlanningAlertSubscription } from "@/lib/planning-alerts"

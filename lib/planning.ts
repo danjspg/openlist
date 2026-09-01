@@ -10,10 +10,12 @@ import { planningReferenceFromSlug } from "@/lib/property-intelligence"
 import type { PlanningSitemapApplication } from "@/lib/planning-seo"
 import type { PlanningEvent } from "@/lib/planning-events"
 import type { PlanningStatus } from "@/lib/planning-status"
-import { normalisePlanningStatus } from "@/lib/planning-status"
-import { planningApplicationTypeValues } from "@/lib/planning-application-type"
-import { getServerSupabase } from "@/lib/supabase"
-import { areaSlug } from "@/lib/ppr"
+import { normalisePlanningStatus, PLANNING_STATUS_OPTIONS } from "@/lib/planning-status"
+import {
+  PLANNING_APPLICATION_TYPE_GROUPS,
+  planningApplicationTypeValues,
+} from "@/lib/planning-application-type"
+import { getOptionalServerSupabase, getServerSupabase } from "@/lib/supabase"
 
 export type PlanningApplication = {
   id: string
@@ -179,7 +181,6 @@ export async function getPlanningDashboard(
   authority: PlanningAuthority | null = null
 ): Promise<PlanningDashboard> {
   const filters = normalisePlanningSearchParams(params)
-  const supabase = getServerSupabase()
   const authorityCode = authority?.code ?? null
   const selectedCouncilCode = authorityCode
     ? null
@@ -188,71 +189,44 @@ export async function getPlanningDashboard(
   const hasResultFilters = Boolean(
     filters.q || filters.area || filters.council || filters.status || filters.type || filters.construction
   )
-  const hasFacetFilters = Boolean(filters.q || filters.area || filters.status || filters.type || filters.construction)
   const hasApplicationFilters = hasResultFilters || filters.sort === "oldest"
-  const shouldLoadFilteredOverview =
-    Boolean(authorityCode || selectedCouncilCode) &&
-    hasFacetFilters &&
-    !filters.q &&
-    !filters.status &&
-    !filters.type &&
-    !filters.construction
   const needsNationalCouncilActivity =
     !authority && !selectedCouncilCode && !hasApplicationFilters
 
-  let recentQuery = supabase
-    .from("planning_applications")
-    .select(PLANNING_APPLICATION_SELECT)
-    .order("registration_date", { ascending: false })
-    .order("reference", { ascending: false })
-    .limit(8)
-
-  if (authorityCode) {
-    recentQuery = recentQuery.eq("local_authority_code", authorityCode)
-  } else if (selectedCouncilCode) {
-    recentQuery = recentQuery.eq("local_authority_code", selectedCouncilCode)
-  }
-
-  const needsNationalCouncilOptions = !authority && aggregateAuthorityCode
-  const [recentResult, overviewResult, nationalOverview, searchResult, filteredOverview, councilActivity] =
+  const [recentApplications, overviewResult, searchResult, councilActivity] =
     await Promise.all([
-      recentQuery,
-      getPlanningAggregateSummaryCached(aggregateAuthorityCode ?? "NATIONAL").catch(
-        (error) => {
-          console.warn("Planning dashboard aggregation unavailable; showing recent applications.", error)
-          return null
-        }
-      ),
-      needsNationalCouncilOptions
-        ? getPlanningAggregateSummaryCached("NATIONAL")
-        : Promise.resolve(null),
+      hasApplicationFilters
+        ? Promise.resolve([] as PlanningApplication[])
+        : getRecentPlanningApplicationsCached(aggregateAuthorityCode ?? "NATIONAL").catch(
+            () => [] as PlanningApplication[]
+          ),
+      hasApplicationFilters
+        ? Promise.resolve(null)
+        : getPlanningAggregateSummaryCached(aggregateAuthorityCode ?? "NATIONAL").catch(
+            () => {
+              console.warn("Planning dashboard snapshot unavailable; optional metrics omitted.", {
+                classification: "snapshot_unavailable",
+              })
+              return null
+            }
+          ),
       hasApplicationFilters
         ? getPlanningSearchResults(filters, authorityCode)
         : Promise.resolve({ results: [] as PlanningApplication[], count: 0 }),
-      shouldLoadFilteredOverview
-        ? getFilteredPlanningAggregateSummary(filters, aggregateAuthorityCode).catch(
-            (error) => {
-              console.warn("Planning filtered aggregation failed; using scoped overview.", error)
-              return null
-            }
-          )
-        : Promise.resolve(null),
       needsNationalCouncilActivity
-        ? getNationalCouncilActivityCached()
+        ? getNationalCouncilActivityCached().catch(() => null)
         : Promise.resolve(null),
     ])
   const overview = overviewResult ?? emptyPlanningAggregateSummary()
-  const filteredSummary = filteredOverview ?? overview
   const areaStats = needsNationalCouncilActivity
     ? councilActivity?.stats ?? []
-    : filteredSummary.areaStats
-  const filteredAggregateAvailable = !hasFacetFilters || filteredOverview !== null
+    : overview.areaStats
 
   return {
     authority,
     aggregateAvailable:
       overviewResult !== null &&
-      filteredAggregateAvailable &&
+      !hasApplicationFilters &&
       !filters.status &&
       !filters.type &&
       !filters.construction,
@@ -261,63 +235,149 @@ export async function getPlanningDashboard(
       hasApplicationFilters && filters.sort !== "oldest"
         ? searchResult.results[0]?.registration_date ?? overview.latestRegistrationDate
         : overview.latestRegistrationDate,
-    latestRegistrationMonth: filteredSummary.latestRegistrationMonth,
-    latestMonthCount: filteredSummary.latestMonthCount,
-    previousMonthCount: filteredSummary.previousMonthCount,
-    latestMonthChange: filteredSummary.latestMonthChange,
-    recentApplications: (recentResult.data ?? []) as PlanningApplication[],
+    latestRegistrationMonth: overview.latestRegistrationMonth,
+    latestMonthCount: overview.latestMonthCount,
+    previousMonthCount: overview.previousMonthCount,
+    latestMonthChange: overview.latestMonthChange,
+    recentApplications,
     searchResults: searchResult.results,
     searchCount: searchResult.count,
     areaStats,
     councilActivityStats: councilActivity?.stats ?? [],
     councilActivityPeriodStart: councilActivity?.periodStart ?? null,
     councilActivityPeriodEnd: councilActivity?.periodEnd ?? null,
-    statusStats: filteredSummary.statusStats,
-    typeStats: filteredSummary.typeStats,
-    monthStats: filteredSummary.monthStats,
-    mapPoints: filteredSummary.mapPoints,
-    latestMonthAreaStats: filteredSummary.latestMonthAreaStats,
-    latestMonthStatusStats: filteredSummary.latestMonthStatusStats,
-    latestMonthTypeStats: filteredSummary.latestMonthTypeStats,
-    areaOptions: nationalOverview?.areaOptions ?? overview.areaOptions,
-    statusOptions: overview.statusOptions,
-    typeOptions: overview.typeOptions,
+    statusStats: overview.statusStats,
+    typeStats: overview.typeStats,
+    monthStats: overview.monthStats,
+    mapPoints: overview.mapPoints,
+    latestMonthAreaStats: overview.latestMonthAreaStats,
+    latestMonthStatusStats: overview.latestMonthStatusStats,
+    latestMonthTypeStats: overview.latestMonthTypeStats,
+    areaOptions: authority
+      ? overview.areaOptions
+      : PLANNING_AUTHORITIES.map((item) => item.shortName),
+    statusOptions: overview.statusOptions.length
+      ? overview.statusOptions
+      : PLANNING_STATUS_OPTIONS.map((option) => option.label),
+    typeOptions: overview.typeOptions.length
+      ? overview.typeOptions
+      : PLANNING_APPLICATION_TYPE_GROUPS.map((group) => group.label),
     activeArea: areaStats[0] ?? null,
   }
 }
 
 export async function getPlanningLocalityDashboard(
   authority: PlanningAuthority,
-  localitySlug: string
+  localitySlug: string,
+  includeOlder = false,
+  activeOnly = false
 ) {
-  const overview = await getPlanningDashboard({}, authority)
-  const locality = overview.areaOptions.find((label) => areaSlug(label) === localitySlug)
-  if (!locality) return null
-  const [dashboard, recentDecisions] = await Promise.all([
-    getPlanningDashboard({ area: locality }, authority),
-    getPlanningRecentDecisions(authority.code, locality),
-  ])
-  return dashboard.totalCount >= 8 ? { locality, dashboard, recentDecisions } : null
-}
+  try {
+    const payload = await getPlanningLocalityPageModelCached(
+      authority.code,
+      localitySlug,
+      includeOlder,
+      activeOnly
+    )
+    if (!payload) return null
 
-async function getPlanningRecentDecisions(authorityCode: string, locality: string) {
-  const { data, error } = await getServerSupabase()
-    .from("planning_applications")
-    .select(PLANNING_APPLICATION_SELECT)
-    .eq("local_authority_code", authorityCode)
-    .ilike("location", `%${escapePostgrestLike(locality)}%`)
-    .not("decision_date", "is", null)
-    .order("decision_date", { ascending: false, nullsFirst: false })
-    .order("reference", { ascending: false })
-    .limit(5)
+    const recentApplications = Array.isArray(payload.recentApplications)
+      ? payload.recentApplications
+      : []
+    const dashboard: PlanningDashboard = {
+      authority,
+      aggregateAvailable: false,
+      ...emptyPlanningAggregateSummary(),
+      totalCount: Number(payload.totalCount || 0),
+      latestRegistrationDate: payload.latestRegistrationDate ?? null,
+      recentApplications,
+      searchResults: recentApplications,
+      searchCount: Number(payload.totalCount || 0),
+      councilActivityStats: [],
+      councilActivityPeriodStart: null,
+      councilActivityPeriodEnd: null,
+    }
 
-  if (error) {
-    console.warn("Planning locality decision query failed.", error.message)
-    return [] as PlanningApplication[]
+    return {
+      locality: payload.locality,
+      dashboard,
+      activeCount: Number(payload.activeCount || 0),
+      recentDecisions: Array.isArray(payload.recentDecisions)
+        ? payload.recentDecisions
+        : [],
+      notableRows: Array.isArray(payload.notables) ? payload.notables : [],
+      degraded: false,
+    }
+  } catch (error) {
+    console.warn("Planning locality page model unavailable; rendering a degraded page.", {
+      classification: error instanceof Error ? error.name : "unknown",
+    })
+    const locality = localitySlug
+      .split("-")
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ")
+    const dashboard: PlanningDashboard = {
+      authority,
+      aggregateAvailable: false,
+      ...emptyPlanningAggregateSummary(),
+      recentApplications: [],
+      searchResults: [],
+      searchCount: 0,
+      councilActivityStats: [],
+      councilActivityPeriodStart: null,
+      councilActivityPeriodEnd: null,
+    }
+    return {
+      locality,
+      dashboard,
+      activeCount: 0,
+      recentDecisions: [] as PlanningApplication[],
+      notableRows: [] as PlanningLocalityPageModelPayload["notables"],
+      degraded: true,
+    }
   }
-
-  return (data ?? []) as PlanningApplication[]
 }
+
+type PlanningLocalityPageModelPayload = {
+  locality: string
+  totalCount: number | string
+  activeCount: number | string
+  latestRegistrationDate: string | null
+  recentApplications: PlanningApplication[]
+  recentDecisions: PlanningApplication[]
+  notables: Array<{
+    application: PlanningApplication
+    displayName: string | null
+    categories: string[]
+  }>
+}
+
+const getPlanningLocalityPageModelCached = unstable_cache(
+  async (
+    authorityCode: string,
+    localitySlug: string,
+    includeOlder: boolean,
+    activeOnly: boolean
+  ) => {
+    const { data, error } = await getOptionalServerSupabase().rpc(
+      "openlist_planning_locality_page_model",
+      {
+        p_authority_code: authorityCode,
+        p_locality_slug: localitySlug,
+        p_include_older: includeOlder,
+        p_active_only: activeOnly,
+      }
+    )
+    if (error) throw new Error("Planning locality page model query failed")
+    return data as PlanningLocalityPageModelPayload | null
+  },
+  ["planning-locality-page-model", "v1"],
+  {
+    revalidate: PLANNING_CACHE_REVALIDATE_SECONDS,
+    tags: [PLANNING_DATASET_CACHE_TAG],
+  }
+)
 
 function emptyPlanningAggregateSummary(): PlanningAggregateSummary {
   return {
@@ -342,6 +402,30 @@ function emptyPlanningAggregateSummary(): PlanningAggregateSummary {
   }
 }
 
+const getRecentPlanningApplicationsCached = unstable_cache(
+  async (authorityCode: string) => {
+    let query = getOptionalServerSupabase()
+      .from("planning_applications")
+      .select(PLANNING_APPLICATION_SELECT)
+      .order("registration_date", { ascending: false })
+      .order("reference", { ascending: false })
+      .limit(8)
+
+    if (authorityCode !== "NATIONAL") {
+      query = query.eq("local_authority_code", authorityCode)
+    }
+
+    const { data, error } = await query
+    if (error) throw new Error("Recent Planning applications unavailable")
+    return (data ?? []) as PlanningApplication[]
+  },
+  ["planning-recent-applications", "v1"],
+  {
+    revalidate: PLANNING_CACHE_REVALIDATE_SECONDS,
+    tags: [PLANNING_DATASET_CACHE_TAG],
+  }
+)
+
 type PlanningCouncilActivityWindow = {
   periodStart: string | null
   periodEnd: string | null
@@ -350,7 +434,7 @@ type PlanningCouncilActivityWindow = {
 
 const getNationalCouncilActivityCached = unstable_cache(
   async (): Promise<PlanningCouncilActivityWindow | null> => {
-    const { data, error } = await getServerSupabase().rpc(
+    const { data, error } = await getOptionalServerSupabase().rpc(
       "openlist_planning_council_activity_12m"
     )
     if (error || !data) return null
@@ -503,49 +587,16 @@ export async function getNotablePlanningSitemapApplications(limit = 50000) {
   return applications
 }
 
-async function getFilteredPlanningAggregateSummary(
-  filters: Required<PlanningSearchParams>,
-  authorityCode: string | null
-) {
-  return getPlanningAggregateSummaryCached(
-    authorityCode ?? "NATIONAL",
-    filters.q,
-    filters.area,
-    filters.status,
-    filters.type
-  )
-}
-
 const getPlanningAggregateSummaryCached = unstable_cache(
-  async (
-    authorityCode: string,
-    q = "",
-    area = "",
-    status = "",
-    applicationType = ""
-  ) => {
-    const serverSupabase = getServerSupabase()
-    const isCommonDashboard = !q && !area && !status && !applicationType
-    const snapshot = isCommonDashboard
-      ? await serverSupabase.rpc("openlist_planning_dashboard_snapshot", {
-          p_authority_code: authorityCode,
-        })
-      : { data: null, error: null }
-
-    const { data, error } = snapshot.data
-      ? snapshot
-      : await serverSupabase.rpc("openlist_planning_dashboard_aggregate", {
-          p_authority_code: authorityCode === "NATIONAL" ? null : authorityCode,
-          p_q: q || null,
-          p_area: area || null,
-          p_status: status || null,
-          p_application_type: applicationType || null,
-        })
+  async (authorityCode: string) => {
+    const serverSupabase = getOptionalServerSupabase()
+    const { data, error } = await serverSupabase.rpc(
+      "openlist_planning_dashboard_snapshot",
+      { p_authority_code: authorityCode }
+    )
 
     if (error || !data) {
-      throw new Error(
-        `Planning dashboard aggregation failed: ${error?.message ?? "empty response"}`
-      )
+      throw new Error("Planning dashboard snapshot unavailable")
     }
 
     return normaliseDatabaseAggregateSummary(data, authorityCode)
@@ -618,7 +669,7 @@ async function getPlanningSearchResults(
   const supabase = getServerSupabase()
   let query = supabase
     .from("planning_applications")
-    .select(PLANNING_APPLICATION_SELECT, { count: "exact" })
+    .select(PLANNING_APPLICATION_SELECT)
 
   if (authorityCode) {
     query = query.eq("local_authority_code", authorityCode)
@@ -663,14 +714,22 @@ async function getPlanningSearchResults(
   }
 
   const ascending = filters.sort === "oldest"
-  const { data, count } = await query
+  const { data, error } = await query
     .order("registration_date", { ascending, nullsFirst: false })
     .order("reference", { ascending })
-    .limit(25)
+    .limit(26)
+
+  if (error) throw new Error("Planning search query unavailable")
+
+  // Match the interactive API: one sentinel row gives a lower-bound result
+  // count without ever requiring COUNT(*) over a broad public search cohort.
+  const rows = (data ?? []) as PlanningApplication[]
+  const hasMore = rows.length > 25
+  const results = hasMore ? rows.slice(0, 25) : rows
 
   return {
-    results: (data ?? []) as PlanningApplication[],
-    count: count ?? data?.length ?? 0,
+    results,
+    count: results.length + (hasMore ? 1 : 0),
   }
 }
 

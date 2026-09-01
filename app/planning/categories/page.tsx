@@ -1,8 +1,7 @@
 import type { Metadata } from "next"
-import Link from "next/link"
+import Link from "@/components/RuntimeDataLink"
 import { PLANNING_PUBLIC_CATEGORIES } from "@/lib/planning-public-categories"
 
-export const dynamic = "force-dynamic"
 export const revalidate = 21600
 
 export const metadata: Metadata = {

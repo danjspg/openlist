@@ -6,7 +6,7 @@ import {
   COMMUTER_TOWN_DISTANCE_KM,
   COMMUTER_TOWN_MARKET_SLUGS,
 } from "@/lib/ppr-data.mjs"
-import { supabase } from "@/lib/supabase"
+import { getOptionalServerSupabase, supabase } from "@/lib/supabase"
 import {
   dublinDistrictPrefix,
   getPprMarket,
@@ -991,18 +991,19 @@ function withRecentSaleDate(insights: PprLocationInsights, recentSales: Pick<Ppr
 }
 
 async function loadNationalSnapshotRow(range: PprDateRangeValue) {
-  const { data, error } = await supabase
+  const { data, error } = await getOptionalServerSupabase()
     .from("ppr_national_snapshots")
     .select("*")
     .eq("range_key", range)
     .maybeSingle()
 
-  if (error || !data) return null
+  if (error) throw new Error("PPR national snapshot unavailable")
+  if (!data) return null
   return data as PprNationalSnapshotRow
 }
 
 async function loadComparisonRowsFromTable(groupKey: string, range: PprDateRangeValue = "last-year") {
-  const { data, error } = await supabase
+  const { data, error } = await getOptionalServerSupabase()
     .from("ppr_comparison_rows")
     .select("*")
     .eq("group_key", groupKey)
@@ -1010,13 +1011,13 @@ async function loadComparisonRowsFromTable(groupKey: string, range: PprDateRange
     .order("sort_rank", { ascending: true })
     .order("label", { ascending: true })
 
-  if (error) return []
+  if (error) throw new Error("PPR comparison snapshot unavailable")
   if (!data || data.length === 0) return null
   return (data as PprComparisonRowRecord[]).map(mapComparisonRowRecord)
 }
 
 async function loadMarketInsightsFromTable(marketSlug: string, range: PprDateRangeValue = "last-year") {
-  const { data, error } = await supabase
+  const { data, error } = await getOptionalServerSupabase()
     .from("ppr_market_insights")
     .select("*")
     .eq("market_slug", marketSlug)
@@ -1033,7 +1034,7 @@ async function loadAreaInsightsFromTable(
   areaSlug: string,
   range: PprDateRangeValue = "last-year"
 ) {
-  const { data, error } = await supabase
+  const { data, error } = await getOptionalServerSupabase()
     .from("ppr_area_insights")
     .select("*")
     .ilike("county", county)
@@ -1376,8 +1377,7 @@ const getTrackedLocationComparisonRowsUncached = async (
 
 const getTrackedLocationComparisonRowsCached = unstable_cache(
   async (range: PprDateRangeValue = "last-year") =>
-    (await loadComparisonRowsFromTable("all-tracked", range)) ||
-    getTrackedLocationComparisonRowsUncached(range),
+    (await loadComparisonRowsFromTable("all-tracked", range)) ?? [],
   ["ppr-tracked-comparison-rows", PPR_COMPARISON_CACHE_VERSION],
   { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
@@ -1385,7 +1385,7 @@ const getTrackedLocationComparisonRowsCached = unstable_cache(
 export async function getTrackedLocationComparisonRows(
   range: PprDateRangeValue = "last-year"
 ) {
-  return getTrackedLocationComparisonRowsCached(range)
+  return getTrackedLocationComparisonRowsCached(range).catch(() => [])
 }
 
 const getHomepageSoldPriceStatsUncached = async () => {
@@ -1608,116 +1608,47 @@ const getHomepageSoldPriceStatsUncached = async () => {
 
 const getHomepageSoldPriceStatsCached = unstable_cache(
   async () => {
-    const [nationalSnapshot, risingRows, commuterRows, affordableRows] = await Promise.all([
-      loadNationalSnapshotRow("last-year"),
-      loadComparisonRowsFromTable("rising-markets", "last-year"),
-      loadComparisonRowsFromTable("commuter-towns", "last-year"),
-      loadComparisonRowsFromTable("affordable-markets", "last-year"),
-    ])
+    const { data, error } = await getOptionalServerSupabase()
+      .from("ppr_comparison_rows")
+      .select("*")
+      .in("group_key", ["rising-markets", "affordable-markets"])
+      .eq("range_key", "last-year")
+      .order("sort_rank", { ascending: true })
 
-    if (!nationalSnapshot) {
-      return getHomepageSoldPriceStatsUncached()
-    }
+    if (error) throw new Error("PPR hub spotlight snapshot unavailable")
+    const rows = (data ?? []) as PprComparisonRowRecord[]
+    const first = (groupKey: string) => rows
+      .filter((row) => row.group_key === groupKey)
+      .map(mapComparisonRowRecord)[0]
+    const rising = first("rising-markets")
+    const affordable = first("affordable-markets")
 
-    const stats: PprHomepageStat[] = [
-      {
-        eyebrow: "National median",
-        title: "Recorded sale prices",
-        value: nationalSnapshot.median_price_eur
-          ? euroDisplay(nationalSnapshot.median_price_eur)
-          : "Limited data",
-        detail: nationalSnapshot.median_price_eur
-          ? "Last 12 months across Ireland"
-          : "Shown when enough recent sales are available across Ireland",
-        href: "/sold-prices",
-      },
-      {
-        eyebrow: "National change",
-        title: "Year on year",
-        value:
-          nationalSnapshot.yoy_change_pct !== null
-            ? signedPercent(nationalSnapshot.yoy_change_pct)
-            : "Limited data",
-        detail:
-          nationalSnapshot.yoy_change_pct !== null
-            ? "Median sale price versus the previous 12 months"
-            : "Shown when both 12-month periods have enough sales",
+    const stats: Array<PprHomepageStat | null> = [
+      rising ? {
+        eyebrow: "Fastest-rising tracked market",
+        title: rising.label,
+        titleHref: rising.href,
+        value: signedPercent(rising.yoyChangePct || 0),
+        detail: "Year-on-year median change with a 50-sale minimum",
         href: "/sold-prices/rising-markets",
-      },
-      nationalSnapshot.strongest_county && nationalSnapshot.strongest_county_yoy_change_pct !== null
-        ? {
-            eyebrow: "County highest YoY price increase",
-            title: nationalSnapshot.strongest_county,
-            titleHref: `/sold-prices/${nationalSnapshot.strongest_county.toLowerCase()}`,
-            value: signedPercent(nationalSnapshot.strongest_county_yoy_change_pct),
-            detail: "Median sale price versus the previous 12 months",
-            href: `/sold-prices/${nationalSnapshot.strongest_county.toLowerCase()}`,
-          }
-        : {
-            eyebrow: "County market watch",
-            title: "County price movement",
-            value: "Limited data",
-            detail: "Shown when a county has enough recent sales for a reliable comparison",
-            href: "/sold-prices",
-          },
-      risingRows?.[0]
-        ? {
-            eyebrow: "Fastest-rising tracked market",
-            title: risingRows[0].label,
-            titleHref: risingRows[0].href,
-            value: signedPercent(risingRows[0].yoyChangePct || 0),
-            detail: "Year-on-year median change with a 50-sale minimum",
-            href: "/sold-prices/rising-markets",
-          }
-        : {
-            eyebrow: "Fastest-rising tracked market",
-            title: "Tracked market watch",
-            value: "Limited data",
-            detail: "Shown when a tracked market clears the recent-sales threshold",
-            href: "/sold-prices/rising-markets",
-          },
-      commuterRows?.[0]
-        ? {
-            eyebrow: "Commuter town watch",
-            title: commuterRows[0].label,
-            titleHref: commuterRows[0].href,
-            value: euroDisplay(commuterRows[0].medianPrice),
-            detail: "Lowest median in our commuter-town set with a 24-sale minimum",
-            href: "/sold-prices/commuter-towns",
-          }
-        : {
-            eyebrow: "Commuter town watch",
-            title: "Commuter-town pricing",
-            value: "Limited data",
-            detail: "Shown when a commuter town has enough recent sales for comparison",
-            href: "/sold-prices/commuter-towns",
-          },
-      affordableRows?.[0]
-        ? {
-            eyebrow: "Most affordable market",
-            title: affordableRows[0].label,
-            titleHref: affordableRows[0].href,
-            value: euroDisplay(affordableRows[0].medianPrice),
-            detail: "Median price over the last 12 months",
-            href: "/sold-prices/affordable-markets",
-          }
-        : {
-            eyebrow: "Most affordable market",
-            title: "Affordable market watch",
-            value: "Limited data",
-            detail: "Shown when a market has enough recent sales for comparison",
-            href: "/sold-prices/affordable-markets",
-          },
+      } : null,
+      affordable ? {
+        eyebrow: "Most affordable market",
+        title: affordable.label,
+        titleHref: affordable.href,
+        value: euroDisplay(affordable.medianPrice),
+        detail: "Median price over the last 12 months",
+        href: "/sold-prices/affordable-markets",
+      } : null,
     ]
-
-    return stats
+    return stats.filter((stat): stat is PprHomepageStat => Boolean(stat))
   },
   ["ppr-homepage-sold-price-stats", PPR_HOMEPAGE_STATS_CACHE_VERSION],
   { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getHomepageSoldPriceStats() {
-  return getHomepageSoldPriceStatsCached()
+  return getHomepageSoldPriceStatsCached().catch(() => [])
 }
 
 const getNationalOverviewSnapshotUncached = async (
@@ -1811,14 +1742,28 @@ const getNationalOverviewSnapshotCached = unstable_cache(
         latestSaleDate: row.latest_sale_date,
       }
     }
-    return getNationalOverviewSnapshotUncached(range)
+    return {
+      medianPrice: undefined,
+      p25: undefined,
+      p75: undefined,
+      salesCount: 0,
+      yoyChangePct: undefined,
+      latestSaleDate: null,
+    }
   },
   ["ppr-national-overview-snapshot", PPR_NATIONAL_SNAPSHOT_CACHE_VERSION],
   { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getNationalOverviewSnapshot(range: PprDateRangeValue = "last-year") {
-  return getNationalOverviewSnapshotCached(range)
+  return getNationalOverviewSnapshotCached(range).catch(() => ({
+    medianPrice: undefined,
+    p25: undefined,
+    p75: undefined,
+    salesCount: 0,
+    yoyChangePct: undefined,
+    latestSaleDate: null,
+  }))
 }
 
 const getNationalActivitySnapshotUncached = async (): Promise<PprNationalActivitySnapshot> => {
@@ -1859,14 +1804,89 @@ const getNationalActivitySnapshotCached = unstable_cache(
         hasReliableChange: row.activity_change_pct !== null,
       }
     }
-    return getNationalActivitySnapshotUncached()
+    return {
+      currentPeriodLabel: "Last 12 months",
+      previousPeriodLabel: "Previous 12 months",
+      currentCount: 0,
+      previousCount: 0,
+      yoyChangePct: undefined,
+      hasReliableChange: false,
+    }
   },
   ["ppr-national-activity-snapshot", PPR_NATIONAL_SNAPSHOT_CACHE_VERSION],
   { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getNationalActivitySnapshot() {
-  return getNationalActivitySnapshotCached()
+  return getNationalActivitySnapshotCached().catch(() => ({
+    currentPeriodLabel: "Last 12 months",
+    previousPeriodLabel: "Previous 12 months",
+    currentCount: 0,
+    previousCount: 0,
+    yoyChangePct: undefined,
+    hasReliableChange: false,
+  }))
+}
+
+const getNationalHomepageSnapshotCached = unstable_cache(
+  async () => {
+    const row = await loadNationalSnapshotRow("last-year")
+    return {
+      overview: row ? {
+        medianPrice: row.median_price_eur ?? undefined,
+        p25: row.p25_price_eur ?? undefined,
+        p75: row.p75_price_eur ?? undefined,
+        salesCount: row.sales_count,
+        yoyChangePct: row.yoy_change_pct ?? undefined,
+        latestSaleDate: row.latest_sale_date,
+      } : {
+        medianPrice: undefined,
+        p25: undefined,
+        p75: undefined,
+        salesCount: 0,
+        yoyChangePct: undefined,
+        latestSaleDate: null,
+      },
+      activity: row ? {
+        currentPeriodLabel: row.current_period_label || "Last 12 months",
+        previousPeriodLabel: row.previous_period_label || "Previous 12 months",
+        currentCount: row.current_period_count || 0,
+        previousCount: row.previous_period_count || 0,
+        yoyChangePct: row.activity_change_pct ?? undefined,
+        hasReliableChange: row.activity_change_pct !== null,
+      } : {
+        currentPeriodLabel: "Last 12 months",
+        previousPeriodLabel: "Previous 12 months",
+        currentCount: 0,
+        previousCount: 0,
+        yoyChangePct: undefined,
+        hasReliableChange: false,
+      },
+    }
+  },
+  ["ppr-national-homepage-snapshot", PPR_NATIONAL_SNAPSHOT_CACHE_VERSION],
+  { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
+)
+
+export async function getNationalHomepageSnapshot() {
+  return getNationalHomepageSnapshotCached().catch(() => ({
+    overview: {
+      medianPrice: undefined,
+      p25: undefined,
+      p75: undefined,
+      salesCount: 0,
+      yoyChangePct: undefined,
+      latestSaleDate: null,
+    },
+    activity: {
+      currentPeriodLabel: "Last 12 months",
+      previousPeriodLabel: "Previous 12 months",
+      currentCount: 0,
+      previousCount: 0,
+      yoyChangePct: undefined,
+      hasReliableChange: false,
+    },
+  }))
 }
 
 const getNationalActivityLeaderUncached = async (): Promise<PprNationalActivityLeader | undefined> => {
@@ -1897,14 +1917,14 @@ const getNationalActivityLeaderCached = unstable_cache(
         salesCount: row.current_period_count || 0,
       }
     }
-    return getNationalActivityLeaderUncached()
+    return undefined
   },
   ["ppr-national-activity-leader"],
   { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getNationalActivityLeader() {
-  return getNationalActivityLeaderCached()
+  return getNationalActivityLeaderCached().catch(() => undefined)
 }
 
 const getDublinComparisonRowsUncached = async (range: PprDateRangeValue = "last-year") => {
@@ -1932,26 +1952,24 @@ const getDublinComparisonRowsUncached = async (range: PprDateRangeValue = "last-
 
 const getDublinComparisonRowsCached = unstable_cache(
   async (range: PprDateRangeValue = "last-year") =>
-    (await loadComparisonRowsFromTable("dublin-compared", range)) ||
-    getDublinComparisonRowsUncached(range),
+    (await loadComparisonRowsFromTable("dublin-compared", range)) ?? [],
   ["ppr-dublin-comparison-rows", PPR_COMPARISON_CACHE_VERSION],
   { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getDublinComparisonRows(range: PprDateRangeValue = "last-year") {
-  return getDublinComparisonRowsCached(range)
+  return getDublinComparisonRowsCached(range).catch(() => [])
 }
 
 const getCorkComparisonRowsCached = unstable_cache(
   async (range: PprDateRangeValue = "last-year") =>
-    (await loadComparisonRowsFromTable("cork-compared", range)) ||
-    getCuratedCountyComparisonRows(COMPARISON_PAGE_MARKET_SLUGS.corkCompared, range),
+    (await loadComparisonRowsFromTable("cork-compared", range)) ?? [],
   ["ppr-cork-comparison-rows", PPR_COMPARISON_CACHE_VERSION],
   { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getCorkComparisonRows(range: PprDateRangeValue = "last-year") {
-  return getCorkComparisonRowsCached(range)
+  return getCorkComparisonRowsCached(range).catch(() => [])
 }
 
 async function getCuratedCountyComparisonRows(
@@ -1988,38 +2006,35 @@ async function getCuratedCountyComparisonRows(
 
 const getLimerickComparisonRowsCached = unstable_cache(
   async (range: PprDateRangeValue = "last-year") =>
-    (await loadComparisonRowsFromTable("limerick-compared", range)) ||
-    getCuratedCountyComparisonRows(COMPARISON_PAGE_MARKET_SLUGS.limerickCompared, range),
+    (await loadComparisonRowsFromTable("limerick-compared", range)) ?? [],
   ["ppr-limerick-comparison-rows", PPR_COMPARISON_CACHE_VERSION],
   { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getLimerickComparisonRows(range: PprDateRangeValue = "last-year") {
-  return getLimerickComparisonRowsCached(range)
+  return getLimerickComparisonRowsCached(range).catch(() => [])
 }
 
 const getGalwayComparisonRowsCached = unstable_cache(
   async (range: PprDateRangeValue = "last-year") =>
-    (await loadComparisonRowsFromTable("galway-compared", range)) ||
-    getCuratedCountyComparisonRows(COMPARISON_PAGE_MARKET_SLUGS.galwayCompared, range),
+    (await loadComparisonRowsFromTable("galway-compared", range)) ?? [],
   ["ppr-galway-comparison-rows", PPR_COMPARISON_CACHE_VERSION],
   { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getGalwayComparisonRows(range: PprDateRangeValue = "last-year") {
-  return getGalwayComparisonRowsCached(range)
+  return getGalwayComparisonRowsCached(range).catch(() => [])
 }
 
 const getWaterfordComparisonRowsCached = unstable_cache(
   async (range: PprDateRangeValue = "last-year") =>
-    (await loadComparisonRowsFromTable("waterford-compared", range)) ||
-    getCuratedCountyComparisonRows(COMPARISON_PAGE_MARKET_SLUGS.waterfordCompared, range),
+    (await loadComparisonRowsFromTable("waterford-compared", range)) ?? [],
   ["ppr-waterford-comparison-rows", PPR_COMPARISON_CACHE_VERSION],
   { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getWaterfordComparisonRows(range: PprDateRangeValue = "last-year") {
-  return getWaterfordComparisonRowsCached(range)
+  return getWaterfordComparisonRowsCached(range).catch(() => [])
 }
 
 const getCountiesComparedRowsUncached = async (range: PprDateRangeValue = "last-year") => {
@@ -2043,14 +2058,13 @@ const getCountiesComparedRowsUncached = async (range: PprDateRangeValue = "last-
 
 const getCountiesComparedRowsCached = unstable_cache(
   async (range: PprDateRangeValue = "last-year") =>
-    (await loadComparisonRowsFromTable("counties-compared", range)) ||
-    getCountiesComparedRowsUncached(range),
+    (await loadComparisonRowsFromTable("counties-compared", range)) ?? [],
   ["ppr-counties-compared-rows", PPR_COMPARISON_CACHE_VERSION],
   { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getCountiesComparedRows(range: PprDateRangeValue = "last-year") {
-  return getCountiesComparedRowsCached(range)
+  return getCountiesComparedRowsCached(range).catch(() => [])
 }
 
 const getCommuterTownRowsUncached = async (range: PprDateRangeValue = "last-year") => {
@@ -2067,14 +2081,13 @@ const getCommuterTownRowsUncached = async (range: PprDateRangeValue = "last-year
 
 const getCommuterTownRowsCached = unstable_cache(
   async (range: PprDateRangeValue = "last-year") =>
-    (await loadComparisonRowsFromTable("commuter-towns", range)) ||
-    getCommuterTownRowsUncached(range),
+    (await loadComparisonRowsFromTable("commuter-towns", range)) ?? [],
   ["ppr-commuter-town-rows", PPR_COMPARISON_CACHE_VERSION],
   { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getCommuterTownRows(range: PprDateRangeValue = "last-year") {
-  const rows = await getCommuterTownRowsCached(range)
+  const rows = await getCommuterTownRowsCached(range).catch(() => [])
   const commuterDistanceKm = COMMUTER_TOWN_DISTANCE_KM as Record<string, number>
 
   return rows.map((row, index) => ({
@@ -2103,14 +2116,13 @@ const getAffordableMarketRowsUncached = async (range: PprDateRangeValue = "last-
 
 const getAffordableMarketRowsCached = unstable_cache(
   async (range: PprDateRangeValue = "last-year") =>
-    (await loadComparisonRowsFromTable("affordable-markets", range)) ||
-    getAffordableMarketRowsUncached(range),
+    (await loadComparisonRowsFromTable("affordable-markets", range)) ?? [],
   ["ppr-affordable-market-rows", PPR_COMPARISON_CACHE_VERSION],
   { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getAffordableMarketRows(range: PprDateRangeValue = "last-year") {
-  return withComparisonDisplayRanks(await getAffordableMarketRowsCached(range))
+  return withComparisonDisplayRanks(await getAffordableMarketRowsCached(range).catch(() => []))
 }
 
 const getHighValueMarketRowsUncached = async (range: PprDateRangeValue = "last-year") => {
@@ -2132,14 +2144,13 @@ const getHighValueMarketRowsUncached = async (range: PprDateRangeValue = "last-y
 
 const getHighValueMarketRowsCached = unstable_cache(
   async (range: PprDateRangeValue = "last-year") =>
-    (await loadComparisonRowsFromTable("high-value-markets", range)) ||
-    getHighValueMarketRowsUncached(range),
+    (await loadComparisonRowsFromTable("high-value-markets", range)) ?? [],
   ["ppr-high-value-market-rows", PPR_COMPARISON_CACHE_VERSION],
   { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getHighValueMarketRows(range: PprDateRangeValue = "last-year") {
-  return withComparisonDisplayRanks(await getHighValueMarketRowsCached(range))
+  return withComparisonDisplayRanks(await getHighValueMarketRowsCached(range).catch(() => []))
 }
 
 const getMostActiveMarketRowsUncached = async (range: PprDateRangeValue = "last-year") => {
@@ -2151,14 +2162,13 @@ const getMostActiveMarketRowsUncached = async (range: PprDateRangeValue = "last-
 
 const getMostActiveMarketRowsCached = unstable_cache(
   async (range: PprDateRangeValue = "last-year") =>
-    (await loadComparisonRowsFromTable("most-active-markets", range)) ||
-    getMostActiveMarketRowsUncached(range),
+    (await loadComparisonRowsFromTable("most-active-markets", range)) ?? [],
   ["ppr-most-active-market-rows", PPR_COMPARISON_CACHE_VERSION],
   { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getMostActiveMarketRows(range: PprDateRangeValue = "last-year") {
-  return withComparisonDisplayRanks(await getMostActiveMarketRowsCached(range))
+  return withComparisonDisplayRanks(await getMostActiveMarketRowsCached(range).catch(() => []))
 }
 
 const getLeastActiveMarketRowsUncached = async (range: PprDateRangeValue = "last-year") => {
@@ -2170,14 +2180,13 @@ const getLeastActiveMarketRowsUncached = async (range: PprDateRangeValue = "last
 
 const getLeastActiveMarketRowsCached = unstable_cache(
   async (range: PprDateRangeValue = "last-year") =>
-    (await loadComparisonRowsFromTable("least-active-markets", range)) ||
-    getLeastActiveMarketRowsUncached(range),
+    (await loadComparisonRowsFromTable("least-active-markets", range)) ?? [],
   ["ppr-least-active-market-rows", PPR_COMPARISON_CACHE_VERSION],
   { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getLeastActiveMarketRows(range: PprDateRangeValue = "last-year") {
-  return withComparisonDisplayRanks(await getLeastActiveMarketRowsCached(range))
+  return withComparisonDisplayRanks(await getLeastActiveMarketRowsCached(range).catch(() => []))
 }
 
 const getHottestMarketRowsUncached = async (range: PprDateRangeValue = "last-year") => {
@@ -2189,14 +2198,13 @@ const getHottestMarketRowsUncached = async (range: PprDateRangeValue = "last-yea
 
 const getHottestMarketRowsCached = unstable_cache(
   async (range: PprDateRangeValue = "last-year") =>
-    (await loadComparisonRowsFromTable("hottest-markets", range)) ||
-    getHottestMarketRowsUncached(range),
+    (await loadComparisonRowsFromTable("hottest-markets", range)) ?? [],
   ["ppr-hottest-market-rows", PPR_COMPARISON_CACHE_VERSION],
   { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getHottestMarketRows(range: PprDateRangeValue = "last-year") {
-  return withComparisonDisplayRanks(await getHottestMarketRowsCached(range))
+  return withComparisonDisplayRanks(await getHottestMarketRowsCached(range).catch(() => []))
 }
 
 const getCoolestMarketRowsUncached = async (range: PprDateRangeValue = "last-year") => {
@@ -2208,14 +2216,13 @@ const getCoolestMarketRowsUncached = async (range: PprDateRangeValue = "last-yea
 
 const getCoolestMarketRowsCached = unstable_cache(
   async (range: PprDateRangeValue = "last-year") =>
-    (await loadComparisonRowsFromTable("coolest-markets", range)) ||
-    getCoolestMarketRowsUncached(range),
+    (await loadComparisonRowsFromTable("coolest-markets", range)) ?? [],
   ["ppr-coolest-market-rows", PPR_COMPARISON_CACHE_VERSION],
   { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getCoolestMarketRows(range: PprDateRangeValue = "last-year") {
-  return withComparisonDisplayRanks(await getCoolestMarketRowsCached(range))
+  return withComparisonDisplayRanks(await getCoolestMarketRowsCached(range).catch(() => []))
 }
 
 const getRisingMarketRowsUncached = async (range: PprDateRangeValue = "last-year") => {
@@ -2234,14 +2241,13 @@ const getRisingMarketRowsUncached = async (range: PprDateRangeValue = "last-year
 
 const getRisingMarketRowsCached = unstable_cache(
   async (range: PprDateRangeValue = "last-year") =>
-    (await loadComparisonRowsFromTable("rising-markets", range)) ||
-    getRisingMarketRowsUncached(range),
+    (await loadComparisonRowsFromTable("rising-markets", range)) ?? [],
   ["ppr-rising-market-rows", PPR_COMPARISON_CACHE_VERSION],
   { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getRisingMarketRows(range: PprDateRangeValue = "last-year") {
-  return withComparisonDisplayRanks(await getRisingMarketRowsCached(range))
+  return withComparisonDisplayRanks(await getRisingMarketRowsCached(range).catch(() => []))
 }
 
 const getFallingMarketRowsUncached = async (range: PprDateRangeValue = "last-year") => {
@@ -2261,14 +2267,13 @@ const getFallingMarketRowsUncached = async (range: PprDateRangeValue = "last-yea
 
 const getFallingMarketRowsCached = unstable_cache(
   async (range: PprDateRangeValue = "last-year") =>
-    (await loadComparisonRowsFromTable("falling-markets", range)) ||
-    getFallingMarketRowsUncached(range),
+    (await loadComparisonRowsFromTable("falling-markets", range)) ?? [],
   ["ppr-falling-market-rows", PPR_COMPARISON_CACHE_VERSION],
   { revalidate: PPR_ANALYTICS_REVALIDATE_SECONDS, tags: [PPR_DATASET_CACHE_TAG] }
 )
 
 export async function getFallingMarketRows(range: PprDateRangeValue = "last-year") {
-  return withComparisonDisplayRanks(await getFallingMarketRowsCached(range))
+  return withComparisonDisplayRanks(await getFallingMarketRowsCached(range).catch(() => []))
 }
 
 export function numberDisplay(value: number) {

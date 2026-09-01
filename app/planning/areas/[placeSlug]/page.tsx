@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import Link from "next/link"
+import Link from "@/components/RuntimeDataLink"
 import { notFound, redirect } from "next/navigation"
 import { PlanningApplicationList } from "@/components/planning/PlanningApplicationResult"
 import {
@@ -75,19 +75,18 @@ export default async function PlanningCanonicalPlacePage({ params }: Props) {
     redirect(`/planning/${member.authority.slug}/areas/${member.membership.locality_slug}`)
   }
 
-  const loaded = await Promise.all(
-    members.map(async ({ membership, authority }) => {
-      const localityPage = await getPlanningLocalityDashboard(authority, membership.locality_slug)
-      return localityPage
-        ? ({
-            authority,
-            locality: localityPage.locality,
-            localitySlug: membership.locality_slug,
-            dashboard: localityPage.dashboard,
-          } satisfies MemberDashboard)
-        : null
-    })
-  )
+  const loaded: Array<MemberDashboard | null> = []
+  for (const { membership, authority } of members) {
+    const localityPage = await getPlanningLocalityDashboard(authority, membership.locality_slug)
+    loaded.push(localityPage
+      ? ({
+          authority,
+          locality: localityPage.locality,
+          localitySlug: membership.locality_slug,
+          dashboard: localityPage.dashboard,
+        } satisfies MemberDashboard)
+      : null)
+  }
   const dashboards = loaded.filter((value): value is MemberDashboard => value !== null)
   if (dashboards.length < 2) notFound()
 
