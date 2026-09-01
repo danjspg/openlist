@@ -58,7 +58,7 @@ test("Planning category metadata and builds perform no Supabase read", async () 
     source("app/planning/categories/[category]/page.tsx"),
   ])
 
-  assert.match(page, /export const dynamic = "force-dynamic"/)
+  assert.match(page, /export const dynamic\s*=\s*"force-dynamic"/)
   assert.match(page, /generateMetadata[\s\S]*?PLANNING_PUBLIC_CATEGORIES\.find/)
   assert.doesNotMatch(page.match(/generateMetadata[\s\S]*?\n\}/)?.[0] || "", /getPlanningPublicCategory|Supabase/)
   assert.match(categories, /openlist_planning_public_category_page_active/)
