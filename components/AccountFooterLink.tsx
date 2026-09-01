@@ -11,18 +11,18 @@ export default function AccountFooterLink() {
   return (
     <>
       {isAuthenticated ? (
-        <Link href="/my-alerts" className="transition hover:text-stone-900">
+        <Link prefetch={false} href="/my-alerts" className="transition hover:text-stone-900">
           My alerts
         </Link>
       ) : null}
       {isAuthenticated ? (
         showMyViewings ? (
-          <Link href="/my-viewings" className="transition hover:text-stone-900">
+          <Link prefetch={false} href="/my-viewings" className="transition hover:text-stone-900">
             My viewings
           </Link>
         ) : null
       ) : (
-        <Link href="/viewings" className="transition hover:text-stone-900">
+        <Link prefetch={false} href="/viewings" className="transition hover:text-stone-900">
           Viewings
         </Link>
       )}
