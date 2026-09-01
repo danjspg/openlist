@@ -2,17 +2,18 @@ import { getPlanningAuthorityByCode } from "@/lib/planning-authorities"
 import { planningApplicationPath } from "@/lib/property-intelligence"
 import { getServerSupabase } from "@/lib/supabase"
 
-type PendingApplication = {
-  id: string
-  local_authority_code: string
-  reference: string
-  updated_at: string
-}
-
 type QueuedApplication = {
   application_id: string
   requested_at: string
-  planning_applications: Omit<PendingApplication, "updated_at"> | Omit<PendingApplication, "updated_at">[] | null
+  planning_applications: {
+    id: string
+    local_authority_code: string
+    reference: string
+  } | Array<{
+    id: string
+    local_authority_code: string
+    reference: string
+  }> | null
 }
 
 type QueueClient = ReturnType<typeof getServerSupabase>
@@ -57,8 +58,7 @@ async function retryTransientMutation<T>(
 export async function drainPlanningRevalidationQueue(
   supabase: QueueClient,
   invalidatePath: (path: string) => void,
-  batchSize = 100,
-  { dedicatedOnly = false }: { dedicatedOnly?: boolean } = {}
+  batchSize = 100
 ): Promise<PlanningRevalidationResult> {
   const limit = Math.max(1, Math.min(batchSize, 100))
   const { data: queued, error: queueError } = await supabase
@@ -100,64 +100,15 @@ export async function drainPlanningRevalidationQueue(
     }
   }
 
-  const legacyLimit = dedicatedOnly ? 0 : Math.max(0, limit - (queued?.length ?? 0))
-  const legacyQuery = supabase
-    .from("planning_applications")
-    .select("id,local_authority_code,reference,updated_at")
-    .eq("revalidation_pending", true)
-    .order("updated_at", { ascending: true })
-    .order("id", { ascending: true })
-  const { data, error } = legacyLimit > 0
-    ? await legacyQuery.limit(legacyLimit)
-    : { data: [], error: null }
-
-  if (error) throw new Error(`Planning revalidation queue read failed: ${error.message}`)
-
-  for (const row of (data ?? []) as PendingApplication[]) {
-    const authority = getPlanningAuthorityByCode(row.local_authority_code)
-    if (!authority || !row.updated_at) {
-      failures += 1
-      continue
-    }
-
-    try {
-      invalidatePath(planningApplicationPath(authority, row.reference))
-      const { data: cleared, error: clearError } = await retryTransientMutation(() =>
-        supabase
-          .from("planning_applications")
-          .update({ revalidation_pending: false })
-          .eq("id", row.id)
-          .eq("updated_at", row.updated_at)
-          .eq("revalidation_pending", true)
-          .select("id")
-      )
-      if (clearError) throw clearError
-      if (cleared?.length) invalidated += 1
-    } catch (error) {
-      failures += 1
-      console.error(`Planning revalidation failed for ${row.id}.`, error)
-    }
-  }
-
   const { count: queueCount, error: queueCountError } = await supabase
     .from("planning_revalidation_queue")
     .select("application_id", { count: "exact", head: true })
   if (queueCountError) throw new Error(`Planning exact-path queue count failed: ${queueCountError.message}`)
 
-  let legacyCount = 0
-  if (!dedicatedOnly) {
-    const { count, error: countError } = await supabase
-      .from("planning_applications")
-      .select("id", { count: "exact", head: true })
-      .eq("revalidation_pending", true)
-    if (countError) throw new Error(`Planning revalidation queue count failed: ${countError.message}`)
-    legacyCount = count ?? 0
-  }
-
   return {
-    selected: (queued?.length ?? 0) + (data?.length ?? 0),
+    selected: queued?.length ?? 0,
     invalidated,
-    remaining: legacyCount + (queueCount ?? 0),
+    remaining: queueCount ?? 0,
     failures,
   }
 }
