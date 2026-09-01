@@ -58,18 +58,29 @@ as $function$
         p.ward,
         p.local_authority_code
       ) = m.locality_label
-  ), recent as (
+  ), recent_candidates as materialized (
+    -- The authority/locality expression index is ordered by registration_date
+    -- DESC (Postgres' default NULLS FIRST). Excluding undated rows lets the
+    -- database stop after a bounded cohort instead of sorting every locality
+    -- row to implement NULLS LAST. The same cohort also bounds the optional
+    -- recent-decisions section.
     select l.*
     from locality_applications l
-    order by l.registration_date desc nulls last, l.reference desc, l.id
+    where l.registration_date is not null
+    order by l.registration_date desc, l.reference desc, l.id
+    limit 500
+  ), recent as (
+    select c.*
+    from recent_candidates c
+    order by c.registration_date desc, c.reference desc, c.id
     limit 8
   ), decisions as (
-    select l.*
-    from locality_applications l
-    where l.decision_date is not null or l.appeal_decision_date is not null
-    order by greatest(l.decision_date, l.appeal_decision_date) desc nulls last,
-      l.reference desc,
-      l.id
+    select c.*
+    from recent_candidates c
+    where c.decision_date is not null or c.appeal_decision_date is not null
+    order by greatest(c.decision_date, c.appeal_decision_date) desc nulls last,
+      c.reference desc,
+      c.id
     limit 5
   ), notables as (
     select
@@ -100,7 +111,7 @@ as $function$
     'activeCount', coalesce((select active_count from membership), 0),
     'latestRegistrationDate', (select evidence->>'latestRegistrationDate' from membership),
     'recentApplications', coalesce((
-      select jsonb_agg(to_jsonb(r) order by r.registration_date desc nulls last, r.reference desc, r.id)
+      select jsonb_agg(to_jsonb(r) order by r.registration_date desc, r.reference desc, r.id)
       from recent r
     ), '[]'::jsonb),
     'recentDecisions', coalesce((
