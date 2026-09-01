@@ -36,15 +36,15 @@ nav[aria-label="Most active councils"] {
 
 /* Approved landing-page imagery. Keep this treatment only on the three major hubs. */
 
-/* Homepage: use the approved warmer development image without changing the proven hero geometry. */
-main.min-h-screen.bg-stone-50.text-stone-900 > section:first-child > div > div > div:last-child {
+/* Homepage: target the actual hero image container directly. */
+main.min-h-screen.bg-stone-50.text-stone-900 > section:first-child > div > div:last-child {
   background-image: url("/home-hero-approved.jpg");
   background-position: center;
   background-repeat: no-repeat;
   background-size: cover;
 }
 
-main.min-h-screen.bg-stone-50.text-stone-900 > section:first-child > div > div > div:last-child > img {
+main.min-h-screen.bg-stone-50.text-stone-900 > section:first-child > div > div:last-child > img {
   opacity: 0;
 }
 
