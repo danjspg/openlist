@@ -31,7 +31,7 @@ export async function getPlanningSearchPage(input: PlanningPageSearch) {
 
   let query = getServerSupabase()
     .from("planning_applications")
-    .select(PLANNING_APPLICATION_SELECT, { count: "exact" })
+    .select(PLANNING_APPLICATION_SELECT)
 
   if (councilCode) query = query.eq("local_authority_code", councilCode)
 
@@ -62,21 +62,29 @@ export async function getPlanningSearchPage(input: PlanningPageSearch) {
 
   if (construction) query = query.eq("construction_status", "commenced")
 
-  const { data, count, error } = await query
+  // Interactive browse/search should never depend on an exact COUNT(*) over a
+  // broad cohort. Fetch one sentinel row beyond the requested page instead.
+  // This keeps status-only views such as decision_made fast and still gives the
+  // client an exact hasMore signal for progressive loading.
+  const { data, error } = await query
     .order("registration_date", { ascending, nullsFirst: false })
     .order("reference", { ascending })
-    .range(offset, offset + limit - 1)
+    .range(offset, offset + limit)
 
   if (error) {
     throw new Error(`Planning search unavailable: ${error.message}`)
   }
 
+  const rows = (data ?? []) as PlanningApplication[]
+  const hasMore = rows.length > limit
+  const results = hasMore ? rows.slice(0, limit) : rows
+
   return {
-    results: (data ?? []) as PlanningApplication[],
-    count: count ?? data?.length ?? 0,
+    results,
+    count: offset + results.length + (hasMore ? 1 : 0),
     offset,
     limit,
-    hasMore: offset + (data?.length ?? 0) < (count ?? 0),
+    hasMore,
   }
 }
 
