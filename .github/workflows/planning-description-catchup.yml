@@ -15,7 +15,6 @@ on:
     branches: [main]
     paths:
       - "scripts/repair-truncated-planning-descriptions.mjs"
-      - "scripts/reclassify-recent-description-repairs.mjs"
       - "supabase/migrations/20260830151709_add_truncated_planning_description_catchup_batch.sql"
       - "supabase/migrations/20260830152311_optimize_truncated_description_catchup_selection.sql"
       - ".github/workflows/planning-description-catchup.yml"
@@ -50,17 +49,11 @@ jobs:
           limit="${{ github.event_name == 'workflow_dispatch' && inputs.limit || '400' }}"
           node scripts/repair-truncated-planning-descriptions.mjs --limit="$limit" | tee artifacts/planning-description-catchup.log
 
-      - name: Reclassify newly repaired descriptions
-        run: |
-          node scripts/reclassify-recent-description-repairs.mjs --hours=2 --limit=2500 \
-            | tee artifacts/planning-description-notable-reclassification.json
-
       - name: Report catch-up progress
         if: always()
         run: |
           node - <<'NODE' >> "$GITHUB_STEP_SUMMARY"
           const { createClient } = require('@supabase/supabase-js')
-          const fs = require('fs')
           const s = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } })
           ;(async () => {
             const { data, error } = await s.rpc('openlist_truncated_description_batch', { p_limit: 5000 })
@@ -68,16 +61,7 @@ jobs:
             console.log('## Planning description catch-up')
             console.log('')
             console.log(`- Next priority batch available: **${(data || []).length}**`)
-            if (fs.existsSync('artifacts/planning-description-notable-reclassification.json')) {
-              const raw = fs.readFileSync('artifacts/planning-description-notable-reclassification.json', 'utf8')
-              const start = raw.lastIndexOf('{\n  "generatedAt"')
-              if (start >= 0) {
-                const r = JSON.parse(raw.slice(start))
-                console.log(`- Reclassified repaired descriptions: **${r.scanned || 0}**`)
-                console.log(`- Structurally notable after repair: **${r.notable || 0}**`)
-                console.log(`- Newly discovered notable applications: **${r.created || 0}**`)
-              }
-            }
+            console.log('- Catch-up repairs authoritative proposal text only; notable classification is owned by the bounded Planning notable reconciliation workflow.')
             console.log('- Catch-up prioritises 2024+ truncated descriptions before older records.')
           })().catch((error) => { console.error(error); process.exitCode = 1 })
           NODE
