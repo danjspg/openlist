@@ -103,13 +103,15 @@ main:has(> section:first-child a[href="/sold-prices/search"]) > section:first-ch
 
   main:has(> div > section[aria-labelledby="planning-explore-heading"]) > section:first-child > div > *,
   main:has(> section:first-child a[href="/sold-prices/search"]) > section:first-child > div > * {
+    order: 0;
     grid-column: 1;
   }
 
   main:has(> div > section[aria-labelledby="planning-explore-heading"]) > section:first-child > div::after,
   main:has(> section:first-child a[href="/sold-prices/search"]) > section:first-child > div::after {
+    order: 0;
     grid-column: 2;
-    grid-row: 1 / -1;
+    grid-row: 1 / span 8;
     align-self: stretch;
     width: 100%;
     height: auto;
