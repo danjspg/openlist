@@ -27,7 +27,10 @@ alter table public.planning_alert_signup_snapshots enable row level security;
 revoke all on table public.planning_alert_signup_snapshots from public, anon, authenticated;
 grant select on table public.planning_alert_signup_snapshots to service_role;
 
-create function public.capture_planning_alert_signup_snapshot()
+create schema if not exists private;
+revoke all on schema private from public, anon, authenticated;
+
+create function private.capture_planning_alert_signup_snapshot()
 returns trigger
 language plpgsql
 security definer
@@ -86,13 +89,13 @@ begin
 end;
 $$;
 
-revoke all on function public.capture_planning_alert_signup_snapshot() from public, anon, authenticated;
+revoke all on function private.capture_planning_alert_signup_snapshot() from public, anon, authenticated;
 
 drop trigger if exists capture_planning_alert_signup_snapshot on public.planning_alert_subscriptions;
 create trigger capture_planning_alert_signup_snapshot
 after insert or update of enabled on public.planning_alert_subscriptions
 for each row
-execute function public.capture_planning_alert_signup_snapshot();
+execute function private.capture_planning_alert_signup_snapshot();
 
 -- Example internal analytics query:
 -- select status_at_signup, count(*) as alert_signups
