@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import Image from "next/image"
+import { Suspense } from "react"
 import Link from "@/components/RuntimeDataLink"
 import { PlanningLandingExplore } from "@/components/planning/PlanningLandingExplore"
 import PlanningResultsView, {
@@ -229,7 +230,9 @@ export async function PlanningApplicationsView({
             </div>
             {hasActiveSearch ? <Link href={planningPath} className="text-sm font-semibold text-stone-600 hover:text-stone-950">Clear filters</Link> : null}
           </div>
-          <PlanningResultsView applications={planningResults} />
+          <Suspense fallback={<div className="py-12 text-center text-sm text-stone-500">Loading planning results…</div>}>
+            <PlanningResultsView applications={planningResults} />
+          </Suspense>
         </section>
 
         {dashboard.aggregateAvailable ? (
