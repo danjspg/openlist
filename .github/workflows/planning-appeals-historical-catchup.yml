@@ -4,19 +4,26 @@ on:
   schedule:
     # Pace historical ACP case-page lookups across roughly three weeks.
     # Four small batches per day avoids bursty traffic and never re-fetches the bulk ACP dataset.
-    - cron: "17 0,6,12,18 * * *"
+    - cron: "17 0,4,12,18 * * *"
   workflow_dispatch:
+    inputs:
+      process_only:
+        description: "Skip ACP requests and resume the persisted internal queue only"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
 
 concurrency:
-  group: planning-appeals-historical-catchup
+  group: openlist-db-maintenance
   cancel-in-progress: false
 
 jobs:
   lookup:
     name: Lookup historical ACP references
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.process_only != true }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -40,7 +47,7 @@ jobs:
   process:
     name: Process stored appeal changes
     needs: lookup
-    if: ${{ always() && needs.lookup.result == 'success' }}
+    if: ${{ always() && (needs.lookup.result == 'success' || needs.lookup.result == 'skipped') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -57,7 +64,7 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          ACP_PROCESS_BATCH_SIZE: "100"
+          ACP_PROCESS_BATCH_SIZE: "25"
           ACP_PROCESS_MAX_BATCHES: "10"
         run: node scripts/process-planning-appeals.mjs
       - name: Revalidate changed planning detail pages

@@ -2,7 +2,7 @@ name: Planning lifecycle consistency audit
 
 on:
   schedule:
-    - cron: "45 6 * * *"
+    - cron: "50 7 * * *"
   workflow_dispatch:
 
 permissions:
@@ -37,6 +37,7 @@ jobs:
           node - <<'NODE' >> "$GITHUB_STEP_SUMMARY"
           const fs = require('fs')
           const report = JSON.parse(fs.readFileSync('planning-lifecycle-consistency-audit.json', 'utf8'))
+          console.log(`Outcome: **${report.outcome || 'error'}**  `)
           console.log(`High severity: **${report.high_count}**  `)
           console.log(`Warnings: **${report.warning_count}**  `)
           console.log(`Total: **${report.anomaly_count}**`)
@@ -59,8 +60,22 @@ jobs:
             echo "Audit did not produce a report. Inspect the failed audit step." >> "$GITHUB_STEP_SUMMARY"
           fi
 
+      - name: Classify audit outcome
+        id: classify
+        if: always()
+        run: |
+          node - <<'NODE'
+          const fs = require('fs')
+          const report = fs.existsSync('planning-lifecycle-consistency-audit.json')
+            ? JSON.parse(fs.readFileSync('planning-lifecycle-consistency-audit.json', 'utf8'))
+            : { outcome: 'error', high_count: 0 }
+          const allowed = new Set(['healthy', 'mismatch', 'unavailable', 'error'])
+          const outcome = allowed.has(report.outcome) ? report.outcome : 'error'
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `outcome=${outcome}\nhigh_count=${Number(report.high_count) || 0}\n`)
+          NODE
+
       - name: Create or update high-severity lifecycle alert
-        if: always() && steps.audit.outcome == 'failure'
+        if: steps.classify.outputs.outcome == 'mismatch' && steps.classify.outputs.high_count != '0'
         uses: actions/github-script@v7
         with:
           script: |
@@ -97,7 +112,7 @@ jobs:
             }
 
       - name: Close resolved lifecycle alert
-        if: steps.audit.outcome == 'success'
+        if: steps.classify.outputs.outcome == 'healthy'
         uses: actions/github-script@v7
         with:
           script: |
@@ -111,6 +126,10 @@ jobs:
               await github.rest.issues.update({ owner, repo, issue_number: existing.number, state: 'closed' })
             }
 
-      - name: Fail workflow on high-severity contradictions
-        if: steps.audit.outcome == 'failure'
+      - name: Fail workflow on actionable mismatch or internal error
+        if: >-
+          ${{
+            steps.classify.outputs.outcome == 'error' ||
+            (steps.classify.outputs.outcome == 'mismatch' && steps.classify.outputs.high_count != '0')
+          }}
         run: exit 1

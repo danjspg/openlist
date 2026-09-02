@@ -11,6 +11,17 @@ export type SitemapSnapshotRefreshResult = {
   error?: unknown
 }
 
+export const DEFAULT_MAX_STALE_SNAPSHOT_AGE_MS = 72 * 60 * 60 * 1000
+
+export function staleSnapshotIsActionable(
+  snapshot: Pick<SitemapSnapshotSet, "generatedAt">,
+  now = Date.now(),
+  maximumAgeMs = DEFAULT_MAX_STALE_SNAPSHOT_AGE_MS
+) {
+  const generatedAt = Date.parse(snapshot.generatedAt)
+  return !Number.isFinite(generatedAt) || now - generatedAt > maximumAgeMs
+}
+
 export async function refreshSitemapSnapshotFile(
   targetPath: string,
   loadFresh: () => Promise<unknown>

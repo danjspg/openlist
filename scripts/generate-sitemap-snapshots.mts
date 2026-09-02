@@ -1,9 +1,9 @@
 import { resolve } from "node:path"
 import { Client } from "pg"
 import {
-  planningPublicCategorySummariesFromSource,
-  type PlanningPublicCategorySourceRow,
-} from "@/lib/planning-public-categories"
+  PLANNING_PUBLIC_CATEGORIES,
+  planningPublicCategorySummariesFromCounts,
+} from "@/lib/planning-public-category-definitions"
 import {
   buildPlanningSitemapEntries,
   NOTABLE_PLANNING_SITEMAP_LIMIT,
@@ -11,7 +11,11 @@ import {
   type PlanningSitemapApplication,
 } from "@/lib/planning-seo"
 import { LOCALITY_COHORT_SIZE } from "@/lib/locality-seo-core"
-import { refreshSitemapSnapshotFile } from "@/lib/sitemap-snapshot-refresh"
+import {
+  DEFAULT_MAX_STALE_SNAPSHOT_AGE_MS,
+  refreshSitemapSnapshotFile,
+  staleSnapshotIsActionable,
+} from "@/lib/sitemap-snapshot-refresh"
 import {
   SITEMAP_SNAPSHOT_VERSION,
   type SitemapSnapshotEntry,
@@ -35,8 +39,15 @@ const result = await refreshSitemapSnapshotFile(targetPath, async () => {
   }
 })
 if (result.status === "stale") {
-  console.error("Sitemap snapshot refresh failed; the last-known-good file was preserved.", result.error)
-  process.exitCode = 1
+  const actionable = staleSnapshotIsActionable(result.snapshot)
+  console.warn(JSON.stringify({
+    outcome: "unavailable",
+    actionable,
+    lastKnownGoodGeneratedAt: result.snapshot.generatedAt,
+    maximumStaleAgeHours: DEFAULT_MAX_STALE_SNAPSHOT_AGE_MS / (60 * 60 * 1000),
+    detail: result.error instanceof Error ? result.error.message.slice(0, 500) : "snapshot refresh unavailable",
+  }, null, 2))
+  process.exitCode = actionable ? 1 : 0
 } else {
   const counts = Object.fromEntries(Object.entries(result.snapshot.sitemaps).map(([name, snapshot]) => [name, snapshot.entries.length]))
   console.log(JSON.stringify({ generatedAt: result.snapshot.generatedAt, counts, planningLocalityUniverseSize: result.snapshot.planningLocalityUniverseSize }, null, 2))
@@ -50,9 +61,22 @@ async function generateSnapshotSet(client: Client): Promise<SitemapSnapshotSet> 
   const aggregatePlaces = await queryRows<{ slug: string; updated_at: string | null }>(client,
     "select slug, updated_at from public.planning_canonical_places where aggregate_enabled = true order by display_name")
 
-  const categorySource = await queryRows<PlanningPublicCategorySourceRow>(client,
-    "select * from public.openlist_planning_public_category_index(false, 50000)")
-  const categories = planningPublicCategorySummariesFromSource(categorySource, 3)
+  // Fetch at most three indexed members per public category. The sitemap only
+  // needs to know which category pages meet the existing three-item threshold;
+  // it must not scan or transfer the full classified corpus.
+  const categoryCounts = await queryRows<{ slug: string; count: number }>(client, `
+    select category.slug, count(sample)::integer as count
+    from unnest($1::text[]) as category(slug)
+    left join lateral (
+      select 1
+      from public.planning_seo_notable n
+      where n.active
+        and n.notable_categories @> array[category.slug]::text[]
+      limit 3
+    ) sample on true
+    group by category.slug
+  `, [PLANNING_PUBLIC_CATEGORIES.map((category) => category.slug)])
+  const categories = planningPublicCategorySummariesFromCounts(categoryCounts, 3)
 
   const recent = await queryRows<PlanningSitemapApplication>(client, `
     select p.id, p.local_authority_code, p.reference, p.registration_date, p.updated_at

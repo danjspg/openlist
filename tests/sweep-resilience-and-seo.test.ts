@@ -72,7 +72,7 @@ test("Planning categories are explicitly discoverable in the root sitemap", asyn
 
   assert.match(sitemap, /"\/planning\/categories"/)
   assert.match(sitemap, /snapshots\.sitemaps\.root/)
-  assert.match(generator, /planningPublicCategorySummariesFromSource\(categorySource, 3\)/)
+  assert.match(generator, /planningPublicCategorySummariesFromCounts\(categoryCounts, 3\)/)
   assert.match(generator, /`\/planning\/categories\/\$\{category\.slug\}`/)
 })
 

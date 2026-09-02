@@ -62,9 +62,48 @@ The build audit fails if a build-time Supabase fetch is attempted.
 
 ## Background work
 
-The repository has a dense 05:00–08:00 UTC maintenance cluster. Description catch-up remains outside that window and its throughput must not be raised. Classification, integrity and lifecycle-consistency repairs use `openlist-db-maintenance`; ingestion workflows retain task-specific non-overlap groups. GitHub concurrency groups cannot safely be shared across every workflow: GitHub retains only one pending run per group, so a common group would silently displace other scheduled work. Until a durable database-backed maintenance lease is introduced, avoid manually starting a heavy job while another heavy workflow is active. This change does not increase job cadence, concurrency, batch size, timeout or retries.
+The repository has a dense 05:00–08:00 UTC maintenance cluster. Description catch-up remains outside that window and its throughput must not be raised. Classification, notable-quality, lifecycle-consistency, integrity, appeal processing and sitemap publication now share `openlist-db-maintenance`; schedules are spaced so that the group is unlikely to accumulate multiple pending runs. GitHub retains only one pending run per concurrency group, so do not compress these schedules or manually queue several shared-lane jobs at once. This change does not increase job cadence, concurrency, timeout or retries.
+
+Historical ACP acquisition and internal processing remain separate jobs and
+checkpoints. A manual `process_only` dispatch skips ACP entirely and consumes
+only `planning_appeal_processing_queue`. Internal processing is capped at 25
+rows per RPC and 10 batches for the historical job (20 for the weekly job),
+stops on the first unavailable/error result and records its own
+`acp_internal_processing` state. It does not run the population-wide unlinked
+case rediscovery query. Queue rows already committed by earlier batches are the
+resume position; retrying cannot re-download or duplicate the acquired source.
 
 The sitemap publisher runs at 09:20 UTC, uses one direct connection, sequential bounded reads and precomputed membership tables. A failure preserves the committed last-known-good artifact.
+
+## Maintenance outcome model
+
+Routine audits distinguish these outcomes:
+
+- `healthy`: verification completed and the checked state is acceptable.
+- `mismatch`: the source was positively verified and disagrees with OpenList.
+- `unavailable`: verification could not complete, including PostgreSQL `57014`.
+- `error`: OpenList's workflow, configuration or write path failed.
+- `source_degraded`: an external provider was partially unavailable or rate-limited while OpenList remained resumable.
+
+Only `mismatch` can authorise an existing narrowly scoped repair. `unavailable`
+never authorises repair and does not create a lifecycle-contradiction issue.
+The lifecycle audit stops its remaining RPCs after an unavailable check rather
+than amplifying saturation. A previously verified high-severity mismatch stays
+actionable even if a later check is unavailable.
+
+The notable-quality audit honours bounded `Retry-After` delays for 429s. A
+partial provider failure is reported as `source_degraded`; more than 50 source
+failures, more than 10% of the checked corpus, or a non-404 source failure still
+unresolved after seven days is actionable. Database/update
+errors remain `error`, and positively verified repair candidates remain
+`mismatch`.
+
+Sitemap requests never use the live database. Refresh generation uses the
+existing category-membership GIN index and samples at most three members per
+public category instead of loading a 50,000-row corpus through the retired RPC.
+If refresh is unavailable, the committed snapshot remains active. That
+condition is non-actionable for up to 72 hours, then turns red so a persistently
+stale crawler surface cannot be hidden.
 
 ## Incident runbook
 

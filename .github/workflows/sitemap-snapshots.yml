@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: sitemap-snapshot-refresh
+  group: openlist-db-maintenance
   cancel-in-progress: false
 
 jobs:

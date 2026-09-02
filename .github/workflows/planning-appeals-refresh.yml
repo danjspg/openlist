@@ -2,7 +2,7 @@ name: Refresh Planning Appeals
 
 on:
   schedule:
-    - cron: "37 6 * * 2"
+    - cron: "37 10 * * 2"
   workflow_dispatch:
     inputs:
       process_only:
@@ -15,7 +15,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: planning-appeals-refresh
+  group: openlist-db-maintenance
   cancel-in-progress: false
 
 jobs:
@@ -60,8 +60,8 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          ACP_PROCESS_BATCH_SIZE: "100"
-          ACP_PROCESS_MAX_BATCHES: "400"
+          ACP_PROCESS_BATCH_SIZE: "25"
+          ACP_PROCESS_MAX_BATCHES: "20"
         run: node scripts/process-planning-appeals.mjs
       - name: Revalidate changed planning detail pages
         env:
