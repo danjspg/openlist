@@ -57,5 +57,5 @@ test("partial source degradation is non-actionable while internal errors and ver
   assert.equal(notableMaintenanceOutcome({ total: 100, sourceFailures: 0, internalErrors: 0, repairsRequired: 1 }).outcome, "mismatch")
   assert.equal(notableMaintenanceOutcome({ total: 100, sourceFailures: 0, internalErrors: 1, repairsRequired: 0 }).outcome, "error")
   assert.equal(notableMaintenanceOutcome({ total: 100, sourceFailures: 11, internalErrors: 0, repairsRequired: 0 }).sourceDegradationActionable, true)
-  assert.equal(notableMaintenanceOutcome({ total: 100, sourceFailures: 1, persistentSourceFailures: 1, internalErrors: 0, repairsRequired: 0 }).sourceDegradationActionable, true)
+  assert.equal(notableMaintenanceOutcome({ total: 100, sourceFailures: 1, agedUnverifiedSourceFailures: 1, internalErrors: 0, repairsRequired: 0 }).sourceDegradationActionable, true)
 })

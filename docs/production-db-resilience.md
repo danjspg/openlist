@@ -93,8 +93,8 @@ actionable even if a later check is unavailable.
 
 The notable-quality audit honours bounded `Retry-After` delays for 429s. A
 partial provider failure is reported as `source_degraded`; more than 50 source
-failures, more than 10% of the checked corpus, or a non-404 source failure still
-unresolved after seven days is actionable. Database/update
+failures, more than 10% of the checked corpus, or a non-404 source failure on a
+candidate that has remained unverified for seven days is actionable. Database/update
 errors remain `error`, and positively verified repair candidates remain
 `mismatch`.
 

@@ -50,15 +50,15 @@ export function externalFailureKind(value: unknown) {
   return "source_unavailable"
 }
 
-export function notableMaintenanceOutcome({ total, sourceFailures, persistentSourceFailures = 0, internalErrors, repairsRequired }: {
+export function notableMaintenanceOutcome({ total, sourceFailures, agedUnverifiedSourceFailures = 0, internalErrors, repairsRequired }: {
   total: number
   sourceFailures: number
-  persistentSourceFailures?: number
+  agedUnverifiedSourceFailures?: number
   internalErrors: number
   repairsRequired: number
 }) {
   const sourceFailureRatio = total ? sourceFailures / total : 0
-  const sourceDegradationActionable = persistentSourceFailures > 0 || sourceFailures > MAX_SOURCE_FAILURES || sourceFailureRatio > MAX_SOURCE_FAILURE_RATIO
+  const sourceDegradationActionable = agedUnverifiedSourceFailures > 0 || sourceFailures > MAX_SOURCE_FAILURES || sourceFailureRatio > MAX_SOURCE_FAILURE_RATIO
   const sourceOutcome = sourceFailures ? MAINTENANCE_OUTCOMES.SOURCE_DEGRADED : MAINTENANCE_OUTCOMES.HEALTHY
   const outcome = internalErrors
     ? MAINTENANCE_OUTCOMES.ERROR
@@ -269,7 +269,7 @@ export async function runNotablePlanningQualityAudit({ supabase, apply = false, 
   const results: Result[] = []
   const failures: Result[] = []
   const internalErrors: Result[] = []
-  let persistentSourceFailures = 0
+  let agedUnverifiedSourceFailures = 0
   for (let index = 0; index < rows.length; index += 1) {
     const row = rows[index]
     let source = nationalSources.get(row.id) || null
@@ -281,7 +281,7 @@ export async function runNotablePlanningQualityAudit({ supabase, apply = false, 
       const sourceKind = externalFailureKind(error)
       const notableCreatedAt = Date.parse(row.notable_created_at || "")
       if (sourceKind !== "not_found" && Number.isFinite(notableCreatedAt) && Date.now() - notableCreatedAt > PERSISTENT_SOURCE_FAILURE_AGE_MS) {
-        persistentSourceFailures += 1
+        agedUnverifiedSourceFailures += 1
       }
       const failure: Result = {
         id: row.id, authority: row.local_authority_code, reference: row.reference, source: sourceKind,
@@ -314,7 +314,7 @@ export async function runNotablePlanningQualityAudit({ supabase, apply = false, 
     checked: results.length - failures.length,
     total: rows.length,
     sourceFailures: failures.length,
-    persistentSourceFailures,
+    agedUnverifiedSourceFailures,
     proposalsRepaired: results.filter(item => item.proposal === "repaired").length,
     proposalsMatched: results.filter(item => item.proposal === "matched").length,
     proposalsSourceShorterOrEqual: results.filter(item => item.proposal === "source-shorter-or-equal").length,
@@ -332,7 +332,7 @@ export async function runNotablePlanningQualityAudit({ supabase, apply = false, 
   })
   return {
     generatedAt: new Date().toISOString(), mode: apply ? "apply" : "validate", scope: qualityRetryScope(uncheckedOnly),
-    ...health, persistentSourceFailures, complete: failures.length === 0 && internalErrors.length === 0,
+    ...health, agedUnverifiedSourceFailures, complete: failures.length === 0 && internalErrors.length === 0,
     ...counts, failures, internalErrors, repairs: results.filter(item => item.proposal === "repaired" || item.status === "repaired"), results,
   }
 }
@@ -355,7 +355,7 @@ async function main() {
     report = {
       generatedAt: new Date().toISOString(), mode: apply ? "apply" : "validate", scope: qualityRetryScope(uncheckedOnly),
       outcome, sourceOutcome: MAINTENANCE_OUTCOMES.HEALTHY, complete: false,
-      repairsRequired: 0, persistentSourceFailures: 0, sourceFailureRatio: 0, sourceDegradationActionable: false,
+      repairsRequired: 0, agedUnverifiedSourceFailures: 0, sourceFailureRatio: 0, sourceDegradationActionable: false,
       checked: 0, total: 0, sourceFailures: 0, proposalsRepaired: 0, proposalsMatched: 0,
       proposalsSourceShorterOrEqual: 0, statusesMatched: 0, statusesRepaired: 0,
       statusOverridesPreserved: 0, statusesUnavailable: 0, failures: [], repairs: [], results: [],
