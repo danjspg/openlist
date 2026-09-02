@@ -327,6 +327,7 @@ export async function runNotablePlanningQualityAudit({ supabase, apply = false, 
   const health = notableMaintenanceOutcome({
     total: rows.length,
     sourceFailures: failures.length,
+    agedUnverifiedSourceFailures,
     internalErrors: internalErrors.length,
     repairsRequired,
   })
