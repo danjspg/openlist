@@ -40,6 +40,30 @@ test("planning alert migration grants only authenticated owners and service role
   assert.match(migration, /for delete[\s\S]*to authenticated[\s\S]*using \(\(select auth\.uid\(\)\) = user_id\)/)
 })
 
+test("planning alert signup snapshots preserve point-in-time application state", async () => {
+  const migration = await source("supabase/migrations/20260902213000_planning_alert_signup_snapshots.sql")
+
+  assert.match(migration, /create table public\.planning_alert_signup_snapshots/)
+  assert.match(migration, /subscription_id uuid not null/)
+  assert.match(migration, /user_id uuid references auth\.users\(id\) on delete set null/)
+  assert.match(migration, /application_id uuid references public\.planning_applications\(id\) on delete set null/)
+  assert.match(migration, /application_reference text not null/)
+  assert.match(migration, /status_at_signup text not null/)
+  assert.match(migration, /raw_status_at_signup text/)
+  assert.match(migration, /signed_up_at timestamptz not null default now\(\)/)
+  assert.match(migration, /coalesce\(a\.normalized_status, 'unknown'\)/)
+  assert.match(migration, /a\.status/)
+  assert.match(migration, /create schema if not exists private/)
+  assert.match(migration, /create function private\.capture_planning_alert_signup_snapshot\(\)/)
+  assert.match(migration, /security definer[\s\S]*set search_path = ''/)
+  assert.match(migration, /after insert or update of enabled on public\.planning_alert_subscriptions/)
+  assert.match(migration, /should_capture := new\.enabled and not old\.enabled/)
+  assert.match(migration, /execute function private\.capture_planning_alert_signup_snapshot\(\)/)
+  assert.match(migration, /revoke all on table public\.planning_alert_signup_snapshots from public, anon, authenticated/)
+  assert.match(migration, /revoke all on function private\.capture_planning_alert_signup_snapshot\(\) from public, anon, authenticated/)
+  assert.match(migration, /group by status_at_signup/)
+})
+
 test("planning alert actions retain explicit intent and avoid duplicate subscriptions", async () => {
   const [actions, cta] = await Promise.all([
     source("app/my-alerts/actions.ts"),
