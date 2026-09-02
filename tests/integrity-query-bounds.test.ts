@@ -24,12 +24,12 @@ test("historical progress and lifecycle audits use isolated bounded RPCs", async
   const [progress, lifecycle, migration] = await Promise.all([
     source("scripts/report-historical-catchup-progress.mjs"),
     source("scripts/audit-planning-lifecycle-consistency.mjs"),
-    source("supabase/migrations/20260829073000_bound_integrity_and_catchup_queries.sql"),
+    source("supabase/migrations/20260829072628_bound_integrity_and_catchup_queries.sql"),
   ])
   assert.match(progress, /openlist_historical_catchup_progress_part/)
   assert.match(progress, /for \(const config of catchups\)/)
   assert.match(lifecycle, /openlist_planning_lifecycle_inconsistencies_for_check/)
-  assert.match(lifecycle, /for \(const check of checks\)/)
+  assert.match(lifecycle, /for \(const check of LIFECYCLE_CHECKS\)/)
   assert.match(migration, /set statement_timeout = '12s'/)
   assert.match(migration, /set statement_timeout = '10s'/)
   assert.match(migration, /planning_appeal_links_exact_high_idx/)

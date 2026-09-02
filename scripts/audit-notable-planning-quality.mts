@@ -3,11 +3,15 @@ import { authoritativeCorkProposal } from "../lib/cork-planning-source.mjs"
 import { corkAgileApplicationConfig, corkAgileSourceApplicationId } from "../lib/cork-agile-authorities.mjs"
 import { authoritativeNationalProposal, cleanNationalPlanningText } from "../lib/national-planning-source.mjs"
 import { AUTHORITIES, fetchAgileDetailsByReference } from "./ingest-national-planning-applications.mjs"
+import { MAINTENANCE_OUTCOMES, isStatementTimeout, maintenanceExitCode } from "../lib/maintenance-outcomes.mjs"
 
 const ARC_QUERY = "https://services.arcgis.com/NzlPQPKn5QF9v2US/ArcGIS/rest/services/IrishPlanningApplications/FeatureServer/0/query"
 const CORK_DETAIL = "https://planningapi.agileapplications.ie/api/application"
 const SPECIAL_AGILE = new Set(["DLR", "FINGAL", "WEXFORD"])
 const REQUEST_TIMEOUT_MS = 15000
+const MAX_SOURCE_FAILURE_RATIO = 0.1
+const MAX_SOURCE_FAILURES = 50
+const PERSISTENT_SOURCE_FAILURE_AGE_MS = 7 * 24 * 60 * 60 * 1000
 
 export const compact = (value: unknown) => String(value ?? "").replace(/\s+/g, " ").trim()
 export const sameStatus = (left: unknown, right: unknown) => compact(left).toLocaleLowerCase() === compact(right).toLocaleLowerCase()
@@ -30,6 +34,40 @@ const chunks = <T>(values: T[], size: number) => {
 }
 const sql = (value: unknown) => compact(value).replaceAll("'", "''")
 
+export function sourceRetryDelayMs(retryAfter: string | null, attempt: number) {
+  const seconds = retryAfter === null ? Number.NaN : Number(retryAfter)
+  if (Number.isFinite(seconds) && seconds >= 0) return Math.min(seconds * 1000, 5000)
+  const date = retryAfter ? Date.parse(retryAfter) : Number.NaN
+  if (Number.isFinite(date)) return Math.max(0, Math.min(date - Date.now(), 5000))
+  return Math.min(attempt * 750, 3000)
+}
+
+export function externalFailureKind(value: unknown) {
+  const message = compact(value instanceof Error ? value.message : value).toLowerCase()
+  if (/http 429\b/.test(message)) return "rate_limited"
+  if (/http 404\b/.test(message)) return "not_found"
+  if (/timeout|timed out|abort/.test(message)) return "timeout"
+  return "source_unavailable"
+}
+
+export function notableMaintenanceOutcome({ total, sourceFailures, agedUnverifiedSourceFailures = 0, internalErrors, repairsRequired }: {
+  total: number
+  sourceFailures: number
+  agedUnverifiedSourceFailures?: number
+  internalErrors: number
+  repairsRequired: number
+}) {
+  const sourceFailureRatio = total ? sourceFailures / total : 0
+  const sourceDegradationActionable = agedUnverifiedSourceFailures > 0 || sourceFailures > MAX_SOURCE_FAILURES || sourceFailureRatio > MAX_SOURCE_FAILURE_RATIO
+  const sourceOutcome = sourceFailures ? MAINTENANCE_OUTCOMES.SOURCE_DEGRADED : MAINTENANCE_OUTCOMES.HEALTHY
+  const outcome = internalErrors
+    ? MAINTENANCE_OUTCOMES.ERROR
+    : repairsRequired > 0
+      ? MAINTENANCE_OUTCOMES.MISMATCH
+      : sourceOutcome
+  return { outcome, sourceOutcome, sourceFailureRatio, sourceDegradationActionable }
+}
+
 async function fetchJson(url: string, label: string, headers: Record<string, string> = {}) {
   let last: Error | null = null
   for (let attempt = 1; attempt <= 3; attempt += 1) {
@@ -41,10 +79,12 @@ async function fetchJson(url: string, label: string, headers: Record<string, str
       if (response.ok) return await response.json()
       last = new Error(`${label}: HTTP ${response.status}`)
       if (![408, 425, 429, 500, 502, 503, 504].includes(response.status)) break
+      if (attempt < 3) await sleep(sourceRetryDelayMs(response.headers.get("retry-after"), attempt))
+      continue
     } catch (error) {
       last = error instanceof Error ? error : new Error(String(error))
     }
-    if (attempt < 3) await sleep(attempt * 750)
+    if (attempt < 3) await sleep(sourceRetryDelayMs(null, attempt))
   }
   throw last || new Error(`${label} failed`)
 }
@@ -59,6 +99,7 @@ type PlanningRow = Record<string, unknown> & {
   source_application_id: number | null
   appeal_decision_source?: string | null
   appeal_decision_date?: string | null
+  notable_created_at?: string | null
 }
 type Source = { proposal?: string | null; status?: string | null; source: string }
 type Result = {
@@ -78,28 +119,30 @@ type Result = {
 export const qualityRetryScope = (uncheckedOnly: boolean) => uncheckedOnly ? "unchecked-only" : "all"
 
 async function loadNotableRows(supabase: ReturnType<typeof createClient>, uncheckedOnly = false) {
-  const ids: string[] = []
+  const memberships: Array<{ application_id: string; created_at: string | null }> = []
   const pageSize = 1000
   for (let offset = 0; ; offset += pageSize) {
     let query = supabase.from("planning_seo_notable")
-      .select("application_id").eq("active", true).eq("priority_eligible", true)
+      .select("application_id,created_at").eq("active", true).eq("priority_eligible", true)
     if (uncheckedOnly) query = query.is("description_checked_at", null)
     const { data, error } = await query.order("application_id", { ascending: true }).range(offset, offset + pageSize - 1)
     if (error) throw error
-    ids.push(...(data || []).map(row => row.application_id))
+    memberships.push(...(data || []))
     if (!data || data.length < pageSize) break
   }
+  const createdAtById = new Map(memberships.map(row => [row.application_id, row.created_at]))
   const rows: PlanningRow[] = []
-  for (const batch of chunks(ids, 200)) {
+  for (const batch of chunks(memberships.map(row => row.application_id), 200)) {
     const { data, error } = await supabase.from("planning_applications").select("*").in("id", batch)
     if (error) throw error
-    rows.push(...((data || []) as PlanningRow[]))
+    rows.push(...((data || []) as PlanningRow[]).map(row => ({ ...row, notable_created_at: createdAtById.get(row.id) || null })))
   }
   return rows.sort((a, b) => a.id.localeCompare(b.id))
 }
 
 async function loadNationalSources(rows: PlanningRow[]) {
   const sources = new Map<string, Source>()
+  const failures = new Map<string, Error>()
   const byAuthority = new Map<string, PlanningRow[]>()
   for (const row of rows.filter(row => !corkAgileApplicationConfig(row))) {
     const existing = byAuthority.get(row.local_authority_code) || []
@@ -121,7 +164,14 @@ async function loadNationalSources(rows: PlanningRow[]) {
         outFields: "OBJECTID,ApplicationNumber,DevelopmentDescription,ApplicationStatus",
         returnGeometry: "false", f: "json", resultRecordCount: "200",
       })
-      const json = await fetchJson(`${ARC_QUERY}?${params}`, `${code} ArcGIS batch`)
+      let json
+      try {
+        json = await fetchJson(`${ARC_QUERY}?${params}`, `${code} ArcGIS batch`)
+      } catch (error) {
+        const failure = error instanceof Error ? error : new Error(String(error))
+        for (const row of batch) failures.set(row.id, failure)
+        continue
+      }
       const byObjectId = new Map<number, Record<string, unknown>>()
       const byReference = new Map<string, Record<string, unknown>>()
       for (const feature of json.features || []) {
@@ -155,7 +205,7 @@ async function loadNationalSources(rows: PlanningRow[]) {
       })
     }
   }
-  return sources
+  return { sources, failures }
 }
 
 async function loadCorkSource(row: PlanningRow): Promise<Source | null> {
@@ -215,25 +265,47 @@ async function applyRow(supabase: ReturnType<typeof createClient>, row: Planning
 
 export async function runNotablePlanningQualityAudit({ supabase, apply = false, uncheckedOnly = false }: { supabase: ReturnType<typeof createClient>; apply?: boolean; uncheckedOnly?: boolean }) {
   const rows = await loadNotableRows(supabase, uncheckedOnly)
-  const nationalSources = await loadNationalSources(rows)
+  const { sources: nationalSources, failures: nationalFailures } = await loadNationalSources(rows)
   const results: Result[] = []
   const failures: Result[] = []
+  const internalErrors: Result[] = []
+  let agedUnverifiedSourceFailures = 0
   for (let index = 0; index < rows.length; index += 1) {
     const row = rows[index]
+    let source = nationalSources.get(row.id) || null
     try {
-      let source = nationalSources.get(row.id) || null
+      if (nationalFailures.has(row.id)) throw nationalFailures.get(row.id)
       if (corkAgileApplicationConfig(row)) source = await loadCorkSource(row)
       if (!source) throw new Error("authoritative source record unavailable")
-      results.push(await applyRow(supabase, row, source, apply))
     } catch (error) {
+      const sourceKind = externalFailureKind(error)
+      const notableCreatedAt = Date.parse(row.notable_created_at || "")
+      if (sourceKind !== "not_found" && Number.isFinite(notableCreatedAt) && Date.now() - notableCreatedAt > PERSISTENT_SOURCE_FAILURE_AGE_MS) {
+        agedUnverifiedSourceFailures += 1
+      }
       const failure: Result = {
-        id: row.id, authority: row.local_authority_code, reference: row.reference, source: "unavailable",
+        id: row.id, authority: row.local_authority_code, reference: row.reference, source: sourceKind,
         proposal: "unavailable", status: "unavailable", beforeProposalLength: compact(row.proposal).length,
         sourceProposalLength: 0, storedStatus: row.status, sourceStatus: null,
         error: error instanceof Error ? error.message : String(error),
       }
       failures.push(failure)
       results.push(failure)
+      source = null
+    }
+    if (source) {
+      try {
+        results.push(await applyRow(supabase, row, source, apply))
+      } catch (error) {
+        const failure: Result = {
+          id: row.id, authority: row.local_authority_code, reference: row.reference, source: "internal_error",
+          proposal: "unavailable", status: "unavailable", beforeProposalLength: compact(row.proposal).length,
+          sourceProposalLength: compact(source.proposal).length, storedStatus: row.status, sourceStatus: compact(source.status) || null,
+          error: error instanceof Error ? error.message : String(error),
+        }
+        internalErrors.push(failure)
+        results.push(failure)
+      }
     }
     if ((index + 1) % 100 === 0) console.error(`Notable Planning quality: ${index + 1}/${rows.length}`)
     if (corkAgileApplicationConfig(row)) await sleep(125)
@@ -242,6 +314,7 @@ export async function runNotablePlanningQualityAudit({ supabase, apply = false, 
     checked: results.length - failures.length,
     total: rows.length,
     sourceFailures: failures.length,
+    agedUnverifiedSourceFailures,
     proposalsRepaired: results.filter(item => item.proposal === "repaired").length,
     proposalsMatched: results.filter(item => item.proposal === "matched").length,
     proposalsSourceShorterOrEqual: results.filter(item => item.proposal === "source-shorter-or-equal").length,
@@ -250,9 +323,18 @@ export async function runNotablePlanningQualityAudit({ supabase, apply = false, 
     statusOverridesPreserved: results.filter(item => item.status === "override-preserved").length,
     statusesUnavailable: results.filter(item => item.status === "unavailable").length,
   }
+  const repairsRequired = counts.proposalsRepaired + counts.statusesRepaired
+  const health = notableMaintenanceOutcome({
+    total: rows.length,
+    sourceFailures: failures.length,
+    agedUnverifiedSourceFailures,
+    internalErrors: internalErrors.length,
+    repairsRequired,
+  })
   return {
-    generatedAt: new Date().toISOString(), mode: apply ? "apply" : "validate", scope: qualityRetryScope(uncheckedOnly), complete: failures.length === 0,
-    ...counts, failures, repairs: results.filter(item => item.proposal === "repaired" || item.status === "repaired"), results,
+    generatedAt: new Date().toISOString(), mode: apply ? "apply" : "validate", scope: qualityRetryScope(uncheckedOnly),
+    ...health, agedUnverifiedSourceFailures, complete: failures.length === 0 && internalErrors.length === 0,
+    ...counts, failures, internalErrors, repairs: results.filter(item => item.proposal === "repaired" || item.status === "repaired"), results,
   }
 }
 
@@ -266,12 +348,29 @@ async function main() {
   const outputIndex = process.argv.indexOf("--output")
   const output = outputIndex >= 0 ? process.argv[outputIndex + 1] : "artifacts/notable-planning-quality.json"
   const supabase = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } })
-  const report = await runNotablePlanningQualityAudit({ supabase, apply, uncheckedOnly })
+  let report
+  try {
+    report = await runNotablePlanningQualityAudit({ supabase, apply, uncheckedOnly })
+  } catch (error) {
+    const outcome = isStatementTimeout(error) ? MAINTENANCE_OUTCOMES.UNAVAILABLE : MAINTENANCE_OUTCOMES.ERROR
+    report = {
+      generatedAt: new Date().toISOString(), mode: apply ? "apply" : "validate", scope: qualityRetryScope(uncheckedOnly),
+      outcome, sourceOutcome: MAINTENANCE_OUTCOMES.HEALTHY, complete: false,
+      repairsRequired: 0, agedUnverifiedSourceFailures: 0, sourceFailureRatio: 0, sourceDegradationActionable: false,
+      checked: 0, total: 0, sourceFailures: 0, proposalsRepaired: 0, proposalsMatched: 0,
+      proposalsSourceShorterOrEqual: 0, statusesMatched: 0, statusesRepaired: 0,
+      statusOverridesPreserved: 0, statusesUnavailable: 0, failures: [], repairs: [], results: [],
+      internalErrors: [{ error: error instanceof Error ? error.message.slice(0, 500) : String(error).slice(0, 500) }],
+    }
+  }
   const { mkdir, writeFile } = await import("node:fs/promises")
   await mkdir(output.split("/").slice(0, -1).join("/") || ".", { recursive: true })
   await writeFile(output, `${JSON.stringify(report, null, 2)}\n`)
   console.log(JSON.stringify({ ...report, results: undefined }, null, 2))
-  if (!report.complete) process.exitCode = 1
+  process.exitCode = report.outcome === MAINTENANCE_OUTCOMES.UNAVAILABLE ? 1 : maintenanceExitCode(report.outcome, {
+    actionableMismatch: !apply && report.repairsRequired > 0,
+    degradedIsFailure: report.sourceDegradationActionable,
+  })
 }
 
 if (process.argv[1]?.endsWith("audit-notable-planning-quality.mts")) await main()

@@ -1,0 +1,49 @@
+name: Maintenance resilience checks
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/notable-planning-quality.yml"
+      - ".github/workflows/maintenance-resilience-ci.yml"
+      - ".github/workflows/planning-appeals-historical-catchup.yml"
+      - ".github/workflows/planning-appeals-refresh.yml"
+      - ".github/workflows/planning-lifecycle-consistency.yml"
+      - ".github/workflows/sitemap-snapshots.yml"
+      - "lib/maintenance-outcomes.mjs"
+      - "lib/planning-public-category-definitions.ts"
+      - "lib/planning-public-categories.ts"
+      - "lib/sitemap-snapshot-refresh.ts"
+      - "scripts/audit-notable-planning-quality.mts"
+      - "scripts/audit-planning-lifecycle-consistency.mjs"
+      - "scripts/generate-sitemap-snapshots.mts"
+      - "scripts/process-planning-appeals.mjs"
+      - "tests/maintenance-resilience.test.mjs"
+      - "tests/integrity-query-bounds.test.ts"
+      - "tests/notable-planning-quality.test.mts"
+      - "tests/sitemap-snapshots.test.ts"
+      - "tests/sweep-resilience-and-seo.test.ts"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Run maintenance resilience tests
+        run: >-
+          node --import tsx --test
+          tests/maintenance-resilience.test.mjs
+          tests/notable-planning-quality.test.mts
+          tests/sitemap-snapshots.test.ts
+          tests/integrity-query-bounds.test.ts
+          tests/sweep-resilience-and-seo.test.ts
+      - run: npm run typecheck
+      - run: npm run test:build:no-supabase

@@ -9,7 +9,7 @@ import { GET as getPlanningNotable, dynamic as notableDynamic } from "../app/sit
 import { GET as getSoldLocalities, dynamic as soldDynamic } from "../app/sitemaps/sold-prices-localities.xml/route"
 import { GET as getPlanningPriority, dynamic as priorityDynamic } from "../app/sitemaps/planning-localities.xml/route"
 import { GET as getPlanningExpanded, dynamic as expandedDynamic } from "../app/sitemaps/planning-localities-expanded.xml/route"
-import { refreshSitemapSnapshotFile } from "../lib/sitemap-snapshot-refresh"
+import { refreshSitemapSnapshotFile, staleSnapshotIsActionable } from "../lib/sitemap-snapshot-refresh"
 import { parseSitemapSnapshotSet } from "../lib/sitemap-snapshot"
 
 async function source(path: string) {
@@ -75,6 +75,12 @@ test("failed snapshot refresh serves and preserves last-known-good data", async 
   assert.equal(await readFile(path, "utf8"), staleText)
 })
 
+test("temporary snapshot unavailability is actionable only after last-known-good data ages out", () => {
+  const now = Date.parse("2026-09-02T12:00:00.000Z")
+  assert.equal(staleSnapshotIsActionable({ generatedAt: "2026-09-01T12:00:00.000Z" }, now), false)
+  assert.equal(staleSnapshotIsActionable({ generatedAt: "2026-08-29T11:59:59.000Z" }, now), true)
+})
+
 test("build-time Supabase access is denied and audited", async () => {
   const [supabase, planningLayout, soldLayout, verifier] = await Promise.all([
     source("lib/supabase.ts"),
@@ -92,10 +98,17 @@ test("build-time Supabase access is denied and audited", async () => {
 })
 
 test("snapshot generation cannot invoke locality reconstruction", async () => {
-  const generator = await source("scripts/generate-sitemap-snapshots.mts")
+  const [generator, categoryDefinitions] = await Promise.all([
+    source("scripts/generate-sitemap-snapshots.mts"),
+    source("lib/planning-public-category-definitions.ts"),
+  ])
   assert.match(generator, /openlist_planning_locality_sitemap/)
   assert.match(generator, /new Client/)
+  assert.match(generator, /limit 3/)
+  assert.match(generator, /planning_seo_notable_categories_gin_idx|notable_categories @>/)
+  assert.doesNotMatch(generator, /openlist_planning_public_category_index/)
   assert.doesNotMatch(generator, /createClient|@supabase\/supabase-js/)
+  assert.doesNotMatch(categoryDefinitions, /getServerSupabase|next\/cache|@supabase/)
   assert.doesNotMatch(generator, /openlist_refresh_locality_seo_cohorts/)
   assert.doesNotMatch(generator, /openlist_refresh_planning_locality_activity_counts/)
   assert.doesNotMatch(generator, /openlist_planning_locality\(/)

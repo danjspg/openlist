@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { compact, hasExternalStatusPrecedence, nationalAuthorityForCode, qualityRetryScope, sameStatus, shouldRepairProposal } from "../scripts/audit-notable-planning-quality.mts"
+import { compact, externalFailureKind, hasExternalStatusPrecedence, nationalAuthorityForCode, notableMaintenanceOutcome, qualityRetryScope, runNotablePlanningQualityAudit, sameStatus, shouldRepairProposal, sourceRetryDelayMs } from "../scripts/audit-notable-planning-quality.mts"
 
 test("proposal repair only accepts a materially fuller source", () => {
   assert.equal(shouldRepairProposal("Short proposal", "Short proposal with materially more authoritative detail"), true)
@@ -32,4 +32,74 @@ test("quality source lookups use the national feed source authority names", () =
   assert.equal(nationalAuthorityForCode("DLR")?.sourceName, "Dun Laoghaire Rathdown County Council")
   assert.equal(nationalAuthorityForCode("KILDARE")?.sourceName, "Kildare County Council")
   assert.equal(nationalAuthorityForCode("UNKNOWN"), null)
+})
+
+test("external source degradation is classified without hiding rate limits", () => {
+  assert.equal(externalFailureKind(new Error("Cork detail: HTTP 429")), "rate_limited")
+  assert.equal(externalFailureKind(new Error("Wexford detail: HTTP 404")), "not_found")
+  assert.equal(externalFailureKind(new Error("request timed out")), "timeout")
+  assert.equal(externalFailureKind(new Error("authoritative source record unavailable")), "source_unavailable")
+})
+
+test("429 backoff honours Retry-After but remains bounded", () => {
+  assert.equal(sourceRetryDelayMs("2", 1), 2000)
+  assert.equal(sourceRetryDelayMs("600", 1), 5000)
+  assert.equal(sourceRetryDelayMs(null, 2), 1500)
+})
+
+test("partial source degradation is non-actionable while internal errors and verified mismatches remain actionable", () => {
+  assert.deepEqual(notableMaintenanceOutcome({ total: 537, sourceFailures: 13, internalErrors: 0, repairsRequired: 0 }), {
+    outcome: "source_degraded",
+    sourceOutcome: "source_degraded",
+    sourceFailureRatio: 13 / 537,
+    sourceDegradationActionable: false,
+  })
+  assert.equal(notableMaintenanceOutcome({ total: 100, sourceFailures: 0, internalErrors: 0, repairsRequired: 1 }).outcome, "mismatch")
+  assert.equal(notableMaintenanceOutcome({ total: 100, sourceFailures: 0, internalErrors: 1, repairsRequired: 0 }).outcome, "error")
+  assert.equal(notableMaintenanceOutcome({ total: 100, sourceFailures: 11, internalErrors: 0, repairsRequired: 0 }).sourceDegradationActionable, true)
+  assert.equal(notableMaintenanceOutcome({ total: 100, sourceFailures: 1, agedUnverifiedSourceFailures: 1, internalErrors: 0, repairsRequired: 0 }).sourceDegradationActionable, true)
+})
+
+test("report escalates a persistent non-404 source failure after seven days", async () => {
+  const createdAt = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString()
+  const supabase = {
+    from(table: string) {
+      if (table === "planning_seo_notable") {
+        return {
+          select() { return this },
+          eq() { return this },
+          is() { return this },
+          order() { return this },
+          async range() {
+            return { data: [{ application_id: "app-1", created_at: createdAt }], error: null }
+          },
+        }
+      }
+      if (table === "planning_applications") {
+        return {
+          select() { return this },
+          async in() {
+            return {
+              data: [{
+                id: "app-1",
+                local_authority_code: "UNKNOWN",
+                reference: "TEST-1",
+                proposal: "",
+                status: null,
+                status_source: null,
+                source_application_id: null,
+              }],
+              error: null,
+            }
+          },
+        }
+      }
+      throw new Error(`Unexpected table ${table}`)
+    },
+  }
+
+  const report = await runNotablePlanningQualityAudit({ supabase: supabase as never })
+  assert.equal(report.agedUnverifiedSourceFailures, 1)
+  assert.equal(report.sourceOutcome, "source_degraded")
+  assert.equal(report.sourceDegradationActionable, true)
 })
