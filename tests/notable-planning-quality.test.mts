@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { compact, externalFailureKind, hasExternalStatusPrecedence, nationalAuthorityForCode, notableMaintenanceOutcome, qualityRetryScope, sameStatus, shouldRepairProposal, sourceRetryDelayMs } from "../scripts/audit-notable-planning-quality.mts"
+import { compact, externalFailureKind, hasExternalStatusPrecedence, nationalAuthorityForCode, notableMaintenanceOutcome, qualityRetryScope, runNotablePlanningQualityAudit, sameStatus, shouldRepairProposal, sourceRetryDelayMs } from "../scripts/audit-notable-planning-quality.mts"
 
 test("proposal repair only accepts a materially fuller source", () => {
   assert.equal(shouldRepairProposal("Short proposal", "Short proposal with materially more authoritative detail"), true)
@@ -58,4 +58,48 @@ test("partial source degradation is non-actionable while internal errors and ver
   assert.equal(notableMaintenanceOutcome({ total: 100, sourceFailures: 0, internalErrors: 1, repairsRequired: 0 }).outcome, "error")
   assert.equal(notableMaintenanceOutcome({ total: 100, sourceFailures: 11, internalErrors: 0, repairsRequired: 0 }).sourceDegradationActionable, true)
   assert.equal(notableMaintenanceOutcome({ total: 100, sourceFailures: 1, agedUnverifiedSourceFailures: 1, internalErrors: 0, repairsRequired: 0 }).sourceDegradationActionable, true)
+})
+
+test("report escalates a persistent non-404 source failure after seven days", async () => {
+  const createdAt = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString()
+  const supabase = {
+    from(table: string) {
+      if (table === "planning_seo_notable") {
+        return {
+          select() { return this },
+          eq() { return this },
+          is() { return this },
+          order() { return this },
+          async range() {
+            return { data: [{ application_id: "app-1", created_at: createdAt }], error: null }
+          },
+        }
+      }
+      if (table === "planning_applications") {
+        return {
+          select() { return this },
+          async in() {
+            return {
+              data: [{
+                id: "app-1",
+                local_authority_code: "UNKNOWN",
+                reference: "TEST-1",
+                proposal: "",
+                status: null,
+                status_source: null,
+                source_application_id: null,
+              }],
+              error: null,
+            }
+          },
+        }
+      }
+      throw new Error(`Unexpected table ${table}`)
+    },
+  }
+
+  const report = await runNotablePlanningQualityAudit({ supabase: supabase as never })
+  assert.equal(report.agedUnverifiedSourceFailures, 1)
+  assert.equal(report.sourceOutcome, "source_degraded")
+  assert.equal(report.sourceDegradationActionable, true)
 })
