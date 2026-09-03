@@ -1,0 +1,43 @@
+name: Refresh Dublin sold-price insights
+
+on:
+  schedule:
+    # Run after the weekly PPR refresh window and before the daily integrity sweep.
+    - cron: "35 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Share the same lane as the weekly PPR refresh so district regeneration can never
+# race the core analytics rebuild that deliberately replaces ppr_market_insights.
+concurrency:
+  group: ppr-maintenance
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Refresh Dublin districts in bounded transactions
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/refresh-ppr-dublin-district-insights.mjs
+      - name: Verify Dublin district insights
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/verify-dataset-snapshots.mjs ppr-dublin
+      - name: Publish sold-price cache refresh
+        env:
+          PLANNING_REVALIDATION_URL: ${{ secrets.PLANNING_REVALIDATION_URL }}
+          PLANNING_REVALIDATION_SECRET: ${{ secrets.PLANNING_REVALIDATION_SECRET }}
+        run: node scripts/revalidate-dataset-caches.mjs ppr

@@ -7,16 +7,21 @@ async function source(path: string) {
 }
 
 test("snapshot integrity distinguishes unavailable verification from a proven mismatch", async () => {
-  const [script, workflow] = await Promise.all([
+  const [script, workflow, dublinWorkflow] = await Promise.all([
     source("scripts/verify-dataset-snapshots.mjs"),
     source(".github/workflows/openlist-data-integrity.yml"),
+    source(".github/workflows/ppr-dublin-district-insights.yml"),
   ])
   assert.match(script, /openlist_planning_snapshot_integrity_facts/)
   assert.match(script, /openlist_ppr_snapshot_integrity_facts/)
+  assert.match(script, /ppr-core/)
+  assert.match(script, /ppr-dublin/)
   assert.match(script, /VERIFICATION_UNAVAILABLE/)
   assert.match(script, /VERIFIED_MISMATCH/)
   assert.match(workflow, /outputs\.classification == 'mismatch'/)
-  assert.match(workflow, /dublin\)[\s\S]*?refresh-ppr-dublin-district-insights/)
+  assert.doesNotMatch(workflow, /refresh-ppr-dublin-district-insights/)
+  assert.match(dublinWorkflow, /refresh-ppr-dublin-district-insights/)
+  assert.match(dublinWorkflow, /group: ppr-maintenance/)
   assert.match(workflow, /Verification-unavailable states are escalated without rebuilding derived data/)
 })
 

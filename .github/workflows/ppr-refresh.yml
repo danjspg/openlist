@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ppr-refresh
+  group: ppr-maintenance
   cancel-in-progress: false
 
 jobs:
@@ -24,16 +24,13 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-
       - name: Resolve current PPR year
         id: meta
         run: echo "year=$(date -u +%Y)" >> "$GITHUB_OUTPUT"
-
       - name: Download source once
         env:
           PPR_ALLOW_INSECURE_TLS: ${{ secrets.PPR_ALLOW_INSECURE_TLS || '1' }}
         run: node scripts/download-ppr-csvs.mjs --force "${{ steps.meta.outputs.year }}"
-
       - name: Preserve source snapshot for recoverable processing
         uses: actions/upload-artifact@v4
         with:
@@ -48,24 +45,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
       - name: Restore source snapshot
         uses: actions/download-artifact@v4
         with:
           name: ppr-source-${{ needs.source.outputs.year }}-${{ github.run_id }}
           path: data/ppr
-
       - name: Ingest staged sold-prices data
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
@@ -79,38 +67,22 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Rebuild sold-price snapshots
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: Rebuild core sold-price snapshots
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           node scripts/rebuild-ppr-summaries.mjs
           node scripts/rebuild-ppr-phase1-analytics.mjs
-
-      - name: Refresh Dublin district insights
+      - name: Verify core sold-price snapshot freshness
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: node scripts/refresh-ppr-dublin-district-insights.mjs
-
-      - name: Verify sold-price snapshot freshness
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: node scripts/verify-dataset-snapshots.mjs ppr
-
+        run: node scripts/verify-dataset-snapshots.mjs ppr-core
       - name: Publish current sold-price counts
         env:
           PLANNING_REVALIDATION_URL: ${{ secrets.PLANNING_REVALIDATION_URL }}

@@ -75,33 +75,19 @@ jobs:
           node scripts/refresh-planning-dashboard-snapshots.mjs
           node scripts/revalidate-dataset-caches.mjs planning
 
-      - name: Auto-repair sold-price derived snapshots
+      - name: Auto-repair core sold-price derived snapshots
         id: repair_ppr_snapshots
-        if: steps.ppr_snapshots_initial.outputs.classification == 'mismatch'
+        if: steps.ppr_snapshots_initial.outputs.classification == 'mismatch' && steps.ppr_snapshots_initial.outputs.repair_scope == 'ppr-national'
         continue-on-error: true
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           PLANNING_REVALIDATION_URL: ${{ secrets.PLANNING_REVALIDATION_URL }}
           PLANNING_REVALIDATION_SECRET: ${{ secrets.PLANNING_REVALIDATION_SECRET }}
-          PPR_REPAIR_SCOPE: ${{ steps.ppr_snapshots_initial.outputs.repair_scope }}
         run: |
-          case "$PPR_REPAIR_SCOPE" in
-            dublin)
-              echo "Repair playbook: refresh only the 20 Dublin district snapshots and publish caches"
-              node scripts/refresh-ppr-dublin-district-insights.mjs
-              ;;
-            ppr-national)
-              echo "Repair playbook: rebuild verified-stale national PPR derived analytics, then Dublin districts"
-              node scripts/rebuild-ppr-summaries.mjs
-              node scripts/rebuild-ppr-phase1-analytics.mjs
-              node scripts/refresh-ppr-dublin-district-insights.mjs
-              ;;
-            *)
-              echo "Refusing automatic PPR repair for unknown scope: $PPR_REPAIR_SCOPE" >&2
-              exit 1
-              ;;
-          esac
+          echo "Repair playbook: rebuild verified-stale core PPR derived analytics only"
+          node scripts/rebuild-ppr-summaries.mjs
+          node scripts/rebuild-ppr-phase1-analytics.mjs
           node scripts/revalidate-dataset-caches.mjs ppr
 
       - name: Auto-repair stale or failed alert watchers
@@ -114,8 +100,7 @@ jobs:
           PLANNING_ALERT_WATCH_DELAY_MS: "250"
         run: |
           # Repair watcher state only. Do not drain the potentially large
-          # revalidation queue inside the integrity audit: that previously
-          # caused a 450-item burst immediately before the final DB checks.
+          # revalidation queue inside the integrity audit.
           node scripts/watch-planning-alert-applications.mjs
 
       - name: Re-audit Planning lifecycle after safe repairs
@@ -176,7 +161,7 @@ jobs:
             echo "| Planning lifecycle consistency | $LIFECYCLE_INITIAL | safe source refresh only | $LIFECYCLE_FINAL |"
             echo "| Alert watcher health | $WATCHER_INITIAL | ${WATCHER_REPAIR:-not needed} | $WATCHER_FINAL |"
             echo
-            echo "Snapshot repair requires a verified mismatch. Verification-unavailable states are escalated without rebuilding derived data. Dublin-only failures use the Dublin-only refresh path."
+            echo "Snapshot repair requires a verified mismatch. Verification-unavailable states are escalated without rebuilding derived data. Dublin district refresh is owned by its dedicated bounded worker and is never rebuilt synchronously here."
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Create or update unresolved integrity alert
@@ -195,7 +180,7 @@ jobs:
               'Planning alert watcher health': ['${{ steps.watcher_initial.outcome }}', '${{ steps.repair_watcher.outcome }}', '${{ steps.watcher_final.outcome }}'],
             }
             const lines = [
-              'The daily OpenList integrity sweep found an unresolved mismatch or could not complete a verification. Unavailable verification never triggers a derived-data rebuild.',
+              'The daily OpenList integrity sweep found an unresolved mismatch or could not complete a verification. Unavailable verification never triggers a derived-data rebuild. Dublin district repair is owned by its dedicated worker.',
               '', `Latest run: ${runUrl}`, '', '| Check | Initial | Repair | Final |', '|---|---|---|---|',
               ...Object.entries(outcomes).map(([name, values]) => `| ${name} | ${values[0] || 'n/a'} | ${values[1] || 'not needed'} | ${values[2] || 'n/a'} |`),
             ]

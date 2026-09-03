@@ -6,7 +6,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 if (!supabaseUrl || !serviceRoleKey) throw new Error("NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required")
-if (dataset !== "planning" && dataset !== "ppr") throw new Error("Usage: node scripts/verify-dataset-snapshots.mjs <planning|ppr>")
+if (!["planning", "ppr", "ppr-core", "ppr-dublin"].includes(dataset)) throw new Error("Usage: node scripts/verify-dataset-snapshots.mjs <planning|ppr|ppr-core|ppr-dublin>")
 
 const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } })
 const DUBLIN_DISTRICT_SLUGS = ["dublin-1","dublin-2","dublin-3","dublin-4","dublin-5","dublin-6","dublin-6w","dublin-7","dublin-8","dublin-9","dublin-10","dublin-11","dublin-12","dublin-13","dublin-14","dublin-15","dublin-16","dublin-18","dublin-22","dublin-24"]
@@ -43,18 +43,15 @@ async function verifyPlanningSnapshots() {
   ])
   if (snapshotError) throw snapshotError
   if (factsError) throw factsError
-
   const snapshotByAuthority = new Map((snapshots ?? []).map((row) => [row.authority_code, row]))
   const factsByAuthority = new Map((facts ?? []).map((row) => [row.authority_code, { count: Number(row.row_count ?? 0), latestDate: row.latest_registration_date ?? null }]))
   const national = factsByAuthority.get("NATIONAL")
   if (!national) throw new IntegrityMismatch("Planning integrity facts did not return NATIONAL", "planning")
-
   for (const [authorityCode, actual] of factsByAuthority) {
     const snapshot = snapshotByAuthority.get(authorityCode)
     if (!snapshot) throw new IntegrityMismatch(`Missing ${authorityCode} planning dashboard snapshot`, "planning")
     assertSnapshotMatches(`${authorityCode} planning`, snapshot.payload, actual, "planning")
   }
-
   const extra = [...snapshotByAuthority.keys()].filter((code) => !factsByAuthority.has(code))
   if (extra.length) throw new IntegrityMismatch(`Planning dashboard has snapshot authorities absent from source facts: ${extra.join(", ")}`, "planning")
   console.log(`Planning snapshots verified in one grouped source scan: ${national.count} applications through ${national.latestDate}; ${factsByAuthority.size - 1} authority snapshots match.`)
@@ -75,7 +72,7 @@ async function verifyDublinDistrictSnapshots() {
   console.log(`Dublin district snapshots verified: ${DUBLIN_DISTRICT_SLUGS.length} populated districts.`)
 }
 
-async function verifyPprSnapshots() {
+async function verifyPprCoreSnapshots() {
   const [{ data: snapshot, error: snapshotError }, { data: facts, error: factsError }] = await Promise.all([
     supabase.from("ppr_national_snapshots").select("sales_count,latest_sale_date,updated_at").eq("range_key", "all").maybeSingle(),
     supabase.rpc("openlist_ppr_snapshot_integrity_facts"),
@@ -85,13 +82,17 @@ async function verifyPprSnapshots() {
   if (!snapshot) throw new IntegrityMismatch("Missing all-time PPR national snapshot", "ppr-national")
   const actual = { count: Number(facts?.count ?? 0), latestDate: facts?.latestDate ?? null }
   assertSnapshotMatches("PPR national", snapshot, actual, "ppr-national")
-  await verifyDublinDistrictSnapshots()
-  console.log(`PPR snapshot verified: ${actual.count} sales through ${actual.latestDate}.`)
+  console.log(`PPR core snapshot verified: ${actual.count} sales through ${actual.latestDate}.`)
 }
 
 try {
   if (dataset === "planning") await verifyPlanningSnapshots()
-  else await verifyPprSnapshots()
+  else if (dataset === "ppr-core") await verifyPprCoreSnapshots()
+  else if (dataset === "ppr-dublin") await verifyDublinDistrictSnapshots()
+  else {
+    await verifyPprCoreSnapshots()
+    await verifyDublinDistrictSnapshots()
+  }
   output("classification", "healthy")
   output("repair_scope", "none")
 } catch (error) {
