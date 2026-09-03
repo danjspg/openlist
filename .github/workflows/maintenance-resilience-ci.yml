@@ -4,7 +4,12 @@ on:
   pull_request:
     paths:
       - ".github/workflows/notable-planning-quality.yml"
+      - ".github/workflows/notable-planning-discovery.yml"
       - ".github/workflows/maintenance-resilience-ci.yml"
+      - ".github/workflows/openlist-data-integrity.yml"
+      - ".github/workflows/ppr-refresh.yml"
+      - ".github/workflows/ppr-dublin-district-insights.yml"
+      - ".github/workflows/bcms-incremental-acquisition.yml"
       - ".github/workflows/planning-appeals-historical-catchup.yml"
       - ".github/workflows/planning-appeals-refresh.yml"
       - ".github/workflows/planning-lifecycle-consistency.yml"
@@ -17,6 +22,9 @@ on:
       - "scripts/audit-planning-lifecycle-consistency.mjs"
       - "scripts/generate-sitemap-snapshots.mts"
       - "scripts/process-planning-appeals.mjs"
+      - "scripts/refresh-ppr-dublin-district-insights.mjs"
+      - "scripts/verify-dataset-snapshots.mjs"
+      - "supabase/migrations/*ppr_dublin_district*"
       - "tests/maintenance-resilience.test.mjs"
       - "tests/integrity-query-bounds.test.ts"
       - "tests/notable-planning-quality.test.mts"
