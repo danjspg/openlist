@@ -33,22 +33,3 @@ jobs:
           EPLAN_ACTIVE_ENRICH_LIMIT: "80"
           EPLAN_ACTIVE_ENRICH_DELAY_MS: "1000"
         run: node scripts/refresh-eplan-active-lifecycle.mjs
-
-  finalize:
-    name: Revalidate ePlan catch-up changes
-    needs: source
-    if: ${{ always() && needs.source.result == 'success' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - name: Revalidate changed Planning detail pages
-        env:
-          PLANNING_REVALIDATION_URL: ${{ secrets.PLANNING_REVALIDATION_URL }}
-          PLANNING_REVALIDATION_SECRET: ${{ secrets.PLANNING_REVALIDATION_SECRET }}
-        run: node scripts/drain-planning-revalidation.mjs
