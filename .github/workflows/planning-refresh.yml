@@ -72,13 +72,6 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: node scripts/ingest-national-planning-applications.mjs
 
-      - name: Revalidate changed planning detail pages
-        if: ${{ always() }}
-        env:
-          PLANNING_REVALIDATION_URL: ${{ secrets.PLANNING_REVALIDATION_URL }}
-          PLANNING_REVALIDATION_SECRET: ${{ secrets.PLANNING_REVALIDATION_SECRET }}
-        run: node scripts/drain-planning-revalidation.mjs
-
       - name: Report source refresh failures
         if: ${{ always() }}
         env:

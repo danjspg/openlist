@@ -22,9 +22,3 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           PLANNING_ALERT_WATCH_DELAY_MS: "750"
         run: node scripts/watch-planning-alert-applications.mjs
-      - name: Revalidate changed Planning detail pages
-        env:
-          PLANNING_REVALIDATION_URL: ${{ secrets.PLANNING_REVALIDATION_URL }}
-          PLANNING_REVALIDATION_SECRET: ${{ secrets.PLANNING_REVALIDATION_SECRET }}
-          PLANNING_REVALIDATION_QUEUE: dedicated
-        run: node scripts/drain-planning-revalidation.mjs

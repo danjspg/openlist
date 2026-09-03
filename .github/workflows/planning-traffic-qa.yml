@@ -35,11 +35,6 @@ jobs:
         run: |
           mkdir -p artifacts
           node --import tsx scripts/audit-high-interest-planning.mts --output artifacts/high-interest-planning-qa.json
-      - name: Revalidate QA-repaired Planning pages
-        env:
-          PLANNING_REVALIDATION_URL: ${{ secrets.PLANNING_REVALIDATION_URL }}
-          PLANNING_REVALIDATION_SECRET: ${{ secrets.PLANNING_REVALIDATION_SECRET }}
-        run: node scripts/drain-planning-revalidation.mjs
       - name: Summarize Planning traffic QA
         if: ${{ always() && hashFiles('artifacts/high-interest-planning-qa.json') != '' }}
         run: |

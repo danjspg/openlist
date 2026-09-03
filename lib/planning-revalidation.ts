@@ -28,6 +28,7 @@ export type PlanningRevalidationResult = {
   invalidated: number
   remaining: number
   failures: number
+  oldestRequestedAt: string | null
 }
 
 function isTransientMutationError(error: { code?: string; message?: string } | null) {
@@ -100,9 +101,11 @@ export async function drainPlanningRevalidationQueue(
     }
   }
 
-  const { count: queueCount, error: queueCountError } = await supabase
+  const { data: oldestQueued, count: queueCount, error: queueCountError } = await supabase
     .from("planning_revalidation_queue")
-    .select("application_id", { count: "exact", head: true })
+    .select("requested_at", { count: "exact" })
+    .order("requested_at", { ascending: true })
+    .limit(1)
   if (queueCountError) throw new Error(`Planning exact-path queue count failed: ${queueCountError.message}`)
 
   return {
@@ -110,5 +113,6 @@ export async function drainPlanningRevalidationQueue(
     invalidated,
     remaining: queueCount ?? 0,
     failures,
+    oldestRequestedAt: oldestQueued?.[0]?.requested_at ?? null,
   }
 }

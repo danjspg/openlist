@@ -1,6 +1,10 @@
 name: Revalidate Pending Planning Pages
 
 on:
+  schedule:
+    # Drain the shared queue independently from producer workflows and away from
+    # the main historical catch-up start times.
+    - cron: "47 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -13,7 +17,7 @@ concurrency:
 jobs:
   drain:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -21,8 +25,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Drain bounded exact-path planning revalidation queue
+      - name: Drain bounded exact-path Planning revalidation queue
         env:
           PLANNING_REVALIDATION_URL: ${{ secrets.PLANNING_REVALIDATION_URL }}
           PLANNING_REVALIDATION_SECRET: ${{ secrets.PLANNING_REVALIDATION_SECRET }}
+          PLANNING_REVALIDATION_MAX_BATCHES: "20"
+          PLANNING_REVALIDATION_MAX_AGE_MINUTES: "1440"
         run: node scripts/drain-planning-revalidation.mjs
