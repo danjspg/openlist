@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ppr-refresh
+  group: ppr-maintenance
   cancel-in-progress: false
 
 jobs:
