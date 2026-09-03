@@ -1,4 +1,4 @@
-name: Optimize homepage hero preview
+name: Finalize homepage hero preview
 
 on:
   push:
@@ -9,42 +9,31 @@ permissions:
   contents: write
 
 jobs:
-  optimize:
+  finalize:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: perf/homepage-hero-webp
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Convert hero to bounded WebP
+      - name: Switch homepage to WebP and remove temporary files
         run: |
-          python -m pip install --quiet pillow
           python - <<'PY'
-          from PIL import Image
           from pathlib import Path
-
-          src = Path('public/openlist-home-selected-final.png')
-          dst = Path('public/openlist-home-selected-final.webp')
-          image = Image.open(src).convert('RGB')
-          print(f'Original dimensions: {image.width}x{image.height}; bytes={src.stat().st_size}')
-          max_width = 1920
-          if image.width > max_width:
-              height = round(image.height * max_width / image.width)
-              image = image.resize((max_width, height), Image.Resampling.LANCZOS)
-          image.save(dst, 'WEBP', quality=82, method=6)
-          print(f'WebP dimensions: {image.width}x{image.height}; bytes={dst.stat().st_size}')
+          page = Path('app/page.tsx')
+          text = page.read_text()
+          old = '/openlist-home-selected-final.png'
+          new = '/openlist-home-selected-final.webp'
+          if old not in text:
+              raise SystemExit('Homepage PNG reference not found')
+          page.write_text(text.replace(old, new, 1))
           PY
-      - name: Commit generated preview asset
+          rm public/openlist-home-selected-final.png
+          rm .github/workflows/optimize-homepage-hero-preview.yml
+      - name: Commit preview implementation
         run: |
           git config user.name 'openlist-image-bot'
           git config user.email 'openlist-image-bot@users.noreply.github.com'
-          git add public/openlist-home-selected-final.webp
-          if git diff --cached --quiet; then
-            echo 'No image change to commit.'
-            exit 0
-          fi
-          git commit -m 'Add optimized homepage hero WebP'
+          git add -A
+          git commit -m 'Use optimized homepage hero WebP'
           git push origin HEAD:perf/homepage-hero-webp
