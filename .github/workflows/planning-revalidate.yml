@@ -2,8 +2,9 @@ name: Revalidate Pending Planning Pages
 
 on:
   schedule:
-    # Drain the shared queue independently from producer workflows.
-    - cron: "17 * * * *"
+    # Drain the shared queue independently from producer workflows and away from
+    # the main historical catch-up start times.
+    - cron: "47 * * * *"
   workflow_dispatch:
 
 permissions:
