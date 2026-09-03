@@ -9,8 +9,10 @@ on:
 permissions:
   contents: read
 
+# Share the same lane as the weekly PPR refresh so district regeneration can never
+# race the core analytics rebuild that deliberately replaces ppr_market_insights.
 concurrency:
-  group: ppr-dublin-district-insights
+  group: ppr-maintenance
   cancel-in-progress: false
 
 jobs:
