@@ -35,7 +35,7 @@ jobs:
         run: node --import tsx --test tests/active-planning-refresh.test.ts
 
       # Source discovery only. Internal cache publication/revalidation is performed
-      # later so a downstream failure does not cause these external calls to repeat.
+      # independently so a downstream failure does not cause these external calls to repeat.
       - name: Ingest recent Kildare applications
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
@@ -190,13 +190,6 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: node --import tsx scripts/audit-active-planning-presentation.mts
-
-      - name: Revalidate changed Planning detail pages
-        if: ${{ always() }}
-        env:
-          PLANNING_REVALIDATION_URL: ${{ secrets.PLANNING_REVALIDATION_URL }}
-          PLANNING_REVALIDATION_SECRET: ${{ secrets.PLANNING_REVALIDATION_SECRET }}
-        run: node scripts/drain-planning-revalidation.mjs
 
   report-failure:
     name: Report active refresh failure
