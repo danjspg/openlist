@@ -1,8 +1,8 @@
 name: Notable Planning discovery
 
 on:
-  schedule:
-    - cron: "40 5 * * *"
+  # Press discovery is retained as an explicit/manual tool only. Canonical notable
+  # classification and description catch-up have separate scheduled owners.
   workflow_dispatch:
     inputs:
       news_days:
