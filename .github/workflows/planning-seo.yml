@@ -1,4 +1,4 @@
-name: Planning SEO measurement
+name: Search Console SEO measurement
 
 on:
   schedule:
@@ -10,45 +10,13 @@ permissions:
   issues: write
 
 concurrency:
-  group: planning-seo-measurement
+  group: search-console-seo-measurement
   cancel-in-progress: false
 
 jobs:
-  vercel-analytics:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - name: Capture Vercel Web Analytics
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_PROJECT_ID: prj_B0Xv1saCD6kpikTddQIz7CIbsTVG
-          VERCEL_TEAM_ID: team_ETMDWzXyHeT4h44JaGEATZDn
-        run: |
-          mkdir -p artifacts
-          node --import tsx scripts/report-vercel-analytics.mts | tee artifacts/vercel-analytics-report.txt
-          {
-            echo "## Vercel Web Analytics"
-            echo
-            cat artifacts/vercel-analytics-report.txt
-          } >> "$GITHUB_STEP_SUMMARY"
-      - name: Upload Vercel Analytics report
-        if: ${{ always() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: vercel-analytics-report
-          path: artifacts/vercel-analytics-report.txt
-          retention-days: 30
-          if-no-files-found: warn
-
   collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
     env:
       GOOGLE_SEARCH_CONSOLE_SERVICE_ACCOUNT_JSON_BASE64: ${{ secrets.GOOGLE_SEARCH_CONSOLE_SERVICE_ACCOUNT_JSON_BASE64 }}
     steps:
@@ -67,103 +35,49 @@ jobs:
           GOOGLE_SEARCH_CONSOLE_SITE_URL: ${{ secrets.GOOGLE_SEARCH_CONSOLE_SITE_URL }}
           PLANNING_SEO_INSPECTION_LIMIT: "200"
         run: node --import tsx scripts/collect-planning-seo.mts
-      - name: Audit traffic-bearing Planning pages
-        if: ${{ env.GOOGLE_SEARCH_CONSOLE_SERVICE_ACCOUNT_JSON_BASE64 != '' }}
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_PROJECT_ID: prj_B0Xv1saCD6kpikTddQIz7CIbsTVG
-          VERCEL_TEAM_ID: team_ETMDWzXyHeT4h44JaGEATZDn
-          PLANNING_TRAFFIC_QA_BATCH_SIZE: "25"
-          PLANNING_QA_SEARCH_EXPOSURE_LIMIT: "20"
-        run: node --import tsx scripts/audit-high-interest-planning.mts --output artifacts/high-interest-planning-qa.json
-      - name: Revalidate QA-repaired Planning pages
-        if: ${{ env.GOOGLE_SEARCH_CONSOLE_SERVICE_ACCOUNT_JSON_BASE64 != '' }}
-        env:
-          PLANNING_REVALIDATION_URL: ${{ secrets.PLANNING_REVALIDATION_URL }}
-          PLANNING_REVALIDATION_SECRET: ${{ secrets.PLANNING_REVALIDATION_SECRET }}
-        run: node scripts/drain-planning-revalidation.mjs
-      - name: Generate OpenList metrics dashboard
+      - name: Generate Search Console SEO report
         if: ${{ always() && env.GOOGLE_SEARCH_CONSOLE_SERVICE_ACCOUNT_JSON_BASE64 != '' }}
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           GOOGLE_SEARCH_CONSOLE_SITE_URL: ${{ secrets.GOOGLE_SEARCH_CONSOLE_SITE_URL }}
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_PROJECT_ID: prj_B0Xv1saCD6kpikTddQIz7CIbsTVG
-          VERCEL_TEAM_ID: team_ETMDWzXyHeT4h44JaGEATZDn
         run: |
-          qa_args=()
-          if [[ -f artifacts/high-interest-planning-qa.json ]]; then
-            qa_args=(--qa-file artifacts/high-interest-planning-qa.json)
-          else
-            echo "Planning QA detail: unavailable because the QA artifact was not produced in this run." > planning-seo-report.txt
-            echo >> planning-seo-report.txt
-          fi
-
-          node --import tsx scripts/report-planning-seo.mts "${qa_args[@]}" | tee -a planning-seo-report.txt || \
-            echo "Planning/Search Console dashboard section unavailable because reporting failed." | tee -a planning-seo-report.txt
-          echo >> planning-seo-report.txt
-          node scripts/report-locality-seo-tiers.mjs | tee -a planning-seo-report.txt || \
-            echo "Planning locality tier performance unavailable because reporting failed." | tee -a planning-seo-report.txt
-          echo >> planning-seo-report.txt
-          node --import tsx scripts/report-vercel-analytics.mts | tee -a planning-seo-report.txt
-          node --import tsx scripts/report-openlist-dashboard.mts --report planning-seo-report.txt > openlist-dashboard.md
-          cat openlist-dashboard.md >> "$GITHUB_STEP_SUMMARY"
-      - name: Add Sunday database capacity snapshot
-        if: ${{ always() && env.GOOGLE_SEARCH_CONSOLE_SERVICE_ACCOUNT_JSON_BASE64 != '' && hashFiles('openlist-dashboard.md') != '' }}
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: |
-          if [[ "$(date -u +%u)" != "7" ]]; then
-            echo "Database capacity snapshot skipped: not Sunday."
-            exit 0
-          fi
-
-          node --import tsx scripts/report-database-capacity.mts | tee database-capacity.md
-          {
-            echo
-            cat database-capacity.md
-          } >> openlist-dashboard.md
-          {
-            echo
-            cat database-capacity.md
-          } >> "$GITHUB_STEP_SUMMARY"
-      - name: Publish latest dashboard to GitHub issue
-        if: ${{ always() && env.GOOGLE_SEARCH_CONSOLE_SERVICE_ACCOUNT_JSON_BASE64 != '' && hashFiles('openlist-dashboard.md') != '' }}
+          node --import tsx scripts/report-planning-seo.mts | tee search-console-seo-report.md || \
+            echo "Planning/Search Console report unavailable because reporting failed." | tee search-console-seo-report.md
+          echo >> search-console-seo-report.md
+          node scripts/report-locality-seo-tiers.mjs | tee -a search-console-seo-report.md || \
+            echo "Planning locality tier performance unavailable because reporting failed." | tee -a search-console-seo-report.md
+          cat search-console-seo-report.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish latest Search Console snapshot to GitHub issue
+        if: ${{ always() && env.GOOGLE_SEARCH_CONSOLE_SERVICE_ACCOUNT_JSON_BASE64 != '' && hashFiles('search-console-seo-report.md') != '' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           published_at="$(date -u '+%Y-%m-%d %H:%M:%S UTC')"
           {
-            echo "This issue is maintained automatically by the \`Planning SEO measurement\` workflow. It combines product growth, production traffic, Search Console, indexing and planning QA metrics."
+            echo "This issue is maintained automatically by the \`Search Console SEO measurement\` workflow. It contains Search Console, indexing and locality SEO metrics only. Vercel traffic is measured independently."
             echo
             echo "Last successful publication: $published_at"
             echo
-            cat openlist-dashboard.md
+            cat search-console-seo-report.md
           } > planning-seo-issue.md
 
           gh issue edit 10 --repo "$GITHUB_REPOSITORY" --body-file planning-seo-issue.md
 
           {
-            echo "## Daily snapshot · $published_at"
+            echo "## Daily Search Console snapshot · $published_at"
             echo
-            cat openlist-dashboard.md
+            cat search-console-seo-report.md
           } > planning-seo-comment.md
           gh issue comment 10 --repo "$GITHUB_REPOSITORY" --body-file planning-seo-comment.md
-      - name: Upload OpenList metrics report
+      - name: Upload Search Console SEO report
         if: ${{ always() && env.GOOGLE_SEARCH_CONSOLE_SERVICE_ACCOUNT_JSON_BASE64 != '' }}
         uses: actions/upload-artifact@v4
         with:
-          name: planning-seo-report
-          path: |
-            planning-seo-report.txt
-            openlist-dashboard.md
-            database-capacity.md
+          name: search-console-seo-report
+          path: search-console-seo-report.md
           retention-days: 30
           if-no-files-found: warn
       - name: Explain skipped collection
         if: ${{ env.GOOGLE_SEARCH_CONSOLE_SERVICE_ACCOUNT_JSON_BASE64 == '' }}
-        run: echo "Planning SEO collection skipped because Search Console credentials are not configured."
+        run: echo "Search Console SEO collection skipped because Search Console credentials are not configured."

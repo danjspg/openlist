@@ -1,0 +1,56 @@
+name: Planning traffic QA
+
+on:
+  schedule:
+    - cron: "40 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: planning-traffic-qa
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Audit traffic-bearing Planning pages
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: prj_B0Xv1saCD6kpikTddQIz7CIbsTVG
+          VERCEL_TEAM_ID: team_ETMDWzXyHeT4h44JaGEATZDn
+          PLANNING_TRAFFIC_QA_BATCH_SIZE: "25"
+          PLANNING_QA_SEARCH_EXPOSURE_LIMIT: "20"
+        run: |
+          mkdir -p artifacts
+          node --import tsx scripts/audit-high-interest-planning.mts --output artifacts/high-interest-planning-qa.json
+      - name: Revalidate QA-repaired Planning pages
+        env:
+          PLANNING_REVALIDATION_URL: ${{ secrets.PLANNING_REVALIDATION_URL }}
+          PLANNING_REVALIDATION_SECRET: ${{ secrets.PLANNING_REVALIDATION_SECRET }}
+        run: node scripts/drain-planning-revalidation.mjs
+      - name: Summarize Planning traffic QA
+        if: ${{ always() && hashFiles('artifacts/high-interest-planning-qa.json') != '' }}
+        run: |
+          echo "## Planning traffic QA" >> "$GITHUB_STEP_SUMMARY"
+          echo >> "$GITHUB_STEP_SUMMARY"
+          cat artifacts/high-interest-planning-qa.json >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload Planning traffic QA report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: planning-traffic-qa
+          path: artifacts/high-interest-planning-qa.json
+          retention-days: 30
+          if-no-files-found: warn
