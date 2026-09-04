@@ -70,7 +70,7 @@ test("revalidation worker is exact-path, bounded, race-safe, and uses one queue"
   assert.match(workflow, /drain-planning-revalidation\.mjs/)
   assert.match(workflow, /name: Drain bounded exact-path Planning revalidation queue/)
   assert.match(workflow, /cron: "47 \* \* \* \*"/)
-  assert.match(drain, /maxBatches = 20/)
+  assert.match(drain, /PLANNING_REVALIDATION_MAX_BATCHES \|\| 20/)
   assert.match(drain, /maxConsecutiveFailedBatches = 3/)
   assert.match(drain, /consecutiveFailedBatches \+= 1/)
   assert.match(drain, /consecutiveFailedBatches >= maxConsecutiveFailedBatches/)
