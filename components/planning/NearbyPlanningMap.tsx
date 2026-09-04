@@ -24,7 +24,10 @@ export function NearbyPlanningMap({
     void import("leaflet").then((leaflet) => {
       if (cancelled || !containerRef.current) return
 
+      const center = leaflet.latLng(data.center.lat, data.center.lng)
       const map = leaflet.map(containerRef.current, {
+        center,
+        zoom: 13,
         scrollWheelZoom: false,
         minZoom: 6,
       })
@@ -37,7 +40,6 @@ export function NearbyPlanningMap({
         })
         .addTo(map)
 
-      const center = leaflet.latLng(data.center.lat, data.center.lng)
       const radius = leaflet
         .circle(center, {
           radius: data.radiusM,
@@ -122,6 +124,9 @@ export function NearbyPlanningMap({
       }
 
       map.fitBounds(radius.getBounds(), { padding: [24, 24] })
+      window.setTimeout(() => map.invalidateSize(), 0)
+    }).catch((error) => {
+      console.error("Nearby planning map failed to initialise.", error)
     })
 
     return () => {
