@@ -2,15 +2,16 @@ name: Catch Up Historical Planning Statuses
 
 on:
   schedule:
-    # 16 authority-month buckets per day. At the current backlog this is about 7.5 weeks.
-    - cron: "41 2 * * *"
+    # Two bounded 16-bucket passes per day. Keep the proven batch size and
+    # serialize against the shared database-maintenance lane.
+    - cron: "41 2,14 * * *"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: planning-historical-status-catchup
+  group: openlist-db-maintenance
   cancel-in-progress: false
 
 jobs:
