@@ -1,32 +1,22 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
-import {
-  notableCategoriesMatchAreaAlert,
-  type PlanningAreaAlertSubscription,
-} from "@/lib/planning-area-alerts"
+import type { PlanningAreaAlertSubscription } from "@/lib/planning-area-alerts"
 import {
   sendPlanningAreaAlertEmail,
   type PlanningAreaAlertEmailDelivery,
 } from "@/lib/planning-area-alert-email"
-import { planningDecisionTone } from "@/lib/planning-state-presentation"
 import { getServiceRoleSupabase } from "@/lib/supabase"
 
 const MAX_SUBSCRIPTIONS_PER_RUN = 50
-const MAX_RADIUS_RESULTS = 250
-const MAX_EVENTS_PER_SUBSCRIPTION = 500
+const MAX_CANDIDATE_EVENTS_PER_SUBSCRIPTION = 250
 const MAX_QUEUE_ROWS_PER_RUN = 250
 const MAX_DELIVERIES_PER_RUN = 20
 
-type RadiusRow = { application_id: string; distance_m: number | string }
-type AreaEvent = {
-  id: string
+type CandidateEvent = {
+  event_id: string
   application_id: string
-  event_type: string
-  event_date: string
-  detected_at: string
-  label: string
-  new_value: string | null
+  distance_m: number | string
 }
-type NotableRow = { application_id: string; notable_categories: string[] | null }
+
 type PendingDelivery = {
   id: string
   subscription_id: string
@@ -75,88 +65,41 @@ function one<T>(value: T | T[] | null): T | null {
   return Array.isArray(value) ? value[0] ?? null : value
 }
 
-function eventTypesForTrigger(trigger: string) {
-  switch (trigger) {
-    case "approved": return ["decision_made", "decision_changed", "final_grant"]
-    case "appealed": return ["appeal_lodged"]
-    case "construction": return ["works_commenced"]
-    default: return ["application_received"]
-  }
-}
-
-function eventMatchesTrigger(event: AreaEvent, trigger: string) {
-  if (trigger !== "approved") return eventTypesForTrigger(trigger).includes(event.event_type)
-  if (event.event_type === "final_grant") return true
-  return planningDecisionTone(event.new_value || event.label) === "positive"
-}
-
 async function queueForSubscription(
   supabase: SupabaseClient,
   subscription: PlanningAreaAlertSubscription,
   remainingCapacity: number
 ) {
   if (remainingCapacity <= 0) return 0
-  const { data: radiusData, error: radiusError } = await supabase.rpc(
-    "openlist_planning_applications_within_radius",
+
+  // Match lifecycle event, spatial radius and notable category in Postgres before
+  // applying a result limit. Limiting a generic radius lookup first could silently
+  // miss a wind farm or residential scheme behind hundreds of unrelated nearby rows.
+  const { data, error } = await supabase.rpc(
+    "openlist_planning_area_alert_candidates",
     {
+      p_subscription_id: subscription.id,
       p_lat: subscription.center_lat,
       p_lng: subscription.center_lng,
       p_radius_m: subscription.radius_m,
-      p_limit: MAX_RADIUS_RESULTS,
+      p_category: subscription.category,
+      p_event_trigger: subscription.event_trigger,
+      p_created_after: subscription.created_at,
+      p_limit: Math.min(MAX_CANDIDATE_EVENTS_PER_SUBSCRIPTION, remainingCapacity),
     }
   )
-  if (radiusError) throw new Error(`Area radius lookup failed: ${radiusError.message}`)
+  if (error) throw new Error(`Area candidate lookup failed: ${error.message}`)
 
-  const distances = new Map<string, number>()
-  for (const row of (radiusData ?? []) as RadiusRow[]) {
-    const distance = Number(row.distance_m)
-    if (row.application_id && Number.isFinite(distance)) distances.set(row.application_id, distance)
-  }
-  const applicationIds = [...distances.keys()]
-  if (applicationIds.length === 0) return 0
-
-  const eventTypes = eventTypesForTrigger(subscription.event_trigger)
-  const baselineDate = subscription.created_at.slice(0, 10)
-  const { data: eventData, error: eventError } = await supabase
-    .from("planning_application_events")
-    .select("id,application_id,event_type,event_date,detected_at,label,new_value")
-    .in("application_id", applicationIds)
-    .in("event_type", eventTypes)
-    .gt("detected_at", subscription.created_at)
-    .gte("event_date", baselineDate)
-    .order("detected_at", { ascending: true })
-    .limit(MAX_EVENTS_PER_SUBSCRIPTION)
-  if (eventError) throw new Error(`Area event lookup failed: ${eventError.message}`)
-
-  const events = ((eventData ?? []) as AreaEvent[])
-    .filter((event) => eventMatchesTrigger(event, subscription.event_trigger))
-  if (events.length === 0) return 0
-
-  let notableByApplication = new Map<string, string[] | null>()
-  if (subscription.category !== "all") {
-    const ids = [...new Set(events.map((event) => event.application_id))]
-    const { data: notableData, error: notableError } = await supabase
-      .from("planning_seo_notable")
-      .select("application_id,notable_categories")
-      .in("application_id", ids)
-    if (notableError) throw new Error(`Area category lookup failed: ${notableError.message}`)
-    notableByApplication = new Map(
-      ((notableData ?? []) as NotableRow[]).map((row) => [row.application_id, row.notable_categories])
-    )
-  }
-
-  const queueRows = events
-    .filter((event) => notableCategoriesMatchAreaAlert(
-      subscription.category,
-      notableByApplication.get(event.application_id)
-    ))
-    .slice(0, remainingCapacity)
+  const queueRows = ((data ?? []) as CandidateEvent[])
     .map((event) => ({
       subscription_id: subscription.id,
       application_id: event.application_id,
-      event_id: event.id,
-      distance_m: distances.get(event.application_id) ?? 0,
+      event_id: event.event_id,
+      distance_m: Number(event.distance_m),
     }))
+    .filter((event) => Number.isFinite(event.distance_m))
+    .slice(0, remainingCapacity)
+
   if (queueRows.length === 0) return 0
 
   const { data: inserted, error: insertError } = await supabase
