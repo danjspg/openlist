@@ -30,14 +30,19 @@ const selectedCategorySlugs = new Set([
 
 export const PLANNING_AREA_ALERT_CATEGORIES = [
   {
-    value: "all",
-    label: "Any planning application",
-    description: "Every mapped planning application, regardless of development type.",
-  },
-  {
     value: "residential-development",
     label: "Residential development (10+ homes)",
     description: "Housing and apartment schemes of 10 or more homes, including large residential developments.",
+  },
+  {
+    value: "significant-development",
+    label: "Any significant development",
+    description: "Any application classified by OpenList as a notable or significant development.",
+  },
+  {
+    value: "all",
+    label: "Any planning application",
+    description: "Every mapped planning application, regardless of development type.",
   },
   ...PLANNING_PUBLIC_CATEGORIES
     .filter((category) => selectedCategorySlugs.has(category.slug) && category.slug !== "residential-development")
@@ -92,6 +97,7 @@ export function isPlanningAreaAlertRadius(value: number): value is PlanningAreaA
 export function notableCategoriesMatchAreaAlert(category: string, notableCategories: string[] | null | undefined) {
   if (category === "all") return true
   const categories = new Set(notableCategories ?? [])
+  if (category === "significant-development") return categories.size > 0
   if (category === "residential-development") {
     return categories.has("residential-development") || categories.has("large-residential")
   }

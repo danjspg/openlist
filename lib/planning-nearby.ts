@@ -17,6 +17,7 @@ export type NearbyPlanningMapData = {
 
 const DEFAULT_RADIUS_M = 2_000
 const DEFAULT_LIMIT = 40
+const DEFAULT_YEARS = 3
 
 export async function getNearbyPlanningMap(
   application: PlanningApplication,
@@ -25,6 +26,7 @@ export async function getNearbyPlanningMap(
 ): Promise<NearbyPlanningMapData | null> {
   const boundedRadius = Math.min(Math.max(Math.round(radiusM), 100), 50_000)
   const boundedLimit = Math.min(Math.max(Math.round(limit), 1), 100)
+  const candidateLimit = Math.min(Math.max(boundedLimit * 6, 120), 600)
   const supabase = getServerSupabase()
 
   const center = await resolvePlanningCoordinates(application)
@@ -37,7 +39,7 @@ export async function getNearbyPlanningMap(
       p_lat: center.lat,
       p_lng: center.lng,
       p_radius_m: boundedRadius,
-      p_limit: boundedLimit + 1,
+      p_limit: candidateLimit,
     }
   )
 
@@ -51,7 +53,6 @@ export async function getNearbyPlanningMap(
     if (!row.application_id || row.application_id === application.id) continue
     if (!Number.isFinite(Number(row.distance_m))) continue
     distances.set(row.application_id, Number(row.distance_m))
-    if (distances.size >= boundedLimit) break
   }
 
   const ids = [...distances.keys()]
@@ -77,11 +78,15 @@ export async function getNearbyPlanningMap(
     console.warn("Nearby planning sidecar lookup failed.", locationsError.message)
   }
 
+  const cutoff = new Date()
+  cutoff.setUTCFullYear(cutoff.getUTCFullYear() - DEFAULT_YEARS)
+  const cutoffDate = cutoff.toISOString().slice(0, 10)
   const sidecarById = new Map(
     (locations ?? []).map((location) => [location.application_id, location] as const)
   )
 
   const records = ((applications ?? []) as PlanningApplication[])
+    .filter((row) => row.registration_date && row.registration_date >= cutoffDate)
     .map((row) => {
       const sidecar = sidecarById.get(row.id)
       const hydrated = planningGridToWgs84(row)
@@ -96,6 +101,7 @@ export async function getNearbyPlanningMap(
     })
     .filter((record): record is NearbyPlanningRecord => record !== null)
     .sort((left, right) => left.distanceM - right.distanceM)
+    .slice(0, boundedLimit)
 
   return {
     ...base,

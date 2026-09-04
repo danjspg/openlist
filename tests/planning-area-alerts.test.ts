@@ -14,6 +14,13 @@ test("residential area alerts cover both medium and large schemes", () => {
   assert.equal(notableCategoriesMatchAreaAlert("residential-development", ["wind-farms"]), false)
 })
 
+test("significant development alert matches any notable classification", () => {
+  assert.equal(notableCategoriesMatchAreaAlert("significant-development", ["wind-farms"]), true)
+  assert.equal(notableCategoriesMatchAreaAlert("significant-development", ["retail", "infrastructure"]), true)
+  assert.equal(notableCategoriesMatchAreaAlert("significant-development", []), false)
+  assert.equal(notableCategoriesMatchAreaAlert("significant-development", null), false)
+})
+
 test("significant development categories match exactly", () => {
   assert.equal(notableCategoriesMatchAreaAlert("wind-farms", ["wind-farms", "energy"]), true)
   assert.equal(notableCategoriesMatchAreaAlert("wind-farms", ["solar-energy"]), false)
@@ -27,6 +34,7 @@ test("all-development alerts do not require notable classification", () => {
 
 test("area alert options reject arbitrary values", () => {
   assert.equal(isPlanningAreaAlertCategory("wind-farms"), true)
+  assert.equal(isPlanningAreaAlertCategory("significant-development"), true)
   assert.equal(isPlanningAreaAlertCategory("anything"), false)
   assert.equal(isPlanningAreaAlertTrigger("approved"), true)
   assert.equal(isPlanningAreaAlertTrigger("changed"), false)

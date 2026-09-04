@@ -146,8 +146,8 @@ export function NearbyPlanningMap({
             <h2 className="text-2xl font-semibold tracking-tight text-stone-950">What&apos;s happening nearby?</h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">
               {shown > 0
-                ? `${shown} nearby planning ${shown === 1 ? "application" : "applications"} shown within ${radiusKm.toFixed(radiusKm % 1 === 0 ? 0 : 1)} km.`
-                : `No other mapped planning applications were found within ${radiusKm.toFixed(radiusKm % 1 === 0 ? 0 : 1)} km.`}
+                ? `${shown} planning ${shown === 1 ? "application" : "applications"} from the last 3 years shown within ${radiusKm.toFixed(radiusKm % 1 === 0 ? 0 : 1)} km.`
+                : `No other mapped planning applications from the last 3 years were found within ${radiusKm.toFixed(radiusKm % 1 === 0 ? 0 : 1)} km.`}
             </p>
           </div>
           <div className="flex items-center gap-2 text-xs font-medium text-stone-500">
@@ -165,7 +165,7 @@ export function NearbyPlanningMap({
       />
       <PlanningAreaAlertControls applicationId={data.sourceApplicationId} />
       <div className="border-t border-stone-200 bg-stone-50 px-6 py-3 text-xs leading-5 text-stone-500 sm:px-8">
-        Shows up to the 40 closest mapped applications within the radius. Locations are approximate and based on published planning coordinates.
+        Shows up to the 40 closest mapped applications registered in the last 3 years. Locations are approximate and based on published planning coordinates.
       </div>
     </section>
   )
