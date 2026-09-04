@@ -1,0 +1,52 @@
+name: Planning location repair
+
+on:
+  schedule:
+    - cron: "5 7 * * *"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "scripts/planning-location-sidecar.mjs"
+      - "scripts/planning-upsert.mjs"
+      - "scripts/repair-recent-planning-locations.mjs"
+      - "tests/planning-location-sidecar.test.mjs"
+      - ".github/workflows/planning-location-repair.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node --test tests/planning-location-sidecar.test.mjs
+
+  repair:
+    if: ${{ github.event_name != 'pull_request' }}
+    needs: test
+    concurrency:
+      group: openlist-db-maintenance
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Repair recent missing planning locations
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          PLANNING_LOCATION_REPAIR_DAYS: "14"
+          PLANNING_LOCATION_REPAIR_LIMIT: "100"
+        run: node scripts/repair-recent-planning-locations.mjs

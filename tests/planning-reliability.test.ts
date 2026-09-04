@@ -33,7 +33,7 @@ test("planning source failures throw instead of becoming missing records or empt
   assert.doesNotMatch(planning, /Planning timeline query failed\.[\s\S]{0,120}return \[\]/)
 })
 
-test("normal upserts use the dedicated exact-path revalidation queue", async () => {
+test("normal upserts populate spatial sidecar and use the dedicated exact-path revalidation queue", async () => {
   const [upsert, diff] = await Promise.all([
     source("scripts/planning-upsert.mjs"),
     source("lib/planning-ingestion-diff.mjs"),
@@ -43,7 +43,8 @@ test("normal upserts use the dedicated exact-path revalidation queue", async () 
   assert.match(upsert, /application_id: row\.id/)
   assert.match(upsert, /requested_at: requestedAt/)
   assert.match(upsert, /onConflict: "application_id"/)
-  assert.match(upsert, /\.select\("id,local_authority_code,reference,proposal,applicant_name,application_type,status,normalized_status,decision_date,final_grant_date,withdrawal_date,appeal_decision_date"\)/)
+  assert.match(upsert, /\.select\("id,local_authority_code,reference,proposal,applicant_name,application_type,status,normalized_status,decision_date,final_grant_date,withdrawal_date,appeal_decision_date,grid_easting,grid_northing"\)/)
+  assert.match(upsert, /upsertPlanningLocationSidecar\(supabase, rows, label\)/)
   assert.match(upsert, /classifyAndPersistPlanningApplications/)
   assert.match(upsert, /enqueue: false/)
   assert.match(upsert, /bounded active\/recent reconciliation/)
@@ -54,7 +55,7 @@ test("revalidation worker is exact-path, bounded, race-safe, and uses one queue"
   const [worker, route, workflow, drain] = await Promise.all([
     source("lib/planning-revalidation.ts"),
     source("app/api/internal/planning-revalidate/route.ts"),
-    source(".github/workflows/planning-refresh.yml"),
+    source(".github/workflows/planning-revalidate.yml"),
     source("scripts/drain-planning-revalidation.mjs"),
   ])
   assert.match(worker, /Math\.min\(batchSize, 100\)/)
@@ -67,9 +68,9 @@ test("revalidation worker is exact-path, bounded, race-safe, and uses one queue"
   assert.doesNotMatch(route, /queue=|dedicatedOnly/)
   assert.doesNotMatch(worker, /revalidatePath\("\/planning/)
   assert.match(workflow, /drain-planning-revalidation\.mjs/)
-  assert.match(workflow, /name: Revalidate changed planning detail pages\s+if: \$\{\{ always\(\) \}\}/)
-  assert.doesNotMatch(workflow, /name: Refresh bounded historical planning statuses\s+if: \$\{\{ always\(\) \}\}/)
-  assert.match(drain, /maxBatches = 20/)
+  assert.match(workflow, /name: Drain bounded exact-path Planning revalidation queue/)
+  assert.match(workflow, /cron: "47 \* \* \* \*"/)
+  assert.match(drain, /PLANNING_REVALIDATION_MAX_BATCHES \|\| 20/)
   assert.match(drain, /maxConsecutiveFailedBatches = 3/)
   assert.match(drain, /consecutiveFailedBatches \+= 1/)
   assert.match(drain, /consecutiveFailedBatches >= maxConsecutiveFailedBatches/)

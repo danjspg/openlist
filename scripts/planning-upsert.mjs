@@ -1,4 +1,5 @@
 import { classifyAndPersistPlanningApplications } from "../lib/planning-notable-persistence.mjs"
+import { upsertPlanningLocationSidecar } from "./planning-location-sidecar.mjs"
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -57,11 +58,18 @@ export async function upsertPlanningBatch(
   const { data, error } = await supabase
     .from("planning_applications")
     .upsert(batch, { onConflict: "local_authority_code,reference" })
-    .select("id,local_authority_code,reference,proposal,applicant_name,application_type,status,normalized_status,decision_date,final_grant_date,withdrawal_date,appeal_decision_date")
+    .select("id,local_authority_code,reference,proposal,applicant_name,application_type,status,normalized_status,decision_date,final_grant_date,withdrawal_date,appeal_decision_date,grid_easting,grid_northing")
 
   if (!error) {
+    const rows = data || []
+
+    // Spatial indexing is part of successful Planning ingestion. The parent
+    // upsert is idempotent, so failing here is safe: the workflow can rerun and
+    // repair the sidecar without losing the application row.
+    await upsertPlanningLocationSidecar(supabase, rows, label)
+
     try {
-      await classifyAndPersistPlanningApplications(supabase, data || [], {
+      await classifyAndPersistPlanningApplications(supabase, rows, {
         // Every successful ingestion row is queued for exact-path cache
         // invalidation immediately below, so classification must not enqueue it again.
         enqueue: false,
@@ -70,13 +78,13 @@ export async function upsertPlanningBatch(
       // Classification is additive indexing metadata. Preserve ingestion
       // availability; bounded active/recent reconciliation repairs missed rows.
       console.warn(
-        `${label}: Planning notability classification failed for ${(data || []).length} rows; continuing ingestion.`,
+        `${label}: Planning notability classification failed for ${rows.length} rows; continuing ingestion.`,
         classificationError
       )
     }
     // Normal ingestion owns exact-path cache invalidation through the dedicated
     // queue. Deterministic classification is a separate concern.
-    return enqueuePlanningRevalidation(supabase, data || [], label)
+    return enqueuePlanningRevalidation(supabase, rows, label)
   }
 
   // Statement timeouts are often caused by a temporarily busy table or an
