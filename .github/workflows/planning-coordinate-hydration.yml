@@ -14,11 +14,11 @@ on:
         type: choice
         options: [stage-and-test, process, status]
       process_batch:
-        description: Production update batch size
+        description: Sidecar insert batch size
         required: false
-        default: "250"
+        default: "10000"
       max_rows:
-        description: Optional maximum production rows for process mode; blank means until done
+        description: Optional maximum sidecar rows for process mode; blank means until done
         required: false
         default: ""
 
@@ -46,7 +46,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Download saved external snapshot
-        if: inputs.mode != 'status'
+        if: inputs.mode == 'stage-and-test'
         run: |
           gh api "repos/${{ github.repository }}/actions/artifacts/${{ inputs.artifact_id }}/zip" > snapshot.zip
           unzip -q snapshot.zip
@@ -60,7 +60,7 @@ jobs:
           elif [ "${{ inputs.mode }}" = "status" ]; then
             node scripts/hydrate-planning-coordinates.mjs --mode status
           else
-            args=(--input national-planning-coordinates.ndjson --mode process --process-batch "${{ inputs.process_batch }}" --delay-ms 500)
+            args=(--mode process --process-batch "${{ inputs.process_batch }}" --delay-ms 250)
             if [ -n "${{ inputs.max_rows }}" ]; then args+=(--max-rows "${{ inputs.max_rows }}"); fi
             node scripts/hydrate-planning-coordinates.mjs "${args[@]}"
           fi
