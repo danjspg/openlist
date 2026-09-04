@@ -35,12 +35,14 @@ export function PrivatePlanningAreaAlertEntry() {
 
   useEffect(() => {
     if (!isResolved || !isAuthenticated || !route) return
-    const header = document.querySelector("main > section > header")
-    if (!(header instanceof HTMLElement)) return
+    const anchor = route.kind === "locality"
+      ? document.querySelector("main > section > header")
+      : document.querySelector("main > section:first-child")
+    if (!(anchor instanceof HTMLElement)) return
 
     const container = document.createElement("div")
     container.dataset.privatePlanningAreaAlert = "true"
-    header.insertAdjacentElement("afterend", container)
+    anchor.insertAdjacentElement("afterend", container)
     const frame = window.requestAnimationFrame(() => setHost(container))
 
     return () => {
@@ -151,19 +153,21 @@ function CategoryAlertPanel({ categorySlug }: { categorySlug: string }) {
   const label = category?.label ?? titleCaseSlug(categorySlug)
 
   return (
-    <section className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-5 shadow-sm sm:p-6">
-      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-800">Private beta</p>
-      <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight text-stone-950">Get local alerts for {label.toLowerCase()}</h2>
-          <p className="mt-2 text-sm leading-6 text-stone-600">
-            Choose a planning area first. On its locality page you can create a new-application alert using the mapped centre for that area.
-          </p>
+    <div className="mx-auto max-w-6xl px-4 pt-6 sm:px-6">
+      <section className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-5 shadow-sm sm:p-6">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-800">Private beta</p>
+        <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight text-stone-950">Get local alerts for {label.toLowerCase()}</h2>
+            <p className="mt-2 text-sm leading-6 text-stone-600">
+              Choose a planning area first. On its locality page you can create a new-application alert using the mapped centre for that area.
+            </p>
+          </div>
+          <Link href="/planning/areas" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-emerald-700 px-5 text-sm font-semibold text-white hover:bg-emerald-800">
+            Choose an area
+          </Link>
         </div>
-        <Link href="/planning/areas" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-emerald-700 px-5 text-sm font-semibold text-white hover:bg-emerald-800">
-          Choose an area
-        </Link>
-      </div>
-    </section>
+      </section>
+    </div>
   )
 }
