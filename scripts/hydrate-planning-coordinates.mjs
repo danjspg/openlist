@@ -2,169 +2,63 @@ import { createReadStream } from "node:fs"
 import { createInterface } from "node:readline"
 import { createClient } from "@supabase/supabase-js"
 
-const DEFAULT_INPUT = "national-planning-coordinates.ndjson"
-const DEFAULT_BATCH_SIZE = 100
-const DEFAULT_DELAY_MS = 500
-const MAX_BATCH_SIZE = 250
-
 const AUTHORITY_CODES = new Map([
-  ["Cork County Council", "CORKCOCO"],
-  ["Cork City Council", "CORKCITY"],
-  ["Dublin City Council", "DUBLINCITY"],
-  ["Fingal County Council", "FINGAL"],
-  ["South Dublin County Council", "SOUTHDUBLIN"],
-  ["Dun Laoghaire Rathdown County Council", "DLR"],
-  ["Kildare County Council", "KILDARE"],
-  ["Galway County Council", "GALWAYCOCO"],
-  ["Galway City Council", "GALWAYCITY"],
-  ["Meath County Council", "MEATH"],
-  ["Wicklow County Council", "WICKLOW"],
-  ["Limerick County Council", "LIMERICK"],
-  ["Waterford City and County Council", "WATERFORD"],
-  ["Donegal County Council", "DONEGAL"],
-  ["Wexford County Council", "WEXFORD"],
-  ["Tipperary County Council", "TIPPERARY"],
-  ["Kerry County Council", "KERRY"],
-  ["Mayo County Council", "MAYO"],
-  ["Clare County Council", "CLARE"],
-  ["Louth County Council", "LOUTH"],
-  ["Laois County Council", "LAOIS"],
-  ["Kilkenny County Council", "KILKENNY"],
-  ["Offaly County Council", "OFFALY"],
-  ["Cavan County Council", "CAVAN"],
-  ["Roscommon County Council", "ROSCOMMON"],
-  ["Westmeath County Council", "WESTMEATH"],
-  ["Monaghan County Council", "MONAGHAN"],
-  ["Sligo County Council", "SLIGO"],
-  ["Carlow County Council", "CARLOW"],
-  ["Longford County Council", "LONGFORD"],
-  ["Leitrim County Council", "LEITRIM"],
+  ["Cork County Council","CORKCOCO"],["Cork City Council","CORKCITY"],["Dublin City Council","DUBLINCITY"],
+  ["Fingal County Council","FINGAL"],["South Dublin County Council","SOUTHDUBLIN"],["Dun Laoghaire Rathdown County Council","DLR"],
+  ["Kildare County Council","KILDARE"],["Galway County Council","GALWAYCOCO"],["Galway City Council","GALWAYCITY"],
+  ["Meath County Council","MEATH"],["Wicklow County Council","WICKLOW"],["Limerick County Council","LIMERICK"],
+  ["Waterford City and County Council","WATERFORD"],["Donegal County Council","DONEGAL"],["Wexford County Council","WEXFORD"],
+  ["Tipperary County Council","TIPPERARY"],["Kerry County Council","KERRY"],["Mayo County Council","MAYO"],
+  ["Clare County Council","CLARE"],["Louth County Council","LOUTH"],["Laois County Council","LAOIS"],
+  ["Kilkenny County Council","KILKENNY"],["Offaly County Council","OFFALY"],["Cavan County Council","CAVAN"],
+  ["Roscommon County Council","ROSCOMMON"],["Westmeath County Council","WESTMEATH"],["Monaghan County Council","MONAGHAN"],
+  ["Sligo County Council","SLIGO"],["Carlow County Council","CARLOW"],["Longford County Council","LONGFORD"],["Leitrim County Council","LEITRIM"]
 ])
 
-function parseArgs(argv) {
-  const options = {
-    input: DEFAULT_INPUT,
-    batchSize: DEFAULT_BATCH_SIZE,
-    delayMs: DEFAULT_DELAY_MS,
-    dryRun: false,
-    maxRows: null,
+function args(argv) {
+  const o={input:"national-planning-coordinates.ndjson",mode:"stage",stageBatch:5000,processBatch:250,delayMs:500,maxRows:null}
+  for(let i=0;i<argv.length;i++){
+    const a=argv[i]
+    if(a==="--input") o.input=argv[++i]
+    else if(a==="--mode") o.mode=argv[++i]
+    else if(a==="--stage-batch") o.stageBatch=Number(argv[++i])
+    else if(a==="--process-batch") o.processBatch=Number(argv[++i])
+    else if(a==="--delay-ms") o.delayMs=Number(argv[++i])
+    else if(a==="--max-rows") o.maxRows=Number(argv[++i])
+    else throw new Error(`Unknown argument: ${a}`)
   }
-
-  for (let index = 0; index < argv.length; index += 1) {
-    const arg = argv[index]
-    if (arg === "--input") options.input = argv[++index]
-    else if (arg === "--batch-size") options.batchSize = Number(argv[++index])
-    else if (arg === "--delay-ms") options.delayMs = Number(argv[++index])
-    else if (arg === "--max-rows") options.maxRows = Number(argv[++index])
-    else if (arg === "--dry-run") options.dryRun = true
-    else throw new Error(`Unknown argument: ${arg}`)
-  }
-
-  if (!Number.isInteger(options.batchSize) || options.batchSize < 1 || options.batchSize > MAX_BATCH_SIZE) {
-    throw new Error(`--batch-size must be an integer between 1 and ${MAX_BATCH_SIZE}`)
-  }
-  if (!Number.isFinite(options.delayMs) || options.delayMs < 0) {
-    throw new Error("--delay-ms must be zero or greater")
-  }
-  if (options.maxRows !== null && (!Number.isInteger(options.maxRows) || options.maxRows < 1)) {
-    throw new Error("--max-rows must be a positive integer")
-  }
-
-  return options
+  if(!["stage","process","stage-and-test","status"].includes(o.mode)) throw new Error("invalid --mode")
+  if(!Number.isInteger(o.stageBatch)||o.stageBatch<1||o.stageBatch>5000) throw new Error("--stage-batch 1..5000")
+  if(!Number.isInteger(o.processBatch)||o.processBatch<1||o.processBatch>1000) throw new Error("--process-batch 1..1000")
+  return o
 }
-
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
+const sleep=ms=>new Promise(r=>setTimeout(r,ms))
+function normalise(raw){
+  const code=AUTHORITY_CODES.get(String(raw.authority||"").trim())
+  const reference=String(raw.reference||"").trim(), e=Number(raw.easting), n=Number(raw.northing)
+  return code&&reference&&Number.isFinite(e)&&Number.isFinite(n)?{local_authority_code:code,reference,grid_easting:e,grid_northing:n}:null
 }
-
-function normaliseRow(raw) {
-  const authority = String(raw.authority || "").trim()
-  const localAuthorityCode = AUTHORITY_CODES.get(authority)
-  const reference = String(raw.reference || "").trim()
-  const easting = Number(raw.easting)
-  const northing = Number(raw.northing)
-
-  if (!localAuthorityCode || !reference || !Number.isFinite(easting) || !Number.isFinite(northing)) {
-    return null
-  }
-
-  return {
-    local_authority_code: localAuthorityCode,
-    reference,
-    grid_easting: easting,
-    grid_northing: northing,
-  }
+async function rpc(s,name,p){const {data,error}=await s.rpc(name,p);if(error)throw error;return data}
+async function stage(s,o){
+  const input=createInterface({input:createReadStream(o.input,{encoding:"utf8"}),crlfDelay:Infinity})
+  let batch=[],accepted=0,invalid=0,staged=0
+  const flush=async()=>{if(!batch.length)return;const r=await rpc(s,"openlist_stage_planning_coordinates",{p_rows:batch});staged+=Number(r?.staged||0);console.log(`stage accepted=${accepted} staged=${staged} invalid=${invalid}`);batch=[]}
+  for await(const line of input){if(!line.trim())continue;const row=normalise(JSON.parse(line));if(!row){invalid++;continue}accepted++;batch.push(row);if(batch.length>=o.stageBatch)await flush();if(o.maxRows&&accepted>=o.maxRows)break}
+  await flush();return {accepted,invalid,staged}
 }
-
-async function hydrateBatch(supabase, rows, dryRun) {
-  if (dryRun) return { processed: rows.length, updated: 0, skipped_existing: 0, missing: 0 }
-
-  const { data, error } = await supabase.rpc("openlist_hydrate_planning_coordinates", {
-    p_rows: rows,
-  })
-  if (error) throw error
-  return data
+async function status(s){const r=await rpc(s,"openlist_planning_coordinate_stage_status",{});console.log(JSON.stringify(r));return r}
+async function processRows(s,o,maxRows=o.maxRows){
+  let total=0
+  while(!maxRows||total<maxRows){const limit=Math.min(o.processBatch,maxRows?maxRows-total:o.processBatch);const r=await rpc(s,"openlist_process_staged_planning_coordinates",{p_limit:limit});const u=Number(r?.updated||0);total+=u;console.log(`process updated=${u} total=${total} pending=${r?.pending}`);if(!u)break;if(o.delayMs)await sleep(o.delayMs)}
+  return total
 }
-
-async function main() {
-  const options = parseArgs(process.argv.slice(2))
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-  if (!options.dryRun && (!supabaseUrl || !serviceRoleKey)) {
-    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY")
-  }
-
-  const supabase = options.dryRun ? null : createClient(supabaseUrl, serviceRoleKey)
-  const input = createInterface({
-    input: createReadStream(options.input, { encoding: "utf-8" }),
-    crlfDelay: Infinity,
-  })
-
-  let batch = []
-  let accepted = 0
-  let invalid = 0
-  let processed = 0
-  let updated = 0
-  let skippedExisting = 0
-  let missing = 0
-
-  async function flush() {
-    if (batch.length === 0) return
-    const result = await hydrateBatch(supabase, batch, options.dryRun)
-    processed += Number(result?.processed || batch.length)
-    updated += Number(result?.updated || 0)
-    skippedExisting += Number(result?.skipped_existing || 0)
-    missing += Number(result?.missing || 0)
-    console.log(
-      `Coordinate hydration: processed=${processed}, updated=${updated}, existing=${skippedExisting}, missing=${missing}, invalid=${invalid}`
-    )
-    batch = []
-    if (!options.dryRun && options.delayMs > 0) await sleep(options.delayMs)
-  }
-
-  for await (const line of input) {
-    if (!line.trim()) continue
-    const row = normaliseRow(JSON.parse(line))
-    if (!row) {
-      invalid += 1
-      continue
-    }
-
-    accepted += 1
-    batch.push(row)
-    if (batch.length >= options.batchSize) await flush()
-
-    if (options.maxRows !== null && accepted >= options.maxRows) break
-  }
-
-  await flush()
-  console.log(
-    `Coordinate hydration complete: accepted=${accepted}, processed=${processed}, updated=${updated}, existing=${skippedExisting}, missing=${missing}, invalid=${invalid}, dryRun=${options.dryRun}`
-  )
+async function main(){
+  const o=args(process.argv.slice(2)),url=process.env.NEXT_PUBLIC_SUPABASE_URL,key=process.env.SUPABASE_SERVICE_ROLE_KEY
+  if(!url||!key)throw new Error("Missing Supabase credentials")
+  const s=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}})
+  if(o.mode==="stage"){await stage(s,o);await status(s)}
+  else if(o.mode==="status") await status(s)
+  else if(o.mode==="process"){await processRows(s,o);await status(s)}
+  else {await stage(s,o);await status(s);console.log("Running bounded 50-row production test");await processRows(s,{...o,processBatch:50,maxRows:50},50);await status(s)}
 }
-
-main().catch((error) => {
-  console.error(error)
-  process.exitCode = 1
-})
+main().catch(e=>{console.error(e);process.exitCode=1})
