@@ -67,6 +67,18 @@ export default function Nav() {
               <div className="grid grid-cols-3 gap-5">
                 {planningExploreGroups.map((group) => <div key={group.title}><p className="text-xs font-semibold uppercase tracking-[0.14em] text-stone-400">{group.title}</p><div className="mt-2 space-y-1">{group.links.map((link) => <Link key={link.href + link.label} href={link.href} className="block rounded-lg px-2 py-2 transition hover:bg-stone-50"><span className="block text-sm font-semibold text-stone-800">{link.label}</span><span className="mt-0.5 block text-xs text-stone-500">{link.detail}</span></Link>)}</div></div>)}
               </div>
+              {isAuthenticated ? (
+                <div className="mt-4 flex items-center justify-between gap-4 border-t border-stone-100 pt-4">
+                  <Link href="/planning/areas" className="group flex min-w-0 flex-1 items-center justify-between gap-4 rounded-xl bg-emerald-50 px-4 py-3 transition hover:bg-emerald-100">
+                    <span className="min-w-0">
+                      <span className="block text-sm font-semibold text-emerald-950">Area alerts</span>
+                      <span className="mt-0.5 block text-xs text-emerald-800">Get notified about new applications near you</span>
+                    </span>
+                    <span className="shrink-0 text-sm font-semibold text-emerald-800">Choose an area →</span>
+                  </Link>
+                  <Link href="/my-alerts/areas" className="shrink-0 text-sm font-semibold text-stone-600 hover:text-stone-950 hover:underline">Manage alerts</Link>
+                </div>
+              ) : null}
             </div>
           </div>
           {navItems.slice(1).map((item) => {
