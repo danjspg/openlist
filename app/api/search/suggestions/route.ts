@@ -1,8 +1,5 @@
 import { NextResponse } from "next/server"
-import {
-  getPlanningLocalityDirectory,
-  getPlanningRoutableLocalitySlugs,
-} from "@/lib/locality-seo"
+import { getPlanningLocalityDirectory } from "@/lib/locality-seo"
 import { getPprAreaSuggestions } from "@/lib/ppr"
 import { PLANNING_AUTHORITIES, getPlanningAuthorityByCode } from "@/lib/planning-authorities"
 import { PLANNING_PUBLIC_CATEGORIES } from "@/lib/planning-public-categories"
@@ -41,23 +38,13 @@ export async function GET(request: Request) {
   const queryKey = normalise(query)
   const suggestions: Suggestion[] = []
 
-  const localityCandidates = localities.filter((entry) => {
-    const labelKey = normalise(entry.locality_label)
-    const slugKey = normalise(entry.locality_slug)
-    return labelKey === queryKey || slugKey === queryKey || labelKey.startsWith(queryKey) || labelKey.includes(queryKey)
-  })
-  const authorityCodes = [...new Set(localityCandidates.map((entry) => entry.authority_code).filter((code): code is string => Boolean(code)))]
-  const routableByAuthority = new Map(
-    await Promise.all(
-      authorityCodes.map(async (authorityCode) => [
-        authorityCode,
-        new Set(await getPlanningRoutableLocalitySlugs(authorityCode).catch(() => [])),
-      ] as const)
-    )
-  )
-
-  const localityMatches = localityCandidates
-    .filter((entry) => Boolean(entry.authority_code && routableByAuthority.get(entry.authority_code)?.has(entry.locality_slug)))
+  const localityMatches = localities
+    .filter((entry) => {
+      if (!entry.authority_code || !entry.canonical_path) return false
+      const labelKey = normalise(entry.locality_label)
+      const slugKey = normalise(entry.locality_slug)
+      return labelKey === queryKey || slugKey === queryKey || labelKey.startsWith(queryKey) || labelKey.includes(queryKey)
+    })
     .map((entry) => {
       const labelKey = normalise(entry.locality_label)
       const slugKey = normalise(entry.locality_slug)
