@@ -50,12 +50,19 @@ type AlertRow = {
   planning_applications: AlertApplication | AlertApplication[] | null
 }
 
+type AlertObservedChange = {
+  application_id: string
+  event_id: string
+  observed_at: string
+}
+
 type AlertEvent = {
   id: string
   application_id: string
   event_type: PlanningEventType
   event_date: string
   detected_at: string
+  activity_at: string
   label: string
   new_value: string | null
 }
@@ -83,23 +90,38 @@ export default async function MyAlertsPage() {
     (earliest, alert) => !earliest || alert.created_at < earliest ? alert.created_at : earliest,
     null
   )
-  const eventResult = applicationIds.length > 0 && earliestAlert
+
+  const observedChangeResult = applicationIds.length > 0 && earliestAlert
+    ? await supabase
+        .from("planning_alert_observed_changes")
+        .select("application_id,event_id,observed_at")
+        .in("application_id", applicationIds)
+        .gte("observed_at", earliestAlert)
+        .order("observed_at", { ascending: false })
+        .limit(Math.min(1000, Math.max(100, applicationIds.length * 10)))
+    : { data: [] as AlertObservedChange[], error: null }
+  const observedChanges = (observedChangeResult.data ?? []) as AlertObservedChange[]
+  const eventIds = [...new Set(observedChanges.map((change) => change.event_id))]
+
+  const eventResult = eventIds.length > 0
     ? await supabase
         .from("planning_application_events")
         .select("id,application_id,event_type,event_date,detected_at,label,new_value")
-        .in("application_id", applicationIds)
-        .eq("provenance", "observed")
-        .gte("detected_at", earliestAlert)
-        .order("detected_at", { ascending: false })
-        .limit(Math.min(1000, Math.max(100, applicationIds.length * 10)))
-    : { data: [] as AlertEvent[], error: null }
-  const events = (eventResult.data ?? []) as AlertEvent[]
+        .in("id", eventIds)
+    : { data: [] as Omit<AlertEvent, "activity_at">[], error: null }
+
+  const eventsById = new Map(
+    ((eventResult.data ?? []) as Omit<AlertEvent, "activity_at">[]).map((event) => [event.id, event])
+  )
   const eventsByApplication = new Map<string, AlertEvent[]>()
-  for (const event of events) {
-    const applicationEvents = eventsByApplication.get(event.application_id) ?? []
-    applicationEvents.push(event)
-    eventsByApplication.set(event.application_id, applicationEvents)
+  for (const change of observedChanges) {
+    const event = eventsById.get(change.event_id)
+    if (!event) continue
+    const applicationEvents = eventsByApplication.get(change.application_id) ?? []
+    applicationEvents.push({ ...event, activity_at: change.observed_at })
+    eventsByApplication.set(change.application_id, applicationEvents)
   }
+  const activityAvailable = !observedChangeResult.error && !eventResult.error
 
   return (
     <main className="min-h-screen bg-stone-50">
@@ -126,7 +148,7 @@ export default async function MyAlertsPage() {
                 key={alert.id}
                 alert={alert}
                 events={eventsByApplication.get(alert.application_id) ?? []}
-                activityAvailable={!eventResult.error}
+                activityAvailable={activityAvailable}
               />
             ))}
           </div>
@@ -212,7 +234,7 @@ function AlertCard({
                 : "Recent activity unavailable"}
           </p>
           {latestEvent ? (
-            <p className="mt-0.5 text-xs text-stone-500">Updated {formatUpdateTime(latestEvent.detected_at)}</p>
+            <p className="mt-0.5 text-xs text-stone-500">Updated {formatUpdateTime(latestEvent.activity_at)}</p>
           ) : null}
         </div>
       </div>
@@ -254,13 +276,13 @@ function AlertCard({
 function latestMeaningfulAlertEvent(events: AlertEvent[], createdAt: string) {
   return events
     .filter((event) => {
-      if (event.detected_at < createdAt || !meaningfulAlertTypes.has(event.event_type)) return false
+      if (event.activity_at < createdAt || !meaningfulAlertTypes.has(event.event_type)) return false
       return event.event_type !== "status_changed" || Boolean(
         event.new_value && usefulStatusDestinations.has(event.new_value)
       )
     })
     .sort((left, right) =>
-      right.detected_at.localeCompare(left.detected_at) ||
+      right.activity_at.localeCompare(left.activity_at) ||
       Number(left.event_type === "status_changed") - Number(right.event_type === "status_changed")
     )[0] ?? null
 }
