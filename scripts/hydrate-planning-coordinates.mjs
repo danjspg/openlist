@@ -16,7 +16,7 @@ const AUTHORITY_CODES = new Map([
 ])
 
 function args(argv) {
-  const o={input:"national-planning-coordinates.ndjson",mode:"stage",stageBatch:5000,processBatch:250,delayMs:500,maxRows:null}
+  const o={input:"national-planning-coordinates.ndjson",mode:"stage",stageBatch:5000,processBatch:10000,delayMs:250,maxRows:null}
   for(let i=0;i<argv.length;i++){
     const a=argv[i]
     if(a==="--input") o.input=argv[++i]
@@ -29,7 +29,7 @@ function args(argv) {
   }
   if(!["stage","process","stage-and-test","status"].includes(o.mode)) throw new Error("invalid --mode")
   if(!Number.isInteger(o.stageBatch)||o.stageBatch<1||o.stageBatch>5000) throw new Error("--stage-batch 1..5000")
-  if(!Number.isInteger(o.processBatch)||o.processBatch<1||o.processBatch>1000) throw new Error("--process-batch 1..1000")
+  if(!Number.isInteger(o.processBatch)||o.processBatch<1||o.processBatch>50000) throw new Error("--process-batch 1..50000")
   return o
 }
 const sleep=ms=>new Promise(r=>setTimeout(r,ms))
@@ -46,10 +46,23 @@ async function stage(s,o){
   for await(const line of input){if(!line.trim())continue;const row=normalise(JSON.parse(line));if(!row){invalid++;continue}accepted++;batch.push(row);if(batch.length>=o.stageBatch)await flush();if(o.maxRows&&accepted>=o.maxRows)break}
   await flush();return {accepted,invalid,staged}
 }
-async function status(s){const r=await rpc(s,"openlist_planning_coordinate_stage_status",{});console.log(JSON.stringify(r));return r}
+async function status(s){
+  const sidecar=await rpc(s,"openlist_planning_location_sidecar_status",{})
+  console.log(JSON.stringify(sidecar))
+  return sidecar
+}
 async function processRows(s,o,maxRows=o.maxRows){
   let total=0
-  while(!maxRows||total<maxRows){const limit=Math.min(o.processBatch,maxRows?maxRows-total:o.processBatch);const r=await rpc(s,"openlist_process_staged_planning_coordinates",{p_limit:limit});const u=Number(r?.updated||0);total+=u;console.log(`process updated=${u} total=${total} pending=${r?.pending}`);if(!u)break;if(o.delayMs)await sleep(o.delayMs)}
+  while(!maxRows||total<maxRows){
+    const limit=Math.min(o.processBatch,maxRows?maxRows-total:o.processBatch)
+    const started=Date.now()
+    const r=await rpc(s,"openlist_fill_planning_location_sidecar",{p_limit:limit})
+    const inserted=Number(r?.inserted||0)
+    total+=inserted
+    console.log(`sidecar inserted=${inserted} total=${total} batch_ms=${Date.now()-started}`)
+    if(!inserted)break
+    if(o.delayMs)await sleep(o.delayMs)
+  }
   return total
 }
 async function main(){
@@ -59,6 +72,6 @@ async function main(){
   if(o.mode==="stage"){await stage(s,o);await status(s)}
   else if(o.mode==="status") await status(s)
   else if(o.mode==="process"){await processRows(s,o);await status(s)}
-  else {await stage(s,o);await status(s);console.log("Running bounded 50-row production test");await processRows(s,{...o,processBatch:50,maxRows:50},50);await status(s)}
+  else {await stage(s,o);await status(s);console.log("Running bounded 10,000-row sidecar test");await processRows(s,{...o,processBatch:10000,maxRows:10000},10000);await status(s)}
 }
 main().catch(e=>{console.error(e);process.exitCode=1})
