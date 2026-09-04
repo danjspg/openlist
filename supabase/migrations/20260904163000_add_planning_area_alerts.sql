@@ -77,6 +77,7 @@ create policy planning_area_alert_subscriptions_delete_own
   to authenticated
   using (user_id = auth.uid());
 
+revoke all on public.planning_area_alert_subscriptions from anon;
 revoke all on public.planning_area_alert_deliveries from anon, authenticated;
 grant select, insert, update, delete on public.planning_area_alert_subscriptions to authenticated;
 
