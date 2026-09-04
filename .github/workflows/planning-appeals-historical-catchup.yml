@@ -2,9 +2,9 @@ name: Catch Up Historical Planning Appeals
 
 on:
   schedule:
-    # Pace historical ACP case-page lookups across roughly three weeks.
-    # Four small batches per day avoids bursty traffic and never re-fetches the bulk ACP dataset.
-    - cron: "17 0,4,12,18 * * *"
+    # Six small batches per day accelerates the backlog while preserving the
+    # proven 250-row lookup bound and shared database-maintenance serialization.
+    - cron: "17 0,4,8,12,16,20 * * *"
   workflow_dispatch:
     inputs:
       process_only:
