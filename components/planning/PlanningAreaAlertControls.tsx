@@ -108,7 +108,7 @@ export function PlanningAreaAlertControls({
           </button>
           {message ? (
             <p className="text-sm font-medium text-emerald-800">
-              {message} <Link href="/my-alerts" className="underline underline-offset-4">Manage alerts</Link>
+              {message} <Link href="/my-alerts/areas" className="underline underline-offset-4">Manage area alerts</Link>
             </p>
           ) : null}
           {error ? <p className="text-sm font-medium text-red-700">{error}</p> : null}
