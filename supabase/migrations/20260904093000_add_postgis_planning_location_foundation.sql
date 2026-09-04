@@ -84,7 +84,7 @@ create or replace function public.openlist_backfill_planning_location_geog(
 )
 returns jsonb
 language plpgsql
-security definer
+security invoker
 set search_path = ''
 set statement_timeout = '15s'
 as $$
@@ -156,7 +156,7 @@ returns table (
 )
 language sql
 stable
-security definer
+security invoker
 set search_path = ''
 set statement_timeout = '5s'
 as $$
@@ -181,7 +181,7 @@ as $$
       )::extensions.geography,
       p_radius_m
     )
-  order by a.location_geog <-> extensions.st_setsrid(
+  order by a.location_geog OPERATOR(extensions.<->) extensions.st_setsrid(
     extensions.st_makepoint(p_lng, p_lat),
     4326
   )::extensions.geography
