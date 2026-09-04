@@ -41,15 +41,15 @@ export function PrivatePlanningAreaAlertEntry() {
     const container = document.createElement("div")
     container.dataset.privatePlanningAreaAlert = "true"
     header.insertAdjacentElement("afterend", container)
-    setHost(container)
+    const frame = window.requestAnimationFrame(() => setHost(container))
 
     return () => {
-      setHost(null)
+      window.cancelAnimationFrame(frame)
       container.remove()
     }
   }, [isAuthenticated, isResolved, route])
 
-  if (!isResolved || !isAuthenticated || !route || !host) return null
+  if (!isResolved || !isAuthenticated || !route || !host || !host.isConnected) return null
 
   return createPortal(
     route.kind === "locality" ? (
@@ -157,7 +157,7 @@ function CategoryAlertPanel({ categorySlug }: { categorySlug: string }) {
         <div>
           <h2 className="text-xl font-semibold tracking-tight text-stone-950">Get local alerts for {label.toLowerCase()}</h2>
           <p className="mt-2 text-sm leading-6 text-stone-600">
-            Choose a planning area first. On its locality page you can create a new-application alert using that area's mapped centre.
+            Choose a planning area first. On its locality page you can create a new-application alert using the mapped centre for that area.
           </p>
         </div>
         <Link href="/planning/areas" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-emerald-700 px-5 text-sm font-semibold text-white hover:bg-emerald-800">
