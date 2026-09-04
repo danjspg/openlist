@@ -25,9 +25,12 @@ export function PlanningApplicationLocationMap({ authority, reference, applicati
 
     const portalHost = document.createElement("div")
     timeline.insertAdjacentElement("afterend", portalHost)
-    setHost(portalHost)
+    const frame = requestAnimationFrame(() => setHost(portalHost))
 
-    return () => portalHost.remove()
+    return () => {
+      cancelAnimationFrame(frame)
+      portalHost.remove()
+    }
   }, [])
 
   useEffect(() => {
