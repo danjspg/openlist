@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
+import { runPlanningAreaAlertDelivery } from "@/lib/planning-area-alert-delivery"
 import {
   PLANNING_ALERT_DELIVERY_BATCH_SIZE,
   PLANNING_ALERT_QUEUE_BATCH_SIZE,
@@ -24,6 +25,13 @@ type DeliveryRunResult = {
   retried: number
   failed: number
   stale: number
+  areaSubscriptions: number
+  areaQueued: number
+  areaQueueFailed: number
+  areaClaimed: number
+  areaSent: number
+  areaFailed: number
+  areaStale: number
 }
 
 function errorMessage(error: unknown) {
@@ -72,6 +80,13 @@ export async function runPlanningAlertDelivery(
     retried: 0,
     failed: 0,
     stale: 0,
+    areaSubscriptions: 0,
+    areaQueued: 0,
+    areaQueueFailed: 0,
+    areaClaimed: 0,
+    areaSent: 0,
+    areaFailed: 0,
+    areaStale: 0,
   }
 
   const { data: enqueueData, error: enqueueError } = await supabase.rpc(
@@ -125,6 +140,15 @@ export async function runPlanningAlertDelivery(
       else if (state === "failed") result.failed += 1
       else result.retried += 1
     }
+  }
+
+  // Area alerts are private beta and deliberately fail independently so they
+  // cannot interrupt the established single-application alert lane.
+  try {
+    Object.assign(result, await runPlanningAreaAlertDelivery(supabase))
+  } catch (areaError) {
+    result.areaQueueFailed += 1
+    console.error("Planning area alert delivery run failed.", areaError)
   }
 
   return result
