@@ -3,6 +3,7 @@
 import "leaflet/dist/leaflet.css"
 import { useEffect, useRef } from "react"
 import type { Map as LeafletMap } from "leaflet"
+import { PlanningAreaAlertControls } from "@/components/planning/PlanningAreaAlertControls"
 import type { NearbyPlanningMapData } from "@/lib/planning-nearby"
 
 export function NearbyPlanningMap({
@@ -162,6 +163,7 @@ export function NearbyPlanningMap({
         className="h-[520px] w-full bg-stone-100 sm:h-[620px]"
         aria-label={`Nearby planning applications around ${applicationReference}`}
       />
+      <PlanningAreaAlertControls applicationId={data.sourceApplicationId} />
       <div className="border-t border-stone-200 bg-stone-50 px-6 py-3 text-xs leading-5 text-stone-500 sm:px-8">
         Shows up to the 40 closest mapped applications within the radius. Locations are approximate and based on published planning coordinates.
       </div>
