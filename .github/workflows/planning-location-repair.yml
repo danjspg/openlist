@@ -15,10 +15,6 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: openlist-db-maintenance
-  cancel-in-progress: false
-
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -35,6 +31,9 @@ jobs:
   repair:
     if: ${{ github.event_name != 'pull_request' }}
     needs: test
+    concurrency:
+      group: openlist-db-maintenance
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
