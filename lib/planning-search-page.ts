@@ -77,7 +77,8 @@ export async function getPlanningSearchPage(input: PlanningPageSearch) {
 
   const rows = (data ?? []) as PlanningApplication[]
   const hasMore = rows.length > limit
-  const results = hasMore ? rows.slice(0, limit) : rows
+  const pageRows = hasMore ? rows.slice(0, limit) : rows
+  const results = await addSpatialSidecarCoordinates(pageRows)
 
   return {
     results,
@@ -86,6 +87,47 @@ export async function getPlanningSearchPage(input: PlanningPageSearch) {
     limit,
     hasMore,
   }
+}
+
+async function addSpatialSidecarCoordinates(rows: PlanningApplication[]) {
+  const missingCoordinateRows = rows.filter((row) => !hasCompleteGridCoordinates(row))
+  if (missingCoordinateRows.length === 0) return rows
+
+  const ids = missingCoordinateRows.map((row) => row.id)
+  const { data, error } = await getServerSupabase()
+    .from("planning_application_locations")
+    .select("application_id,grid_easting,grid_northing")
+    .in("application_id", ids)
+
+  // Mapping is an enhancement to search, not a dependency. If the sidecar is
+  // temporarily unavailable, keep returning the search results with any native
+  // coordinates they already have rather than failing the whole search request.
+  if (error) {
+    console.warn("Planning location sidecar lookup failed.", error.message)
+    return rows
+  }
+
+  const byApplicationId = new Map(
+    (data ?? []).map((location) => [location.application_id, location] as const)
+  )
+
+  return rows.map((row) => {
+    if (hasCompleteGridCoordinates(row)) return row
+    const location = byApplicationId.get(row.id)
+    if (!location) return row
+    return {
+      ...row,
+      grid_easting: location.grid_easting,
+      grid_northing: location.grid_northing,
+    }
+  })
+}
+
+function hasCompleteGridCoordinates(application: PlanningApplication) {
+  return Number.isFinite(Number(application.grid_easting))
+    && Number.isFinite(Number(application.grid_northing))
+    && application.grid_easting !== null
+    && application.grid_northing !== null
 }
 
 export function canonicalPlanningAreaOptions(options: string[]) {
