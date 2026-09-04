@@ -9,6 +9,7 @@ export type NearbyPlanningRecord = PlanningResultRecord & {
 }
 
 export type NearbyPlanningMapData = {
+  sourceApplicationId: string
   center: { lat: number; lng: number }
   applications: NearbyPlanningRecord[]
   radiusM: number
@@ -28,6 +29,7 @@ export async function getNearbyPlanningMap(
 
   const center = await resolvePlanningCoordinates(application)
   if (!center) return null
+  const base = { sourceApplicationId: application.id, center, radiusM: boundedRadius }
 
   const { data: nearbyRows, error: nearbyError } = await supabase.rpc(
     "openlist_planning_applications_within_radius",
@@ -41,7 +43,7 @@ export async function getNearbyPlanningMap(
 
   if (nearbyError) {
     console.warn("Nearby planning radius lookup failed.", nearbyError.message)
-    return { center, applications: [], radiusM: boundedRadius }
+    return { ...base, applications: [] }
   }
 
   const distances = new Map<string, number>()
@@ -53,7 +55,7 @@ export async function getNearbyPlanningMap(
   }
 
   const ids = [...distances.keys()]
-  if (ids.length === 0) return { center, applications: [], radiusM: boundedRadius }
+  if (ids.length === 0) return { ...base, applications: [] }
 
   const [{ data: applications, error: applicationsError }, { data: locations, error: locationsError }] = await Promise.all([
     supabase
@@ -68,7 +70,7 @@ export async function getNearbyPlanningMap(
 
   if (applicationsError) {
     console.warn("Nearby planning application lookup failed.", applicationsError.message)
-    return { center, applications: [], radiusM: boundedRadius }
+    return { ...base, applications: [] }
   }
 
   if (locationsError) {
@@ -96,9 +98,8 @@ export async function getNearbyPlanningMap(
     .sort((left, right) => left.distanceM - right.distanceM)
 
   return {
-    center,
+    ...base,
     applications: records,
-    radiusM: boundedRadius,
   }
 }
 
