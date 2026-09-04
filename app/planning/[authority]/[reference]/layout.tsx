@@ -1,49 +1,12 @@
 import type { ReactNode } from "react"
-import { getPlanningApplication } from "@/lib/planning"
-import { getPlanningAuthorityBySlug } from "@/lib/planning-authorities"
-import { getPlanningNotableEnrichment } from "@/lib/planning-notable"
 
 type Props = {
   children: ReactNode
-  params: Promise<{ authority: string; reference: string }>
 }
 
-export default async function PlanningApplicationLayout({ children, params }: Props) {
-  const resolved = await params
-  const authority = getPlanningAuthorityBySlug(resolved.authority)
-  let application = null
-  let notable = null
-
-  if (authority) {
-    try {
-      application = await getPlanningApplication(authority, resolved.reference)
-    } catch (error) {
-      // This lookup exists only to decorate the detail page with public-name
-      // context. Never let an optional banner prevent the core page rendering.
-      console.warn("Planning notable layout lookup unavailable; rendering without banner.", error)
-    }
-  }
-
-  if (application) {
-    try {
-      notable = await getPlanningNotableEnrichment(application.id)
-    } catch (error) {
-      console.warn("Planning notable enrichment unavailable; rendering without banner.", error)
-    }
-  }
-
+export default function PlanningApplicationLayout({ children }: Props) {
   return (
     <div className="planning-application-layout">
-      {notable?.displayName ? (
-        <aside className="border-b border-amber-200 bg-amber-50" aria-label="Application context">
-          <div className="mx-auto max-w-6xl px-4 py-3 sm:px-6">
-            <p className="text-sm leading-6 text-amber-950">
-              <span className="font-semibold">Known as {notable.displayName}.</span>{" "}
-              OpenList adds this contextual name from published reporting so the official planning record is easier to find. Council-supplied fields remain unchanged.
-            </p>
-          </div>
-        </aside>
-      ) : null}
       {children}
       <style>{`
         @media (min-width: 1024px) {
