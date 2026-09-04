@@ -21,7 +21,7 @@ returns table(
 language sql
 stable
 security invoker
-set search_path = public, pg_catalog
+set search_path = ''
 set statement_timeout = '5s'
 as $$
   with membership as materialized (
@@ -48,8 +48,8 @@ as $$
     select
       l.application_id,
       l.location_geog,
-      st_y(l.location_geog::geometry) as lat,
-      st_x(l.location_geog::geometry) as lng
+      extensions.st_y(l.location_geog::extensions.geometry) as lat,
+      extensions.st_x(l.location_geog::extensions.geometry) as lng
     from candidate_ids c
     join public.planning_application_locations l
       on l.application_id = c.id
@@ -65,7 +65,10 @@ as $$
     from points p
     cross join medians m
     where m.sample_count > 0
-    order by p.location_geog <-> st_setsrid(st_makepoint(m.median_lng, m.median_lat), 4326)::geography
+    order by p.location_geog OPERATOR(extensions.<->) extensions.st_setsrid(
+      extensions.st_makepoint(m.median_lng, m.median_lat),
+      4326
+    )::extensions.geography
     limit 1
   )
   select lat, lng, sample_count
