@@ -1,6 +1,8 @@
 import type { Metadata } from "next"
+import { PlanningApplicationLocationMap } from "@/components/planning/PlanningApplicationLocationMap"
 import { getPlanningAuthorityBySlug } from "@/lib/planning-authorities"
 import { planningReferenceFromSlug } from "@/lib/property-intelligence"
+import PlanningApplicationPageContent from "./PlanningApplicationPageContent"
 
 export const revalidate = false
 export const dynamicParams = true
@@ -22,4 +24,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-export { default } from "./PlanningApplicationPageContent"
+export default async function PlanningApplicationPage({ params }: Props) {
+  const resolved = await params
+  const applicationReference = planningReferenceFromSlug(resolved.reference)
+
+  return (
+    <>
+      <PlanningApplicationPageContent params={Promise.resolve(resolved)} />
+      {applicationReference ? (
+        <PlanningApplicationLocationMap
+          authority={resolved.authority}
+          reference={resolved.reference}
+          applicationReference={applicationReference}
+        />
+      ) : null}
+    </>
+  )
+}

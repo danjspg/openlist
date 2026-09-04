@@ -1,0 +1,94 @@
+"use client"
+
+import { useEffect, useMemo, useRef, useState } from "react"
+
+type Coordinates = { lat: number; lng: number }
+
+type Props = {
+  authority: string
+  reference: string
+  applicationReference: string
+}
+
+export function PlanningApplicationLocationMap({ authority, reference, applicationReference }: Props) {
+  const sentinelRef = useRef<HTMLDivElement>(null)
+  const [coordinates, setCoordinates] = useState<Coordinates | null>(null)
+  const [resolved, setResolved] = useState(false)
+  const [shouldLoad, setShouldLoad] = useState(false)
+
+  useEffect(() => {
+    if (!sentinelRef.current || shouldLoad) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return
+        setShouldLoad(true)
+        observer.disconnect()
+      },
+      { rootMargin: "500px 0px" }
+    )
+
+    observer.observe(sentinelRef.current)
+    return () => observer.disconnect()
+  }, [shouldLoad])
+
+  useEffect(() => {
+    if (!shouldLoad) return
+    const controller = new AbortController()
+
+    void fetch(
+      `/api/planning/application-location?authority=${encodeURIComponent(authority)}&reference=${encodeURIComponent(reference)}`,
+      { signal: controller.signal }
+    )
+      .then(async (response) => {
+        if (!response.ok) return null
+        const payload = (await response.json()) as { coordinates?: Coordinates | null }
+        return payload.coordinates ?? null
+      })
+      .then((value) => {
+        setCoordinates(value)
+        setResolved(true)
+      })
+      .catch((error) => {
+        if (error instanceof DOMException && error.name === "AbortError") return
+        setResolved(true)
+      })
+
+    return () => controller.abort()
+  }, [authority, reference, shouldLoad])
+
+  const mapUrl = useMemo(() => {
+    if (!coordinates) return null
+    const radius = 0.012
+    const bbox = [
+      coordinates.lng - radius,
+      coordinates.lat - radius,
+      coordinates.lng + radius,
+      coordinates.lat + radius,
+    ].join(",")
+    return `https://www.openstreetmap.org/export/embed.html?bbox=${encodeURIComponent(bbox)}&layer=mapnik&marker=${encodeURIComponent(`${coordinates.lat},${coordinates.lng}`)}`
+  }, [coordinates])
+
+  if (resolved && !coordinates) return null
+
+  return (
+    <div ref={sentinelRef} className="mx-auto max-w-6xl px-4 pb-10 sm:px-6 lg:pb-14">
+      {mapUrl ? (
+        <section className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm">
+          <div className="p-6 sm:p-8">
+            <h2 className="text-2xl font-semibold tracking-tight text-stone-950">Application location</h2>
+            <p className="mt-2 text-sm leading-6 text-stone-600">
+              Approximate map position from coordinates supplied with the planning record.
+            </p>
+          </div>
+          <iframe
+            title={`Map for planning application ${applicationReference}`}
+            loading="lazy"
+            className="h-[360px] w-full border-0"
+            src={mapUrl}
+          />
+        </section>
+      ) : null}
+    </div>
+  )
+}
