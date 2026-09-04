@@ -17,6 +17,9 @@ create index if not exists planning_public_category_entries_page_idx
 create index if not exists planning_public_category_entries_counts_idx
   on public.planning_public_category_entries (category, local_authority_code, normalized_status);
 
+create index if not exists planning_public_category_entries_application_idx
+  on public.planning_public_category_entries (application_id);
+
 alter table public.planning_public_category_entries enable row level security;
 revoke all on table public.planning_public_category_entries from public, anon, authenticated;
 grant select, insert, update, delete on table public.planning_public_category_entries to service_role;
@@ -121,6 +124,9 @@ begin
   return new;
 end;
 $function$;
+
+revoke all on function public.openlist_sync_planning_public_category_entries_from_notable() from public, anon, authenticated;
+revoke all on function public.openlist_sync_planning_public_category_entries_from_application() from public, anon, authenticated;
 
 drop trigger if exists planning_public_category_entries_from_notable on public.planning_seo_notable;
 create trigger planning_public_category_entries_from_notable
