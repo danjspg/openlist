@@ -1,5 +1,6 @@
 "use client"
 
+import { createPortal } from "react-dom"
 import { useEffect, useMemo, useRef, useState } from "react"
 
 type Coordinates = { lat: number; lng: number }
@@ -12,12 +13,25 @@ type Props = {
 
 export function PlanningApplicationLocationMap({ authority, reference, applicationReference }: Props) {
   const sentinelRef = useRef<HTMLDivElement>(null)
+  const [host, setHost] = useState<HTMLDivElement | null>(null)
   const [coordinates, setCoordinates] = useState<Coordinates | null>(null)
   const [resolved, setResolved] = useState(false)
   const [shouldLoad, setShouldLoad] = useState(false)
 
   useEffect(() => {
-    if (!sentinelRef.current || shouldLoad) return
+    const timelineHeading = document.getElementById("planning-timeline-heading")
+    const timeline = timelineHeading?.closest("section")
+    if (!timeline?.parentElement) return
+
+    const portalHost = document.createElement("div")
+    timeline.insertAdjacentElement("afterend", portalHost)
+    setHost(portalHost)
+
+    return () => portalHost.remove()
+  }, [])
+
+  useEffect(() => {
+    if (!host || !sentinelRef.current || shouldLoad) return
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -30,7 +44,7 @@ export function PlanningApplicationLocationMap({ authority, reference, applicati
 
     observer.observe(sentinelRef.current)
     return () => observer.disconnect()
-  }, [shouldLoad])
+  }, [host, shouldLoad])
 
   useEffect(() => {
     if (!shouldLoad) return
@@ -69,10 +83,10 @@ export function PlanningApplicationLocationMap({ authority, reference, applicati
     return `https://www.openstreetmap.org/export/embed.html?bbox=${encodeURIComponent(bbox)}&layer=mapnik&marker=${encodeURIComponent(`${coordinates.lat},${coordinates.lng}`)}`
   }, [coordinates])
 
-  if (resolved && !coordinates) return null
+  if (!host || (resolved && !coordinates)) return null
 
-  return (
-    <div ref={sentinelRef} className="mx-auto max-w-6xl px-4 pb-10 sm:px-6 lg:pb-14">
+  return createPortal(
+    <div ref={sentinelRef}>
       {mapUrl ? (
         <section className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm">
           <div className="p-6 sm:p-8">
@@ -89,6 +103,7 @@ export function PlanningApplicationLocationMap({ authority, reference, applicati
           />
         </section>
       ) : null}
-    </div>
+    </div>,
+    host
   )
 }
