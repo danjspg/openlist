@@ -75,7 +75,7 @@ as $function$
       p.withdrawal_date,
       p.appeal_lodged_date,
       p.appeal_decision_date,
-      p.apal_decision_text,
+      p.appeal_decision_text,
       p.further_information_requested_date,
       p.further_information_received_date,
       p.grid_easting,
