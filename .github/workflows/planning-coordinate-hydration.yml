@@ -14,11 +14,11 @@ on:
         type: choice
         options: [stage-and-test, process, status]
       process_batch:
-        description: Sidecar insert batch size
+        description: Sidecar queue batch size
         required: false
-        default: "10000"
+        default: "5000"
       max_rows:
-        description: Optional maximum sidecar rows for process mode; blank means until done
+        description: Optional staging rows to process; blank means until done
         required: false
         default: ""
 
