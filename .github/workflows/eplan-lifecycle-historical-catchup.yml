@@ -2,15 +2,16 @@ name: Catch Up Historical ePlan Lifecycle
 
 on:
   schedule:
-    # 80 source-page checks per day, deliberately paced over about six weeks.
-    - cron: "23 3 * * *"
+    # Three bounded 80-row source passes per day. Keep each pass small and
+    # serialize against the shared database-maintenance lane.
+    - cron: "23 3,11,19 * * *"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: eplan-lifecycle-historical-catchup
+  group: openlist-db-maintenance
   cancel-in-progress: false
 
 jobs:
