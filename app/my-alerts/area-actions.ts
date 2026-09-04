@@ -7,6 +7,8 @@ import {
   isPlanningAreaAlertRadius,
   isPlanningAreaAlertTrigger,
 } from "@/lib/planning-area-alerts"
+import { getPlanningAuthorityBySlug } from "@/lib/planning-authorities"
+import { areaSlug } from "@/lib/ppr"
 import { planningGridToWgs84 } from "@/lib/property-intelligence"
 import { getServerSupabase } from "@/lib/supabase"
 
@@ -20,11 +22,86 @@ function subscriptionId(formData: FormData) {
   return id
 }
 
+async function upsertAreaAlert({
+  userId,
+  sourceApplicationId,
+  label,
+  centerLat,
+  centerLng,
+  radiusM,
+  category,
+  trigger,
+}: {
+  userId: string
+  sourceApplicationId: string | null
+  label: string
+  centerLat: number
+  centerLng: number
+  radiusM: number
+  category: string
+  trigger: string
+}) {
+  const supabase = getServerSupabase()
+  let existingQuery = supabase
+    .from("planning_area_alert_subscriptions")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("radius_m", radiusM)
+    .eq("category", category)
+    .eq("event_trigger", trigger)
+
+  existingQuery = sourceApplicationId
+    ? existingQuery.eq("source_application_id", sourceApplicationId)
+    : existingQuery.is("source_application_id", null).eq("label", label)
+
+  const { data: existing, error: existingError } = await existingQuery.maybeSingle()
+  if (existingError) throw new Error(existingError.message)
+
+  if (existing) {
+    const { error } = await supabase
+      .from("planning_area_alert_subscriptions")
+      .update({
+        label,
+        center_lat: centerLat,
+        center_lng: centerLng,
+        enabled: true,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", existing.id)
+      .eq("user_id", userId)
+    if (error) throw new Error(error.message)
+    revalidatePath("/my-alerts")
+    revalidatePath("/my-alerts/areas")
+    return { id: existing.id, created: false }
+  }
+
+  const { data, error } = await supabase
+    .from("planning_area_alert_subscriptions")
+    .insert({
+      user_id: userId,
+      source_application_id: sourceApplicationId,
+      label,
+      center_lat: centerLat,
+      center_lng: centerLng,
+      radius_m: radiusM,
+      category,
+      event_trigger: trigger,
+      enabled: true,
+    })
+    .select("id")
+    .single()
+  if (error) throw new Error(error.message)
+
+  revalidatePath("/my-alerts")
+  revalidatePath("/my-alerts/areas")
+  return { id: data.id, created: true }
+}
+
 export async function createPlanningAreaAlert(formData: FormData) {
   const currentUser = await requireUser()
   const sourceApplicationId = value(formData, "sourceApplicationId")
   const category = value(formData, "category")
-  const trigger = value(formData, "eventTrigger")
+  const trigger = value(formData, "eventTrigger") || "new"
   const radiusM = Number(value(formData, "radiusM"))
 
   if (!sourceApplicationId) throw new Error("Planning application location is required.")
@@ -54,53 +131,64 @@ export async function createPlanningAreaAlert(formData: FormData) {
   if (!coordinates) throw new Error("This application does not have a reliable mapped location.")
 
   const label = (application.location?.trim() || `Planning application ${application.reference}`).slice(0, 180)
-  const { data: existing, error: existingError } = await supabase
-    .from("planning_area_alert_subscriptions")
-    .select("id")
-    .eq("user_id", currentUser.id)
-    .eq("source_application_id", sourceApplicationId)
-    .eq("radius_m", radiusM)
-    .eq("category", category)
-    .eq("event_trigger", trigger)
-    .maybeSingle()
-  if (existingError) throw new Error(existingError.message)
+  return upsertAreaAlert({
+    userId: currentUser.id,
+    sourceApplicationId,
+    label,
+    centerLat: coordinates.lat,
+    centerLng: coordinates.lng,
+    radiusM,
+    category,
+    trigger,
+  })
+}
 
-  if (existing) {
-    const { error } = await supabase
-      .from("planning_area_alert_subscriptions")
-      .update({
-        label,
-        center_lat: coordinates.lat,
-        center_lng: coordinates.lng,
-        enabled: true,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", existing.id)
-      .eq("user_id", currentUser.id)
-    if (error) throw new Error(error.message)
-    revalidatePath("/my-alerts")
-    return { id: existing.id, created: false }
+export async function createPlanningLocalityAreaAlert(formData: FormData) {
+  const currentUser = await requireUser()
+  const authoritySlug = value(formData, "authoritySlug")
+  const localitySlug = value(formData, "localitySlug")
+  const category = value(formData, "category")
+  const radiusM = Number(value(formData, "radiusM"))
+
+  const authority = getPlanningAuthorityBySlug(authoritySlug)
+  if (!authority) throw new Error("Planning authority could not be found.")
+  if (!localitySlug || areaSlug(localitySlug) !== localitySlug) throw new Error("Planning locality could not be found.")
+  if (!isPlanningAreaAlertCategory(category)) throw new Error("Choose a valid development type.")
+  if (!isPlanningAreaAlertRadius(radiusM)) throw new Error("Choose a valid alert radius.")
+
+  const supabase = getServerSupabase()
+  const { data: centerRows, error: centerError } = await supabase.rpc(
+    "openlist_planning_locality_alert_center",
+    {
+      p_authority_code: authority.code,
+      p_locality_slug: localitySlug,
+    }
+  )
+  if (centerError) throw new Error("Could not resolve a reliable mapped centre for this locality.")
+  const center = Array.isArray(centerRows) ? centerRows[0] : null
+  const centerLat = Number(center?.center_lat)
+  const centerLng = Number(center?.center_lng)
+  if (!Number.isFinite(centerLat) || !Number.isFinite(centerLng)) {
+    throw new Error("This locality does not yet have enough reliable mapped planning data for an area alert.")
   }
 
-  const { data, error } = await supabase
-    .from("planning_area_alert_subscriptions")
-    .insert({
-      user_id: currentUser.id,
-      source_application_id: sourceApplicationId,
-      label,
-      center_lat: coordinates.lat,
-      center_lng: coordinates.lng,
-      radius_m: radiusM,
-      category,
-      event_trigger: trigger,
-      enabled: true,
-    })
-    .select("id")
-    .single()
-  if (error) throw new Error(error.message)
+  const localityLabel = localitySlug
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ")
+  const label = `${localityLabel}, ${authority.shortName}`.slice(0, 180)
 
-  revalidatePath("/my-alerts")
-  return { id: data.id, created: true }
+  return upsertAreaAlert({
+    userId: currentUser.id,
+    sourceApplicationId: null,
+    label,
+    centerLat,
+    centerLng,
+    radiusM,
+    category,
+    trigger: "new",
+  })
 }
 
 export async function disablePlanningAreaAlert(formData: FormData) {
