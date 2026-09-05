@@ -1,0 +1,24 @@
+name: Count Dublin City planning archive
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/count-dublin-city-planning-archive.py
+      - .github/workflows/count-dublin-city-planning-archive.yml
+
+permissions:
+  contents: read
+
+jobs:
+  count:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Count official Dublin City archive
+        run: python scripts/count-dublin-city-planning-archive.py
