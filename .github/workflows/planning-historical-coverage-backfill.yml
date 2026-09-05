@@ -1,0 +1,32 @@
+name: Planning historical coverage backfill
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/planning-historical-coverage-backfill.yml"
+      - "scripts/bulk-backfill-planning-2012-2016.mjs"
+  workflow_dispatch:
+
+permissions: { contents: read }
+
+concurrency:
+  group: openlist-db-maintenance
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Download, stage and import 2012-2016 Planning coverage
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/bulk-backfill-planning-2012-2016.mjs
