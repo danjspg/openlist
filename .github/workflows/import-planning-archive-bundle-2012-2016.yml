@@ -1,0 +1,32 @@
+name: Import planning archive bundle 2012-2016
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/import-planning-archive-bundle-2012-2016.py
+      - .github/workflows/import-planning-archive-bundle-2012-2016.yml
+
+permissions:
+  contents: read
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      BATCH_SIZE: '250'
+      MIN_BATCH_SIZE: '25'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Import clean authority archive bundle
+        run: python scripts/import-planning-archive-bundle-2012-2016.py
