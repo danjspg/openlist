@@ -72,6 +72,37 @@ function dateRange() {
   return dates
 }
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function errorStatus(error: unknown) {
+  if (!error || typeof error !== "object") return null
+  const candidate = error as { status?: unknown; code?: unknown; response?: { status?: unknown } }
+  for (const value of [candidate.status, candidate.code, candidate.response?.status]) {
+    const numeric = Number(value)
+    if (Number.isFinite(numeric)) return numeric
+  }
+  return null
+}
+
+async function inspectWithRetry(url: string) {
+  const maxAttempts = 3
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await searchConsole.inspectUrl<SearchConsoleInspectionResponse>(url)
+    } catch (error) {
+      const status = errorStatus(error)
+      const transient = status === 429 || (status !== null && status >= 500 && status <= 599)
+      if (!transient || attempt === maxAttempts) throw error
+      const delayMs = 1000 * 2 ** (attempt - 1)
+      console.warn(`URL inspection transient ${status} for ${url}; retrying in ${delayMs}ms (${attempt}/${maxAttempts})`)
+      await sleep(delayMs)
+    }
+  }
+  throw new Error("URL inspection retry loop exhausted unexpectedly")
+}
+
 async function rpc<T>(name: string, parameters: Record<string, unknown> = {}) {
   const { data, error } = await supabase.rpc(name, parameters)
   if (error) throw new Error(`${name}: ${error.message}`)
@@ -202,6 +233,7 @@ async function collectInspections(cohorts: {
   )
 
   let stored = 0
+  let failed = 0
   for (let index = 0; index < selected.length; index += 5) {
     const batch = selected.slice(index, index + 5)
     const results = await Promise.all(
@@ -215,28 +247,34 @@ async function collectInspections(cohorts: {
         }
         const entry = buildPlanningSitemapEntries([application], siteBaseUrl)[0]
         if (!entry) return null
-        const rawResult =
-          await searchConsole.inspectUrl<SearchConsoleInspectionResponse>(entry.url)
-        const result = normaliseInspectionResponse(rawResult)
-        return {
-          application_id: candidate.application_id,
-          inspected_on: isoDate(new Date()),
-          inspected_at: new Date().toISOString(),
-          verdict: result.verdict,
-          coverage_state: result.coverageState,
-          robots_txt_state: result.robotsTxtState,
-          indexing_state: result.indexingState,
-          page_fetch_state: result.pageFetchState,
-          last_crawl_time: result.lastCrawlTime,
-          crawled_as: result.crawledAs,
-          google_canonical: result.googleCanonical,
-          user_canonical: result.userCanonical,
-          sitemaps: result.sitemaps,
-          referring_urls: result.referringUrls,
-          inspection_result_link: result.inspectionResultLink,
-          is_indexed: result.isIndexed,
-          is_discovered: result.isDiscovered,
-          raw_result: rawResult,
+        try {
+          const rawResult = await inspectWithRetry(entry.url)
+          const result = normaliseInspectionResponse(rawResult)
+          return {
+            application_id: candidate.application_id,
+            inspected_on: isoDate(new Date()),
+            inspected_at: new Date().toISOString(),
+            verdict: result.verdict,
+            coverage_state: result.coverageState,
+            robots_txt_state: result.robotsTxtState,
+            indexing_state: result.indexingState,
+            page_fetch_state: result.pageFetchState,
+            last_crawl_time: result.lastCrawlTime,
+            crawled_as: result.crawledAs,
+            google_canonical: result.googleCanonical,
+            user_canonical: result.userCanonical,
+            sitemaps: result.sitemaps,
+            referring_urls: result.referringUrls,
+            inspection_result_link: result.inspectionResultLink,
+            is_indexed: result.isIndexed,
+            is_discovered: result.isDiscovered,
+            raw_result: rawResult,
+          }
+        } catch (error) {
+          failed += 1
+          const status = errorStatus(error)
+          console.warn(`URL inspection skipped after retries for ${entry.url}${status ? ` (HTTP ${status})` : ""}: ${error instanceof Error ? error.message : String(error)}`)
+          return null
         }
       })
     )
@@ -250,7 +288,7 @@ async function collectInspections(cohorts: {
     stored += rows.length
     console.log(`URL inspections: ${Math.min(index + 5, selected.length)}/${selected.length}`)
   }
-  console.log(`URL inspection results ${dryRun ? "selected" : "stored"}: ${stored}`)
+  console.log(`URL inspection results ${dryRun ? "selected" : "stored"}: ${stored}; skipped after retries: ${failed}`)
 }
 
 async function main() {
