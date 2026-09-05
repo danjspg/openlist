@@ -11,27 +11,55 @@ const start = new Date(end)
 start.setUTCDate(start.getUTCDate() - 27)
 const startDate = start.toISOString().slice(0, 10)
 const endDate = end.toISOString().slice(0, 10)
+const pageSize = 1000
 
-const { data: memberships, error: membershipError } = await supabase
-  .from("locality_seo_memberships")
-  .select("canonical_path,seo_tier")
-  .eq("surface", "planning")
-  .is("left_at", null)
-if (membershipError) throw membershipError
+async function loadMemberships() {
+  const rows = []
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabase
+      .from("locality_seo_memberships")
+      .select("canonical_path,seo_tier")
+      .eq("surface", "planning")
+      .is("left_at", null)
+      .order("canonical_path", { ascending: true })
+      .range(from, from + pageSize - 1)
+    if (error) throw error
+    rows.push(...(data || []))
+    if (!data || data.length < pageSize) break
+  }
+  return rows
+}
 
-const { data: performance, error: performanceError } = await supabase
-  .from("locality_seo_search_performance")
-  .select("canonical_path,clicks,impressions,position")
-  .gte("data_date", startDate)
-  .lte("data_date", endDate)
-if (performanceError) throw performanceError
+async function loadPerformance() {
+  const rows = []
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabase
+      .from("locality_seo_search_performance")
+      .select("canonical_path,data_date,clicks,impressions,position")
+      .gte("data_date", startDate)
+      .lte("data_date", endDate)
+      .order("canonical_path", { ascending: true })
+      .order("data_date", { ascending: true })
+      .range(from, from + pageSize - 1)
+    if (error) throw error
+    rows.push(...(data || []))
+    if (!data || data.length < pageSize) break
+  }
+  return rows
+}
+
+const [memberships, performance] = await Promise.all([
+  loadMemberships(),
+  loadPerformance(),
+])
 
 console.log("Planning locality SEO tiers")
 console.log(`- Measurement window: ${startDate} to ${endDate}`)
+console.log(`- Loaded ${memberships.length} active planning locality memberships and ${performance.length} performance rows`)
 
 for (const tier of ["priority", "expanded"]) {
-  const paths = new Set((memberships || []).filter((row) => row.seo_tier === tier).map((row) => row.canonical_path))
-  const rows = (performance || []).filter((row) => paths.has(row.canonical_path))
+  const paths = new Set(memberships.filter((row) => row.seo_tier === tier).map((row) => row.canonical_path))
+  const rows = performance.filter((row) => paths.has(row.canonical_path))
   const clicks = rows.reduce((sum, row) => sum + Number(row.clicks || 0), 0)
   const impressions = rows.reduce((sum, row) => sum + Number(row.impressions || 0), 0)
   const pagesWithImpressions = new Set(rows.filter((row) => Number(row.impressions || 0) > 0).map((row) => row.canonical_path)).size
