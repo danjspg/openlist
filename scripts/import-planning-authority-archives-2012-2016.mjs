@@ -8,7 +8,7 @@ const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 if (!supabaseUrl || !serviceRoleKey) throw new Error("Missing Supabase credentials")
 const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } })
 const STAGE_BATCH = 500
-const MIN_IMPORT_BATCH = 50
+const MIN_IMPORT_BATCH = 10
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
 function clean(value) {
@@ -48,7 +48,7 @@ async function stage(rows) {
 }
 function retryable(error) { return ["57014","57P01","53300","08000","08001","08003","08006"].includes(error?.code) || /timeout|fetch failed|temporar|connection/i.test(error?.message || "") }
 async function drain() {
-  let batchSize=100, insertedTotal=0, consecutiveFailures=0
+  let batchSize=50, insertedTotal=0, consecutiveFailures=0
   for (;;) {
     let data, error
     try {
