@@ -1,9 +1,5 @@
 name: Watch Planning alert applications
 on:
-  schedule:
-    # Run every four hours. GitHub scheduled jobs can start late, so do not gate
-    # execution on the wall-clock hour at which the runner actually starts.
-    - cron: "0 */4 * * *"
   workflow_dispatch:
 permissions: { contents: read }
 concurrency: { group: planning-alert-watch, cancel-in-progress: false }
