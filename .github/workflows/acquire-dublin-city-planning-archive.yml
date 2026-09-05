@@ -1,0 +1,32 @@
+name: Acquire Dublin City planning archive
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/acquire-dublin-city-planning-archive-2003-2016.py
+      - .github/workflows/acquire-dublin-city-planning-archive.yml
+
+permissions:
+  contents: read
+
+jobs:
+  acquire:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install reader
+        run: pip install pyshp
+      - name: Acquire Dublin City archive
+        run: python scripts/acquire-dublin-city-planning-archive-2003-2016.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dublin-city-planning-archive-2003-2016
+          path: .tmp/dublin-city-planning-archive-2003-2016.ndjson
+          retention-days: 7
+          if-no-files-found: error
