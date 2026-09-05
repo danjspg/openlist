@@ -1,30 +1,51 @@
-const urls = [
-  "https://www.eplanning.ie/KildareCC/SearchExact",
-  "https://www.eplanning.ie/KildareCC/PlanningLists",
-  "https://www.eplanning.ie/KildareCC/SearchListing",
-  "https://www.eplanning.ie/KildareCC/SearchResults",
-]
+const BASE = "https://www.eplanning.ie/KildareCC"
+const UA = "OpenList ePlan compatibility probe (+https://www.openlist.ie)"
 
 function attrs(tag) {
   return Object.fromEntries([...tag.matchAll(/([:\w-]+)\s*=\s*["']([^"']*)["']/g)].map((m) => [m[1], m[2]]))
 }
+function text(value) {
+  return String(value || "").replace(/<[^>]+>/g, " ").replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&").replace(/\s+/g, " ").trim()
+}
+function refs(html) {
+  return [...html.matchAll(/AppFileRefDetails\/([^/"'?#]+)\/\d+/gi)].map((m) => decodeURIComponent(m[1]))
+}
 
-for (const url of urls) {
-  try {
-    const response = await fetch(url, { headers: { "User-Agent": "OpenList ePlan compatibility probe (+https://www.openlist.ie)" }, redirect: "follow" })
-    const html = await response.text()
-    console.log("\nURL", url, "STATUS", response.status, "FINAL", response.url, "BYTES", html.length)
-    for (const match of html.matchAll(/<form\b[^>]*>/gi)) console.log("FORM", attrs(match[0]))
-    for (const match of html.matchAll(/<input\b[^>]*>/gi)) {
-      const a = attrs(match[0]); if (a.name || a.id) console.log("INPUT", a)
-    }
-    for (const match of html.matchAll(/<select\b[^>]*>[\s\S]*?<\/select>/gi)) {
-      const open = match[0].match(/<select\b[^>]*>/i)?.[0] || ""
-      const a = attrs(open)
-      const options = [...match[0].matchAll(/<option\b([^>]*)>([\s\S]*?)<\/option>/gi)].map((m) => ({ ...attrs(m[1]), text: m[2].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() }))
-      console.log("SELECT", a, options)
-    }
-  } catch (error) {
-    console.log("ERROR", url, String(error))
-  }
+const landing = await fetch(`${BASE}/SearchExact`, { headers: { "User-Agent": UA } })
+const html = await landing.text()
+const token = html.match(/name=["']__RequestVerificationToken["'][^>]*value=["']([^"']+)/i)?.[1]
+const cookie = landing.headers.get("set-cookie")?.split(";")[0] || ""
+if (!token) throw new Error("No verification token")
+console.log("landing", landing.status, "cookie", Boolean(cookie), "bytes", html.length)
+
+for (const query of ["12", "120", "13", "16"]) {
+  const form = new URLSearchParams({
+    __RequestVerificationToken: token,
+    TxtFileNumber: query,
+    TxtName: "",
+    TxtAddress: "",
+    TxtDevdescription: "",
+    "CheckBoxList[0].Id": "0",
+    "CheckBoxList[0].Name": "Kildare County Council",
+    "CheckBoxList[0].IsSelected": "true",
+    LstTimeLimit: "0",
+    SearchType: "Exact",
+    CountyTownCount: "1",
+    CountyTownCouncilNames: "Kildare County Council:0,",
+  })
+  const response = await fetch(`${BASE}/searchresults`, {
+    method: "POST",
+    headers: {
+      "User-Agent": UA,
+      "Content-Type": "application/x-www-form-urlencoded",
+      ...(cookie ? { Cookie: cookie } : {}),
+    },
+    body: form,
+    redirect: "follow",
+  })
+  const result = await response.text()
+  const found = [...new Set(refs(result))]
+  const pages = [...result.matchAll(/Page\s+(\d+)\s+of\s+(\d+)/gi)].map((m) => Number(m[2]))
+  const pagerLinks = [...result.matchAll(/href=["']([^"']*(?:page|Page|SearchResults)[^"']*)["']/g)].map((m) => m[1]).slice(0, 20)
+  console.log(JSON.stringify({ query, status: response.status, finalUrl: response.url, bytes: result.length, refs: found.slice(0, 25), refCountOnPage: found.length, maxPages: pages.length ? Math.max(...pages) : null, pagerLinks, bodyPreview: text(result).slice(0, 600) }))
 }
