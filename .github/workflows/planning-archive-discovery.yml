@@ -1,0 +1,24 @@
+name: Planning archive discovery
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/planning-archive-discovery.yml"
+      - "scripts/discover-planning-archive-services.mjs"
+
+permissions:
+  contents: read
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Discover official planning archive services
+        run: node scripts/discover-planning-archive-services.mjs
