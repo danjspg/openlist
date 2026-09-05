@@ -1,23 +1,19 @@
-const BASE = "https://www.eplanning.ie/KildareCC"
-const UA = "OpenList ePlan compatibility probe (+https://www.openlist.ie)"
-const TIMEOUT_MS = 25000
-function cookiesFrom(headers) { const raw = typeof headers.getSetCookie === "function" ? headers.getSetCookie() : [headers.get("set-cookie")].filter(Boolean); return raw.map((v) => String(v).split(";")[0]).filter(Boolean) }
-function refs(html) { return [...new Set([...html.matchAll(/AppFileRefDetails\/([^/"'?#]+)\/\d+/gi)].map((m) => decodeURIComponent(m[1])))] }
-const landing = await fetch(`${BASE}/SearchExact`, { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(TIMEOUT_MS) })
-const html = await landing.text()
-const tokens = [...html.matchAll(/name=["']__RequestVerificationToken["'][^>]*value=["']([^"']+)/gi)].map((m) => m[1])
-const cookie = cookiesFrom(landing.headers).join("; ")
-if (!tokens.length) throw new Error("No verification token")
-const output=[]
-for (const query of ["12","13","14","15","16"]) {
-  const form = new URLSearchParams()
-  for (const [name,value] of [["__RequestVerificationToken",tokens.at(-1)],["TxtFileNumber",query],["TxtName",""],["TxtAddress",""],["TxtDevdescription",""],["CheckBoxList[0].Id","0"],["CheckBoxList[0].Name","Kildare County Council"],["CheckBoxList[0].IsSelected","true"],["CheckBoxList[0].IsSelected","false"],["LstTimeLimit","0"],["SearchType","Exact"],["CountyTownCount","1"],["CountyTownCouncilNames","Kildare County Council:0,"]]) form.append(name,value)
-  try {
-    const response=await fetch(`${BASE}/searchresults`,{method:"POST",headers:{"User-Agent":UA,"Content-Type":"application/x-www-form-urlencoded",Referer:`${BASE}/SearchExact`,Cookie:cookie},body:form,signal:AbortSignal.timeout(TIMEOUT_MS)})
-    const result=await response.text()
-    const found=refs(result)
-    const page=result.match(/Page\s+(\d+)\s+of\s+(\d+)\s+\((\d+) Applications\)/i)
-    output.push({query,status:response.status,page:page?{current:Number(page[1]),pages:Number(page[2]),applications:Number(page[3])}:null,refs:found.slice(0,20),refCountOnPage:found.length})
-  } catch(error) { output.push({query,error:String(error?.name||error)}) }
+const API = "https://services.arcgis.com/NzlPQPKn5QF9v2US/arcgis/rest/services/IrishPlanningApplications/FeatureServer/0/query"
+async function count(where) {
+  const url = new URL(API)
+  url.searchParams.set("where", where)
+  url.searchParams.set("returnCountOnly", "true")
+  url.searchParams.set("f", "json")
+  const response = await fetch(url, { signal: AbortSignal.timeout(30000) })
+  const json = await response.json()
+  return { status: response.status, ...json }
+}
+const output = {
+  total: await count("1=1"),
+  historical: await count("ReceivedDate >= '2012-01-01 00:00:00' AND ReceivedDate < '2017-01-01 00:00:00'"),
+  byYear: {},
+}
+for (let year = 2012; year <= 2016; year += 1) {
+  output.byYear[year] = await count(`ReceivedDate >= '${year}-01-01 00:00:00' AND ReceivedDate < '${year + 1}-01-01 00:00:00'`)
 }
 console.log(JSON.stringify(output))
