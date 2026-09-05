@@ -1,0 +1,24 @@
+name: Discover all planning authority archives
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/discover-all-planning-authority-archives.yml"
+      - "scripts/discover-all-planning-authority-archives.mjs"
+
+permissions:
+  contents: read
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Discover all remaining authority archive services
+        run: node scripts/discover-all-planning-authority-archives.mjs
