@@ -2,11 +2,10 @@ import { createHash, timingSafeEqual } from "node:crypto"
 import { NextRequest, NextResponse } from "next/server"
 import { runPlanningAlertDelivery } from "@/lib/planning-alert-delivery"
 import { planningAlertDeliveryIsEnabled } from "@/lib/planning-alert-delivery-rules"
+import { getServiceRoleSupabase } from "@/lib/supabase"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
-
-const SUPABASE_CRON_TOKEN_SHA256 = "ad4dc5ad24bf12ffd2d4a1951c7a591515e5d6ee95dc48ccee49d74d0066ade3"
 
 function safeEqual(left: string, right: string) {
   const leftBytes = Buffer.from(left)
@@ -14,19 +13,27 @@ function safeEqual(left: string, right: string) {
   return leftBytes.length === rightBytes.length && timingSafeEqual(leftBytes, rightBytes)
 }
 
-function authorised(request: NextRequest) {
+async function authorised(request: NextRequest) {
   const expected = process.env.PLANNING_ALERT_DELIVERY_SECRET?.trim()
   const supplied = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "")
   if (expected && supplied && safeEqual(expected, supplied)) return true
 
   const cronToken = request.headers.get("x-openlist-cron-token")?.trim()
   if (!cronToken) return false
+
+  const { data, error } = await getServiceRoleSupabase()
+    .from("openlist_internal_secrets")
+    .select("secret_hash")
+    .eq("name", "planning_alert_delivery_cron")
+    .maybeSingle()
+
+  if (error || !data?.secret_hash) return false
   const cronTokenHash = createHash("sha256").update(cronToken).digest("hex")
-  return safeEqual(SUPABASE_CRON_TOKEN_SHA256, cronTokenHash)
+  return safeEqual(data.secret_hash, cronTokenHash)
 }
 
 export async function POST(request: NextRequest) {
-  if (!authorised(request)) {
+  if (!(await authorised(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
   if (!planningAlertDeliveryIsEnabled()) {
