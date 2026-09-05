@@ -1,9 +1,6 @@
 const BASE = "https://www.eplanning.ie/KildareCC"
 const UA = "OpenList ePlan compatibility probe (+https://www.openlist.ie)"
 
-function attrs(tag) {
-  return Object.fromEntries([...tag.matchAll(/([:\w-]+)\s*=\s*["']([^"']*)["']/g)].map((m) => [m[1], m[2]]))
-}
 function text(value) {
   return String(value || "").replace(/<[^>]+>/g, " ").replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&").replace(/\s+/g, " ").trim()
 }
@@ -13,10 +10,11 @@ function refs(html) {
 
 const landing = await fetch(`${BASE}/SearchExact`, { headers: { "User-Agent": UA } })
 const html = await landing.text()
-const token = html.match(/name=["']__RequestVerificationToken["'][^>]*value=["']([^"']+)/i)?.[1]
+const tokens = [...html.matchAll(/name=["']__RequestVerificationToken["'][^>]*value=["']([^"']+)/gi)].map((m) => m[1])
+const token = tokens.at(-1)
 const cookie = landing.headers.get("set-cookie")?.split(";")[0] || ""
 if (!token) throw new Error("No verification token")
-console.log("landing", landing.status, "cookie", Boolean(cookie), "bytes", html.length)
+console.log("landing", landing.status, "cookie", Boolean(cookie), "tokens", tokens.length, "bytes", html.length)
 
 for (const query of ["12", "120", "13", "16"]) {
   const form = new URLSearchParams({
@@ -38,6 +36,7 @@ for (const query of ["12", "120", "13", "16"]) {
     headers: {
       "User-Agent": UA,
       "Content-Type": "application/x-www-form-urlencoded",
+      "Referer": `${BASE}/SearchExact`,
       ...(cookie ? { Cookie: cookie } : {}),
     },
     body: form,
