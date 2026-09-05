@@ -16,8 +16,8 @@ with zipfile.ZipFile(io.BytesIO(data)) as z:
     fields=[f[0] for f in reader.fields[1:]]
     print(json.dumps({'phase':'metadata','records':len(reader),'fields':fields}))
     upper={k.upper():k for k in fields}
-    date_key=upper.get('RGNDAT') or upper.get('APNDAT') or next((k for k in fields if 'DATE' in k.upper() or 'DAT' in k.upper()),None)
-    ref_key=upper.get('REG_REF') or next((k for k in fields if 'REF' in k.upper()),None)
+    date_key=upper.get('REGDATE') or upper.get('RGNDAT') or upper.get('APPDATE') or upper.get('APNDAT')
+    ref_key=upper.get('PLAN_REF') or upper.get('REG_REF') or next((k for k in fields if 'REF' in k.upper()),None)
     counts=Counter(); refs={}; missing=0
     def year_from(v):
         if v in (None,''): return None
