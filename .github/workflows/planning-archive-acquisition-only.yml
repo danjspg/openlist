@@ -1,0 +1,31 @@
+name: Planning archive acquisition only
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/planning-archive-acquisition-only.yml"
+      - "scripts/acquire-planning-archive-candidates-2012-2016.mjs"
+
+permissions:
+  contents: read
+
+jobs:
+  acquire:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Acquire official historical archives
+        run: node scripts/acquire-planning-archive-candidates-2012-2016.mjs .tmp/planning-archive-candidates-2012-2016.ndjson
+      - name: Upload acquisition artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: planning-archive-candidates-2012-2016
+          path: .tmp/planning-archive-candidates-2012-2016.ndjson
+          if-no-files-found: error
+          retention-days: 7
