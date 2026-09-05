@@ -7,7 +7,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 if (!supabaseUrl || !serviceRoleKey) throw new Error("Missing Supabase credentials")
 const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } })
-const STAGE_BATCH = 500
+const STAGE_BATCH = 250
 const MIN_IMPORT_BATCH = 10
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -43,12 +43,17 @@ function mapRow(source, feature) {
 }
 async function stage(rows) {
   if (!rows.length) return
-  const { error } = await supabase.from("planning_historical_import_stage").upsert(rows, { onConflict:"local_authority_code,reference", ignoreDuplicates:true })
-  if (error) throw error
+  for (let attempt = 1; attempt <= 6; attempt += 1) {
+    const { error } = await supabase.from("planning_historical_import_stage").upsert(rows, { onConflict:"local_authority_code,reference", ignoreDuplicates:true })
+    if (!error) return
+    if (!retryable(error) || attempt === 6) throw error
+    console.warn(JSON.stringify({ phase:"stage_retry", attempt, code:error.code || null, message:error.message || String(error) }))
+    await sleep(Math.min(10000, attempt * 1500))
+  }
 }
-function retryable(error) { return ["57014","57P01","53300","08000","08001","08003","08006"].includes(error?.code) || /timeout|fetch failed|temporar|connection/i.test(error?.message || "") }
+function retryable(error) { return ["57014","57P01","53300","08000","08001","08003","08006"].includes(error?.code) || /timeout|fetch failed|temporar|connection/i.test(error?.message || "") || !error?.message }
 async function drain() {
-  let batchSize=50, insertedTotal=0, consecutiveFailures=0
+  let batchSize=25, insertedTotal=0, consecutiveFailures=0
   for (;;) {
     let data, error
     try {
@@ -62,9 +67,9 @@ async function drain() {
       if (!retryable(error)) throw error
       consecutiveFailures += 1
       if (batchSize > MIN_IMPORT_BATCH) batchSize = Math.max(MIN_IMPORT_BATCH, Math.floor(batchSize / 2))
-      if (consecutiveFailures > 8) throw error
-      console.warn(JSON.stringify({ phase:"retry", code:error.code || null, message:error.message || String(error), nextBatchSize:batchSize, consecutiveFailures }))
-      await sleep(Math.min(10000, 1000 * consecutiveFailures))
+      if (consecutiveFailures > 12) throw error
+      console.warn(JSON.stringify({ phase:"retry", code:error?.code || null, message:error?.message || String(error), nextBatchSize:batchSize, consecutiveFailures }))
+      await sleep(Math.min(15000, 1500 * consecutiveFailures))
       continue
     }
     consecutiveFailures = 0
@@ -72,18 +77,10 @@ async function drain() {
     insertedTotal += Number(result.inserted || 0)
     console.log(JSON.stringify({ phase:"import", batchSize, ...result, insertedTotal }))
     if (Number(result.remaining || 0) === 0) return insertedTotal
-    await sleep(350)
+    await sleep(750)
   }
 }
-async function countYear(code,year) {
-  const { count,error } = await supabase.from("planning_applications").select("id",{count:"exact",head:true}).eq("local_authority_code",code).gte("registration_date",`${year}-01-01`).lt("registration_date",`${year+1}-01-01`)
-  if (error) throw error
-  return count || 0
-}
 
-const before={}
-for (const code of ["KILDARE","GALWAYCOCO"]) { before[code]={}; for(let year=2012;year<=2016;year+=1) before[code][year]=await countYear(code,year) }
-console.log(JSON.stringify({ phase:"before", counts:before }))
 let buffer=[], mapped=0, skipped=0
 const lines=readline.createInterface({ input:fs.createReadStream(INPUT), crlfDelay:Infinity })
 for await (const line of lines) {
@@ -96,6 +93,4 @@ for await (const line of lines) {
 await stage(buffer)
 console.log(JSON.stringify({ phase:"staged", mapped, skipped }))
 const inserted=await drain()
-const after={}
-for (const code of ["KILDARE","GALWAYCOCO"]) { after[code]={}; for(let year=2012;year<=2016;year+=1) after[code][year]=await countYear(code,year) }
-console.log(JSON.stringify({ phase:"complete", mapped, skipped, insertedThisRun:inserted, before, after }))
+console.log(JSON.stringify({ phase:"complete", mapped, skipped, insertedThisRun:inserted }))
