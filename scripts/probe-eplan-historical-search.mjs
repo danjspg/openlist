@@ -4,47 +4,20 @@ const UA = "OpenList ePlan compatibility probe (+https://www.openlist.ie)"
 function text(value) {
   return String(value || "").replace(/<[^>]+>/g, " ").replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&").replace(/\s+/g, " ").trim()
 }
-function refs(html) {
-  return [...html.matchAll(/AppFileRefDetails\/([^/"'?#]+)\/\d+/gi)].map((m) => decodeURIComponent(m[1]))
-}
-function cookiesFrom(headers) {
-  const raw = typeof headers.getSetCookie === "function" ? headers.getSetCookie() : [headers.get("set-cookie")].filter(Boolean)
-  return raw.map((value) => String(value).split(";")[0]).filter(Boolean)
+function attrs(tag) {
+  return Object.fromEntries([...String(tag).matchAll(/([:\w-]+)\s*=\s*["']([^"']*)["']/g)].map((m) => [m[1], m[2]]))
 }
 
-const landing = await fetch(`${BASE}/SearchExact`, { headers: { "User-Agent": UA } })
-const html = await landing.text()
-const tokens = [...html.matchAll(/name=["']__RequestVerificationToken["'][^>]*value=["']([^"']+)/gi)].map((m) => m[1])
-const token = tokens.at(-1)
-const cookies = cookiesFrom(landing.headers)
-const cookie = cookies.join("; ")
-if (!token) throw new Error("No verification token")
-console.log("landing", landing.status, "cookies", cookies.map((item) => item.split("=")[0]), "tokens", tokens.length, "bytes", html.length)
-
-for (const query of ["12", "120", "13", "16"]) {
-  const form = new URLSearchParams()
-  for (const [name, value] of [
-    ["__RequestVerificationToken", token],
-    ["TxtFileNumber", query], ["TxtName", ""], ["TxtAddress", ""], ["TxtDevdescription", ""],
-    ["CheckBoxList[0].Id", "0"], ["CheckBoxList[0].Name", "Kildare County Council"],
-    ["CheckBoxList[0].IsSelected", "true"], ["CheckBoxList[0].IsSelected", "false"],
-    ["LstTimeLimit", "0"], ["SearchType", "Exact"], ["CountyTownCount", "1"],
-    ["CountyTownCouncilNames", "Kildare County Council:0,"],
-  ]) form.append(name, value)
-  const response = await fetch(`${BASE}/searchresults`, {
-    method: "POST",
-    headers: {
-      "User-Agent": UA,
-      "Content-Type": "application/x-www-form-urlencoded",
-      "Referer": `${BASE}/SearchExact`,
-      ...(cookie ? { Cookie: cookie } : {}),
-    },
-    body: form,
-    redirect: "follow",
+for (const path of ["SearchExact", "SearchGeneral", "SearchByDate", "SearchDate", "SearchAdvanced", "WeeklyLists", "SearchPlanning"] ) {
+  const response = await fetch(`${BASE}/${path}`, { headers: { "User-Agent": UA }, redirect: "follow" })
+  const html = await response.text()
+  const links = [...html.matchAll(/<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)]
+    .map((m) => ({ href: m[1], label: text(m[2]) }))
+    .filter((x) => /search|plan|list|application/i.test(`${x.href} ${x.label}`))
+  const forms = [...html.matchAll(/<form\b[^>]*>[\s\S]*?<\/form>/gi)].map((m) => {
+    const open = m[0].match(/<form\b[^>]*>/i)?.[0] || ""
+    const inputs = [...m[0].matchAll(/<(?:input|select)\b[^>]*>/gi)].map((i) => attrs(i[0])).filter((a) => a.name || a.id)
+    return { form: attrs(open), inputs }
   })
-  const result = await response.text()
-  const found = [...new Set(refs(result))]
-  const pages = [...result.matchAll(/Page\s+(\d+)\s+of\s+(\d+)/gi)].map((m) => Number(m[2]))
-  const pagerLinks = [...result.matchAll(/href=["']([^"']*(?:page|Page|SearchResults)[^"']*)["']/g)].map((m) => m[1]).slice(0, 20)
-  console.log(JSON.stringify({ query, status: response.status, finalUrl: response.url, bytes: result.length, refs: found.slice(0, 25), refCountOnPage: found.length, maxPages: pages.length ? Math.max(...pages) : null, pagerLinks, bodyPreview: text(result).slice(0, 600) }))
+  console.log(JSON.stringify({ path, status: response.status, finalUrl: response.url, bytes: html.length, links: links.slice(0, 80), forms }))
 }
