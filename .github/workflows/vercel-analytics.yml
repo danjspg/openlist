@@ -2,9 +2,10 @@ name: Vercel Analytics measurement
 
 on:
   schedule:
-    # Two pre-review captures reduce the chance that GitHub schedule jitter leaves
-    # the 08:00 London morning review with only the previous day's measurement.
-    - cron: "25 3,5 * * *"
+    # Primary evening snapshot gives the 08:00 London morning review a reliable
+    # prior-evening baseline. The early-morning run is a best-effort refresh only.
+    - cron: "30 21 * * *"
+    - cron: "30 3 * * *"
   workflow_dispatch:
   pull_request:
     paths:
