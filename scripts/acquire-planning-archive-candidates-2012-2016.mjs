@@ -8,7 +8,7 @@ const SOURCES = [
     code: "DONEGAL",
     authority: "Donegal County Council",
     base: "https://services2.arcgis.com/WRtfelnPg3R7bCEW/ArcGIS/rest/services/Applications_since_2010_Pro/FeatureServer/0",
-    dateCandidates: ["ReceivedDate", "Received_Date", "DateReceived", "DATE_RECEIVED", "RECEIVED", "REC_DATE", "RECDATE", "AppDate", "APPDATE", "ApplicationDate"],
+    dateCandidates: ["received_d", "ReceivedDate", "Received_Date", "DateReceived", "DATE_RECEIVED", "RECEIVED", "REC_DATE", "RECDATE", "AppDate", "APPDATE", "ApplicationDate"],
   },
   {
     code: "MEATH",
