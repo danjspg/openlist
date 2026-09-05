@@ -2,7 +2,10 @@ name: Search Console SEO measurement
 
 on:
   schedule:
-    - cron: "20 5 * * *"
+    # Primary evening snapshot gives the 08:00 London morning review a reliable
+    # prior-evening baseline. The early-morning run is a best-effort refresh only.
+    - cron: "45 21 * * *"
+    - cron: "45 3 * * *"
   workflow_dispatch:
 
 permissions:
