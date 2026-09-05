@@ -1,0 +1,27 @@
+name: ePlan historical coverage backfill
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/eplan-historical-coverage-backfill.yml"
+      - "scripts/backfill-eplan-historical-coverage.mjs"
+  workflow_dispatch:
+
+permissions: { contents: read }
+
+jobs:
+  pilot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: Locate Kildare 2012-2016 register slice
+        env:
+          EPLAN_HISTORICAL_AUTHORITY: KILDARE
+          EPLAN_HISTORICAL_DRY_RUN: "1"
+          EPLAN_HISTORICAL_DELAY_MS: "450"
+        run: node scripts/backfill-eplan-historical-coverage.mjs
