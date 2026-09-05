@@ -1,5 +1,6 @@
 "use client"
 
+import { track } from "@vercel/analytics"
 import { useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
@@ -14,6 +15,69 @@ type SmartSearchSuggestion = {
 }
 
 type Anchor = { input: HTMLInputElement; scope: "unified" | "planning" }
+
+function formActionPath(form: HTMLFormElement) {
+  const rawAction = form.getAttribute("action") || form.action
+  try {
+    return new URL(rawAction, window.location.href).pathname
+  } catch {
+    return rawAction
+  }
+}
+
+function formValue(formData: FormData, key: string) {
+  return String(formData.get(key) ?? "").trim()
+}
+
+function trackSearchSubmission(form: HTMLFormElement) {
+  const actionPath = formActionPath(form)
+  const formData = new FormData(form)
+
+  try {
+    if (actionPath === "/planning/applications") {
+      const filterStates = [
+        Boolean(formValue(formData, "q")),
+        Boolean(formValue(formData, "area") || formValue(formData, "council")),
+        Boolean(formValue(formData, "status")),
+        Boolean(formValue(formData, "type")),
+        formValue(formData, "construction") === "commenced",
+        formValue(formData, "sort") === "oldest",
+      ]
+      track("planning_search", {
+        scope: formValue(formData, "_authority") ? "authority" : "national",
+        has_query: filterStates[0],
+        has_location_filter: filterStates[1],
+        has_status_filter: filterStates[2],
+        has_type_filter: filterStates[3],
+        construction_commenced: filterStates[4],
+        oldest_first: filterStates[5],
+        filter_count: filterStates.filter(Boolean).length,
+      })
+      return
+    }
+
+    if (actionPath === "/sold-prices/search" && form.querySelector('[name="areaSlug"]')) {
+      const hasStructuredArea = Boolean(
+        formValue(formData, "county") &&
+        formValue(formData, "areaSlug") &&
+        formValue(formData, "areaLabel")
+      )
+      if (!hasStructuredArea) return
+
+      const rawRange = formValue(formData, "dateRange")
+      const dateRange = ["last-year", "last-2-years", "last-5-years", "all"].includes(rawRange)
+        ? rawRange
+        : "custom"
+      track("sold_prices_search", {
+        has_price_filter: Boolean(formValue(formData, "minPrice") || formValue(formData, "maxPrice")),
+        new_build_only: formValue(formData, "newBuild") === "true",
+        date_range: dateRange,
+      })
+    }
+  } catch {
+    // Analytics must never interfere with search submission.
+  }
+}
 
 export default function SmartSearchEnhancer() {
   const router = useRouter()
@@ -51,13 +115,7 @@ export default function SmartSearchEnhancer() {
       if (target.id === "planning-search") return { input: target, scope: "planning" }
       if (target.name !== "q" || !target.form) return null
 
-      const rawAction = target.form.getAttribute("action") || target.form.action
-      let actionPath = rawAction
-      try {
-        actionPath = new URL(rawAction, window.location.href).pathname
-      } catch {
-        // Keep the raw action if it is not a valid URL.
-      }
+      const actionPath = formActionPath(target.form)
       if (actionPath === "/search") return { input: target, scope: "unified" }
       if (actionPath === "/planning" || actionPath.startsWith("/planning/")) return { input: target, scope: "planning" }
       return null
@@ -156,8 +214,11 @@ export default function SmartSearchEnhancer() {
 
     function onSubmit(event: SubmitEvent) {
       const form = event.target
+      if (!(form instanceof HTMLFormElement)) return
+      trackSearchSubmission(form)
+
       const currentAnchor = anchorRef.current
-      if (!(form instanceof HTMLFormElement) || !currentAnchor || currentAnchor.input.form !== form) return
+      if (!currentAnchor || currentAnchor.input.form !== form) return
       const queryKey = normalise(currentAnchor.input.value)
       const exact = suggestionsRef.current.find((item) => item.exact && normalise(item.label.replace(/ sold prices$/i, "")) === queryKey)
       if (!exact) return
