@@ -13,6 +13,30 @@ export type VercelAnalyticsPathRow = VercelAnalyticsCount & {
   requestPath: string
 }
 
+export type VercelAnalyticsDimension =
+  | "requestPath"
+  | "route"
+  | "country"
+  | "referrerHostname"
+  | "deviceType"
+  | "osName"
+  | "browserName"
+  | "utmSource"
+  | "utmMedium"
+  | "utmCampaign"
+  | "utmContent"
+  | "utmTerm"
+
+export type VercelAnalyticsDimensionRow = VercelAnalyticsCount & {
+  value: string
+}
+
+export type VercelAnalyticsEventRow = {
+  eventName: string
+  count: number
+  visitors: number
+}
+
 type CountResponse = {
   data?: {
     pageviews?: number
@@ -21,9 +45,15 @@ type CountResponse = {
 }
 
 type AggregateResponse = {
-  data?: Array<{
-    requestPath?: string
+  data?: Array<Record<string, unknown> & {
     pageviews?: number
+    visitors?: number
+  }>
+}
+
+type EventAggregateResponse = {
+  data?: Array<Record<string, unknown> & {
+    count?: number
     visitors?: number
   }>
 }
@@ -38,14 +68,15 @@ export function readVercelAnalyticsConfig(): VercelAnalyticsConfig | null {
 
 async function queryVercelAnalytics<T>(
   config: VercelAnalyticsConfig,
-  endpoint: string,
+  resource: "visits" | "events",
+  endpoint: "count" | "aggregate",
   params: URLSearchParams
 ): Promise<T> {
   params.set("projectId", config.projectId)
   params.set("teamId", config.teamId)
 
   const response = await fetch(
-    `https://api.vercel.com/v1/query/web-analytics/visits/${endpoint}?${params.toString()}`,
+    `https://api.vercel.com/v1/query/web-analytics/${resource}/${endpoint}?${params.toString()}`,
     {
       headers: {
         Authorization: `Bearer ${config.token}`,
@@ -56,7 +87,7 @@ async function queryVercelAnalytics<T>(
   if (!response.ok) {
     const body = await response.text()
     throw new Error(
-      `Vercel Web Analytics ${endpoint} failed (${response.status}): ${body.slice(0, 300)}`
+      `Vercel Web Analytics ${resource}/${endpoint} failed (${response.status}): ${body.slice(0, 300)}`
     )
   }
 
@@ -74,11 +105,44 @@ export async function countVercelVisits(
     until: until.toISOString(),
   })
   if (filter) params.set("filter", filter)
-  const response = await queryVercelAnalytics<CountResponse>(config, "count", params)
+  const response = await queryVercelAnalytics<CountResponse>(config, "visits", "count", params)
   return {
     pageviews: Number(response.data?.pageviews || 0),
     visitors: Number(response.data?.visitors || 0),
   }
+}
+
+export async function topVercelDimension(
+  config: VercelAnalyticsConfig,
+  since: Date,
+  until: Date,
+  by: VercelAnalyticsDimension,
+  limit = 10,
+  filter?: string
+): Promise<VercelAnalyticsDimensionRow[]> {
+  const params = new URLSearchParams({
+    since: since.toISOString(),
+    until: until.toISOString(),
+    by,
+    limit: String(Math.min(Math.max(limit, 1), 100)),
+  })
+  if (filter) params.set("filter", filter)
+  const response = await queryVercelAnalytics<AggregateResponse>(
+    config,
+    "visits",
+    "aggregate",
+    params
+  )
+
+  return (response.data || []).flatMap((row) => {
+    const raw = row[by]
+    if (typeof raw !== "string" || !raw) return []
+    return [{
+      value: raw,
+      pageviews: Number(row.pageviews || 0),
+      visitors: Number(row.visitors || 0),
+    }]
+  })
 }
 
 export async function topVercelPaths(
@@ -88,27 +152,40 @@ export async function topVercelPaths(
   limit = 100,
   filter?: string
 ): Promise<VercelAnalyticsPathRow[]> {
+  const rows = await topVercelDimension(config, since, until, "requestPath", limit, filter)
+  return rows.map((row) => ({
+    requestPath: row.value,
+    pageviews: row.pageviews,
+    visitors: row.visitors,
+  }))
+}
+
+export async function topVercelEvents(
+  config: VercelAnalyticsConfig,
+  since: Date,
+  until: Date,
+  limit = 20
+): Promise<VercelAnalyticsEventRow[]> {
   const params = new URLSearchParams({
     since: since.toISOString(),
     until: until.toISOString(),
-    by: "requestPath",
+    by: "eventName",
     limit: String(Math.min(Math.max(limit, 1), 100)),
   })
-  if (filter) params.set("filter", filter)
-  const response = await queryVercelAnalytics<AggregateResponse>(
+  const response = await queryVercelAnalytics<EventAggregateResponse>(
     config,
+    "events",
     "aggregate",
     params
   )
 
   return (response.data || []).flatMap((row) => {
-    if (!row.requestPath) return []
-    return [
-      {
-        requestPath: row.requestPath,
-        pageviews: Number(row.pageviews || 0),
-        visitors: Number(row.visitors || 0),
-      },
-    ]
+    const eventName = row.eventName
+    if (typeof eventName !== "string" || !eventName) return []
+    return [{
+      eventName,
+      count: Number(row.count || 0),
+      visitors: Number(row.visitors || 0),
+    }]
   })
 }
