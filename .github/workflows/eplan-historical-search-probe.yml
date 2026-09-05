@@ -8,7 +8,7 @@ on:
       - "scripts/probe-eplan-historical-search.mjs"
   workflow_dispatch:
 
-permissions: { contents: write }
+permissions: { contents: read }
 
 jobs:
   probe:
@@ -18,12 +18,14 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
-      - name: Run probe and persist result
+      - name: Run probe
         run: |
           mkdir -p reports
           node scripts/probe-eplan-historical-search.mjs | tee reports/eplan-historical-search-probe.json
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add reports/eplan-historical-search-probe.json
-          git diff --cached --quiet || git commit -m "Record ePlan historical search probe result"
-          git push
+      - name: Upload probe result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eplan-historical-search-probe
+          path: reports/eplan-historical-search-probe.json
+          if-no-files-found: error
