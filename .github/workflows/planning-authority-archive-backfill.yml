@@ -1,4 +1,4 @@
-name: Planning authority archive backfill
+name: Planning historical stage drain
 
 on:
   workflow_dispatch:
@@ -6,14 +6,13 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/planning-authority-archive-backfill.yml"
-      - "scripts/backfill-planning-authority-archives-2012-2016.mjs"
-      - "scripts/import-planning-authority-archives-2012-2016.mjs"
+      - "scripts/drain-planning-historical-stage.mjs"
 
 permissions:
   contents: read
 
 jobs:
-  backfill:
+  drain:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
@@ -25,7 +24,5 @@ jobs:
         with:
           node-version: 22
       - run: npm ci
-      - name: Fetch official authority archives
-        run: node scripts/backfill-planning-authority-archives-2012-2016.mjs .tmp/planning-authority-archives-2012-2016.ndjson
-      - name: Stage and import historical records
-        run: node scripts/import-planning-authority-archives-2012-2016.mjs .tmp/planning-authority-archives-2012-2016.ndjson
+      - name: Drain staged historical records safely
+        run: node scripts/drain-planning-historical-stage.mjs
