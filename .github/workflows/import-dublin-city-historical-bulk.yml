@@ -1,0 +1,31 @@
+name: Import Dublin City historical bulk
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/import-dublin-city-historical-bulk.py
+      - .github/workflows/import-dublin-city-historical-bulk.yml
+
+permissions:
+  contents: read
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      BATCH_SIZE: '100'
+      MAX_ROWS: '100'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install shapefile reader
+        run: pip install pyshp==3.1.6
+      - name: Import controlled Dublin City sample
+        run: python scripts/import-dublin-city-historical-bulk.py
