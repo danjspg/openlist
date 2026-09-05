@@ -54,7 +54,7 @@ const getHomepagePlanningSummaryCached = unstable_cache(
       latestRegistrationDate: summary.latestRegistrationDate ?? null,
     }
   },
-  ["homepage-planning-summary", "v3-dataset-publication"],
+  ["homepage-planning-summary", "v4-historical-backfill"],
   { revalidate: 60 * 60 * 6, tags: [PLANNING_DATASET_CACHE_TAG] }
 )
 
