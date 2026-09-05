@@ -7,30 +7,30 @@ function text(value) {
 function refs(html) {
   return [...html.matchAll(/AppFileRefDetails\/([^/"'?#]+)\/\d+/gi)].map((m) => decodeURIComponent(m[1]))
 }
+function cookiesFrom(headers) {
+  const raw = typeof headers.getSetCookie === "function" ? headers.getSetCookie() : [headers.get("set-cookie")].filter(Boolean)
+  return raw.map((value) => String(value).split(";")[0]).filter(Boolean)
+}
 
 const landing = await fetch(`${BASE}/SearchExact`, { headers: { "User-Agent": UA } })
 const html = await landing.text()
 const tokens = [...html.matchAll(/name=["']__RequestVerificationToken["'][^>]*value=["']([^"']+)/gi)].map((m) => m[1])
 const token = tokens.at(-1)
-const cookie = landing.headers.get("set-cookie")?.split(";")[0] || ""
+const cookies = cookiesFrom(landing.headers)
+const cookie = cookies.join("; ")
 if (!token) throw new Error("No verification token")
-console.log("landing", landing.status, "cookie", Boolean(cookie), "tokens", tokens.length, "bytes", html.length)
+console.log("landing", landing.status, "cookies", cookies.map((item) => item.split("=")[0]), "tokens", tokens.length, "bytes", html.length)
 
 for (const query of ["12", "120", "13", "16"]) {
-  const form = new URLSearchParams({
-    __RequestVerificationToken: token,
-    TxtFileNumber: query,
-    TxtName: "",
-    TxtAddress: "",
-    TxtDevdescription: "",
-    "CheckBoxList[0].Id": "0",
-    "CheckBoxList[0].Name": "Kildare County Council",
-    "CheckBoxList[0].IsSelected": "true",
-    LstTimeLimit: "0",
-    SearchType: "Exact",
-    CountyTownCount: "1",
-    CountyTownCouncilNames: "Kildare County Council:0,",
-  })
+  const form = new URLSearchParams()
+  for (const [name, value] of [
+    ["__RequestVerificationToken", token],
+    ["TxtFileNumber", query], ["TxtName", ""], ["TxtAddress", ""], ["TxtDevdescription", ""],
+    ["CheckBoxList[0].Id", "0"], ["CheckBoxList[0].Name", "Kildare County Council"],
+    ["CheckBoxList[0].IsSelected", "true"], ["CheckBoxList[0].IsSelected", "false"],
+    ["LstTimeLimit", "0"], ["SearchType", "Exact"], ["CountyTownCount", "1"],
+    ["CountyTownCouncilNames", "Kildare County Council:0,"],
+  ]) form.append(name, value)
   const response = await fetch(`${BASE}/searchresults`, {
     method: "POST",
     headers: {
