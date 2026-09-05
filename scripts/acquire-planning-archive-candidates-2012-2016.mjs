@@ -3,18 +3,43 @@ import fs from "node:fs"
 const OUTPUT = process.argv[2] || ".tmp/planning-archive-candidates-2012-2016.ndjson"
 const PAGE_SIZE = 1000
 const YEARS = [2012, 2013, 2014, 2015, 2016]
+const COMMON_DATES = ["received_d", "RecievedDate", "ReceivedDate", "Received_Date", "DateReceived", "DATE_RECEIVED", "RECEIVED", "REC_DATE", "RECDATE", "AppDate", "APPDATE", "ApplicationDate", "Application_Date", "DATE", "Date"]
 const SOURCES = [
   {
     code: "DONEGAL",
     authority: "Donegal County Council",
     base: "https://services2.arcgis.com/WRtfelnPg3R7bCEW/ArcGIS/rest/services/Applications_since_2010_Pro/FeatureServer/0",
-    dateCandidates: ["received_d", "ReceivedDate", "Received_Date", "DateReceived", "DATE_RECEIVED", "RECEIVED", "REC_DATE", "RECDATE", "AppDate", "APPDATE", "ApplicationDate"],
+    dateCandidates: COMMON_DATES,
   },
   {
     code: "MEATH",
     authority: "Meath County Council",
     base: "https://services-eu1.arcgis.com/33tCl0taHHdVAN9O/arcgis/rest/services/DM_PACE_PlanningApplicationPublic/FeatureServer/1",
-    dateCandidates: ["RecievedDate", "ReceivedDate"],
+    dateCandidates: COMMON_DATES,
+  },
+  {
+    code: "ROSCOMMON",
+    authority: "Roscommon County Council",
+    base: "https://services1.arcgis.com/0g8o874l5un2eDgz/arcgis/rest/services/Planning_Finder_App_Planning_Points_Historical/FeatureServer",
+    dateCandidates: COMMON_DATES,
+  },
+  {
+    code: "WESTMEATH",
+    authority: "Westmeath County Council",
+    base: "https://services-eu1.arcgis.com/DsXSaNAVVnwb89Pt/arcgis/rest/services/HistoricPlanningRegisterSites/FeatureServer",
+    dateCandidates: COMMON_DATES,
+  },
+  {
+    code: "WICKLOW",
+    authority: "Wicklow County Council",
+    base: "https://services.arcgis.com/hQOfkHGHCu8mgDpG/arcgis/rest/services/External_Planning_Apps/FeatureServer",
+    dateCandidates: COMMON_DATES,
+  },
+  {
+    code: "CLARE",
+    authority: "Clare County Council",
+    base: "https://services8.arcgis.com/OnLILyV2xWhWjtPS/arcgis/rest/services/Planning_Applications_WFL1/FeatureServer",
+    dateCandidates: COMMON_DATES,
   },
 ]
 
@@ -37,6 +62,15 @@ async function json(url) {
   }
 }
 
+async function resolveLayer(base) {
+  if (/\/FeatureServer\/\d+$/.test(base)) return base
+  const service = await json(`${base}?f=json`)
+  const candidates = [...(service.layers || []), ...(service.tables || [])]
+  if (!candidates.length) throw new Error(`No layers found for ${base}`)
+  const preferred = candidates.find((layer) => /planning|application|historic|register|point|site/i.test(layer.name || "")) || candidates[0]
+  return `${base}/${preferred.id}`
+}
+
 function pickDateField(meta, source) {
   const fields = meta.fields || []
   const exact = new Map(fields.map((field) => [field.name.toLowerCase(), field]))
@@ -44,7 +78,7 @@ function pickDateField(meta, source) {
     const field = exact.get(candidate.toLowerCase())
     if (field) return field
   }
-  return fields.find((field) => field.type === "esriFieldTypeDate" && /(receiv|reciev|app.*date|date.*app)/i.test(field.name)) || null
+  return fields.find((field) => /(receiv|reciev|lodg|valid|app.*date|date.*app|reg.*date|date.*reg)/i.test(field.name)) || null
 }
 
 function yearWhere(field, year) {
@@ -90,11 +124,13 @@ const stream = fs.createWriteStream(OUTPUT, { encoding: "utf8" })
 const summary = {}
 
 for (const source of SOURCES) {
-  const meta = await json(`${source.base}?f=json`)
+  const base = await resolveLayer(source.base)
+  const meta = await json(`${base}?f=json`)
   const dateField = pickDateField(meta, source)
   console.log(JSON.stringify({
     phase: "metadata",
     authority: source.code,
+    base,
     layerName: meta.name,
     maxRecordCount: meta.maxRecordCount,
     dateField: dateField?.name || null,
@@ -108,11 +144,11 @@ for (const source of SOURCES) {
   summary[source.code] = {}
   for (const year of YEARS) {
     const where = yearWhere(dateField, year)
-    const expected = await countFor(source.base, where)
-    const features = await featuresFor(source.base, where)
+    const expected = await countFor(base, where)
+    const features = await featuresFor(base, where)
     summary[source.code][year] = { expected, fetched: features.length }
     for (const feature of features) {
-      stream.write(`${JSON.stringify({ source: { code: source.code, authority: source.authority, base: source.base, dateField: dateField.name }, feature })}\n`)
+      stream.write(`${JSON.stringify({ source: { code: source.code, authority: source.authority, base, dateField: dateField.name }, feature })}\n`)
     }
     console.log(JSON.stringify({ authority: source.code, year, expected, fetched: features.length }))
     if (features.length !== expected) throw new Error(`${source.code} ${year}: expected ${expected}, fetched ${features.length}`)
