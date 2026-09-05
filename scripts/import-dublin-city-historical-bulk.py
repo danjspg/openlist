@@ -8,6 +8,7 @@ SUPABASE_URL = os.environ['NEXT_PUBLIC_SUPABASE_URL'].rstrip('/')
 SERVICE_KEY = os.environ['SUPABASE_SERVICE_ROLE_KEY']
 BATCH_SIZE = int(os.environ.get('BATCH_SIZE', '500'))
 MAX_ROWS = int(os.environ.get('MAX_ROWS', '0'))
+START_AT = int(os.environ.get('START_AT', '0'))
 START_YEAR = 2003
 END_YEAR = 2016
 EXPECTED_TOTAL = 47144
@@ -60,10 +61,10 @@ def rpc(rows, attempt=1):
         with urllib.request.urlopen(req, timeout=120) as resp:
             body = json.loads(resp.read().decode('utf-8'))
     except Exception as exc:
-        if attempt >= 3:
+        if attempt >= 4:
             raise
         print(json.dumps({'phase':'rpc_retry','attempt':attempt,'rows':len(rows),'error':str(exc)[:300]}), flush=True)
-        time.sleep(attempt * 2)
+        time.sleep(attempt * 3)
         return rpc(rows, attempt + 1)
     if not isinstance(body, list) or len(body) != 1:
         raise RuntimeError(f'Unexpected RPC response: {body!r}')
@@ -138,28 +139,32 @@ with zipfile.ZipFile(io.BytesIO(archive)) as z:
 
 if not MAX_ROWS and len(rows) != EXPECTED_TOTAL:
     raise RuntimeError(f'Expected {EXPECTED_TOTAL} Dublin rows, got {len(rows)}')
+if START_AT < 0 or START_AT > len(rows):
+    raise RuntimeError(f'Invalid START_AT {START_AT} for {len(rows)} prepared rows')
 
-print(json.dumps({'phase':'prepared','rows':len(rows),'unique_refs':len(refs),'batch_size':BATCH_SIZE,'max_rows':MAX_ROWS}), flush=True)
+rows_to_import = rows[START_AT:]
+print(json.dumps({'phase':'prepared','rows':len(rows),'remaining_rows':len(rows_to_import),'unique_refs':len(refs),'batch_size':BATCH_SIZE,'max_rows':MAX_ROWS,'start_at':START_AT}), flush=True)
 
 total_attempted = 0
 total_inserted = 0
-for i in range(0, len(rows), BATCH_SIZE):
-    batch = rows[i:i+BATCH_SIZE]
+for i in range(0, len(rows_to_import), BATCH_SIZE):
+    batch = rows_to_import[i:i+BATCH_SIZE]
     attempted, inserted = rpc(batch)
     total_attempted += attempted
     total_inserted += inserted
     print(json.dumps({
         'phase':'batch',
         'batch': i // BATCH_SIZE + 1,
+        'source_offset': START_AT + i,
         'batch_rows': len(batch),
         'attempted': attempted,
         'inserted': inserted,
         'cumulative_attempted': total_attempted,
         'cumulative_inserted': total_inserted,
     }), flush=True)
-    time.sleep(0.15)
+    time.sleep(0.25)
 
-if total_attempted != len(rows):
-    raise RuntimeError(f'RPC attempted mismatch: prepared={len(rows)} attempted={total_attempted}')
+if total_attempted != len(rows_to_import):
+    raise RuntimeError(f'RPC attempted mismatch: remaining={len(rows_to_import)} attempted={total_attempted}')
 
-print(json.dumps({'phase':'complete','prepared':len(rows),'attempted':total_attempted,'inserted':total_inserted,'deduped':total_attempted-total_inserted}), flush=True)
+print(json.dumps({'phase':'complete','prepared':len(rows),'start_at':START_AT,'attempted':total_attempted,'inserted':total_inserted,'deduped':total_attempted-total_inserted}), flush=True)
