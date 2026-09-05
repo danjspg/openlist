@@ -6,7 +6,8 @@ SUPABASE_URL=os.environ['NEXT_PUBLIC_SUPABASE_URL'].rstrip('/')
 SERVICE_KEY=os.environ['SUPABASE_SERVICE_ROLE_KEY']
 BATCH_SIZE=int(os.environ.get('BATCH_SIZE','250'))
 MIN_BATCH_SIZE=int(os.environ.get('MIN_BATCH_SIZE','25'))
-EXPECTED_TOTAL=6232
+EXPECTED_RAW_TOTAL=6232
+EXPECTED_UNIQUE_TOTAL=6224
 
 
 def clean(v):
@@ -95,12 +96,14 @@ while True:
     offset+=len(features)
     print(json.dumps({'phase':'fetch','offset':offset}),flush=True)
 
+if len(rows)!=EXPECTED_RAW_TOTAL:
+    raise RuntimeError(f'Expected {EXPECTED_RAW_TOTAL} usable Kerry source rows, got {len(rows)}')
 unique={}
 for r in rows: unique[r['reference']]=r
 rows=list(unique.values())
-if len(rows)!=EXPECTED_TOTAL:
-    raise RuntimeError(f'Expected {EXPECTED_TOTAL} unique Kerry rows, got {len(rows)}')
-print(json.dumps({'phase':'prepared','rows':len(rows),'batch_size':BATCH_SIZE}),flush=True)
+if len(rows)!=EXPECTED_UNIQUE_TOTAL:
+    raise RuntimeError(f'Expected {EXPECTED_UNIQUE_TOTAL} unique Kerry rows, got {len(rows)}')
+print(json.dumps({'phase':'prepared','raw_rows':EXPECTED_RAW_TOTAL,'rows':len(rows),'source_duplicates':EXPECTED_RAW_TOTAL-len(rows),'batch_size':BATCH_SIZE}),flush=True)
 
 attempted=inserted=0
 for i in range(0,len(rows),BATCH_SIZE):
