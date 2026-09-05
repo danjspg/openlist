@@ -23,7 +23,7 @@ function returnPath(formData: FormData) {
   return value.startsWith("/planning/") ? value : null
 }
 
-export async function enablePlanningAlert(formData: FormData) {
+async function enablePlanningAlertInternal(formData: FormData) {
   const currentUser = await requireUser()
   const application_id = applicationId(formData)
   const supabase = getServerSupabase()
@@ -59,6 +59,14 @@ export async function enablePlanningAlert(formData: FormData) {
   if (path) revalidatePath(path)
 
   return { created: !existingSubscription }
+}
+
+export async function enablePlanningAlert(formData: FormData) {
+  await enablePlanningAlertInternal(formData)
+}
+
+export async function enablePlanningAlertWithResult(formData: FormData) {
+  return enablePlanningAlertInternal(formData)
 }
 
 export async function disablePlanningAlert(formData: FormData) {
