@@ -1,0 +1,23 @@
+name: Probe Kerry planning archive
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/probe-kerry-planning-archive.mjs
+      - .github/workflows/probe-kerry-planning-archive.yml
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node scripts/probe-kerry-planning-archive.mjs
