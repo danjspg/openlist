@@ -39,7 +39,7 @@ async function json(url) {
 
 for (const authority of AUTHORITIES) {
   const search = new URL("https://www.arcgis.com/sharing/rest/search")
-  search.searchParams.set("q", `\"${authority}\" planning type:\"Feature Service\"")
+  search.searchParams.set("q", `\"${authority}\" planning type:\"Feature Service\"`)
   search.searchParams.set("num", "100")
   search.searchParams.set("f", "json")
   const body = await json(search)
