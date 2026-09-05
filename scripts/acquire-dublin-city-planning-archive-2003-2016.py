@@ -18,6 +18,23 @@ counts = Counter()
 refs = set()
 written = 0
 
+def year_from(v):
+    if v in (None, ''):
+        return None
+    if hasattr(v, 'year'):
+        return int(v.year)
+    s = str(v).strip()
+    digits = ''.join(ch if ch.isdigit() else ' ' for ch in s).split()
+    for p in digits:
+        if len(p) == 4 and 1900 <= int(p) <= 2100:
+            return int(p)
+        if len(p) >= 8:
+            for i in range(len(p) - 3):
+                y = int(p[i:i+4])
+                if 1900 <= y <= 2100:
+                    return y
+    return None
+
 with zipfile.ZipFile(io.BytesIO(data)) as z:
     names = z.namelist()
     shp = next(n for n in names if n.lower().endswith('.shp'))
@@ -37,11 +54,8 @@ with zipfile.ZipFile(io.BytesIO(data)) as z:
     with open(OUT, 'w', encoding='utf-8') as out:
         for sr in reader.iterShapeRecords():
             row = sr.record.as_dict()
-            reg = row.get('REGDATE')
-            if not reg or not hasattr(reg, 'year'):
-                continue
-            year = int(reg.year)
-            if year < START_YEAR or year > END_YEAR:
+            year = year_from(row.get('REGDATE'))
+            if year is None or year < START_YEAR or year > END_YEAR:
                 continue
             ref = str(row.get('PLAN_REF') or '').strip()
             if not ref:
