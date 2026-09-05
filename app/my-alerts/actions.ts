@@ -28,6 +28,15 @@ export async function enablePlanningAlert(formData: FormData) {
   const application_id = applicationId(formData)
   const supabase = getServerSupabase()
 
+  const { data: existingSubscription, error: existingError } = await supabase
+    .from("planning_alert_subscriptions")
+    .select("id")
+    .eq("user_id", currentUser.id)
+    .eq("application_id", application_id)
+    .maybeSingle()
+
+  if (existingError) throw new Error(existingError.message)
+
   const { error } = await supabase
     .from("planning_alert_subscriptions")
     .upsert(
@@ -48,6 +57,8 @@ export async function enablePlanningAlert(formData: FormData) {
   revalidatePath("/my-alerts")
   const path = returnPath(formData)
   if (path) revalidatePath(path)
+
+  return { created: !existingSubscription }
 }
 
 export async function disablePlanningAlert(formData: FormData) {
