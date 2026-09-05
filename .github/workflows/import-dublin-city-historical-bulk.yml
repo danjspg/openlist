@@ -18,8 +18,9 @@ jobs:
     env:
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      BATCH_SIZE: '500'
+      BATCH_SIZE: '250'
       MAX_ROWS: '0'
+      START_AT: '24500'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -27,5 +28,5 @@ jobs:
           python-version: '3.12'
       - name: Install shapefile reader
         run: pip install pyshp==3.1.6
-      - name: Import full Dublin City archive
+      - name: Resume Dublin City archive import
         run: python scripts/import-dublin-city-historical-bulk.py
