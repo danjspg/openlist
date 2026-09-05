@@ -4,7 +4,10 @@ import { planningReferenceFromSlug } from "../lib/property-intelligence"
 import {
   countVercelVisits,
   readVercelAnalyticsConfig,
+  topVercelDimension,
+  topVercelEvents,
   topVercelPaths,
+  VercelAnalyticsDimensionRow,
   VercelAnalyticsPathRow,
 } from "../lib/vercel-web-analytics"
 
@@ -32,6 +35,21 @@ const printPathRows = (label: string, rows: VercelAnalyticsPathRow[]) => {
     console.log(
       `- ${row.requestPath}: ${formatCount(row.visitors)} visitors, ${formatCount(row.pageviews)} pageviews`
     )
+  }
+}
+
+const printDimensionRows = (
+  label: string,
+  rows: VercelAnalyticsDimensionRow[],
+  limit = 10
+) => {
+  console.log(label)
+  if (rows.length === 0) {
+    console.log("- no observed rows")
+    return
+  }
+  for (const row of rows.slice(0, limit)) {
+    console.log(`- ${row.value}: ${formatCount(row.visitors)} visitors, ${formatCount(row.pageviews)} pageviews`)
   }
 }
 
@@ -165,6 +183,19 @@ function printNotableWindow(
   printDimension("Notable traffic by classification source", dimensions.sources)
 }
 
+async function safeDimension(
+  label: string,
+  query: () => Promise<VercelAnalyticsDimensionRow[]>
+): Promise<VercelAnalyticsDimensionRow[]> {
+  try {
+    return await query()
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    console.log(`${label}: unavailable — ${message}`)
+    return []
+  }
+}
+
 async function main() {
   const config = readVercelAnalyticsConfig()
   if (!config) {
@@ -203,6 +234,7 @@ async function main() {
       .slice(0, 10)
 
     console.log("Vercel Web Analytics (production traffic, rolling windows):")
+    console.log(`- Captured: ${until.toISOString()}`)
     console.log(`- Last 24 hours: ${formatCount(last24h.visitors)} visitors, ${formatCount(last24h.pageviews)} pageviews`)
     console.log(`- Last 7 days: ${formatCount(last7d.visitors)} visitors, ${formatCount(last7d.pageviews)} pageviews`)
     console.log(`- Last 28 days: ${formatCount(last28d.visitors)} visitors, ${formatCount(last28d.pageviews)} pageviews`)
@@ -210,6 +242,41 @@ async function main() {
     console.log(`- Sold Prices, last 28 days: ${formatCount(soldPrices28d.visitors)} visitors, ${formatCount(soldPrices28d.pageviews)} pageviews`)
     printPathRows("Top Planning application pages by visitors, last 28 days:", topPlanningApplications)
     printPathRows("Top Sold Prices pages by visitors, last 28 days:", topSoldPrices)
+
+    console.log("Traffic acquisition and audience, last 28 days:")
+    const [referrers, countries, devices, operatingSystems, browsers, routes, utmSources, utmCampaigns] = await Promise.all([
+      safeDimension("Top referrers", () => topVercelDimension(config, since28d, until, "referrerHostname", 10)),
+      safeDimension("Top countries", () => topVercelDimension(config, since28d, until, "country", 10)),
+      safeDimension("Device mix", () => topVercelDimension(config, since28d, until, "deviceType", 10)),
+      safeDimension("Operating systems", () => topVercelDimension(config, since28d, until, "osName", 10)),
+      safeDimension("Browsers", () => topVercelDimension(config, since28d, until, "browserName", 10)),
+      safeDimension("Routes", () => topVercelDimension(config, since28d, until, "route", 10)),
+      safeDimension("UTM sources", () => topVercelDimension(config, since28d, until, "utmSource", 10)),
+      safeDimension("UTM campaigns", () => topVercelDimension(config, since28d, until, "utmCampaign", 10)),
+    ])
+    printDimensionRows("Top referrer hostnames:", referrers)
+    printDimensionRows("Top countries:", countries)
+    printDimensionRows("Device mix:", devices)
+    printDimensionRows("Top operating systems:", operatingSystems)
+    printDimensionRows("Top browsers:", browsers)
+    printDimensionRows("Top framework routes:", routes)
+    if (utmSources.length) printDimensionRows("UTM sources:", utmSources)
+    if (utmCampaigns.length) printDimensionRows("UTM campaigns:", utmCampaigns)
+
+    try {
+      const customEvents = await topVercelEvents(config, since28d, until, 20)
+      console.log("Custom conversion/interactions, last 28 days:")
+      if (!customEvents.length) {
+        console.log("- no custom events observed yet; page traffic analytics remain active")
+      } else {
+        for (const event of customEvents) {
+          console.log(`- ${event.eventName}: ${formatCount(event.count)} events, ${formatCount(event.visitors)} visitors`)
+        }
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      console.log(`Custom conversion/interactions: unavailable — ${message}`)
+    }
 
     const notableMetadata = await loadNotableMetadata([
       ...new Set([...planningPaths24h, ...planningPaths7d, ...planningPaths28d].map((row) => row.requestPath)),
@@ -223,7 +290,7 @@ async function main() {
       console.log("Notable/category totals are an observed top-100 Planning-path sample because Vercel's aggregate endpoint caps requestPath results at 100; individual top notable rankings within that observed set are exact.")
     }
 
-    console.log("Vercel Web Analytics measures actual production visits from all traffic sources; Search Console remains the source for Google search performance.")
+    console.log("Vercel Web Analytics measures actual production visits from all traffic sources; Search Console remains the source for Google search performance. Referrer, geography, device, route and custom-event sections use Vercel's public aggregate API and degrade independently if a dimension is unavailable.")
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     console.log(`Vercel Web Analytics: unavailable — ${message}`)
