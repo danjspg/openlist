@@ -65,5 +65,7 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           ACP_PROCESS_BATCH_SIZE: "25"
-          ACP_PROCESS_MAX_BATCHES: "10"
+          # Lookup can enqueue up to 250 cases per run. Allow up to 500 queue
+          # rows to be processed so an existing backlog is guaranteed to drain.
+          ACP_PROCESS_MAX_BATCHES: "20"
         run: node scripts/process-planning-appeals.mjs

@@ -2,7 +2,9 @@ name: Refresh Planning Appeals
 
 on:
   schedule:
-    - cron: "37 10 * * 2"
+    # ACP appeal activity feeds authoritative application state and alerts, so
+    # keep the current source at daily rather than weekly freshness.
+    - cron: "37 10 * * *"
   workflow_dispatch:
     inputs:
       process_only:
