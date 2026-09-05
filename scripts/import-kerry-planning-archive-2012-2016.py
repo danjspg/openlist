@@ -65,7 +65,7 @@ rows=[]; offset=0
 while True:
     params={
         'where':where,'outFields':'*','returnGeometry':'true','orderByFields':'OBJECTID ASC',
-        'resultOffset':str(offset),'resultRecordCount':'2000','f':'json','outSR':'2157'
+        'resultOffset':str(offset),'resultRecordCount':'1000','f':'json','outSR':'2157'
     }
     body=get_json(f"{SOURCE}/query?{urllib.parse.urlencode(params)}")
     features=body.get('features') or []
@@ -94,7 +94,6 @@ while True:
         })
     offset+=len(features)
     print(json.dumps({'phase':'fetch','offset':offset}),flush=True)
-    if len(features)<2000: break
 
 unique={}
 for r in rows: unique[r['reference']]=r
